@@ -1,0 +1,102 @@
+name: Multi-Provider Agent AI Developer
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+
+jobs:
+  detect-and-run-agent:
+    # Executa se a Issue ganhar a label 'gpt-build' ou se alguém comentar '/agent'
+    if: github.event.label.name == 'gpt-build' || contains(github.event.comment.body, '/agent')
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Garante o histórico do Git para commits e PRs
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar Aider (CLI do Agente de Código)
+        run: |
+          python -m pip install --upgrade pip
+          pip install aider-chat
+
+      - name: Detectar Provedor de IA e Executar
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          # 1. Prioriza a instrução enviada no comentário ou no corpo da Issue
+          PROMPT_TEXT="$COMMENT_BODY"
+          if [ -z "$PROMPT_TEXT" ] || [ "$PROMPT_TEXT" = "null" ]; then
+            PROMPT_TEXT="$ISSUE_BODY"
+          fi
+
+          # Remove o comando ativador '/agent' do texto enviado à IA
+          CLEAN_PROMPT=$(echo "$PROMPT_TEXT" | sed 's/\/agent//g')
+
+          echo "------------------------------------------------"
+          echo "🔍 Verificando chaves de API disponíveis..."
+          echo "------------------------------------------------"
+
+          MODEL_SELECTED=""
+
+          # 2. Resolução de Prioridades de Provedores
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "✅ OpenAI API Key encontrada! Usando GPT-4o."
+            MODEL_SELECTED="openai/gpt-4o"
+
+          elif [ -n "$ANTHROPIC_API_KEY" ]; then
+            echo "✅ Anthropic API Key encontrada! Usando Claude 3.5 Sonnet."
+            MODEL_SELECTED="anthropic/claude-3-5-sonnet-20241022"
+
+          elif [ -n "$DEEPSEEK_API_KEY" ]; then
+            echo "✅ DeepSeek API Key encontrada! Usando DeepSeek Coder."
+            MODEL_SELECTED="deepseek/deepseek-coder"
+
+          elif [ -n "$GEMINI_API_KEY" ]; then
+            echo "✅ Gemini API Key encontrada! Usando Gemini 1.5 Pro."
+            MODEL_SELECTED="gemini/gemini-1.5-pro"
+
+          else
+            echo "❌ Nenhuma chave de API de IA foi encontrada nos Organization Secrets!"
+            echo "Cadastre pelo menos uma das chaves: OPENAI_API_KEY, ANTHROPIC_API_KEY, DEEPSEEK_API_KEY ou GEMINI_API_KEY."
+            exit 1
+          fi
+
+          echo "🚀 Executando o Agent com o modelo: $MODEL_SELECTED"
+          echo "------------------------------------------------"
+
+          # 3. Execução do Aider para ler o código, aplicar alterações e commitar
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          aider --model "$MODEL_SELECTED" \
+                --message "$CLEAN_PROMPT" \
+                --auto-commits \
+                --yes-always
+
+      - name: Enviar confirmação na Issue
+        if: success()
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            🤖 **Agent AI Finalizado:**
+            As alterações foram processadas e commitadas no repositório. O **Railway** iniciará o deploy automático em instantes!
