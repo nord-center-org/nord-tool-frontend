@@ -29,10 +29,10 @@ export default function DeliveriesPage() {
       const savedCondo = localStorage.getItem("@NordTool:filter_del_condo");
       const savedTime = localStorage.getItem("@NordTool:filter_del_time");
 
-      if (savedCondo && savedCondo !== filterNord) {
+      if (savedCondo === "Nord 1" || savedCondo === "Nord 2" || savedCondo === "Energy") {
         setFilterNord(savedCondo as "Nord 1" | "Nord 2" | "Energy");
       }
-      if (savedTime && savedTime !== activeTab) {
+      if (savedTime === "current" || savedTime === "next" || savedTime === "all") {
         setActiveTab(savedTime as "current" | "next" | "all");
       }
 
@@ -138,7 +138,7 @@ export default function DeliveriesPage() {
   };
 
   // Função auxiliar para normalizar datas (lida com YYYY-MM-DD e DD/MM/YYYY)
-  const getNormalizedDate = (apt: any) => {
+  const getNormalizedDate = (apt: ApartamentoVistoriaDto) => {
     const raw = apt.dtVistoria || apt.dtApartamentoVigente || apt.dtRevistoriaVigente;
     if (!raw) return null;
     const s = String(raw);
@@ -160,7 +160,7 @@ export default function DeliveriesPage() {
   const proximaSemana = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 7);
   const startNext = format(startOfWeek(proximaSemana, { weekStartsOn: 1 }), "yyyy-MM-dd");
   const endNext = format(endOfWeek(proximaSemana, { weekStartsOn: 1 }), "yyyy-MM-dd");
-  const filtered = apartamentos.filter((apt: any) => {
+  const filtered = apartamentos.filter((apt) => {
     // Filtro de Nord e Energy (comum a todas as abas)
     const nomeApt = apt.nmApartamentoVistoria?.toUpperCase() || "";
     if (filterNord) {
@@ -183,7 +183,7 @@ export default function DeliveriesPage() {
     return false; 
   });
 
-  const groups = filtered.reduce<Record<string, ApartamentoVistoriaDto[]>>((acc, apt: any) => {
+  const groups = filtered.reduce<Record<string, ApartamentoVistoriaDto[]>>((acc, apt) => {
     const key = getNormalizedDate(apt) || "Sem Data";
     if (!acc[key]) acc[key] = [];
     acc[key].push(apt);
@@ -228,10 +228,10 @@ export default function DeliveriesPage() {
           <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Entregas</h2>
           
           <div className="flex p-1 bg-slate-200/50 rounded-lg border border-slate-200 shadow-sm">
-            {["current", "next", "all"].map((tab) => (
+            {(["current", "next", "all"] as const).map((tab) => (
               <button 
                 key={tab}
-                onClick={() => setActiveTab(tab as any)} 
+                onClick={() => setActiveTab(tab)}
                 className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === tab ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}
               >
                 {tab === "current" ? "Semana Vigente" : tab === "next" ? "Próxima Semana" : "Tudo"}
@@ -240,10 +240,10 @@ export default function DeliveriesPage() {
           </div>
 
           <div className="flex p-1 bg-slate-200/50 rounded-lg border border-slate-200 shadow-sm">
-            {["Nord 1", "Nord 2", "Energy"].map((nord) => (
+            {(["Nord 1", "Nord 2", "Energy"] as const).map((nord) => (
               <button 
                 key={nord}
-                onClick={() => setFilterNord(filterNord === nord ? null : nord as any)} 
+                onClick={() => setFilterNord(filterNord === nord ? null : nord)}
                 className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${filterNord === nord ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}
     >
       {nord}
@@ -269,14 +269,12 @@ export default function DeliveriesPage() {
         ) : (
           Object.entries(groupedApartments).map(([dateKey, list]) => {
             let displayDate = dateKey;
-            try {
-              const parsed = parseISO(dateKey);
-              if (isValid(parsed)) {
-                const diaSemana = format(parsed, "EEEE", { locale: ptBR });
-                const diaFormatado = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
-                displayDate = `${diaFormatado}, ${format(parsed, "dd/MM/yyyy")}`;
-              }
-            } catch (e) { }
+            const parsed = parseISO(dateKey);
+            if (isValid(parsed)) {
+              const diaSemana = format(parsed, "EEEE", { locale: ptBR });
+              const diaFormatado = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
+              displayDate = `${diaFormatado}, ${format(parsed, "dd/MM/yyyy")}`;
+            }
 
             const count = list.length;
             displayDate += ` (${count} ${count === 1 ? "Entrega" : "Entregas"})`;
