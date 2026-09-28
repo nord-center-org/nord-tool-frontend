@@ -120,6 +120,27 @@
   animation-delay: -1.9s;
 }
 
+.bolinho-pet--third {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.bolinho-pet--third .bolinho-pet__sprite {
+  right: auto;
+  left: 0;
+  filter: drop-shadow(2px 3px 0 rgb(15 23 42 / 0.2)) hue-rotate(90deg);
+  animation-delay: -0.95s, -0.95s;
+}
+
+.bolinho-pet--third .bolinho-pet__yarn {
+  animation-delay: -0.95s;
+}
+
+.bolinho-pet--third .bolinho-pet__thread {
+  animation-delay: -0.95s;
+}
+
 @keyframes bolinho-play {
   0%, 18%, 100% { transform: translate(0, 0); }
   28%, 42% { transform: translate(-1.3rem, -0.28rem); }
@@ -194,6 +215,12 @@
     left: 0.25rem;
     transform: scale(0.84);
     transform-origin: left bottom;
+  }
+
+  .bolinho-pet--third {
+    left: 50%;
+    transform: translateX(-50%) scale(0.84);
+    transform-origin: center bottom;
   }
 }
 

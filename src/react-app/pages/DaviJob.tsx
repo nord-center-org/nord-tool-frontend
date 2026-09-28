@@ -10,8 +10,10 @@ const tarefasDaSemana = [
   { dia: "Domingo", tarefa: "Descanso" },
 ];
 
-function BolinhoCorner({ variant }: { variant?: "second" } = {}) {
-  const className = variant === "second" ? "bolinho-pet bolinho-pet--second" : "bolinho-pet";
+function BolinhoCorner({ variant }: { variant?: "second" | "third" } = {}) {
+  let className = "bolinho-pet";
+  if (variant === "second") className = "bolinho-pet bolinho-pet--second";
+  if (variant === "third") className = "bolinho-pet bolinho-pet--third";
   return (
     <div className={className} aria-hidden="true">
       <span className="bolinho-pet__thread" />
@@ -85,6 +87,7 @@ export default function DaviJobPage() {
 
       <BolinhoCorner />
       <BolinhoCorner variant="second" />
+      <BolinhoCorner variant="third" />
     </div>
   );
 }
