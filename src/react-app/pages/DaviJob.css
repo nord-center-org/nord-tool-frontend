@@ -1,0 +1,209 @@
+.davi-job-table-stage {
+  position: relative;
+}
+
+.bolinho-pet {
+  position: fixed;
+  right: 0.85rem;
+  bottom: 0.3rem;
+  z-index: 30;
+  width: 8.6rem;
+  height: 5.5rem;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+.bolinho-pet__sprite {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: block;
+  width: 5.55rem;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(2px 3px 0 rgb(15 23 42 / 0.2));
+  animation:
+    bolinho-play 3.8s steps(8, end) infinite,
+    bolinho-bounce 3.8s steps(6, end) infinite;
+}
+
+.bolinho-pet__leg {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+
+.bolinho-pet__leg--back {
+  animation: bolinho-leg-back 3.8s steps(4, end) infinite;
+}
+
+.bolinho-pet__leg--front {
+  animation: bolinho-leg-front 3.8s steps(4, end) infinite;
+}
+
+.bolinho-pet__ear {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: bolinho-ear 3.8s steps(2, end) infinite;
+}
+
+.bolinho-pet__ear:last-of-type {
+  animation-delay: 1.9s;
+}
+
+.bolinho-pet__tail {
+  transform-box: fill-box;
+  transform-origin: left bottom;
+  animation: bolinho-tail 0.45s steps(2, end) infinite alternate;
+}
+
+.bolinho-pet__paw {
+  transform-box: fill-box;
+  transform-origin: right center;
+  animation: bolinho-paw 3.8s steps(8, end) infinite;
+}
+
+.bolinho-pet__blink {
+  opacity: 0;
+  animation: bolinho-blink 3.8s steps(1, end) infinite;
+}
+
+.bolinho-pet__yarn {
+  position: absolute;
+  left: 0.1rem;
+  bottom: 0.18rem;
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 3px solid #8f174c;
+  border-radius: 50%;
+  background:
+    linear-gradient(45deg, transparent 42%, #fbcfe8 43% 53%, transparent 54%),
+    linear-gradient(-45deg, transparent 42%, #fbcfe8 43% 53%, transparent 54%),
+    #ec4899;
+  box-shadow: inset -3px -3px 0 #be185d;
+  animation: bolinho-yarn 3.8s steps(8, end) infinite;
+}
+
+.bolinho-pet__thread {
+  position: absolute;
+  bottom: 1.3rem;
+  left: 1.15rem;
+  width: 3rem;
+  height: 1.2rem;
+  border-top: 2px solid #be185d;
+  border-radius: 50%;
+  transform-origin: left center;
+  animation: bolinho-thread 3.8s steps(8, end) infinite;
+}
+
+.bolinho-pet--second {
+  right: auto;
+  left: 0.85rem;
+}
+
+.bolinho-pet--second .bolinho-pet__sprite {
+  right: auto;
+  left: 0;
+  transform: scaleX(-1);
+  filter: drop-shadow(2px 3px 0 rgb(15 23 42 / 0.2)) hue-rotate(200deg);
+  animation-delay: -1.9s, -1.9s;
+}
+
+.bolinho-pet--second .bolinho-pet__yarn {
+  left: auto;
+  right: 0.1rem;
+  animation-delay: -1.9s;
+}
+
+.bolinho-pet--second .bolinho-pet__thread {
+  left: auto;
+  right: 1.15rem;
+  animation-delay: -1.9s;
+}
+
+@keyframes bolinho-play {
+  0%, 18%, 100% { transform: translate(0, 0); }
+  28%, 42% { transform: translate(-1.3rem, -0.28rem); }
+  52%, 65% { transform: translate(-2.65rem, 0); }
+  76% { transform: translate(-1.25rem, -0.28rem); }
+}
+
+@keyframes bolinho-tail {
+  from { transform: rotate(-12deg); }
+  to { transform: rotate(20deg); }
+}
+
+@keyframes bolinho-paw {
+  0%, 42%, 100% { transform: rotate(0); }
+  52%, 63% { transform: rotate(-42deg) translate(-6px, -5px); }
+}
+
+@keyframes bolinho-yarn {
+  0%, 43%, 100% { transform: translateX(0) rotate(0); }
+  54%, 66% { transform: translateX(1.85rem) rotate(360deg); }
+  76% { transform: translateX(0.7rem) rotate(480deg); }
+}
+
+@keyframes bolinho-thread {
+  0%, 43%, 100% { transform: rotate(-18deg) scaleX(1); }
+  54%, 66% { transform: rotate(-32deg) scaleX(1.55); }
+  76% { transform: rotate(-23deg) scaleX(1.2); }
+}
+
+@keyframes bolinho-blink {
+  0%, 70%, 100% { opacity: 0; }
+  73%, 76% { opacity: 1; }
+}
+
+@keyframes bolinho-bounce {
+  0%, 18%, 100% { transform: translateY(0); }
+  23%, 30%, 37% { transform: translateY(-1.5px); }
+  26%, 34% { transform: translateY(0); }
+  52%, 65% { transform: translateY(0); }
+  69%, 74% { transform: translateY(-1.5px); }
+  72% { transform: translateY(0); }
+}
+
+@keyframes bolinho-leg-back {
+  0%, 18%, 52%, 65%, 100% { transform: translateY(0); }
+  22%, 30% { transform: translateY(-2px); }
+  26%, 40% { transform: translateY(0); }
+  69%, 74% { transform: translateY(-2px); }
+}
+
+@keyframes bolinho-leg-front {
+  0%, 18%, 52%, 65%, 100% { transform: translateY(0); }
+  26%, 34% { transform: translateY(-2px); }
+  30%, 45% { transform: translateY(0); }
+  71%, 76% { transform: translateY(-2px); }
+}
+
+@keyframes bolinho-ear {
+  0%, 45%, 100% { transform: rotate(0deg); }
+  48% { transform: rotate(-6deg); }
+}
+
+@media (max-width: 640px) {
+  .bolinho-pet {
+    right: 0.25rem;
+    bottom: 0.1rem;
+    transform: scale(0.84);
+    transform-origin: right bottom;
+  }
+
+  .bolinho-pet--second {
+    left: 0.25rem;
+    transform: scale(0.84);
+    transform-origin: left bottom;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bolinho-pet__sprite,
+  .bolinho-pet__tail,
+  .bolinho-pet__paw,
+  .bolinho-pet__blink,
+  .bolinho-pet__yarn,
+  .bolinho-pet__thread,
+  .bolinho-pet__leg,
+  .bolinho-pet__ear { animation: none; }
+}
