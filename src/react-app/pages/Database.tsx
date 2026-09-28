@@ -156,9 +156,9 @@ export default function DatabasePage() {
       await fetchApartamentos();
       setShowExcelMenu(false);
       alert("Planilha importada com sucesso!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro na importação:", error);
-      alert(`Falha na importação: ${error.message || "Erro desconhecido"}`);
+      alert(`Falha na importação: ${error instanceof Error ? error.message : "Erro desconhecido"}`);
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -218,7 +218,7 @@ export default function DatabasePage() {
   const filteredApartamentos = useMemo(() => {
     const hiddenStatus = "não liberado";
     
-    let result = apartamentos.filter((apt) => {
+    const result = apartamentos.filter((apt) => {
       const statusApt = apt.nmStatusVistoria?.toLowerCase() || "";
       const dataFormatada = formatarDataParaBusca(apt.dtApartamentoVigente);
 
@@ -244,20 +244,13 @@ export default function DatabasePage() {
       if (colFilters.status.length > 0 && !colFilters.status.some((s: string) => statusApt.includes(s.toLowerCase()))) return false;
       
       if (colFilters.data) {
-        let dataApt = apt.dtApartamentoVigente || "";
-        try {
-          let clean = String(dataApt).split('T')[0];
-          if (clean.includes('/')) {
-            const [d, m, y] = clean.split('/');
-            clean = `${y}-${m}-${d}`;
-          }
-          const parsed = parseISO(clean);
-          if (isValid(parsed)) {
-            dataApt = format(parsed, "yyyy-MM-dd");
-          } else {
-            dataApt = clean;
-          }
-        } catch { }
+        let dataNormalizada = String(apt.dtApartamentoVigente || "").split('T')[0];
+        if (dataNormalizada.includes('/')) {
+          const [dia, mes, ano] = dataNormalizada.split('/');
+          dataNormalizada = `${ano}-${mes}-${dia}`;
+        }
+        const parsed = parseISO(dataNormalizada);
+        const dataApt = isValid(parsed) ? format(parsed, "yyyy-MM-dd") : dataNormalizada;
         
         if (dataApt !== colFilters.data) return false;
       }
@@ -279,8 +272,8 @@ export default function DatabasePage() {
           if (!dateB) return -1;
 
           // Converte qualquer data para YYYY-MM-DD, blindando contra o fuso americano
-          const normalizarData = (d: any) => {
-            let clean = String(d).split('T')[0];
+          const normalizarData = (d: string) => {
+            const clean = String(d).split('T')[0];
             if (clean.includes('/')) {
               const parts = clean.split('/');
               if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;

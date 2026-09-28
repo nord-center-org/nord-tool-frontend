@@ -1,4 +1,4 @@
-import { useState, useEffect, useId, useMemo } from 'react';
+import { useState, useEffect, useId, useMemo, useCallback } from 'react';
 import { LayoutDashboard, Users, Archive, PlusCircle, Key, Box, CheckCircle, Clock, X, Edit2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ColaboradorService, Colaborador } from '../services/ColaboradorService';
 import { OpcoesColaboradorService, type Empresa, type Cargo, type Permissao } from '../services/OpcoesColaboradorService';
@@ -181,7 +181,7 @@ const App = () => {
     }
   };
 
-  const carregarDashboard = async () => {
+  const carregarDashboard = useCallback(async () => {
     setCarregandoDashboard(true);
     setErroDashboard(null);
     try {
@@ -191,12 +191,12 @@ const App = () => {
           const limite = 100;
           const registros: RetiradaControleChaves[] = [];
           let pagina = 0;
+          let lote: RetiradaControleChaves[] = [];
           do {
-            const lote = await ControleChavesService.listarHistorico({ limite, pagina });
+            lote = await ControleChavesService.listarHistorico({ limite, pagina });
             registros.push(...lote);
-            if (lote.length < limite) break;
             pagina += 1;
-          } while (true);
+          } while (lote.length === limite);
           return registros;
         })(),
       ]);
@@ -219,7 +219,7 @@ const App = () => {
       setDashboard(null);
       setErroDashboard(err instanceof Error ? err.message : 'Falha ao carregar o dashboard.');
     } finally { setCarregandoDashboard(false); }
-  };
+  }, [idObra]);
 
   useEffect(() => {
     carregarColaboradores();
@@ -228,7 +228,7 @@ const App = () => {
 
   useEffect(() => {
     void carregarDashboard();
-  }, [idObra]);
+  }, [carregarDashboard]);
 
   useEffect(() => {
     const atualizarObra = () => setIdObra(lerObraControleChaves());

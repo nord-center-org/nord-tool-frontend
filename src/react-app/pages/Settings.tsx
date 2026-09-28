@@ -58,7 +58,7 @@ export default function SettingsPage() {
         setDefaultDbCondo(localStorage.getItem("@NordTool:filter_db_condo") || "");
         setDefaultDbShowAll(localStorage.getItem("@NordTool:filter_db_showall") === "true");
 
-      } catch (error) {
+      } catch {
         setMessage("Erro crítico na leitura da fundação.");
       } finally {
         setLoading(false);
@@ -101,7 +101,7 @@ export default function SettingsPage() {
 
       setMessage("Parâmetros fixados com sucesso!");
       setTimeout(() => setMessage(""), 3000);
-    } catch (error) {
+    } catch {
       setMessage("Erro ao salvar os dados.");
     } finally {
       setSaving(false);
