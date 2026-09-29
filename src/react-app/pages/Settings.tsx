@@ -147,7 +147,7 @@ export default function SettingsPage() {
                   <p className="text-xs text-slate-500 font-medium mt-0.5">Obra aplicada ao Dashboard, retiradas recentes e Histórico.</p>
                 </div>
                 <label htmlFor="obra-controle-chaves" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Obra/Condomínio</label>
-                <selec
+                <select
                   id="obra-controle-chaves"
                   value={normalizarIdObraControleChaves(obraControleChaves)}
                   onChange={(event) => setObraControleChaves(event.target.value)}
@@ -220,7 +220,7 @@ export default function SettingsPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-left-2 duration-300">
                     <div className="space-y-3">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Obra/Condomínio Padrão</label>
-                      <selec
+                      <select
                         value={defaultDeliveryCondo}
                         onChange={(e) => setDefaultDeliveryCondo(e.target.value)}
                         className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 outline-none shadow-sm"
@@ -233,7 +233,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="space-y-3">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Período Padrão</label>
-                      <selec
+                      <select
                         value={defaultDeliveryTime}
                         onChange={(e) => setDefaultDeliveryTime(e.target.value)}
                         className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 outline-none shadow-sm"
@@ -266,7 +266,7 @@ export default function SettingsPage() {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-4 rounded-xl border border-slate-200">
                         {["Agendado", "Aprovado", "Reprovado", "Pendente", "Liberado","Aprovado DAT","Pendente DAT"].map((status) => (
                           <label key={status} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-2 rounded-lg">
-                            <inpu
+                            <input
                               type="checkbox"
                               checked={defaultDbStatus.includes(status)}
                               onChange={(e) => {

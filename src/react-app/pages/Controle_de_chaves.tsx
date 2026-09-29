@@ -658,7 +658,7 @@ const App = () => {
 
                 <div className="relative flex-1 sm:w-64">
                   <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
-                  <inpu
+                  <input
                     type="text"
                     value={buscaHistorico}
                     onChange={e => { setBuscaHistorico(e.target.value); setCurrentPage(1); }}
@@ -667,7 +667,7 @@ const App = () => {
                   />
                 </div>
 
-                <selec
+                <select
                   value={itemsPerPage}
                   className="border border-slate-200 rounded-xl py-2 px-3 text-sm bg-slate-50 text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500"
                   onChange={(e) => {
@@ -776,19 +776,19 @@ const App = () => {
                     </div>
                   )}
                   <label className="block text-sm font-semibold text-slate-600">Nome Completo</label>
-                  <inpu
+                  <input
                     value={formData.nmColaborador}
                     onChange={e => setFormData({...formData, nmColaborador: e.target.value})}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                   <label className="block text-sm font-semibold text-slate-600">Celular</label>
-                  <inpu
+                  <input
                     value={formData.nrCelular}
                     onChange={e => setFormData({...formData, nrCelular: e.target.value})}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                   <label className="block text-sm font-semibold text-slate-600">Empresa</label>
-                  <selec
+                  <select
                     value={formData.idEmpresa}
                     onChange={e => setFormData({...formData, idEmpresa: Number(e.target.value)})}
                     disabled={carregandoOpcoes || empresas.length === 0}
@@ -798,7 +798,7 @@ const App = () => {
                     {empresas.map(empresa => <option key={empresa.id} value={empresa.id}>{empresa.nmEmpresa}</option>)}
                   </select>
                   <label className="block text-sm font-semibold text-slate-600">Cargo</label>
-                  <selec
+                  <select
                     value={formData.idCargo}
                     onChange={e => setFormData({...formData, idCargo: Number(e.target.value)})}
                     disabled={carregandoOpcoes || cargos.length === 0}
@@ -808,7 +808,7 @@ const App = () => {
                     {cargos.map(cargo => <option key={cargo.id} value={cargo.id}>{cargo.nmCargo}</option>)}
                   </select>
                   <label className="block text-sm font-semibold text-slate-600">Permissão</label>
-                  <selec
+                  <select
                     value={formData.idPermissao}
                     onChange={e => setFormData({...formData, idPermissao: Number(e.target.value)})}
                     disabled={carregandoOpcoes || permissoes.length === 0}
@@ -829,7 +829,7 @@ const App = () => {
                 <>
                   <label htmlFor="busca-apartamento" className="block text-sm font-semibold text-slate-600">Apartamento</label>
                   <div className="relative">
-                    <inpu
+                    <input
                       id="busca-apartamento"
                       type="search"
                       role="combobox"
