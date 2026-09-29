@@ -306,5 +306,22 @@
   .kawaii-cat__tail,
   .kawaii-cat__eye { animation: none; }
 
-  .flying-yarn-ball { display: none; }
+  .flying-yarn-ball {
+    animation: yarn-ball-appear 0.9s ease-out forwards;
+  }
+
+  @keyframes yarn-ball-appear {
+    0% {
+      opacity: 0;
+      transform: translateY(-3rem) scale(0.75);
+    }
+    20%, 75% {
+      opacity: 1;
+      transform: translateY(-3rem) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-3rem) scale(0.9);
+    }
+  }
 }

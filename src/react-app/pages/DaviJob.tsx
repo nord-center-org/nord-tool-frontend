@@ -260,7 +260,6 @@ export default function DaviJobPage() {
   };
 
   const spawnFlyingBall = () => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const id = Date.now() + Math.random();
     setFlyingBalls((prev) => [...prev, id]);
     setTimeout(() => {
