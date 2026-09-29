@@ -250,7 +250,8 @@ export default function DaviJobPage() {
     action: "jump" | "flip" | "wiggle";
     bubble: string;
   } | null>(null);
-  const [flyingBalls, setFlyingBalls] = useState<number[]>([]);
+  const [ballSide, setBallSide] = useState<"left" | "right">("left");
+  const [isBallFlying, setIsBallFlying] = useState(false);
 
   const handleCatClick = (id: string, action: "jump" | "flip" | "wiggle", bubble: string) => {
     setActiveCat({ id, action, bubble });
@@ -260,20 +261,26 @@ export default function DaviJobPage() {
   };
 
   const spawnFlyingBall = () => {
-    const id = Date.now() + Math.random();
-    setFlyingBalls((prev) => [...prev, id]);
-    setTimeout(() => {
-      setFlyingBalls((prev) => prev.filter((ballId) => ballId !== id));
-    }, 1000);
+    if (isBallFlying) return;
+    setIsBallFlying(true);
+  };
+
+  const finishBallFlight = () => {
+    setBallSide((currentSide) => (currentSide === "left" ? "right" : "left"));
+    setIsBallFlying(false);
   };
 
   return (
     <div onClick={spawnFlyingBall}>
       <h1 className="mb-8 text-3xl font-bold text-slate-800">Davi Job</h1>
 
-      {flyingBalls.map((id) => (
-        <span key={id} className="flying-yarn-ball" aria-hidden="true" />
-      ))}
+      <span
+        className={`flying-yarn-ball yarn-ball--${ballSide}${
+          isBallFlying ? ` yarn-ball--flying-${ballSide === "left" ? "right" : "left"}` : ""
+        }`}
+        onAnimationEnd={finishBallFlight}
+        aria-hidden="true"
+      />
 
       <div className="davi-job-table-stage">
         <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-lg">

@@ -244,11 +244,11 @@
   }
 }
 
-/* --- Flying Yarn Ball (left cat -> right cat, on every click) --- */
+/* --- Persistent Yarn Ball (alternates between the cats on every click) --- */
 .flying-yarn-ball {
   position: fixed;
-  left: 4.1rem;
-  bottom: 3.4rem;
+  left: calc(4.1rem - 7px);
+  bottom: 6.4rem;
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -256,15 +256,22 @@
   box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.25), 0 2px 4px rgba(15, 23, 42, 0.3);
   pointer-events: none;
   z-index: 40;
-  animation: yarn-ball-fly 0.9s cubic-bezier(0.33, 0, 0.2, 1) forwards;
 }
 
-@keyframes yarn-ball-fly {
+.yarn-ball--right {
+  transform: translateX(calc(100vw - 8.2rem));
+}
+
+.yarn-ball--flying-right {
+  animation: yarn-ball-fly-right 0.9s cubic-bezier(0.33, 0, 0.2, 1) forwards;
+}
+
+.yarn-ball--flying-left {
+  animation: yarn-ball-fly-left 0.9s cubic-bezier(0.33, 0, 0.2, 1) forwards;
+}
+
+@keyframes yarn-ball-fly-right {
   0% {
-    transform: translate(0, 0) scale(0.6) rotate(0deg);
-    opacity: 0;
-  }
-  12% {
     transform: translate(0, 0) scale(1) rotate(60deg);
     opacity: 1;
   }
@@ -272,23 +279,37 @@
     transform: translate(calc(50vw - 4.1rem), -90px) scale(1.15) rotate(360deg);
   }
   100% {
-    transform: translate(calc(100vw - 8.2rem), 0) scale(0.7) rotate(720deg);
-    opacity: 0;
+    transform: translate(calc(100vw - 8.2rem), 0) scale(1) rotate(720deg);
+    opacity: 1;
+  }
+}
+
+@keyframes yarn-ball-fly-left {
+  0% {
+    transform: translate(calc(100vw - 8.2rem), 0) scale(1) rotate(720deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(calc(50vw - 4.1rem), -90px) scale(1.15) rotate(360deg);
+  }
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 1;
   }
 }
 
 @media (max-width: 640px) {
   .flying-yarn-ball {
-    left: 2.65rem;
-    bottom: 2.45rem;
+    left: calc(2.65rem - 7px);
+    bottom: 5.45rem;
   }
 
-  @keyframes yarn-ball-fly {
+  .yarn-ball--right {
+    transform: translateX(calc(100vw - 5.3rem));
+  }
+
+  @keyframes yarn-ball-fly-right {
     0% {
-      transform: translate(0, 0) scale(0.6) rotate(0deg);
-      opacity: 0;
-    }
-    12% {
       transform: translate(0, 0) scale(1) rotate(60deg);
       opacity: 1;
     }
@@ -296,8 +317,22 @@
       transform: translate(calc(50vw - 2.65rem), -60px) scale(1.1) rotate(360deg);
     }
     100% {
-      transform: translate(calc(100vw - 5.3rem), 0) scale(0.7) rotate(720deg);
-      opacity: 0;
+      transform: translate(calc(100vw - 5.3rem), 0) scale(1) rotate(720deg);
+      opacity: 1;
+    }
+  }
+
+  @keyframes yarn-ball-fly-left {
+    0% {
+      transform: translate(calc(100vw - 5.3rem), 0) scale(1) rotate(720deg);
+      opacity: 1;
+    }
+    50% {
+      transform: translate(calc(50vw - 2.65rem), -60px) scale(1.1) rotate(360deg);
+    }
+    100% {
+      transform: translate(0, 0) scale(1) rotate(0deg);
+      opacity: 1;
     }
   }
 }
@@ -305,23 +340,4 @@
 @media (prefers-reduced-motion: reduce) {
   .kawaii-cat__tail,
   .kawaii-cat__eye { animation: none; }
-
-  .flying-yarn-ball {
-    animation: yarn-ball-appear 0.9s ease-out forwards;
-  }
-
-  @keyframes yarn-ball-appear {
-    0% {
-      opacity: 0;
-      transform: translateY(-3rem) scale(0.75);
-    }
-    20%, 75% {
-      opacity: 1;
-      transform: translateY(-3rem) scale(1);
-    }
-    100% {
-      opacity: 0;
-      transform: translateY(-3rem) scale(0.9);
-    }
-  }
 }
