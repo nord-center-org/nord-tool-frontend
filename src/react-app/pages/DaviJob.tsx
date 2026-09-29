@@ -11,18 +11,204 @@ const tarefasDaSemana = [
   { dia: "Domingo", tarefa: "Descanso" },
 ];
 
-interface BolinhoCornerProps {
-  variant?: "second" | "third";
+interface KawaiiCatProps {
+  variant: "calico" | "grey" | "ginger";
   onClick?: () => void;
   activeAction?: "jump" | "flip" | "wiggle" | null;
   bubbleText?: string | null;
   name: string;
 }
 
-function BolinhoCorner({ variant, onClick, activeAction, bubbleText, name }: BolinhoCornerProps) {
-  let variantClass = "";
-  if (variant === "second") variantClass = "bolinho-pet--second";
-  if (variant === "third") variantClass = "bolinho-pet--third";
+function KawaiiCatSvg({ variant }: { variant: "calico" | "grey" | "ginger" }) {
+  if (variant === "calico") {
+    // Reference 1: Kawaii Calico Cat (Brown/White sitting cat with pink blush & tail)
+    return (
+      <svg viewBox="0 0 32 32" className="kawaii-cat-svg" role="presentation">
+        <ellipse cx="16" cy="30" rx="10" ry="2" fill="#cbd5e1" className="kawaii-cat__shadow" />
+
+        {/* Tail */}
+        <g className="kawaii-cat__tail">
+          <rect x="23" y="16" width="3" height="7" fill="#b87333" />
+          <rect x="25" y="13" width="3" height="4" fill="#b87333" />
+          <rect x="23" y="12" width="3" height="2" fill="#b87333" />
+          <rect x="22" y="16" width="1" height="8" fill="#1f1915" />
+          <rect x="28" y="13" width="1" height="4" fill="#1f1f15" />
+          <rect x="25" y="12" width="3" height="1" fill="#1f1915" />
+        </g>
+
+        {/* Ears */}
+        <rect x="7" y="3" width="5" height="7" fill="#b87333" />
+        <rect x="8" y="5" width="3" height="4" fill="#f49ac2" />
+        <rect x="20" y="3" width="5" height="7" fill="#b87333" />
+        <rect x="21" y="5" width="3" height="4" fill="#f49ac2" />
+
+        {/* Head Base */}
+        <rect x="7" y="8" width="18" height="12" fill="#ffffff" />
+        {/* Calico Patches */}
+        <rect x="7" y="8" width="5" height="6" fill="#b87333" />
+        <rect x="13" y="8" width="6" height="4" fill="#5c3a21" />
+        <rect x="20" y="8" width="5" height="6" fill="#b87333" />
+
+        {/* Eyes */}
+        <rect className="kawaii-cat__eye" x="11" y="13" width="2" height="3" fill="#1f1915" />
+        <rect className="kawaii-cat__eye" x="19" y="13" width="2" height="3" fill="#1f1915" />
+        {/* Blush Cheeks */}
+        <rect x="9" y="15" width="2" height="2" fill="#f49ac2" opacity="0.9" />
+        <rect x="21" y="15" width="2" height="2" fill="#f49ac2" opacity="0.9" />
+        {/* Nose & Mouth (:3) */}
+        <rect x="15" y="14" width="2" height="1" fill="#1f1915" />
+        <rect x="14" y="16" width="1" height="1" fill="#1f1915" />
+        <rect x="15" y="16" width="2" height="1" fill="#1f1915" />
+        <rect x="17" y="16" width="1" height="1" fill="#1f1915" />
+
+        {/* Body */}
+        <rect x="9" y="20" width="14" height="9" fill="#ffffff" />
+        {/* Calico Body Patches */}
+        <rect x="9" y="22" width="3" height="5" fill="#b87333" />
+        <rect x="20" y="21" width="3" height="6" fill="#b87333" />
+
+        {/* Front Paws */}
+        <rect x="11" y="25" width="3" height="4" fill="#ffffff" />
+        <rect x="18" y="25" width="3" height="4" fill="#ffffff" />
+        <rect x="14" y="25" width="1" height="4" fill="#1f1915" />
+        <rect x="17" y="25" width="1" height="4" fill="#1f1915" />
+
+        {/* Pixel Outline */}
+        <path
+          d="M7,3 h5 v2 h-5 z M20,3 h5 v2 h-5 z M6,5 h2 v3 h-2 z M24,5 h2 v3 h-2 z M6,8 h1 v12 h-1 z M25,8 h1 v12 h-1 z M8,20 h1 v9 h-1 z M23,20 h1 v9 h-1 z M9,29 h14 v1 h-14 z"
+          fill="#1f1915"
+        />
+      </svg>
+    );
+  }
+
+  if (variant === "grey") {
+    // Reference 2: Kawaii Grey Cat with Blue Collar & Yellow Bell
+    return (
+      <svg viewBox="0 0 32 32" className="kawaii-cat-svg" role="presentation">
+        <ellipse cx="16" cy="30" rx="10" ry="2" fill="#cbd5e1" className="kawaii-cat__shadow" />
+
+        {/* Tail (Left Side) */}
+        <g className="kawaii-cat__tail">
+          <rect x="5" y="17" width="3" height="7" fill="#94a3b8" />
+          <rect x="3" y="14" width="3" height="4" fill="#94a3b8" />
+          <rect x="4" y="12" width="3" height="3" fill="#94a3b8" />
+          <rect x="4" y="17" width="1" height="8" fill="#475569" />
+          <rect x="2" y="14" width="1" height="4" fill="#475569" />
+          <rect x="3" y="11" width="4" height="1" fill="#475569" />
+        </g>
+
+        {/* Ears */}
+        <rect x="7" y="3" width="5" height="7" fill="#94a3b8" />
+        <rect x="8" y="5" width="3" height="4" fill="#cbd5e1" />
+        <rect x="20" y="3" width="5" height="7" fill="#94a3b8" />
+        <rect x="21" y="5" width="3" height="4" fill="#cbd5e1" />
+
+        {/* Head Base */}
+        <rect x="7" y="8" width="18" height="11" fill="#94a3b8" />
+        {/* White Muzzle Area */}
+        <rect x="11" y="13" width="10" height="6" fill="#f8fafc" />
+
+        {/* Eyes */}
+        <rect className="kawaii-cat__eye" x="11" y="12" width="2" height="4" fill="#0f172a" />
+        <rect className="kawaii-cat__eye" x="19" y="12" width="2" height="4" fill="#0f172a" />
+        {/* Nose */}
+        <rect x="15" y="14" width="2" height="2" fill="#0f172a" />
+
+        {/* Blue Collar */}
+        <rect x="8" y="19" width="16" height="2" fill="#2563eb" />
+        {/* Yellow Bell */}
+        <rect x="15" y="20" width="2" height="2" fill="#facc15" />
+
+        {/* Body */}
+        <rect x="9" y="21" width="14" height="8" fill="#94a3b8" />
+        <rect x="13" y="22" width="6" height="5" fill="#f8fafc" />
+
+        {/* Front Paws */}
+        <rect x="11" y="25" width="3" height="4" fill="#94a3b8" />
+        <rect x="18" y="25" width="3" height="4" fill="#94a3b8" />
+        <rect x="14" y="25" width="1" height="4" fill="#475569" />
+        <rect x="17" y="25" width="1" height="4" fill="#475569" />
+
+        {/* Outline */}
+        <path
+          d="M7,3 h5 v2 h-5 z M20,3 h5 v2 h-5 z M6,5 h2 v3 h-2 z M24,5 h2 v3 h-2 z M6,8 h1 v11 h-1 z M25,8 h1 v11 h-1 z M8,19 h1 v10 h-1 z M23,19 h1 v10 h-1 z M9,29 h14 v1 h-14 z"
+          fill="#475569"
+        />
+      </svg>
+    );
+  }
+
+  // Ginger / Orange Cat
+  return (
+    <svg viewBox="0 0 32 32" className="kawaii-cat-svg" role="presentation">
+      <ellipse cx="16" cy="30" rx="10" ry="2" fill="#cbd5e1" className="kawaii-cat__shadow" />
+
+      {/* Tail */}
+      <g className="kawaii-cat__tail">
+        <rect x="24" y="16" width="3" height="7" fill="#fb923c" />
+        <rect x="25" y="13" width="3" height="4" fill="#c2410c" />
+        <rect x="23" y="12" width="3" height="2" fill="#fb923c" />
+        <rect x="23" y="16" width="1" height="8" fill="#7c2d12" />
+        <rect x="28" y="13" width="1" height="4" fill="#7c2d12" />
+        <rect x="23" y="11" width="4" height="1" fill="#7c2d12" />
+      </g>
+
+      {/* Ears */}
+      <rect x="7" y="3" width="5" height="7" fill="#fb923c" />
+      <rect x="8" y="5" width="3" height="4" fill="#fecdd3" />
+      <rect x="20" y="3" width="5" height="7" fill="#fb923c" />
+      <rect x="21" y="5" width="3" height="4" fill="#fecdd3" />
+
+      {/* Head Base */}
+      <rect x="7" y="8" width="18" height="12" fill="#fb923c" />
+      {/* Forehead Stripes */}
+      <rect x="15" y="8" width="2" height="4" fill="#ea580c" />
+      <rect x="12" y="8" width="1" height="3" fill="#ea580c" />
+      <rect x="19" y="8" width="1" height="3" fill="#ea580c" />
+      {/* Cream Muzzle */}
+      <rect x="11" y="14" width="10" height="5" fill="#fef08a" />
+
+      {/* Eyes */}
+      <rect className="kawaii-cat__eye" x="11" y="12" width="2" height="3" fill="#1c1917" />
+      <rect className="kawaii-cat__eye" x="19" y="12" width="2" height="3" fill="#1c1917" />
+      {/* Blush Cheeks */}
+      <rect x="9" y="14" width="2" height="2" fill="#fb7185" opacity="0.85" />
+      <rect x="21" y="14" width="2" height="2" fill="#fb7185" opacity="0.85" />
+      {/* Nose & Mouth */}
+      <rect x="15" y="14" width="2" height="1" fill="#7c2d12" />
+      <rect x="14" y="16" width="1" height="1" fill="#7c2d12" />
+      <rect x="15" y="16" width="2" height="1" fill="#7c2d12" />
+      <rect x="17" y="16" width="1" height="1" fill="#7c2d12" />
+
+      {/* Red Bowtie Collar */}
+      <rect x="14" y="19" width="4" height="2" fill="#ef4444" />
+      <rect x="13" y="19" width="1" height="1" fill="#b91c1c" />
+      <rect x="18" y="19" width="1" height="1" fill="#b91c1c" />
+
+      {/* Body */}
+      <rect x="9" y="20" width="14" height="9" fill="#fb923c" />
+      <rect x="12" y="21" width="8" height="6" fill="#fef08a" />
+
+      {/* Front Paws */}
+      <rect x="11" y="25" width="3" height="4" fill="#fef08a" />
+      <rect x="18" y="25" width="3" height="4" fill="#fef08a" />
+      <rect x="14" y="25" width="1" height="4" fill="#7c2d12" />
+      <rect x="17" y="25" width="1" height="4" fill="#7c2d12" />
+
+      {/* Outline */}
+      <path
+        d="M7,3 h5 v2 h-5 z M20,3 h5 v2 h-5 z M6,5 h2 v3 h-2 z M24,5 h2 v3 h-2 z M6,8 h1 v12 h-1 z M25,8 h1 v12 h-1 z M8,20 h1 v9 h-1 z M23,20 h1 v9 h-1 z M9,29 h14 v1 h-14 z"
+        fill="#7c2d12"
+      />
+    </svg>
+  );
+}
+
+function KawaiiCat({ variant, onClick, activeAction, bubbleText, name }: KawaiiCatProps) {
+  let positionClass = "kawaii-cat-corner--right";
+  if (variant === "grey") positionClass = "kawaii-cat-corner--left";
+  if (variant === "ginger") positionClass = "kawaii-cat-corner--center";
 
   let actionClass = "";
   if (activeAction === "jump") actionClass = "cat-action-jump";
@@ -31,7 +217,7 @@ function BolinhoCorner({ variant, onClick, activeAction, bubbleText, name }: Bol
 
   return (
     <div
-      className={`bolinho-pet ${variantClass} ${actionClass}`}
+      className={`kawaii-cat-container ${positionClass} ${actionClass}`}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -47,45 +233,13 @@ function BolinhoCorner({ variant, onClick, activeAction, bubbleText, name }: Bol
       {/* Floating Particles */}
       {activeAction && (
         <div className="cat-particles" aria-hidden="true">
-          <span className="particle p1">{variant === "second" ? "✨" : variant === "third" ? "🐾" : "💕"}</span>
-          <span className="particle p2">{variant === "second" ? "🌟" : variant === "third" ? "⭐" : "💖"}</span>
-          <span className="particle p3">{variant === "second" ? "✨" : variant === "third" ? "🐾" : "💗"}</span>
+          <span className="particle p1">{variant === "grey" ? "✨" : variant === "ginger" ? "🐾" : "💕"}</span>
+          <span className="particle p2">{variant === "grey" ? "🌟" : variant === "ginger" ? "⭐" : "💖"}</span>
+          <span className="particle p3">{variant === "grey" ? "✨" : variant === "ginger" ? "🐾" : "💗"}</span>
         </div>
       )}
 
-      <span className="bolinho-pet__thread" />
-      <span className="bolinho-pet__yarn" />
-      <svg className="bolinho-pet__sprite" viewBox="0 0 64 48" role="presentation">
-        <g className="bolinho-pet__tail">
-          <rect x="47" y="27" width="8" height="5" fill="#6d4936" />
-          <rect x="53" y="22" width="5" height="8" fill="#6d4936" />
-          <rect x="57" y="18" width="4" height="7" fill="#6d4936" />
-          <rect x="58" y="17" width="4" height="3" fill="#edcfaa" />
-        </g>
-        <rect x="16" y="24" width="35" height="15" fill="#6d4936" />
-        <rect x="18" y="22" width="29" height="18" fill="#edcfaa" />
-        <rect className="bolinho-pet__leg bolinho-pet__leg--back" x="19" y="38" width="10" height="4" fill="#6d4936" />
-        <rect className="bolinho-pet__leg bolinho-pet__leg--front" x="31" y="38" width="10" height="4" fill="#6d4936" />
-        <rect className="bolinho-pet__leg bolinho-pet__leg--back" x="20" y="37" width="9" height="4" fill="#f7dfbc" />
-        <rect className="bolinho-pet__leg bolinho-pet__leg--front" x="32" y="37" width="9" height="4" fill="#f7dfbc" />
-        <rect x="13" y="8" width="5" height="12" fill="#6d4936" />
-        <rect x="17" y="11" width="32" height="20" fill="#6d4936" />
-        <rect className="bolinho-pet__ear" x="20" y="6" width="8" height="8" fill="#6d4936" />
-        <rect className="bolinho-pet__ear" x="39" y="6" width="8" height="8" fill="#6d4936" />
-        <rect x="18" y="12" width="30" height="18" fill="#edcfaa" />
-        <rect x="21" y="10" width="6" height="5" fill="#f2a1a5" />
-        <rect x="40" y="10" width="6" height="5" fill="#f2a1a5" />
-        <rect x="23" y="18" width="7" height="7" fill="#754426" />
-        <rect x="37" y="18" width="7" height="7" fill="#754426" />
-        <rect className="bolinho-pet__blink" x="23" y="21" width="7" height="2" fill="#2a1b17" />
-        <rect className="bolinho-pet__blink" x="37" y="21" width="7" height="2" fill="#2a1b17" />
-        <rect x="25" y="19" width="2" height="2" fill="#fff" />
-        <rect x="39" y="19" width="2" height="2" fill="#fff" />
-        <rect x="32" y="25" width="4" height="3" fill="#e88596" />
-        <rect x="31" y="28" width="2" height="2" fill="#6d4936" />
-        <rect x="35" y="28" width="2" height="2" fill="#6d4936" />
-        <rect className="bolinho-pet__paw" x="13" y="34" width="10" height="5" fill="#edcfaa" />
-      </svg>
+      <KawaiiCatSvg variant={variant} />
     </div>
   );
 }
@@ -135,22 +289,23 @@ export default function DaviJobPage() {
         </div>
       </div>
 
-      <BolinhoCorner
-        name="Bolinho Calico"
+      <KawaiiCat
+        name="Gatinho Calico"
+        variant="calico"
         onClick={() => handleCatClick("cat1", "jump", "Miau! 💕")}
         activeAction={activeCat?.id === "cat1" ? activeCat.action : null}
         bubbleText={activeCat?.id === "cat1" ? activeCat.bubble : null}
       />
-      <BolinhoCorner
-        name="Bolinho Azul"
-        variant="second"
+      <KawaiiCat
+        name="Gatinho Cinza de Coleira"
+        variant="grey"
         onClick={() => handleCatClick("cat2", "flip", "Purr~ 🌟")}
         activeAction={activeCat?.id === "cat2" ? activeCat.action : null}
         bubbleText={activeCat?.id === "cat2" ? activeCat.bubble : null}
       />
-      <BolinhoCorner
-        name="Bolinho Laranja"
-        variant="third"
+      <KawaiiCat
+        name="Gatinho Laranja"
+        variant="ginger"
         onClick={() => handleCatClick("cat3", "wiggle", "Nyaa! 🐾")}
         activeAction={activeCat?.id === "cat3" ? activeCat.action : null}
         bubbleText={activeCat?.id === "cat3" ? activeCat.bubble : null}
