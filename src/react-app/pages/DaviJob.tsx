@@ -250,6 +250,7 @@ export default function DaviJobPage() {
     action: "jump" | "flip" | "wiggle";
     bubble: string;
   } | null>(null);
+  const [flyingBalls, setFlyingBalls] = useState<number[]>([]);
 
   const handleCatClick = (id: string, action: "jump" | "flip" | "wiggle", bubble: string) => {
     setActiveCat({ id, action, bubble });
@@ -258,9 +259,22 @@ export default function DaviJobPage() {
     }, 1800);
   };
 
+  const spawnFlyingBall = () => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const id = Date.now() + Math.random();
+    setFlyingBalls((prev) => [...prev, id]);
+    setTimeout(() => {
+      setFlyingBalls((prev) => prev.filter((ballId) => ballId !== id));
+    }, 1000);
+  };
+
   return (
-    <div>
+    <div onClick={spawnFlyingBall}>
       <h1 className="mb-8 text-3xl font-bold text-slate-800">Davi Job</h1>
+
+      {flyingBalls.map((id) => (
+        <span key={id} className="flying-yarn-ball" aria-hidden="true" />
+      ))}
 
       <div className="davi-job-table-stage">
         <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-lg">
