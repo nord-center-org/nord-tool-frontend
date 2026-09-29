@@ -9,8 +9,19 @@
   z-index: 30;
   width: 8.6rem;
   height: 5.5rem;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
   image-rendering: pixelated;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  user-select: none;
+}
+
+.bolinho-pet:hover {
+  transform: scale(1.15) translateY(-3px);
+}
+
+.bolinho-pet:active {
+  transform: scale(0.95) translateY(2px);
 }
 
 .bolinho-pet__sprite {
@@ -95,9 +106,14 @@
   animation: bolinho-thread 3.8s steps(8, end) infinite;
 }
 
+/* Cat 2 - Blue / Lavender */
 .bolinho-pet--second {
   right: auto;
   left: 0.85rem;
+}
+
+.bolinho-pet--second:hover {
+  transform: scale(1.15) translateY(-3px);
 }
 
 .bolinho-pet--second .bolinho-pet__sprite {
@@ -120,39 +136,187 @@
   animation-delay: -1.9s;
 }
 
+/* Cat 3 - Orange / Ginger */
 .bolinho-pet--third {
   right: auto;
   left: 50%;
   transform: translateX(-50%);
 }
 
+.bolinho-pet--third:hover {
+  transform: translateX(-50%) scale(1.15) translateY(-3px);
+}
+
 .bolinho-pet--third .bolinho-pet__sprite {
   right: auto;
   left: 0;
-  filter: drop-shadow(2px 3px 0 rgb(15 23 42 / 0.2)) hue-rotate(90deg);
+  filter: drop-shadow(2px 3px 0 rgb(15 23 42 / 0.2)) hue-rotate(60deg) saturate(1.4);
   animation-delay: -0.95s, -0.95s;
 }
 
 .bolinho-pet--third .bolinho-pet__yarn {
+  border-color: #c2410c;
+  background:
+    linear-gradient(45deg, transparent 42%, #ffedd5 43% 53%, transparent 54%),
+    linear-gradient(-45deg, transparent 42%, #ffedd5 43% 53%, transparent 54%),
+    #f97316;
+  box-shadow: inset -3px -3px 0 #ea580c;
   animation-delay: -0.95s;
 }
 
 .bolinho-pet--third .bolinho-pet__thread {
+  border-color: #ea580c;
   animation-delay: -0.95s;
 }
 
-.cat-hide {
-  animation: cat-hide 0.5s ease-in forwards;
+/* --- Interactive Speech Bubbles --- */
+.cat-speech-bubble {
+  position: absolute;
+  top: -2.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffffff;
+  color: #1e293b;
+  border: 2px solid #0f172a;
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+  animation: cat-bubble-pop 1.8s ease-out forwards;
+  z-index: 50;
+  pointer-events: none;
 }
 
-.cat-jump {
-  animation: cat-jump 0.6s ease-out forwards;
+.cat-speech-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #0f172a;
 }
 
-.cat-run {
-  animation: cat-run 0.8s ease-out forwards;
+@keyframes cat-bubble-pop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.5);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-6px) scale(1.15);
+  }
+  40% {
+    transform: translateX(-50%) translateY(-2px) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-4px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-16px) scale(0.8);
+  }
 }
 
+/* --- Floating Particles --- */
+.cat-particles {
+  position: absolute;
+  top: -1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 45;
+}
+
+.cat-particles .particle {
+  position: absolute;
+  font-size: 1.2rem;
+  animation: particle-rise 1.5s ease-out forwards;
+}
+
+.cat-particles .p1 {
+  left: 15%;
+  animation-delay: 0s;
+}
+
+.cat-particles .p2 {
+  left: 50%;
+  animation-delay: 0.15s;
+}
+
+.cat-particles .p3 {
+  left: 80%;
+  animation-delay: 0.3s;
+}
+
+@keyframes particle-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.4) rotate(0deg);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1.2) rotate(15deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-45px) scale(0.8) rotate(-20deg);
+  }
+}
+
+/* --- Interactive Action Animations --- */
+
+/* 1. Spring Jump Action */
+.cat-action-jump {
+  animation: cat-spring-jump 1.6s cubic-bezier(0.36, 0, 0.66, -0.56) forwards !important;
+}
+
+@keyframes cat-spring-jump {
+  0% { transform: translateY(0) scale(1, 1); }
+  15% { transform: translateY(6px) scale(1.25, 0.75); }
+  40% { transform: translateY(-55px) scale(0.85, 1.25); }
+  65% { transform: translateY(-20px) scale(1.1, 0.9); }
+  85% { transform: translateY(3px) scale(0.95, 1.05); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+/* 2. Flip Somersault Action (Cat 2) */
+.cat-action-flip .bolinho-pet__sprite {
+  animation: cat-flip-somersault 1.6s ease-in-out forwards !important;
+}
+
+@keyframes cat-flip-somersault {
+  0% { transform: scaleX(-1) translateY(0) rotate(0deg); }
+  30% { transform: scaleX(-1) translateY(-45px) rotate(180deg) scale(1.2); }
+  60% { transform: scaleX(-1) translateY(-45px) rotate(360deg) scale(1.2); }
+  85% { transform: scaleX(-1) translateY(4px) rotate(360deg) scale(1.05, 0.9); }
+  100% { transform: scaleX(-1) translateY(0) rotate(360deg) scale(1, 1); }
+}
+
+/* 3. Dance Wiggle Action (Cat 3) */
+.cat-action-wiggle {
+  animation: cat-dance-wiggle 1.6s ease-in-out forwards !important;
+}
+
+@keyframes cat-dance-wiggle {
+  0% { transform: translateX(-50%) rotate(0deg) scale(1); }
+  15% { transform: translateX(-50%) translateY(-18px) rotate(-18deg) scale(1.2); }
+  30% { transform: translateX(-50%) translateY(0) rotate(18deg) scale(1.2); }
+  45% { transform: translateX(-50%) translateY(-22px) rotate(-18deg) scale(1.25); }
+  60% { transform: translateX(-50%) translateY(0) rotate(18deg) scale(1.2); }
+  75% { transform: translateX(-50%) translateY(-8px) rotate(-8deg) scale(1.05); }
+  100% { transform: translateX(-50%) rotate(0deg) scale(1); }
+}
+
+/* Base Idle Animations */
 @keyframes bolinho-play {
   0%, 18%, 100% { transform: translate(0, 0); }
   28%, 42% { transform: translate(-1.3rem, -0.28rem); }
@@ -245,52 +409,4 @@
   .bolinho-pet__thread,
   .bolinho-pet__leg,
   .bolinho-pet__ear { animation: none; }
-}
-
-@keyframes cat-hide {
-  0% {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(2rem) scale(0.5);
-  }
-}
-
-@keyframes cat-jump {
-  0% {
-    transform: translateX(0) translateY(0) rotate(0deg);
-  }
-  30% {
-    transform: translateX(0) translateY(-2rem) rotate(15deg);
-  }
-  50% {
-    transform: translateX(0) translateY(-1rem) rotate(-10deg);
-  }
-  70% {
-    transform: translateX(0) translateY(-0.5rem) rotate(5deg);
-  }
-  100% {
-    transform: translateX(0) translateY(0) rotate(0deg);
-  }
-}
-
-@keyframes cat-run {
-  0% {
-    transform: translateX(-50%) translateY(0);
-  }
-  25% {
-    transform: translateX(-20%) translateY(-1rem);
-  }
-  50% {
-    transform: translateX(-80%) translateY(0);
-  }
-  75% {
-    transform: translateX(-150%) translateY(-1rem);
-  }
-  100% {
-    transform: translateX(-200%) translateY(0);
-    opacity: 0;
-  }
 }

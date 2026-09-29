@@ -14,18 +14,45 @@ const tarefasDaSemana = [
 interface BolinhoCornerProps {
   variant?: "second" | "third";
   onClick?: () => void;
-  className?: string;
+  activeAction?: "jump" | "flip" | "wiggle" | null;
+  bubbleText?: string | null;
+  name: string;
 }
 
-function BolinhoCorner({ variant, onClick, className: customClassName }: BolinhoCornerProps) {
-  let defaultClassName = "bolinho-pet";
-  if (variant === "second") defaultClassName = "bolinho-pet bolinho-pet--second";
-  if (variant === "third") defaultClassName = "bolinho-pet bolinho-pet--third";
+function BolinhoCorner({ variant, onClick, activeAction, bubbleText, name }: BolinhoCornerProps) {
+  let variantClass = "";
+  if (variant === "second") variantClass = "bolinho-pet--second";
+  if (variant === "third") variantClass = "bolinho-pet--third";
 
-  const className = customClassName || defaultClassName;
+  let actionClass = "";
+  if (activeAction === "jump") actionClass = "cat-action-jump";
+  if (activeAction === "flip") actionClass = "cat-action-flip";
+  if (activeAction === "wiggle") actionClass = "cat-action-wiggle";
 
   return (
-    <div className={className} aria-hidden="true" onClick={onClick} style={{ cursor: "pointer" }}>
+    <div
+      className={`bolinho-pet ${variantClass} ${actionClass}`}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      title={`Clique no ${name}!`}
+    >
+      {/* Speech / Sound Bubble */}
+      {bubbleText && (
+        <div className="cat-speech-bubble">
+          <span>{bubbleText}</span>
+        </div>
+      )}
+
+      {/* Floating Particles */}
+      {activeAction && (
+        <div className="cat-particles" aria-hidden="true">
+          <span className="particle p1">{variant === "second" ? "✨" : variant === "third" ? "🐾" : "💕"}</span>
+          <span className="particle p2">{variant === "second" ? "🌟" : variant === "third" ? "⭐" : "💖"}</span>
+          <span className="particle p3">{variant === "second" ? "✨" : variant === "third" ? "🐾" : "💗"}</span>
+        </div>
+      )}
+
       <span className="bolinho-pet__thread" />
       <span className="bolinho-pet__yarn" />
       <svg className="bolinho-pet__sprite" viewBox="0 0 64 48" role="presentation">
@@ -64,13 +91,18 @@ function BolinhoCorner({ variant, onClick, className: customClassName }: Bolinho
 }
 
 export default function DaviJobPage() {
-  const [clickedCat, setClickedCat] = useState<string | null>(null);
+  const [activeCat, setActiveCat] = useState<{
+    id: string;
+    action: "jump" | "flip" | "wiggle";
+    bubble: string;
+  } | null>(null);
 
-  function handleCatClick(variant: string | null) {
-    setClickedCat(variant);
-    // Reset after animation completes
-    setTimeout(() => setClickedCat(null), 4000);
-  }
+  const handleCatClick = (id: string, action: "jump" | "flip" | "wiggle", bubble: string) => {
+    setActiveCat({ id, action, bubble });
+    setTimeout(() => {
+      setActiveCat((prev) => (prev?.id === id ? null : prev));
+    }, 1800);
+  };
 
   return (
     <div>
@@ -104,26 +136,24 @@ export default function DaviJobPage() {
       </div>
 
       <BolinhoCorner
-        onClick={() => handleCatClick("right")}
-        className={clickedCat === "right" ? "bolinho-pet cat-hide" : "bolinho-pet"}
+        name="Bolinho Calico"
+        onClick={() => handleCatClick("cat1", "jump", "Miau! 💕")}
+        activeAction={activeCat?.id === "cat1" ? activeCat.action : null}
+        bubbleText={activeCat?.id === "cat1" ? activeCat.bubble : null}
       />
       <BolinhoCorner
+        name="Bolinho Azul"
         variant="second"
-        onClick={() => handleCatClick("second")}
-        className={
-          clickedCat === "second"
-            ? "bolinho-pet bolinho-pet--second cat-jump"
-            : "bolinho-pet bolinho-pet--second"
-        }
+        onClick={() => handleCatClick("cat2", "flip", "Purr~ 🌟")}
+        activeAction={activeCat?.id === "cat2" ? activeCat.action : null}
+        bubbleText={activeCat?.id === "cat2" ? activeCat.bubble : null}
       />
       <BolinhoCorner
+        name="Bolinho Laranja"
         variant="third"
-        onClick={() => handleCatClick("third")}
-        className={
-          clickedCat === "third"
-            ? "bolinho-pet bolinho-pet--third cat-run"
-            : "bolinho-pet bolinho-pet--third"
-        }
+        onClick={() => handleCatClick("cat3", "wiggle", "Nyaa! 🐾")}
+        activeAction={activeCat?.id === "cat3" ? activeCat.action : null}
+        bubbleText={activeCat?.id === "cat3" ? activeCat.bubble : null}
       />
     </div>
   );
