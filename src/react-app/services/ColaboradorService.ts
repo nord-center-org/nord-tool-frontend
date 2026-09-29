@@ -1,13 +1,13 @@
 export interface Colaborador {
   id?: number;
-  nome: string;
-  celular: string;
+  nmColaborador: string;
+  nrCelular: string;
   idEmpresa: number;
-  nomeEmpresa?: string;
+  nmEmpresa?: string;
   idCargo: number;
-  nomeCargo?: string;
+  nmCargo?: string;
   idPermissao: number;
-  nomePermissao?: string;
+  nmPermissao?: string;
 }
 
 const API_BASE = (

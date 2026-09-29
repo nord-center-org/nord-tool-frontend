@@ -18,7 +18,7 @@ const normalizarIdObraControleChaves = (id: unknown): string =>
 export default function SettingsPage() {
   const [apartmentList, setApartmentList] = useState("");
   const [timeSlotsList, setTimeSlotsList] = useState("");
-  
+
   // Novos estados para o Pré-carregamento
   const [activeFilterTab, setActiveFilterTab] = useState<"agenda" | "database">("agenda");
   const [defaultDeliveryCondo, setDefaultDeliveryCondo] = useState("");
@@ -29,7 +29,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  
+
   const [showApartmentList, setShowApartmentList] = useState(false);
   const [showTimeSlotsList, setShowTimeSlotsList] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -51,7 +51,7 @@ export default function SettingsPage() {
 
         setApartmentList(localStorage.getItem("@NordTool:apartamentos") || "101, 102, 201");
         setTimeSlotsList(localStorage.getItem("@NordTool:horarios") || "08:00, 09:00, 10:00");
-        
+
         // Carregando os filtros
         setDefaultDeliveryCondo(localStorage.getItem("@NordTool:filter_del_condo") || "");
         setDefaultDeliveryTime(localStorage.getItem("@NordTool:filter_del_time") || "current");
@@ -88,10 +88,10 @@ export default function SettingsPage() {
     setMessage("");
     try {
       await new Promise(resolve => setTimeout(resolve, 600));
-      
+
       localStorage.setItem("@NordTool:apartamentos", apartmentList);
       localStorage.setItem("@NordTool:horarios", timeSlotsList);
-      
+
       // Salvando os filtros
       localStorage.setItem("@NordTool:filter_del_condo", defaultDeliveryCondo);
       localStorage.setItem("@NordTool:filter_del_time", defaultDeliveryTime);
@@ -147,7 +147,7 @@ export default function SettingsPage() {
                   <p className="text-xs text-slate-500 font-medium mt-0.5">Obra aplicada ao Dashboard, retiradas recentes e Histórico.</p>
                 </div>
                 <label htmlFor="obra-controle-chaves" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Obra/Condomínio</label>
-                <select
+                <selec
                   id="obra-controle-chaves"
                   value={normalizarIdObraControleChaves(obraControleChaves)}
                   onChange={(event) => setObraControleChaves(event.target.value)}
@@ -156,7 +156,7 @@ export default function SettingsPage() {
                 >
                   <option value="">Todas as obras</option>
                   {obrasControleChaves
-                    .map((obra) => normalizarIdObraControleChaves(obra.id))
+                    .map((obra) => normalizarIdObraControleChaves(obra.idObra))
                     .filter(Boolean)
                     .map((idObra) => (
                       <option key={idObra} value={idObra}>{ROTULOS_OBRAS_CONTROLE_CHAVES[idObra]}</option>
@@ -201,13 +201,13 @@ export default function SettingsPage() {
               <div className="p-5 pt-0 border-t border-slate-100 bg-slate-50/30">
                 {/* Abas de Seleção */}
                 <div className="flex p-1 bg-slate-200/50 rounded-xl border border-slate-200 w-max mb-6 mt-4">
-                  <button 
+                  <button
                     onClick={() => setActiveFilterTab("agenda")}
                     className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeFilterTab === "agenda" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                   >
                     <LayoutDashboard className="w-4 h-4" /> Agenda (Entregas)
                   </button>
-                  <button 
+                  <button
                     onClick={() => setActiveFilterTab("database")}
                     className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeFilterTab === "database" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                   >
@@ -220,8 +220,8 @@ export default function SettingsPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-left-2 duration-300">
                     <div className="space-y-3">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Obra/Condomínio Padrão</label>
-                      <select 
-                        value={defaultDeliveryCondo} 
+                      <selec
+                        value={defaultDeliveryCondo}
                         onChange={(e) => setDefaultDeliveryCondo(e.target.value)}
                         className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 outline-none shadow-sm"
                       >
@@ -233,8 +233,8 @@ export default function SettingsPage() {
                     </div>
                     <div className="space-y-3">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Período Padrão</label>
-                      <select 
-                        value={defaultDeliveryTime} 
+                      <selec
+                        value={defaultDeliveryTime}
                         onChange={(e) => setDefaultDeliveryTime(e.target.value)}
                         className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 outline-none shadow-sm"
                       >
@@ -266,8 +266,8 @@ export default function SettingsPage() {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-4 rounded-xl border border-slate-200">
                         {["Agendado", "Aprovado", "Reprovado", "Pendente", "Liberado","Aprovado DAT","Pendente DAT"].map((status) => (
                           <label key={status} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-2 rounded-lg">
-                            <input 
-                              type="checkbox" 
+                            <inpu
+                              type="checkbox"
                               checked={defaultDbStatus.includes(status)}
                               onChange={(e) => {
                                 const checked = e.target.checked;
@@ -333,7 +333,7 @@ export default function SettingsPage() {
           </div>
 
         </div>
-        
+
         {/* RODAPÉ */}
         <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
           <div className="flex-1">

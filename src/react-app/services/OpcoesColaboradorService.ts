@@ -1,6 +1,6 @@
-export interface Empresa { id: number; nome: string; }
-export interface Cargo { id: number; nome: string; }
-export interface Permissao { id: number; nome: string; }
+export interface Empresa { id: number; nmEmpresa: string; }
+export interface Cargo { id: number; nmCargo: string; }
+export interface Permissao { id: number; nmPermissao: string; }
 
 interface ApiResponseBody<T> {
   body?: T;

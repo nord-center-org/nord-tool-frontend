@@ -8,9 +8,9 @@ const normalizarPermissao = (valor?: string): string =>
     .toLocaleLowerCase('pt-BR');
 
 export const podeRetirarChave = (colaborador: Colaborador): boolean => {
-  const permissao = normalizarPermissao(colaborador.nomePermissao);
+  const permissao = normalizarPermissao(colaborador.nmPermissao);
   return permissao === 'engenharia' || permissao === 'campo';
 };
 
 export const podeLiberarChave = (colaborador: Colaborador): boolean =>
-  normalizarPermissao(colaborador.nomePermissao) === 'engenharia';
+  normalizarPermissao(colaborador.nmPermissao) === 'engenharia';

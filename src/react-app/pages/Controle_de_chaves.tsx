@@ -40,8 +40,7 @@ const compararValores = (valorA: unknown, valorB: unknown, direcao: DirecaoOrden
 };
 
 const retiradaAberta = (retirada: RetiradaControleChaves) => {
-  const status = normalizarTexto(retirada?.status).toLocaleLowerCase('pt-BR').replace(/[ _-]+/g, ' ');
-  return !retirada.dataRecebimento && !['recebida', 'recebido', 'finalizada', 'finalizado'].includes(status);
+  return retirada.nmStatusRetiradaControle === 'ABERTO' && !retirada.dtRecebimento;
 };
 
 const apartamentoPertenceAObra = (codigo: string, idObra: string) =>
@@ -53,31 +52,31 @@ const apartamentoEntregue = (status?: string) =>
 const valorColunaHistorico = (retirada: RetiradaControleChaves, coluna: ColunaHistorico) => {
   const aberta = retiradaAberta(retirada);
   const valores: Record<ColunaHistorico, string> = {
-    codigo: normalizarTexto(retirada?.codigo),
-    data: formatarData(retirada.dataRetirada),
-    apartamento: normalizarTexto(retirada?.apartamento?.label),
-    retirante: normalizarTexto(retirada?.retirante?.nome),
-    recebedor: aberta ? VALOR_VAZIO : normalizarTexto(retirada?.recebedor?.nome),
-    status: normalizarTexto(retirada?.status),
+    codigo: normalizarTexto(retirada?.cdCodigoRetirada),
+    data: formatarData(retirada.dtRetirada),
+    apartamento: normalizarTexto(retirada?.apartamentoControleChavesDto?.nmApartamentoVistoria),
+    retirante: normalizarTexto(retirada?.retiranteControleChavesDto?.nmPessoaRetirante),
+    recebedor: aberta ? VALOR_VAZIO : normalizarTexto(retirada?.recebedorControleChavesDto?.nmPessoaRecebedor),
+    status: normalizarTexto(retirada?.nmStatusRetiradaControle),
   };
   return valores[coluna];
 };
 
 const valorColunaRetiradaRecente = (retirada: RetiradaControleChaves, coluna: ColunaRetiradasRecentes) => {
   const valores: Record<ColunaRetiradasRecentes, string> = {
-    codigo: normalizarTexto(retirada?.codigo),
-    data: formatarData(retirada.dataRetirada),
-    apartamento: normalizarTexto(retirada?.apartamento?.label),
-    retirante: normalizarTexto(retirada?.retirante?.nome),
-    liberador: normalizarTexto(retirada?.liberador?.nome),
-    status: normalizarTexto(retirada?.status),
+    codigo: normalizarTexto(retirada?.cdCodigoRetirada),
+    data: formatarData(retirada.dtRetirada),
+    apartamento: normalizarTexto(retirada?.apartamentoControleChavesDto?.nmApartamentoVistoria),
+    retirante: normalizarTexto(retirada?.retiranteControleChavesDto?.nmPessoaRetirante),
+    liberador: normalizarTexto(retirada?.liberadorControleChavesDto?.nmPessoaLiberador),
+    status: normalizarTexto(retirada?.nmStatusRetiradaControle),
   };
   return valores[coluna];
 };
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [modalType, setModalType] = useState<string | null>(null); 
+  const [modalType, setModalType] = useState<string | null>(null);
   const [editingColab, setEditingColab] = useState<ModalItem | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState<number | 'todos'>(20);
@@ -124,8 +123,8 @@ const App = () => {
 
   // Estado do formulário de colaborador
   const [formData, setFormData] = useState<Colaborador>({
-    nome: '',
-    celular: '',
+    nmColaborador: '',
+    nrCelular: '',
     idEmpresa: 0,
     idCargo: 0,
     idPermissao: 0
@@ -203,15 +202,15 @@ const App = () => {
       const apartamentosDaObra = todosApartamentos.filter(apartamento =>
         apartamentoPertenceAObra(apartamento.nmApartamentoVistoria, idObra));
       const retiradasDaObra = todasRetiradas.filter(retirada =>
-        apartamentoPertenceAObra(retirada.apartamento?.label ?? '', idObra));
+        apartamentoPertenceAObra(retirada.apartamentoControleChavesDto?.nmApartamentoVistoria ?? '', idObra));
       const retiradasAbertas = retiradasDaObra.filter(retiradaAberta);
 
       setDashboard({
-        chavesEmCampo: retiradasAbertas.length,
-        chavesNoQuadro: apartamentosDaObra.filter(apartamento => !apartamentoEntregue(apartamento.nmStatusVistoria)).length,
-        chavesEntregues: apartamentosDaObra.filter(apartamento => apartamentoEntregue(apartamento.nmStatusVistoria)).length,
+        qtChavesEmCampo: retiradasAbertas.length,
+        qtChavesNoQuadro: apartamentosDaObra.filter(apartamento => !apartamentoEntregue(apartamento.nmStatusVistoria)).length,
+        qtChavesEntregues: apartamentosDaObra.filter(apartamento => apartamentoEntregue(apartamento.nmStatusVistoria)).length,
         retiradasRecentes: retiradasAbertas
-          .sort((a, b) => (normalizarData(b.dataRetirada) ?? 0) - (normalizarData(a.dataRetirada) ?? 0))
+          .sort((a, b) => (normalizarData(b.dtRetirada) ?? 0) - (normalizarData(a.dtRetirada) ?? 0))
           .slice(0, 5),
       });
     }
@@ -313,7 +312,7 @@ const App = () => {
     return filtrados.sort((a, b) => {
       if (!ordenacaoHistorico) return Number(retiradaAberta(b)) - Number(retiradaAberta(a));
       return ordenacaoHistorico.coluna === 'data'
-        ? compararValores(a?.dataRetirada, b?.dataRetirada, ordenacaoHistorico.direcao, true)
+        ? compararValores(a?.dtRetirada, b?.dtRetirada, ordenacaoHistorico.direcao, true)
         : compararValores(valorColunaHistorico(a, ordenacaoHistorico.coluna), valorColunaHistorico(b, ordenacaoHistorico.coluna), ordenacaoHistorico.direcao);
     });
   }, [historico, filtrosHistorico, ordenacaoHistorico]);
@@ -343,7 +342,7 @@ const App = () => {
     return filtradas.sort((a, b) => {
       if (!ordenacaoRetiradasRecentes) return 0;
       return ordenacaoRetiradasRecentes.coluna === 'data'
-        ? compararValores(a?.dataRetirada, b?.dataRetirada, ordenacaoRetiradasRecentes.direcao, true)
+        ? compararValores(a?.dtRetirada, b?.dtRetirada, ordenacaoRetiradasRecentes.direcao, true)
         : compararValores(valorColunaRetiradaRecente(a, ordenacaoRetiradasRecentes.coluna), valorColunaRetiradaRecente(b, ordenacaoRetiradasRecentes.coluna), ordenacaoRetiradasRecentes.direcao);
     });
   }, [retiradas, filtrosRetiradasRecentes, ordenacaoRetiradasRecentes]);
@@ -384,19 +383,19 @@ const App = () => {
     if (type === 'confirmar') void carregarColaboradores(true);
 
     if (type === 'colaborador' || type === 'editarColaborador') {
-      if (colab && 'nome' in colab) {
+      if (colab && 'nmColaborador' in colab) {
         setFormData({
           id: colab.id,
-          nome: colab.nome || '',
-          celular: colab.celular || '',
+          nmColaborador: colab.nmColaborador || '',
+          nrCelular: colab.nrCelular || '',
           idEmpresa: colab.idEmpresa ?? 0,
           idCargo: colab.idCargo ?? 0,
           idPermissao: colab.idPermissao ?? 0,
         });
       } else {
         setFormData({
-          nome: '',
-          celular: '',
+          nmColaborador: '',
+          nrCelular: '',
           idEmpresa: empresas[0]?.id ?? 0,
           idCargo: cargos[0]?.id ?? 0,
           idPermissao: permissoes[0]?.id ?? 0,
@@ -407,7 +406,7 @@ const App = () => {
 
   const handleSalvarColaborador = async () => {
     setErroModal(null);
-    if (!formData.nome.trim() || !formData.celular.trim() || !formData.idEmpresa || !formData.idCargo || !formData.idPermissao) {
+    if (!formData.nmColaborador.trim() || !formData.nrCelular.trim() || !formData.idEmpresa || !formData.idCargo || !formData.idPermissao) {
       setErroModal('Preencha nome, celular, empresa, cargo e permissão.');
       return;
     }
@@ -423,7 +422,7 @@ const App = () => {
     }
   };
 
-  const retiradaSelecionada = editingColab && 'codigo' in editingColab ? editingColab : null;
+  const retiradaSelecionada = editingColab && 'cdCodigoRetirada' in editingColab ? editingColab : null;
 
   const handleCriarRetirada = async () => {
     if (salvandoRetirada) return;
@@ -435,9 +434,9 @@ const App = () => {
     setSalvandoRetirada(true);
     try {
       await ControleChavesService.criarRetirada({
-        idApartamento: apartamentoSelecionado.id,
-        idRetirante,
-        idLiberador,
+        idApartamentoVistoria: apartamentoSelecionado.idApartamentoVistoria,
+        idUserRetirada: idRetirante,
+        idUserLiberacao: idLiberador,
       });
       fecharModal();
       await Promise.all([carregarDashboard(), carregarColaboradores()]);
@@ -456,15 +455,15 @@ const App = () => {
       setErroModal('Selecione quem recebeu a chave.');
       return;
     }
-    setRecebendoId(retiradaSelecionada.id);
+    setRecebendoId(retiradaSelecionada.idRequisicao);
     try {
-      await ControleChavesService.receberRetirada(retiradaSelecionada.id, { idRecebedor });
+      await ControleChavesService.receberRetirada(retiradaSelecionada.idRequisicao, { idUserRecebimento: idRecebedor });
       setDashboard(atual => atual ? {
         ...atual,
-        chavesEmCampo: Math.max(0, atual.chavesEmCampo - 1),
-        chavesNoQuadro: atual.chavesNoQuadro + 1,
-        chavesEntregues: atual.chavesEntregues + 1,
-        retiradasRecentes: atual.retiradasRecentes.filter(item => item.id !== retiradaSelecionada.id),
+        qtChavesEmCampo: Math.max(0, atual.qtChavesEmCampo - 1),
+        qtChavesNoQuadro: atual.qtChavesNoQuadro + 1,
+        qtChavesEntregues: atual.qtChavesEntregues + 1,
+        retiradasRecentes: atual.retiradasRecentes.filter(item => item.idRequisicao !== retiradaSelecionada.idRequisicao),
       } : atual);
       fecharModal();
       await Promise.all([carregarDashboard(), carregarColaboradores()]);
@@ -491,8 +490,8 @@ const App = () => {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                  activeTab === tab.id 
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' 
+                  activeTab === tab.id
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
                     : 'hover:bg-slate-800 text-slate-300'
                 }`}
               >
@@ -508,9 +507,9 @@ const App = () => {
           <div className="space-y-8">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
-                { label: "Chaves em Campo", value: dashboard?.chavesEmCampo, color: "text-amber-500", icon: Clock },
-                { label: "Chaves no Quadro", value: dashboard?.chavesNoQuadro, color: "text-emerald-500", icon: Box },
-                { label: "Chaves Entregues", value: dashboard?.chavesEntregues, color: "text-blue-500", icon: CheckCircle }
+                { label: "Chaves em Campo", value: dashboard?.qtChavesEmCampo, color: "text-amber-500", icon: Clock },
+                { label: "Chaves no Quadro", value: dashboard?.qtChavesNoQuadro, color: "text-emerald-500", icon: Box },
+                { label: "Chaves Entregues", value: dashboard?.qtChavesEntregues, color: "text-blue-500", icon: CheckCircle }
               ].map((card, i) => (
                 <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 hover:shadow-md transition-shadow">
                   <p className="text-slate-400 flex items-center gap-2 text-xs uppercase font-extrabold tracking-widest">
@@ -525,14 +524,14 @@ const App = () => {
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 overflow-x-auto">
               <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
                 <h3 className="font-bold text-lg text-slate-800">Retiradas Recentes</h3>
-                <button 
+                <button
                   onClick={() => openModal('retirada')}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-all font-semibold text-sm shadow-md shadow-emerald-500/20"
                 >
                   <PlusCircle size={18} /> Nova Retirada
                 </button>
               </div>
-              
+
               <div className="min-w-[600px]">
                 <table className="w-full text-left">
                   <thead>
@@ -564,7 +563,7 @@ const App = () => {
                       <tr><td colSpan={7} className="py-8 text-center text-sm text-slate-500">Nenhuma retirada recente.</td></tr>
                     )}
                     {retiradasRecentesFiltradas.map(r => (
-                      <tr key={r.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                      <tr key={r.idRequisicao} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                         <td className="py-4 font-mono font-bold text-emerald-600">{valorColunaRetiradaRecente(r, 'codigo')}</td>
                         <td className="py-4 text-slate-600 text-sm">{valorColunaRetiradaRecente(r, 'data')}</td>
                         <td className="py-4 text-slate-800 font-mono font-semibold text-sm">{valorColunaRetiradaRecente(r, 'apartamento')}</td>
@@ -574,9 +573,9 @@ const App = () => {
                           <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">{valorColunaRetiradaRecente(r, 'status')}</span>
                         </td>
                         <td className="py-4">
-                          {retiradaAberta(r) && <button disabled={recebendoId === r.id}
+                          {retiradaAberta(r) && <button disabled={recebendoId === r.idRequisicao}
                             onClick={() => openModal('confirmar', r)}
-                            title="Chave Recebida" 
+                            title="Chave Recebida"
                             className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors"
                           >
                             <CheckCircle size={18} />
@@ -595,14 +594,14 @@ const App = () => {
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 overflow-x-auto">
             <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
               <h3 className="font-bold text-lg text-slate-800">Colaboradores</h3>
-              <button 
+              <button
                 onClick={() => openModal('colaborador')}
                 className="bg-emerald-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-emerald-700 transition-all font-semibold text-sm"
               >
                 <PlusCircle size={18} /> Cadastrar
               </button>
             </div>
-            
+
             <div className="min-w-[600px]">
               {carregandoColaboradores && (
                 <p className="py-4 text-sm text-slate-500">Carregando colaboradores...</p>
@@ -627,11 +626,11 @@ const App = () => {
                 <tbody>
                   {colaboradores.map(c => (
                     <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td className="py-4 text-slate-800 font-semibold text-sm">{c.nome}</td>
-                      <td className="py-4 text-slate-600 text-sm">{c.nomeEmpresa || `Empresa ${c.idEmpresa}`}</td>
-                      <td className="py-4 text-slate-600 text-sm">{c.nomeCargo || `Cargo ${c.idCargo}`}</td>
-                      <td className="py-4 text-slate-600 font-mono text-xs">{c.celular}</td>
-                      <td className="py-4 text-slate-600 text-sm">{c.nomePermissao || `Permissão ${c.idPermissao}`}</td>
+                      <td className="py-4 text-slate-800 font-semibold text-sm">{c.nmColaborador}</td>
+                      <td className="py-4 text-slate-600 text-sm">{c.nmEmpresa || `Empresa ${c.idEmpresa}`}</td>
+                      <td className="py-4 text-slate-600 text-sm">{c.nmCargo || `Cargo ${c.idCargo}`}</td>
+                      <td className="py-4 text-slate-600 font-mono text-xs">{c.nrCelular}</td>
+                      <td className="py-4 text-slate-600 text-sm">{c.nmPermissao || `Permissão ${c.idPermissao}`}</td>
                       <td className="py-4">
                         <button onClick={() => openModal('editarColaborador', c)} className="text-emerald-600 hover:text-emerald-800">
                           <Edit2 size={18} />
@@ -649,7 +648,7 @@ const App = () => {
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h3 className="font-bold text-lg text-slate-800">Histórico de Retiradas</h3>
-              
+
               <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
                 <select value={statusHistorico} onChange={e => { setStatusHistorico(e.target.value); setCurrentPage(1); }} className="border border-slate-200 rounded-xl py-2 px-3 text-sm bg-slate-50 text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500">
                   <option value="">Todos</option>
@@ -659,16 +658,16 @@ const App = () => {
 
                 <div className="relative flex-1 sm:w-64">
                   <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
-                  <input 
-                    type="text" 
+                  <inpu
+                    type="text"
                     value={buscaHistorico}
                     onChange={e => { setBuscaHistorico(e.target.value); setCurrentPage(1); }}
-                    placeholder="Pesquisar..." 
-                    className="pl-10 pr-4 py-2 border border-slate-200 rounded-xl w-full text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-emerald-500" 
+                    placeholder="Pesquisar..."
+                    className="pl-10 pr-4 py-2 border border-slate-200 rounded-xl w-full text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
-                <select 
+                <selec
                   value={itemsPerPage}
                   className="border border-slate-200 rounded-xl py-2 px-3 text-sm bg-slate-50 text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500"
                   onChange={(e) => {
@@ -722,7 +721,7 @@ const App = () => {
                   {historicoPaginado.map(r => {
                     const aberta = retiradaAberta(r);
                     return (
-                    <tr key={r.id} className={`border-b transition-colors ${aberta ? 'border-amber-100 bg-amber-50/20 hover:bg-amber-50/50' : 'border-emerald-100 bg-emerald-50/40 hover:bg-emerald-50/70'}`}>
+                    <tr key={r.idRequisicao} className={`border-b transition-colors ${aberta ? 'border-amber-100 bg-amber-50/20 hover:bg-amber-50/50' : 'border-emerald-100 bg-emerald-50/40 hover:bg-emerald-50/70'}`}>
                       <td className="py-4 font-mono font-bold text-slate-400 text-sm">{valorColunaHistorico(r, 'codigo')}</td>
                       <td className="py-4 text-slate-500 text-sm">{valorColunaHistorico(r, 'data')}</td>
                       <td className="py-4 text-slate-700 font-mono text-sm">{valorColunaHistorico(r, 'apartamento')}</td>
@@ -758,7 +757,7 @@ const App = () => {
               </h2>
               <button onClick={fecharModal} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
             </div>
-            
+
             <div className="space-y-4">
               {erroModal && (
                 <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -777,49 +776,49 @@ const App = () => {
                     </div>
                   )}
                   <label className="block text-sm font-semibold text-slate-600">Nome Completo</label>
-                  <input 
-                    value={formData.nome} 
-                    onChange={e => setFormData({...formData, nome: e.target.value})}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" 
+                  <inpu
+                    value={formData.nmColaborador}
+                    onChange={e => setFormData({...formData, nmColaborador: e.target.value})}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                   <label className="block text-sm font-semibold text-slate-600">Celular</label>
-                  <input 
-                    value={formData.celular} 
-                    onChange={e => setFormData({...formData, celular: e.target.value})}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500" 
+                  <inpu
+                    value={formData.nrCelular}
+                    onChange={e => setFormData({...formData, nrCelular: e.target.value})}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                   <label className="block text-sm font-semibold text-slate-600">Empresa</label>
-                  <select 
-                    value={formData.idEmpresa} 
+                  <selec
+                    value={formData.idEmpresa}
                     onChange={e => setFormData({...formData, idEmpresa: Number(e.target.value)})}
                     disabled={carregandoOpcoes || empresas.length === 0}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     <option value={0} disabled>Selecione uma empresa</option>
-                    {empresas.map(empresa => <option key={empresa.id} value={empresa.id}>{empresa.nome}</option>)}
+                    {empresas.map(empresa => <option key={empresa.id} value={empresa.id}>{empresa.nmEmpresa}</option>)}
                   </select>
                   <label className="block text-sm font-semibold text-slate-600">Cargo</label>
-                  <select 
-                    value={formData.idCargo} 
+                  <selec
+                    value={formData.idCargo}
                     onChange={e => setFormData({...formData, idCargo: Number(e.target.value)})}
                     disabled={carregandoOpcoes || cargos.length === 0}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     <option value={0} disabled>Selecione um cargo</option>
-                    {cargos.map(cargo => <option key={cargo.id} value={cargo.id}>{cargo.nome}</option>)}
+                    {cargos.map(cargo => <option key={cargo.id} value={cargo.id}>{cargo.nmCargo}</option>)}
                   </select>
                   <label className="block text-sm font-semibold text-slate-600">Permissão</label>
-                  <select 
-                    value={formData.idPermissao} 
+                  <selec
+                    value={formData.idPermissao}
                     onChange={e => setFormData({...formData, idPermissao: Number(e.target.value)})}
                     disabled={carregandoOpcoes || permissoes.length === 0}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     <option value={0} disabled>Selecione uma permissão</option>
-                    {permissoes.map(permissao => <option key={permissao.id} value={permissao.id}>{permissao.nome}</option>)}
+                    {permissoes.map(permissao => <option key={permissao.id} value={permissao.id}>{permissao.nmPermissao}</option>)}
                   </select>
-                  <button 
-                    onClick={handleSalvarColaborador} 
+                  <button
+                    onClick={handleSalvarColaborador}
                     disabled={salvandoColaborador || carregandoOpcoes || !!erroOpcoes}
                     className="w-full bg-slate-900 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 text-white font-bold py-3 rounded-xl mt-4 transition-colors"
                   >
@@ -830,7 +829,7 @@ const App = () => {
                 <>
                   <label htmlFor="busca-apartamento" className="block text-sm font-semibold text-slate-600">Apartamento</label>
                   <div className="relative">
-                    <input
+                    <inpu
                       id="busca-apartamento"
                       type="search"
                       role="combobox"
@@ -859,7 +858,7 @@ const App = () => {
                           event.preventDefault();
                           const apartamento = apartamentos[opcaoApartamentoAtiva];
                           setApartamentoSelecionado(apartamento);
-                          setBuscaApartamento(apartamento.label);
+                          setBuscaApartamento(apartamento.nmApartamentoVistoria);
                           setErroApartamentos(null);
                           setListaApartamentosAberta(false);
                         } else if (event.key === 'Escape') {
@@ -880,18 +879,18 @@ const App = () => {
                         {apartamentos.map((apartamento, index) => (
                           <li
                             id={`${apartamentoListboxId}-${index}`}
-                            key={apartamento.id}
+                            key={apartamento.idApartamentoVistoria}
                             role="option"
-                            aria-selected={apartamentoSelecionado?.id === apartamento.id}
+                            aria-selected={apartamentoSelecionado?.idApartamentoVistoria === apartamento.idApartamentoVistoria}
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => {
                               setApartamentoSelecionado(apartamento);
-                              setBuscaApartamento(apartamento.label);
+                              setBuscaApartamento(apartamento.nmApartamentoVistoria);
                               setErroApartamentos(null);
                               setListaApartamentosAberta(false);
                             }}
                             className={`cursor-pointer rounded-lg px-3 py-2 text-sm ${index === opcaoApartamentoAtiva ? 'bg-emerald-50 text-emerald-800' : 'text-slate-700 hover:bg-slate-50'}`}
-                          >{apartamento.label}</li>
+                          >{apartamento.nmApartamentoVistoria}</li>
                         ))}
                       </ul>
                     )}
@@ -907,12 +906,12 @@ const App = () => {
                   <label className="block text-sm font-semibold text-slate-600">Retirado Por</label>
                   <select value={idRetirante ?? ''} onChange={(event) => setIdRetirante(Number(event.target.value))} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
                     <option value="" disabled>Selecione quem retirou</option>
-                    {colaboradores.filter(podeRetirarChave).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                    {colaboradores.filter(podeRetirarChave).map(c => <option key={c.id} value={c.id}>{c.nmColaborador}</option>)}
                   </select>
                   <label className="block text-sm font-semibold text-slate-600">Liberado Por</label>
                   <select value={idLiberador ?? ''} onChange={(event) => setIdLiberador(Number(event.target.value))} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
                     <option value="" disabled>Selecione quem liberou</option>
-                    {colaboradores.filter(podeLiberarChave).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                    {colaboradores.filter(podeLiberarChave).map(c => <option key={c.id} value={c.id}>{c.nmColaborador}</option>)}
                   </select>
                   <button
                     type="button"
@@ -923,20 +922,20 @@ const App = () => {
                 </>
               ) : modalType === 'confirmar' ? (
                 <>
-                  <p className="text-slate-600">Confirma o recebimento da retirada <strong className="text-slate-900">{retiradaSelecionada?.codigo}</strong>, apartamento <strong className="text-slate-900">{retiradaSelecionada?.apartamento.label}</strong>?</p>
+                  <p className="text-slate-600">Confirma o recebimento da retirada <strong className="text-slate-900">{retiradaSelecionada?.cdCodigoRetirada}</strong>, apartamento <strong className="text-slate-900">{retiradaSelecionada?.apartamentoControleChavesDto.nmApartamentoVistoria}</strong>?</p>
                   <label className="block text-sm font-semibold text-slate-600">Recebido Por</label>
                   <select value={idRecebedor ?? ''} onChange={(event) => { setIdRecebedor(Number(event.target.value)); setErroModal(null); }} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
                     <option value="" disabled>Selecione quem recebeu</option>
-                    {colaboradores.filter(podeLiberarChave).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                    {colaboradores.filter(podeLiberarChave).map(c => <option key={c.id} value={c.id}>{c.nmColaborador}</option>)}
                   </select>
                   <button disabled={recebendoId !== null} onClick={handleReceberRetirada} className="w-full bg-slate-900 disabled:opacity-50 hover:bg-slate-800 text-white font-bold py-3 rounded-xl mt-4 transition-colors">{recebendoId !== null ? 'Confirmando...' : 'Confirmar'}</button>
                 </>
               ) : modalType === 'editarRetirada' ? (
                 <>
                   <label className="block text-sm font-semibold text-slate-600">Apartamento</label>
-                  <input readOnly defaultValue={retiradaSelecionada?.apartamento.label} className="w-full p-3 bg-slate-100 text-slate-500 border border-slate-200 rounded-xl cursor-not-allowed" />
+                  <input readOnly defaultValue={retiradaSelecionada?.apartamentoControleChavesDto.nmApartamentoVistoria} className="w-full p-3 bg-slate-100 text-slate-500 border border-slate-200 rounded-xl cursor-not-allowed" />
                   <label className="block text-sm font-semibold text-slate-600">Retirado Por</label>
-                  <input readOnly defaultValue={retiradaSelecionada?.retirante.nome} className="w-full p-3 bg-slate-100 text-slate-500 border border-slate-200 rounded-xl cursor-not-allowed" />
+                  <input readOnly defaultValue={retiradaSelecionada?.retiranteControleChavesDto.nmPessoaRetirante} className="w-full p-3 bg-slate-100 text-slate-500 border border-slate-200 rounded-xl cursor-not-allowed" />
                   <label className="block text-sm font-semibold text-slate-600">Status</label>
                   <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
                     <option>Em campo</option>

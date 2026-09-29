@@ -3,13 +3,13 @@ import test from 'node:test';
 import type { Colaborador } from '../services/ColaboradorService';
 import { podeLiberarChave, podeRetirarChave } from './elegibilidadeColaborador.ts';
 
-const colaborador = (nomePermissao: string): Colaborador => ({
-  nome: 'Colaborador de teste',
-  celular: '',
+const colaborador = (nmPermissao: string): Colaborador => ({
+  nmColaborador: 'Colaborador de teste',
+  nrCelular: '',
   idEmpresa: 1,
   idCargo: 1,
   idPermissao: 1,
-  nomePermissao,
+  nmPermissao,
 });
 
 test('Engenharia pode retirar e liberar, inclusive com espaços, caixa e acentos normalizados', () => {

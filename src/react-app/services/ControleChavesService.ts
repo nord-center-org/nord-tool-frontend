@@ -1,18 +1,30 @@
-export interface ApartamentoControleChaves { id: number; label: string }
-export interface ObraControleChaves { id: string; nome: string }
-export interface PessoaControleChaves { id: number; nome: string; permissao?: string }
+export interface ApartamentoControleChaves { idApartamentoVistoria: number; nmApartamentoVistoria: string }
+export interface ObraControleChaves { idObra: string; nmObra: string }
+export interface RetiranteControleChaves {
+  idUserRetirada: number; nmPessoaRetirante: string; nmPermissaoRetirante?: string;
+}
+export interface LiberadorControleChaves {
+  idUserLiberacao: number; nmPessoaLiberador: string; nmPermissaoLiberador?: string;
+}
+export interface RecebedorControleChaves {
+  idUserRecebimento: number; nmPessoaRecebedor: string; nmPermissaoRecebedor?: string;
+}
 export interface RetiradaControleChaves {
-  id: number; codigo: string; apartamento: ApartamentoControleChaves;
-  retirante: PessoaControleChaves; liberador: PessoaControleChaves;
-  recebedor?: PessoaControleChaves | null; dataRetirada: string;
-  dataRecebimento?: string | null; status: string;
+  idRequisicao: number; cdCodigoRetirada: string;
+  apartamentoControleChavesDto: ApartamentoControleChaves;
+  retiranteControleChavesDto: RetiranteControleChaves;
+  liberadorControleChavesDto: LiberadorControleChaves;
+  recebedorControleChavesDto?: RecebedorControleChaves | null;
+  dtRetirada: string; dtRecebimento?: string | null; nmStatusRetiradaControle: 'ABERTO' | 'RECEBIDO';
 }
 export interface DashboardControleChaves {
-  chavesEmCampo: number; chavesNoQuadro: number; chavesEntregues: number;
+  qtChavesEmCampo: number; qtChavesNoQuadro: number; qtChavesEntregues: number;
   retiradasRecentes: RetiradaControleChaves[];
 }
-export interface NovaRetiradaControleChaves { idApartamento: number; idRetirante: number; idLiberador: number }
-export interface RecebimentoControleChaves { idRecebedor: number }
+export interface NovaRetiradaControleChaves {
+  idApartamentoVistoria: number; idUserRetirada: number; idUserLiberacao: number;
+}
+export interface RecebimentoControleChaves { idUserRecebimento: number }
 
 interface ApiResponse<T> { body?: T; txMensagem?: string; error?: string }
 const CHAVES_LISTA_OBRAS = ['obras', 'items', 'content', 'data'] as const;
