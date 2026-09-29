@@ -141,6 +141,18 @@
   animation-delay: -0.95s;
 }
 
+.cat-hide {
+  animation: cat-hide 0.5s ease-in forwards;
+}
+
+.cat-jump {
+  animation: cat-jump 0.6s ease-out forwards;
+}
+
+.cat-run {
+  animation: cat-run 0.8s ease-out forwards;
+}
+
 @keyframes bolinho-play {
   0%, 18%, 100% { transform: translate(0, 0); }
   28%, 42% { transform: translate(-1.3rem, -0.28rem); }
@@ -233,4 +245,52 @@
   .bolinho-pet__thread,
   .bolinho-pet__leg,
   .bolinho-pet__ear { animation: none; }
+}
+
+@keyframes cat-hide {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(2rem) scale(0.5);
+  }
+}
+
+@keyframes cat-jump {
+  0% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+  }
+  30% {
+    transform: translateX(0) translateY(-2rem) rotate(15deg);
+  }
+  50% {
+    transform: translateX(0) translateY(-1rem) rotate(-10deg);
+  }
+  70% {
+    transform: translateX(0) translateY(-0.5rem) rotate(5deg);
+  }
+  100% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes cat-run {
+  0% {
+    transform: translateX(-50%) translateY(0);
+  }
+  25% {
+    transform: translateX(-20%) translateY(-1rem);
+  }
+  50% {
+    transform: translateX(-80%) translateY(0);
+  }
+  75% {
+    transform: translateX(-150%) translateY(-1rem);
+  }
+  100% {
+    transform: translateX(-200%) translateY(0);
+    opacity: 0;
+  }
 }

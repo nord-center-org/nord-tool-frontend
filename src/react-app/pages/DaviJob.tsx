@@ -53,8 +53,15 @@ function BolinhoCorner({ variant }: { variant?: "second" | "third" } = {}) {
   );
 }
 
-export default function DaviJobPage() {
-  return (
+const [clickedCat, setClickedCat] = useState<string | null>(null);
+
+function handleCatClick(variant: string | null) {
+  setClickedCat(variant);
+  // Reset after animation completes
+  setTimeout(() => setClickedCat(null), 4000);
+}
+
+return (
     <div>
       <h1 className="mb-8 text-3xl font-bold text-slate-800">Davi Job</h1>
 
@@ -85,9 +92,23 @@ export default function DaviJobPage() {
         </div>
       </div>
 
-      <BolinhoCorner />
-      <BolinhoCorner variant="second" />
-      <BolinhoCorner variant="third" />
+      <BolinhoCorner
+        onClick={() => handleCatClick("right")}
+        className={clickedCat === "right" ? "bolinho-pet cat-hide" : "bolinho-pet"}
+      />
+      <BolinhoCorner
+        variant="second"
+        onClick={() => handleCatClick("second")}
+        className={clickedCat === "second"
+          ? "bolinho-pet bolinho-pet--second cat-jump"
+          : "bolinho-pet bolinho-pet--second"}
+      />
+      <BolinhoCorner
+        variant="third"
+        onClick={() => handleCatClick("third")}
+        className={clickedCat === "third"
+          ? "bolinho-pet bolinho-pet--third cat-run"
+          : "bolinho-pet bolinho-pet--third"}
+      />
     </div>
   );
-}
