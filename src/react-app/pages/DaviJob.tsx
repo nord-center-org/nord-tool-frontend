@@ -1,3 +1,4 @@
+import { useState } from "react";
 import "./DaviJob.css";
 
 const tarefasDaSemana = [
@@ -10,12 +11,21 @@ const tarefasDaSemana = [
   { dia: "Domingo", tarefa: "Descanso" },
 ];
 
-function BolinhoCorner({ variant }: { variant?: "second" | "third" } = {}) {
-  let className = "bolinho-pet";
-  if (variant === "second") className = "bolinho-pet bolinho-pet--second";
-  if (variant === "third") className = "bolinho-pet bolinho-pet--third";
+interface BolinhoCornerProps {
+  variant?: "second" | "third";
+  onClick?: () => void;
+  className?: string;
+}
+
+function BolinhoCorner({ variant, onClick, className: customClassName }: BolinhoCornerProps) {
+  let defaultClassName = "bolinho-pet";
+  if (variant === "second") defaultClassName = "bolinho-pet bolinho-pet--second";
+  if (variant === "third") defaultClassName = "bolinho-pet bolinho-pet--third";
+
+  const className = customClassName || defaultClassName;
+
   return (
-    <div className={className} aria-hidden="true">
+    <div className={className} aria-hidden="true" onClick={onClick} style={{ cursor: "pointer" }}>
       <span className="bolinho-pet__thread" />
       <span className="bolinho-pet__yarn" />
       <svg className="bolinho-pet__sprite" viewBox="0 0 64 48" role="presentation">
@@ -53,15 +63,16 @@ function BolinhoCorner({ variant }: { variant?: "second" | "third" } = {}) {
   );
 }
 
-const [clickedCat, setClickedCat] = useState<string | null>(null);
+export default function DaviJobPage() {
+  const [clickedCat, setClickedCat] = useState<string | null>(null);
 
-function handleCatClick(variant: string | null) {
-  setClickedCat(variant);
-  // Reset after animation completes
-  setTimeout(() => setClickedCat(null), 4000);
-}
+  function handleCatClick(variant: string | null) {
+    setClickedCat(variant);
+    // Reset after animation completes
+    setTimeout(() => setClickedCat(null), 4000);
+  }
 
-return (
+  return (
     <div>
       <h1 className="mb-8 text-3xl font-bold text-slate-800">Davi Job</h1>
 
@@ -99,16 +110,21 @@ return (
       <BolinhoCorner
         variant="second"
         onClick={() => handleCatClick("second")}
-        className={clickedCat === "second"
-          ? "bolinho-pet bolinho-pet--second cat-jump"
-          : "bolinho-pet bolinho-pet--second"}
+        className={
+          clickedCat === "second"
+            ? "bolinho-pet bolinho-pet--second cat-jump"
+            : "bolinho-pet bolinho-pet--second"
+        }
       />
       <BolinhoCorner
         variant="third"
         onClick={() => handleCatClick("third")}
-        className={clickedCat === "third"
-          ? "bolinho-pet bolinho-pet--third cat-run"
-          : "bolinho-pet bolinho-pet--third"}
+        className={
+          clickedCat === "third"
+            ? "bolinho-pet bolinho-pet--third cat-run"
+            : "bolinho-pet bolinho-pet--third"
+        }
       />
     </div>
   );
+}
