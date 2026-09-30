@@ -7,8 +7,11 @@ import {
   type Status,
   type Categoria,
 } from "../services/CronogramaSemanalService";
+import { HistoricoColumnFilter, type DirecaoOrdenacao } from "../components/HistoricoColumnFilter";
 
 type Page = "kanban" | "lista" | "rotina";
+type ColunaLista = "status" | "dtPrazo" | "nmCronogramaSemanal" | "nmCategoria" | "nmTag";
+type OrdenacaoLista = { coluna: ColunaLista; direcao: DirecaoOrdenacao } | null;
 
 const statuses: { id: Status; label: string; hint: string }[] = [
   { id: "pendentes", label: "Pendentes", hint: "Ainda não iniciadas" },
@@ -57,6 +60,11 @@ export default function NordToolDashboard() {
   const [draft, setDraft] = useState<CronogramaSemanalItem>(vazio());
   const [salvando, setSalvando] = useState(false);
   const [erroModal, setErroModal] = useState<string | null>(null);
+  const [expandidoId, setExpandidoId] = useState<number | null>(null);
+  const [selecionados, setSelecionados] = useState<number[]>([]);
+  const [statusEmMassa, setStatusEmMassa] = useState<Status>("executar");
+  const [filtrosColuna, setFiltrosColuna] = useState<Partial<Record<ColunaLista, string[]>>>({});
+  const [ordenacao, setOrdenacao] = useState<OrdenacaoLista>(null);
 
   const carregar = async () => {
     setCarregando(true);
@@ -82,6 +90,54 @@ export default function NordToolDashboard() {
       (!termo || [item.nmCronogramaSemanal, item.txObservacao ?? "", item.nmTag ?? ""].join(" ").toLocaleLowerCase("pt-BR").includes(termo))
     );
   }, [items, categoria, busca]);
+
+  const valorColuna = (item: CronogramaSemanalItem, coluna: ColunaLista): string => {
+    if (coluna === "status") return statuses.find(s => s.id === item.nmStatusCronograma)?.label ?? item.nmStatusCronograma;
+    if (coluna === "dtPrazo") return formatarData(item.dtPrazo) ?? "Sem data";
+    if (coluna === "nmTag") return item.nmTag || "(Em branco)";
+    if (coluna === "nmCronogramaSemanal") return item.nmCronogramaSemanal;
+    return item.nmCategoria;
+  };
+
+  const valoresDaColuna = (coluna: ColunaLista) =>
+    [...new Set(filtrados.map(item => valorColuna(item, coluna)))].sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
+
+  const listaFiltrada = useMemo(() => filtrados.filter(item =>
+    (Object.entries(filtrosColuna) as [ColunaLista, string[]][]).every(([coluna, permitidos]) => permitidos.includes(valorColuna(item, coluna)))
+  ), [filtrados, filtrosColuna]);
+
+  const listaOrdenada = useMemo(() => [...listaFiltrada].sort((a, b) => {
+    if (ordenacao) {
+      const comparacao = valorColuna(a, ordenacao.coluna).localeCompare(valorColuna(b, ordenacao.coluna), "pt-BR", { numeric: true });
+      return ordenacao.direcao === "asc" ? comparacao : -comparacao;
+    }
+    const ordemStatus = statuses.findIndex(s => s.id === a.nmStatusCronograma) - statuses.findIndex(s => s.id === b.nmStatusCronograma);
+    return ordemStatus || (formatarData(a.dtPrazo) ?? "9999-12-31").localeCompare(formatarData(b.dtPrazo) ?? "9999-12-31");
+  }), [listaFiltrada, ordenacao]);
+
+  const configurarFiltroColuna = (coluna: ColunaLista, valores: string[] | null) => {
+    setFiltrosColuna(atual => {
+      const proximo = { ...atual };
+      if (valores === null) delete proximo[coluna]; else proximo[coluna] = valores;
+      return proximo;
+    });
+  };
+
+  const alternarSelecao = (id: number) => setSelecionados(atual => atual.includes(id) ? atual.filter(i => i !== id) : [...atual, id]);
+
+  const moverSelecionadas = async () => {
+    if (!selecionados.length) return;
+    const anteriores = items;
+    const idsSelecionados = new Set(selecionados);
+    setItems(current => current.map(i => (i.id && idsSelecionados.has(i.id) ? { ...i, nmStatusCronograma: statusEmMassa } : i)));
+    try {
+      await CronogramaSemanalService.moverStatus(selecionados, statusEmMassa, anteriores);
+      setSelecionados([]);
+    } catch (err) {
+      setItems(anteriores);
+      setErro(err instanceof Error ? err.message : "Falha ao mover as demandas selecionadas.");
+    }
+  };
 
   const abrirNovo = () => {
     setDraft(vazio());
@@ -277,8 +333,117 @@ export default function NordToolDashboard() {
         )}
 
         {page === "lista" && (
-          <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-dashed border-slate-800 text-center">
-            <p className="text-sm text-slate-500">Aba Lista chega na próxima etapa do plano.</p>
+          <div>
+            <div className="mb-6 flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[220px]">
+                <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
+                <input
+                  value={busca}
+                  onChange={e => setBusca(e.target.value)}
+                  placeholder="Buscar demanda ou observação..."
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 py-2 pl-9 pr-3 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-violet-600"
+                />
+              </div>
+              <select
+                value={categoria}
+                onChange={e => setCategoria(e.target.value as Categoria | "Todas")}
+                className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-violet-600"
+              >
+                <option value="Todas">Todas as categorias</option>
+                {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <button onClick={abrirNovo} className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
+                <PlusCircle size={16} /> Nova demanda
+              </button>
+            </div>
+
+            {erro && (
+              <div className="mb-4 flex items-center justify-between rounded-xl border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-300">
+                <span>{erro}</span>
+                <button onClick={() => void carregar()} className="font-semibold">Tentar novamente</button>
+              </div>
+            )}
+
+            {selecionados.length > 0 && (
+              <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-violet-800 bg-violet-950/30 px-4 py-3 text-sm text-slate-200">
+                <strong>{selecionados.length} {selecionados.length === 1 ? "demanda selecionada" : "demandas selecionadas"}</strong>
+                <label className="flex items-center gap-2">
+                  Mover para
+                  <select
+                    value={statusEmMassa}
+                    onChange={e => setStatusEmMassa(e.target.value as Status)}
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-200 outline-none"
+                  >
+                    {statuses.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                  </select>
+                </label>
+                <button onClick={() => void moverSelecionadas()} className="rounded-lg bg-violet-600 px-3 py-1.5 font-semibold text-white hover:bg-violet-700">Mover selecionadas</button>
+                <button onClick={() => setSelecionados([])} className="text-slate-400 hover:text-slate-200">Limpar seleção</button>
+              </div>
+            )}
+
+            {carregando ? (
+              <p className="py-12 text-center text-sm text-slate-500">Carregando cronograma...</p>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-slate-800">
+                <table className="w-full min-w-[720px] text-left">
+                  <thead className="bg-slate-900/60">
+                    <tr className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      <th className="w-10 px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={listaOrdenada.length > 0 && listaOrdenada.every(i => i.id && selecionados.includes(i.id))}
+                          onChange={e => setSelecionados(e.target.checked ? listaOrdenada.map(i => i.id!).filter(Boolean) : [])}
+                        />
+                      </th>
+                      {([
+                        ["status", "Fila"],
+                        ["dtPrazo", "Data"],
+                        ["nmCronogramaSemanal", "Demanda"],
+                        ["nmCategoria", "Categoria"],
+                        ["nmTag", "Frente"],
+                      ] as [ColunaLista, string][]).map(([coluna, label]) => (
+                        <th key={coluna} className="px-4 py-3">
+                          <HistoricoColumnFilter
+                            label={label}
+                            values={valoresDaColuna(coluna)}
+                            selected={filtrosColuna[coluna] ?? null}
+                            sortDirection={ordenacao?.coluna === coluna ? ordenacao.direcao : null}
+                            onApply={valores => configurarFiltroColuna(coluna, valores)}
+                            onSort={direcao => setOrdenacao({ coluna, direcao })}
+                          />
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {listaOrdenada.map(item => {
+                      const expandido = expandidoId === item.id;
+                      const marcado = !!item.id && selecionados.includes(item.id);
+                      return (
+                        <tr key={item.id} onClick={() => setExpandidoId(expandido ? null : item.id ?? null)} className={`cursor-pointer border-t border-slate-800 transition-colors hover:bg-slate-900/40 ${marcado ? "bg-violet-950/20" : ""}`}>
+                          <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                            <input type="checkbox" checked={marcado} onChange={() => item.id && alternarSelecao(item.id)} />
+                          </td>
+                          <td className="px-4 py-3 text-xs font-bold text-violet-300">{statuses.find(s => s.id === item.nmStatusCronograma)?.label}</td>
+                          <td className="px-4 py-3 text-xs text-slate-400">{formatarData(item.dtPrazo) ?? "—"}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <strong className="text-slate-200">{item.nmCronogramaSemanal}</strong>
+                            {expandido && item.txObservacao && <p className="mt-1 text-xs text-slate-500">{item.txObservacao}</p>}
+                            {expandido && (
+                              <button onClick={e => { e.stopPropagation(); abrirEdicao(item); }} className="mt-2 text-xs font-semibold text-violet-400 hover:text-violet-300">Abrir e editar</button>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-400">{item.nmCategoria}</td>
+                          <td className="px-4 py-3 text-xs text-slate-400">{item.nmTag || "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {!listaOrdenada.length && <div className="p-8 text-center text-sm text-slate-500">Nenhuma demanda encontrada.</div>}
+              </div>
+            )}
           </div>
         )}
 
