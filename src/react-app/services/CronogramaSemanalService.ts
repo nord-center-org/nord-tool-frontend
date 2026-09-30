@@ -28,7 +28,8 @@ const doisDigitos = (valor: number) => String(valor).padStart(2, '0');
 
 export const paraDataHoraBackend = (valor?: string | null): string | undefined => {
   if (!valor) return undefined;
-  const data = new Date(valor);
+  const somenteData = /^\d{4}-\d{2}-\d{2}$/.test(valor);
+  const data = somenteData ? new Date(`${valor}T00:00:00`) : new Date(valor);
   if (Number.isNaN(data.getTime())) return undefined;
   return `${doisDigitos(data.getDate())}/${doisDigitos(data.getMonth() + 1)}/${data.getFullYear()} ${doisDigitos(data.getHours())}:${doisDigitos(data.getMinutes())}:${doisDigitos(data.getSeconds())}`;
 };
