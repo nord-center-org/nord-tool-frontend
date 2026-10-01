@@ -23,6 +23,22 @@ const statuses: { id: Status; label: string; hint: string }[] = [
 
 const categorias: Categoria[] = ["Pessoal", "Acadêmica", "Atlética", "Musical", "Devocional", "Engenharia", "Programação"];
 
+// Dias cadastrados em dia_semana (id 6 = "Sem agendamento", não é um dia real; "Domingo" ainda não existe na tabela).
+const diasSemanaOpcoes: { id: number; label: string }[] = [
+  { id: 1, label: "Segunda-Feira" },
+  { id: 2, label: "Terça-Feira" },
+  { id: 3, label: "Quarta-Feira" },
+  { id: 4, label: "Quinta-Feira" },
+  { id: 5, label: "Sexta-Feira" },
+  { id: 7, label: "Sábado" },
+];
+
+const diasDaSemanaCalendario = ["Segunda-Feira", "Terça-Feira", "Quarta-Feira", "Quinta-Feira", "Sexta-Feira", "Sábado", "Domingo"];
+
+const doisDigitosLocal = (valor: number) => String(valor).padStart(2, "0");
+const ymd = (data: Date) => `${data.getFullYear()}-${doisDigitosLocal(data.getMonth() + 1)}-${doisDigitosLocal(data.getDate())}`;
+const nomeDiaSemana = (data: Date) => diasDaSemanaCalendario[(data.getDay() + 6) % 7];
+
 const formatarData = (valor?: string | null) => {
   if (!valor) return null;
   const [data] = valor.split(" ");
@@ -35,6 +51,14 @@ const paraIso = (valor?: string | null): string | null => {
   if (data.includes("-")) return data;
   const [dia, mes, ano] = data.split("/");
   return dia && mes && ano ? `${ano}-${mes}-${dia}` : null;
+};
+
+const paraDatetimeLocal = (valor?: string | null): string => {
+  if (!valor) return "";
+  if (valor.includes("T")) return valor.slice(0, 16);
+  const [data, hora] = valor.split(" ");
+  const iso = paraIso(data);
+  return iso ? `${iso}T${(hora ?? "09:00").slice(0, 5)}` : "";
 };
 
 const vazio = (): CronogramaSemanalItem => ({
@@ -65,6 +89,9 @@ export default function NordToolDashboard() {
   const [statusEmMassa, setStatusEmMassa] = useState<Status>("executar");
   const [filtrosColuna, setFiltrosColuna] = useState<Partial<Record<ColunaLista, string[]>>>({});
   const [ordenacao, setOrdenacao] = useState<OrdenacaoLista>(null);
+  const [visaoCalendario, setVisaoCalendario] = useState<"semana" | "mes">("semana");
+  const [dataCalendario, setDataCalendario] = useState(new Date());
+  const [categoriasRotina, setCategoriasRotina] = useState<Categoria[]>([]);
 
   const carregar = async () => {
     setCarregando(true);
@@ -139,15 +166,49 @@ export default function NordToolDashboard() {
     }
   };
 
-  const abrirNovo = () => {
-    setDraft(vazio());
+  const abrirNovo = (dataAgendamento?: Date) => {
+    setDraft(dataAgendamento ? { ...vazio(), dtAgendamento: `${ymd(dataAgendamento)}T09:00` } : vazio());
     setErroModal(null);
     setCriando(true);
   };
 
+  const semanaAtual = useMemo(() => {
+    const inicio = new Date(dataCalendario);
+    inicio.setDate(inicio.getDate() - ((inicio.getDay() + 6) % 7));
+    return Array.from({ length: 7 }, (_, i) => { const d = new Date(inicio); d.setDate(inicio.getDate() + i); return d; });
+  }, [dataCalendario]);
+
+  const celulasDoMes = useMemo(() => {
+    const primeiroDia = new Date(dataCalendario.getFullYear(), dataCalendario.getMonth(), 1);
+    const inicio = new Date(primeiroDia);
+    inicio.setDate(primeiroDia.getDate() - ((primeiroDia.getDay() + 6) % 7));
+    return Array.from({ length: 42 }, (_, i) => { const d = new Date(inicio); d.setDate(inicio.getDate() + i); return d; });
+  }, [dataCalendario]);
+
+  const itensDoDia = (data: Date) => {
+    const diaSemana = nomeDiaSemana(data);
+    const chave = ymd(data);
+    const fixos = items.filter(item => item.flFixo && item.nmDiaSemana === diaSemana);
+    const pontuais = items.filter(item => !item.flFixo && item.dtAgendamento && (paraIso(item.dtAgendamento) === chave));
+    return [...fixos, ...pontuais]
+      .filter(item => !categoriasRotina.length || categoriasRotina.includes(item.nmCategoria))
+      .sort((a, b) => (a.flFixo ? a.nmHorario ?? "" : a.dtAgendamento?.split(" ")[1] ?? "").localeCompare(b.flFixo ? b.nmHorario ?? "" : b.dtAgendamento?.split(" ")[1] ?? ""));
+  };
+
+  const moverCalendario = (quantidade: number) => {
+    const data = new Date(dataCalendario);
+    if (visaoCalendario === "semana") data.setDate(data.getDate() + quantidade * 7);
+    else data.setMonth(data.getMonth() + quantidade);
+    setDataCalendario(data);
+  };
+
+  const alternarCategoriaRotina = (categoria: Categoria) => setCategoriasRotina(current => current.includes(categoria) ? current.filter(c => c !== categoria) : [...current, categoria]);
+
+  const hoje = () => ymd(new Date());
+
   const abrirEdicao = (item: CronogramaSemanalItem) => {
     setEditando(item);
-    setDraft({ ...item, dtPrazo: paraIso(item.dtPrazo) });
+    setDraft({ ...item, dtPrazo: paraIso(item.dtPrazo), dtAgendamento: item.dtAgendamento ? paraDatetimeLocal(item.dtAgendamento) : null });
     setErroModal(null);
   };
 
@@ -262,7 +323,7 @@ export default function NordToolDashboard() {
                 <option value="Todas">Todas as categorias</option>
                 {categorias.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              <button onClick={abrirNovo} className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
+              <button onClick={() => abrirNovo()} className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
                 <PlusCircle size={16} /> Nova demanda
               </button>
             </div>
@@ -352,7 +413,7 @@ export default function NordToolDashboard() {
                 <option value="Todas">Todas as categorias</option>
                 {categorias.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              <button onClick={abrirNovo} className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
+              <button onClick={() => abrirNovo()} className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
                 <PlusCircle size={16} /> Nova demanda
               </button>
             </div>
@@ -448,8 +509,88 @@ export default function NordToolDashboard() {
         )}
 
         {page === "rotina" && (
-          <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-dashed border-slate-800 text-center">
-            <p className="text-sm text-slate-500">Aba Rotina chega na próxima etapa do plano.</p>
+          <div>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex rounded-xl bg-slate-900 p-1 border border-slate-700">
+                <button onClick={() => setVisaoCalendario("semana")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${visaoCalendario === "semana" ? "bg-violet-600 text-white" : "text-slate-400"}`}>Semana</button>
+                <button onClick={() => setVisaoCalendario("mes")} className={`rounded-lg px-3 py-1.5 text-xs font-bold ${visaoCalendario === "mes" ? "bg-violet-600 text-white" : "text-slate-400"}`}>Mês</button>
+              </div>
+              <div className="flex items-center gap-3 text-sm font-semibold text-slate-300">
+                <button onClick={() => moverCalendario(-1)} className="rounded-lg border border-slate-700 px-2 py-1 hover:bg-slate-800">‹</button>
+                <span>
+                  {visaoCalendario === "semana"
+                    ? `${semanaAtual[0].toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} — ${semanaAtual[6].toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}`
+                    : dataCalendario.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                </span>
+                <button onClick={() => moverCalendario(1)} className="rounded-lg border border-slate-700 px-2 py-1 hover:bg-slate-800">›</button>
+              </div>
+              <button onClick={() => abrirNovo(dataCalendario)} className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
+                <PlusCircle size={16} /> Novo compromisso
+              </button>
+            </div>
+
+            <div className="mb-4 flex flex-wrap gap-2">
+              {categorias.map(c => (
+                <button key={c} onClick={() => alternarCategoriaRotina(c)} className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase ${categoriasRotina.includes(c) ? "border-violet-500 bg-violet-600/30 text-violet-200" : "border-slate-700 text-slate-400"}`}>
+                  {c}
+                </button>
+              ))}
+              {categoriasRotina.length > 0 && <button onClick={() => setCategoriasRotina([])} className="text-[10px] font-bold text-slate-500 hover:text-slate-300">× Limpar</button>}
+            </div>
+
+            {erro && (
+              <div className="mb-4 flex items-center justify-between rounded-xl border border-red-800 bg-red-950/40 px-4 py-3 text-sm text-red-300">
+                <span>{erro}</span>
+                <button onClick={() => void carregar()} className="font-semibold">Tentar novamente</button>
+              </div>
+            )}
+
+            {visaoCalendario === "semana" ? (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-4 lg:grid-cols-7">
+                {semanaAtual.map(data => {
+                  const itens = itensDoDia(data);
+                  return (
+                    <section key={data.toISOString()} className={`flex flex-col gap-2 rounded-2xl border p-3 ${ymd(data) === hoje() ? "border-violet-600 bg-violet-950/10" : "border-slate-800"}`}>
+                      <header className="flex items-center justify-between px-1">
+                        <span className="text-[10px] font-bold uppercase text-slate-400">{nomeDiaSemana(data).replace("-Feira", "")}</span>
+                        <strong className="text-sm text-slate-200">{data.getDate()}</strong>
+                      </header>
+                      <div className="flex flex-col gap-2">
+                        {itens.map(item => (
+                          <button key={`${item.flFixo ? "f" : "p"}-${item.id}`} onClick={() => abrirEdicao(item)} className="rounded-xl border border-slate-800 bg-[#151921] p-2 text-left hover:border-violet-700">
+                            <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-500">
+                              {item.flFixo ? "📌" : "◷"} {item.flFixo ? item.nmHorario : item.dtAgendamento?.split(" ")[1]?.slice(0, 5)}
+                            </div>
+                            <p className="text-xs font-semibold text-slate-200 leading-snug">{item.nmCronogramaSemanal}</p>
+                          </button>
+                        ))}
+                        {!itens.length && <div className="rounded-xl border border-dashed border-slate-800 p-3 text-center text-[10px] font-bold uppercase text-slate-700">Livre</div>}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="grid grid-cols-7 gap-2">
+                {celulasDoMes.map(data => {
+                  const itens = itensDoDia(data);
+                  const foraDoMes = data.getMonth() !== dataCalendario.getMonth();
+                  return (
+                    <section key={data.toISOString()} className={`min-h-[90px] rounded-xl border p-2 ${foraDoMes ? "border-slate-900 opacity-40" : "border-slate-800"} ${ymd(data) === hoje() ? "border-violet-600" : ""}`}>
+                      <header className="mb-1 text-[10px] font-bold text-slate-400">{data.getDate()}</header>
+                      <div className="flex flex-col gap-1">
+                        {itens.slice(0, 3).map(item => (
+                          <button key={`${item.flFixo ? "f" : "p"}-${item.id}`} onClick={() => abrirEdicao(item)} className="truncate rounded-lg bg-slate-900 px-1.5 py-0.5 text-left text-[9px] text-slate-300 hover:bg-slate-800">
+                            {item.flFixo ? "📌" : "◷"} {item.nmCronogramaSemanal}
+                          </button>
+                        ))}
+                        {itens.length > 3 && <span className="text-[9px] text-slate-500">+{itens.length - 3} compromissos</span>}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -527,6 +668,51 @@ export default function NordToolDashboard() {
                 />
               </label>
             </div>
+
+            <label className="mb-3 flex items-center gap-2 text-xs font-semibold text-slate-400">
+              <input
+                type="checkbox"
+                checked={!!draft.flFixo}
+                onChange={e => setDraft({ ...draft, flFixo: e.target.checked, idDiaSemana: e.target.checked ? draft.idDiaSemana : null, dtAgendamento: e.target.checked ? null : draft.dtAgendamento })}
+              />
+              📌 Atividade fixa (recorrente toda semana)
+            </label>
+
+            {draft.flFixo ? (
+              <div className="mb-3 grid grid-cols-2 gap-3">
+                <label className="block text-xs font-semibold text-slate-400">
+                  Dia da semana
+                  <select
+                    value={draft.idDiaSemana ?? ""}
+                    onChange={e => setDraft({ ...draft, idDiaSemana: e.target.value ? Number(e.target.value) : null })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-violet-600"
+                  >
+                    <option value="" disabled>Selecione</option>
+                    {diasSemanaOpcoes.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+                  </select>
+                </label>
+                <label className="block text-xs font-semibold text-slate-400">
+                  Horário
+                  <input
+                    value={draft.nmHorario ?? ""}
+                    onChange={e => setDraft({ ...draft, nmHorario: e.target.value })}
+                    placeholder="Ex.: 07:00–17:00"
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-violet-600"
+                  />
+                </label>
+              </div>
+            ) : (
+              <label className="mb-3 block text-xs font-semibold text-slate-400">
+                Agendar na Rotina (data e horário)
+                <input
+                  type="datetime-local"
+                  value={paraDatetimeLocal(draft.dtAgendamento)}
+                  onChange={e => setDraft({ ...draft, dtAgendamento: e.target.value || null })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-violet-600"
+                />
+                <span className="mt-1 block font-normal normal-case text-slate-500">Opcional — deixe em branco para a demanda ficar só no Kanban/Lista.</span>
+              </label>
+            )}
 
             <div className="mt-4 flex items-center gap-3">
               <button
