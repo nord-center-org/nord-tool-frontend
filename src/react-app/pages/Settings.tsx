@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
 import {
   Settings as SettingsIcon, Save, ChevronDown, ChevronUp,
-  Loader2, Building2, Clock, Filter, Database, LayoutDashboard
+  Loader2, Building2, Clock, Filter, Database, LayoutDashboard, FolderCog, Wrench
 } from "lucide-react";
 import { ControleChavesService, type ObraControleChaves } from "../services/ControleChavesService";
+import { OpcoesColaboradorService, type Empresa, type Cargo, type Permissao } from "../services/OpcoesColaboradorService";
+import { FerramentaService, type Ferramenta } from "../services/FerramentaService";
 import { lerObraControleChaves, salvarObraControleChaves } from "../utils/preferenciasControleChaves";
+import CadastroSimples from "../components/CadastroSimples";
+import CadastroFerramentas from "../components/CadastroFerramentas";
+
+type AbaCadastro = "empresas" | "cargos" | "permissoes" | "ferramentas";
 
 const ROTULOS_OBRAS_CONTROLE_CHAVES: Record<string, string> = {
   N1: "Nord 1",
@@ -40,6 +46,17 @@ export default function SettingsPage() {
   const [erroObrasControleChaves, setErroObrasControleChaves] = useState("");
   const [carregandoObrasControleChaves, setCarregandoObrasControleChaves] = useState(true);
   const [tentativaObrasControleChaves, setTentativaObrasControleChaves] = useState(0);
+
+  // Cadastros (Empresas, Cargos, Permissões, Ferramentas)
+  const [showCadastros, setShowCadastros] = useState(false);
+  const [abaCadastro, setAbaCadastro] = useState<AbaCadastro>("empresas");
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [cargos, setCargos] = useState<Cargo[]>([]);
+  const [permissoes, setPermissoes] = useState<Permissao[]>([]);
+  const [ferramentas, setFerramentas] = useState<Ferramenta[]>([]);
+  const [carregandoCadastro, setCarregandoCadastro] = useState(false);
+  const [erroCadastro, setErroCadastro] = useState<string | null>(null);
+  const [tentativaCadastro, setTentativaCadastro] = useState(0);
 
   useEffect(() => {
     const statusSalvos = localStorage.getItem("@NordTool:filter_db_status");
@@ -82,6 +99,27 @@ export default function SettingsPage() {
       });
     return () => controller.abort();
   }, [tentativaObrasControleChaves]);
+
+  useEffect(() => {
+    if (!showCadastros) return;
+    let cancelado = false;
+    setCarregandoCadastro(true);
+    setErroCadastro(null);
+    const carregar = async () => {
+      try {
+        if (abaCadastro === "empresas") setEmpresas(await OpcoesColaboradorService.listarEmpresas());
+        else if (abaCadastro === "cargos") setCargos(await OpcoesColaboradorService.listarCargos());
+        else if (abaCadastro === "permissoes") setPermissoes(await OpcoesColaboradorService.listarPermissoes());
+        else setFerramentas(await FerramentaService.listar());
+      } catch (error) {
+        if (!cancelado) setErroCadastro(error instanceof Error ? error.message : "Falha ao carregar os registros.");
+      } finally {
+        if (!cancelado) setCarregandoCadastro(false);
+      }
+    };
+    void carregar();
+    return () => { cancelado = true; };
+  }, [showCadastros, abaCadastro, tentativaCadastro]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -172,6 +210,98 @@ export default function SettingsPage() {
               </div>
             </div>
           </section>
+
+          {/* SESSÃO DE CADASTROS */}
+          <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+            <button
+              onClick={() => setShowCadastros((prev) => !prev)}
+              className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-2.5 bg-amber-100/50 text-amber-600 rounded-xl">
+                  <FolderCog className="w-5 h-5" />
+                </div>
+                <div className="text-left">
+                  <h3 className="text-lg font-bold text-slate-800">Cadastros</h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Empresas, cargos, permissões e ferramentas usados no Controle de Chaves
+                  </p>
+                </div>
+              </div>
+              <div className="p-2 hover:bg-slate-200/50 rounded-full transition-colors">
+                {showCadastros ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+              </div>
+            </button>
+
+            {showCadastros && (
+              <div className="p-5 pt-0 border-t border-slate-100 bg-slate-50/30">
+                <div className="flex flex-wrap gap-1 bg-slate-200/50 rounded-xl border border-slate-200 w-max mb-6 mt-4 p-1">
+                  {([
+                    ["empresas", "Empresas"],
+                    ["cargos", "Cargos"],
+                    ["permissoes", "Permissões"],
+                    ["ferramentas", "Ferramentas"],
+                  ] as [AbaCadastro, string][]).map(([aba, rotulo]) => (
+                    <button
+                      key={aba}
+                      onClick={() => setAbaCadastro(aba)}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${abaCadastro === aba ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                    >
+                      {aba === "ferramentas" && <Wrench className="w-4 h-4" />} {rotulo}
+                    </button>
+                  ))}
+                </div>
+
+                {abaCadastro === "empresas" && (
+                  <CadastroSimples
+                    titulo="Empresas"
+                    rotuloCampo="Empresa"
+                    itens={empresas.map(e => ({ id: e.id, nome: e.nmEmpresa }))}
+                    carregando={carregandoCadastro}
+                    erro={erroCadastro}
+                    onRecarregar={() => setTentativaCadastro(v => v + 1)}
+                    onCriar={async (nome) => { await OpcoesColaboradorService.criarEmpresa(nome); setTentativaCadastro(v => v + 1); }}
+                    onAlterar={async (id, nome) => { await OpcoesColaboradorService.alterarEmpresa(id, nome); setTentativaCadastro(v => v + 1); }}
+                    onExcluir={async (id) => { await OpcoesColaboradorService.excluirEmpresa(id); setTentativaCadastro(v => v + 1); }}
+                  />
+                )}
+                {abaCadastro === "cargos" && (
+                  <CadastroSimples
+                    titulo="Cargos"
+                    rotuloCampo="Cargo"
+                    itens={cargos.map(c => ({ id: c.id, nome: c.nmCargo }))}
+                    carregando={carregandoCadastro}
+                    erro={erroCadastro}
+                    onRecarregar={() => setTentativaCadastro(v => v + 1)}
+                    onCriar={async (nome) => { await OpcoesColaboradorService.criarCargo(nome); setTentativaCadastro(v => v + 1); }}
+                    onAlterar={async (id, nome) => { await OpcoesColaboradorService.alterarCargo(id, nome); setTentativaCadastro(v => v + 1); }}
+                    onExcluir={async (id) => { await OpcoesColaboradorService.excluirCargo(id); setTentativaCadastro(v => v + 1); }}
+                  />
+                )}
+                {abaCadastro === "permissoes" && (
+                  <CadastroSimples
+                    titulo="Permissões"
+                    rotuloCampo="Permissão"
+                    itens={permissoes.map(p => ({ id: p.id, nome: p.nmPermissao }))}
+                    carregando={carregandoCadastro}
+                    erro={erroCadastro}
+                    onRecarregar={() => setTentativaCadastro(v => v + 1)}
+                    onCriar={async (nome) => { await OpcoesColaboradorService.criarPermissao(nome); setTentativaCadastro(v => v + 1); }}
+                    onAlterar={async (id, nome) => { await OpcoesColaboradorService.alterarPermissao(id, nome); setTentativaCadastro(v => v + 1); }}
+                    onExcluir={async (id) => { await OpcoesColaboradorService.excluirPermissao(id); setTentativaCadastro(v => v + 1); }}
+                  />
+                )}
+                {abaCadastro === "ferramentas" && (
+                  <CadastroFerramentas
+                    itens={ferramentas}
+                    carregando={carregandoCadastro}
+                    erro={erroCadastro}
+                    onRecarregar={() => setTentativaCadastro(v => v + 1)}
+                  />
+                )}
+              </div>
+            )}
+          </div>
 
           {/* SESSÃO DE PRÉ-CARREGAMENTO (FILTROS) */}
           <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
