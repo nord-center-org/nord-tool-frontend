@@ -12,20 +12,26 @@ const colaborador = (nmPermissao: string): Colaborador => ({
   nmPermissao,
 });
 
-test('Engenharia pode retirar e liberar, inclusive com espaços, caixa e acentos normalizados', () => {
-  const engenharia = colaborador('  ENGENHÁRIA  ');
-  assert.equal(podeRetirarChave(engenharia), true);
-  assert.equal(podeLiberarChave(engenharia), true);
+test('"Retirar" permite retirar mas não liberar', () => {
+  const retirar = colaborador('  RetIrAr  ');
+  assert.equal(podeRetirarChave(retirar), true);
+  assert.equal(podeLiberarChave(retirar), false);
 });
 
-test('Campo aparece somente entre retirantes, com normalizacao de caixa e espacos', () => {
-  const campo = colaborador('  CaMpO  ');
-  assert.equal(podeRetirarChave(campo), true);
-  assert.equal(podeLiberarChave(campo), false);
+test('"Liberar e retirar" permite ambos, com normalização de caixa e acentos', () => {
+  const ambos = colaborador('  LIBERAR E RETIRAR  ');
+  assert.equal(podeRetirarChave(ambos), true);
+  assert.equal(podeLiberarChave(ambos), true);
 });
 
-test('não aceita correspondência parcial nem permissão diferente', () => {
-  for (const permissao of ['Engenharia externa', 'Liberar', 'Retirar', '']) {
+test('"Liberar" sozinho permite só liberar', () => {
+  const liberar = colaborador('Liberar');
+  assert.equal(podeRetirarChave(liberar), false);
+  assert.equal(podeLiberarChave(liberar), true);
+});
+
+test('permissão vazia ou sem relação não permite nada', () => {
+  for (const permissao of ['Visualizar', '']) {
     const outro = colaborador(permissao);
     assert.equal(podeRetirarChave(outro), false);
     assert.equal(podeLiberarChave(outro), false);
