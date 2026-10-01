@@ -1,4 +1,6 @@
+export type TipoItemControleChaves = 'APARTAMENTO' | 'FERRAMENTA';
 export interface ApartamentoControleChaves { idApartamentoVistoria: number; nmApartamentoVistoria: string }
+export interface FerramentaControleChaves { idFerramenta: number; nmFerramenta: string }
 export interface ObraControleChaves { idObra: string; nmObra: string }
 export interface RetiranteControleChaves {
   idUserRetirada: number; nmPessoaRetirante: string; nmPermissaoRetirante?: string;
@@ -10,8 +12,9 @@ export interface RecebedorControleChaves {
   idUserRecebimento: number; nmPessoaRecebedor: string; nmPermissaoRecebedor?: string;
 }
 export interface RetiradaControleChaves {
-  idRequisicao: number; cdCodigoRetirada: string;
-  apartamentoControleChavesDto: ApartamentoControleChaves;
+  idRequisicao: number; cdCodigoRetirada: string; nmTipoItem: TipoItemControleChaves;
+  apartamentoControleChavesDto?: ApartamentoControleChaves | null;
+  ferramentaControleChavesDto?: FerramentaControleChaves | null;
   retiranteControleChavesDto: RetiranteControleChaves;
   liberadorControleChavesDto: LiberadorControleChaves;
   recebedorControleChavesDto?: RecebedorControleChaves | null;
@@ -22,7 +25,11 @@ export interface DashboardControleChaves {
   retiradasRecentes: RetiradaControleChaves[];
 }
 export interface NovaRetiradaControleChaves {
-  idApartamentoVistoria: number; idUserRetirada: number; idUserLiberacao: number;
+  nmTipoItem: TipoItemControleChaves;
+  idApartamentoVistoria?: number;
+  idFerramenta?: number;
+  idUserRetirada: number;
+  idUserLiberacao: number;
 }
 export interface RecebimentoControleChaves { idUserRecebimento: number }
 
@@ -74,6 +81,10 @@ export const ControleChavesService = {
   listarApartamentos(busca: string, options: { limite?: number; pagina?: number; signal?: AbortSignal } = {}) {
     const params = new URLSearchParams({ busca, limite: String(options.limite ?? 20), pagina: String(options.pagina ?? 0) });
     return requisitar<ApartamentoControleChaves[]>(`${API_URL}/apartamentos?${params}`, { signal: options.signal });
+  },
+  listarFerramentas(busca: string, options: { limite?: number; pagina?: number; signal?: AbortSignal } = {}) {
+    const params = new URLSearchParams({ busca, limite: String(options.limite ?? 20), pagina: String(options.pagina ?? 0) });
+    return requisitar<FerramentaControleChaves[]>(`${API_URL}/ferramentas?${params}`, { signal: options.signal });
   },
   buscarDashboard(limiteRecentes = 5, idObra?: string) {
     const params = new URLSearchParams({ limiteRecentes: String(limiteRecentes) });
