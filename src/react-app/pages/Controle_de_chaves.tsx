@@ -4,7 +4,7 @@ import { ColaboradorService, Colaborador } from '../services/ColaboradorService'
 import { OpcoesColaboradorService, type Empresa, type Cargo, type Permissao } from '../services/OpcoesColaboradorService';
 import { apartamentoVistoriaService } from '../services/ApartamentoVistoriaService';
 import { podeLiberarChave, podeRetirarChave } from '../utils/elegibilidadeColaborador';
-import { ControleChavesService, type ApartamentoControleChaves, type DashboardControleChaves, type RetiradaControleChaves } from '../services/ControleChavesService';
+import { ControleChavesService, type ApartamentoControleChaves, type FerramentaControleChaves, type TipoItemControleChaves, type DashboardControleChaves, type RetiradaControleChaves } from '../services/ControleChavesService';
 import { EVENTO_OBRA_CONTROLE_CHAVES, lerObraControleChaves } from '../utils/preferenciasControleChaves';
 import { HistoricoColumnFilter, type DirecaoOrdenacao } from '../components/HistoricoColumnFilter';
 
@@ -49,12 +49,15 @@ const apartamentoPertenceAObra = (codigo: string, idObra: string) =>
 const apartamentoEntregue = (status?: string) =>
   ['APROVADO', 'APROVADO DAT'].includes(status?.trim().toLocaleUpperCase('pt-BR') ?? '');
 
+const nomeItemRetirada = (retirada: RetiradaControleChaves) =>
+  retirada?.apartamentoControleChavesDto?.nmApartamentoVistoria ?? retirada?.ferramentaControleChavesDto?.nmFerramenta;
+
 const valorColunaHistorico = (retirada: RetiradaControleChaves, coluna: ColunaHistorico) => {
   const aberta = retiradaAberta(retirada);
   const valores: Record<ColunaHistorico, string> = {
     codigo: normalizarTexto(retirada?.cdCodigoRetirada),
     data: formatarData(retirada.dtRetirada),
-    apartamento: normalizarTexto(retirada?.apartamentoControleChavesDto?.nmApartamentoVistoria),
+    apartamento: normalizarTexto(nomeItemRetirada(retirada)),
     retirante: normalizarTexto(retirada?.retiranteControleChavesDto?.nmPessoaRetirante),
     recebedor: aberta ? VALOR_VAZIO : normalizarTexto(retirada?.recebedorControleChavesDto?.nmPessoaRecebedor),
     status: normalizarTexto(retirada?.nmStatusRetiradaControle),
@@ -66,7 +69,7 @@ const valorColunaRetiradaRecente = (retirada: RetiradaControleChaves, coluna: Co
   const valores: Record<ColunaRetiradasRecentes, string> = {
     codigo: normalizarTexto(retirada?.cdCodigoRetirada),
     data: formatarData(retirada.dtRetirada),
-    apartamento: normalizarTexto(retirada?.apartamentoControleChavesDto?.nmApartamentoVistoria),
+    apartamento: normalizarTexto(nomeItemRetirada(retirada)),
     retirante: normalizarTexto(retirada?.retiranteControleChavesDto?.nmPessoaRetirante),
     liberador: normalizarTexto(retirada?.liberadorControleChavesDto?.nmPessoaLiberador),
     status: normalizarTexto(retirada?.nmStatusRetiradaControle),
@@ -116,10 +119,20 @@ const App = () => {
   const [listaApartamentosAberta, setListaApartamentosAberta] = useState(false);
   const [opcaoApartamentoAtiva, setOpcaoApartamentoAtiva] = useState(-1);
   const [tentativaBuscaApartamento, setTentativaBuscaApartamento] = useState(0);
+  const [tipoItemRetirada, setTipoItemRetirada] = useState<TipoItemControleChaves>('APARTAMENTO');
+  const [buscaFerramenta, setBuscaFerramenta] = useState('');
+  const [ferramentas, setFerramentas] = useState<FerramentaControleChaves[]>([]);
+  const [ferramentaSelecionada, setFerramentaSelecionada] = useState<FerramentaControleChaves | null>(null);
+  const [carregandoFerramentas, setCarregandoFerramentas] = useState(false);
+  const [erroFerramentas, setErroFerramentas] = useState<string | null>(null);
+  const [listaFerramentasAberta, setListaFerramentasAberta] = useState(false);
+  const [opcaoFerramentaAtiva, setOpcaoFerramentaAtiva] = useState(-1);
+  const [tentativaBuscaFerramenta, setTentativaBuscaFerramenta] = useState(0);
   const [idRetirante, setIdRetirante] = useState<number | null>(null);
   const [idLiberador, setIdLiberador] = useState<number | null>(null);
   const [salvandoRetirada, setSalvandoRetirada] = useState(false);
   const apartamentoListboxId = useId();
+  const ferramentaListboxId = useId();
 
   // Estado do formulário de colaborador
   const [formData, setFormData] = useState<Colaborador>({
@@ -275,7 +288,7 @@ const App = () => {
   }, [buscaHistorico, statusHistorico, idObra, tentativaHistorico]);
 
   useEffect(() => {
-    if (modalType !== 'retirada') return;
+    if (modalType !== 'retirada' || tipoItemRetirada !== 'APARTAMENTO') return;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setCarregandoApartamentos(true);
@@ -297,7 +310,32 @@ const App = () => {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [buscaApartamento, modalType, tentativaBuscaApartamento]);
+  }, [buscaApartamento, modalType, tipoItemRetirada, tentativaBuscaApartamento]);
+
+  useEffect(() => {
+    if (modalType !== 'retirada' || tipoItemRetirada !== 'FERRAMENTA') return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setCarregandoFerramentas(true);
+      setErroFerramentas(null);
+      try {
+        const dados = await ControleChavesService.listarFerramentas(buscaFerramenta.trim(), { limite: 20, pagina: 0, signal: controller.signal });
+        setFerramentas(dados);
+        setErroFerramentas(null);
+        setOpcaoFerramentaAtiva(dados.length ? 0 : -1);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        setFerramentas([]);
+        setErroFerramentas(err instanceof Error ? err.message : 'Falha ao buscar ferramentas.');
+      } finally {
+        if (!controller.signal.aborted) setCarregandoFerramentas(false);
+      }
+    }, 300);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [buscaFerramenta, modalType, tipoItemRetirada, tentativaBuscaFerramenta]);
 
   const valoresPorColuna = useMemo(() => Object.fromEntries(
     (['codigo', 'data', 'apartamento', 'retirante', 'recebedor', 'status'] as ColunaHistorico[]).map(coluna => [
@@ -369,11 +407,17 @@ const App = () => {
     setIdRecebedor(null);
 
     if (type === 'retirada') {
+      setTipoItemRetirada('APARTAMENTO');
       setBuscaApartamento('');
       setApartamentoSelecionado(null);
       setApartamentos([]);
       setErroApartamentos(null);
       setListaApartamentosAberta(false);
+      setBuscaFerramenta('');
+      setFerramentaSelecionada(null);
+      setFerramentas([]);
+      setErroFerramentas(null);
+      setListaFerramentasAberta(false);
       setIdRetirante(null);
       setIdLiberador(null);
       setSalvandoRetirada(false);
@@ -427,15 +471,24 @@ const App = () => {
   const handleCriarRetirada = async () => {
     if (salvandoRetirada) return;
     setErroModal(null);
-    if (!apartamentoSelecionado || idRetirante === null || idLiberador === null) {
-      setErroModal('Selecione o apartamento, quem retirou e quem liberou.');
+    if (idRetirante === null || idLiberador === null) {
+      setErroModal('Selecione quem retirou e quem liberou.');
+      return;
+    }
+    if (tipoItemRetirada === 'APARTAMENTO' && !apartamentoSelecionado) {
+      setErroModal('Selecione o apartamento.');
+      return;
+    }
+    if (tipoItemRetirada === 'FERRAMENTA' && !ferramentaSelecionada) {
+      setErroModal('Selecione a ferramenta.');
       return;
     }
     setSalvandoRetirada(true);
     try {
       await ControleChavesService.criarRetirada({
-        nmTipoItem: 'APARTAMENTO',
-        idApartamentoVistoria: apartamentoSelecionado.idApartamentoVistoria,
+        nmTipoItem: tipoItemRetirada,
+        idApartamentoVistoria: tipoItemRetirada === 'APARTAMENTO' ? apartamentoSelecionado?.idApartamentoVistoria : undefined,
+        idFerramenta: tipoItemRetirada === 'FERRAMENTA' ? ferramentaSelecionada?.idFerramenta : undefined,
         idUserRetirada: idRetirante,
         idUserLiberacao: idLiberador,
       });
@@ -540,7 +593,7 @@ const App = () => {
                       {([
                         ['codigo', 'Código'],
                         ['data', 'Data'],
-                        ['apartamento', 'Apartamento'],
+                        ['apartamento', 'Item'],
                         ['retirante', 'Retirado por'],
                         ['liberador', 'Liberado por'],
                         ['status', 'Status'],
@@ -697,7 +750,7 @@ const App = () => {
                     {([
                       ['codigo', 'Código'],
                       ['data', 'Data'],
-                      ['apartamento', 'Apartamento'],
+                      ['apartamento', 'Item'],
                       ['retirante', 'Retirado por'],
                       ['recebedor', 'Recebido por'],
                       ['status', 'Status'],
@@ -828,6 +881,21 @@ const App = () => {
                 </>
               ) : modalType === 'retirada' ? (
                 <>
+                  <label className="block text-sm font-semibold text-slate-600">Tipo de item</label>
+                  <div className="mb-1 flex rounded-xl bg-slate-100 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setTipoItemRetirada('APARTAMENTO')}
+                      className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${tipoItemRetirada === 'APARTAMENTO' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}
+                    >Apartamento</button>
+                    <button
+                      type="button"
+                      onClick={() => setTipoItemRetirada('FERRAMENTA')}
+                      className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${tipoItemRetirada === 'FERRAMENTA' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}
+                    >Ferramenta</button>
+                  </div>
+                  {tipoItemRetirada === 'APARTAMENTO' ? (
+                  <>
                   <label htmlFor="busca-apartamento" className="block text-sm font-semibold text-slate-600">Apartamento</label>
                   <div className="relative">
                     <input
@@ -903,6 +971,87 @@ const App = () => {
                       <span>{erroApartamentos}</span>
                       <button type="button" onClick={() => setTentativaBuscaApartamento(value => value + 1)} className="shrink-0 font-semibold hover:text-red-900">Tentar novamente</button>
                     </div>
+                  )}
+                  </>
+                  ) : (
+                  <>
+                  <label htmlFor="busca-ferramenta" className="block text-sm font-semibold text-slate-600">Ferramenta</label>
+                  <div className="relative">
+                    <input
+                      id="busca-ferramenta"
+                      type="search"
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-expanded={listaFerramentasAberta}
+                      aria-controls={ferramentaListboxId}
+                      aria-activedescendant={opcaoFerramentaAtiva >= 0 ? `${ferramentaListboxId}-${opcaoFerramentaAtiva}` : undefined}
+                      value={buscaFerramenta}
+                      placeholder="Pesquisar ferramenta..."
+                      autoComplete="off"
+                      onFocus={() => setListaFerramentasAberta(true)}
+                      onChange={(event) => {
+                        setBuscaFerramenta(event.target.value);
+                        setFerramentaSelecionada(null);
+                        setListaFerramentasAberta(true);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'ArrowDown') {
+                          event.preventDefault();
+                          setListaFerramentasAberta(true);
+                          setOpcaoFerramentaAtiva(index => Math.min(index + 1, ferramentas.length - 1));
+                        } else if (event.key === 'ArrowUp') {
+                          event.preventDefault();
+                          setOpcaoFerramentaAtiva(index => Math.max(index - 1, 0));
+                        } else if (event.key === 'Enter' && opcaoFerramentaAtiva >= 0 && ferramentas[opcaoFerramentaAtiva]) {
+                          event.preventDefault();
+                          const ferramenta = ferramentas[opcaoFerramentaAtiva];
+                          setFerramentaSelecionada(ferramenta);
+                          setBuscaFerramenta(ferramenta.nmFerramenta);
+                          setErroFerramentas(null);
+                          setListaFerramentasAberta(false);
+                        } else if (event.key === 'Escape') {
+                          setListaFerramentasAberta(false);
+                        }
+                      }}
+                      className="w-full p-3 pr-10 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                    {buscaFerramenta && (
+                      <button type="button" aria-label="Limpar ferramenta" onClick={() => {
+                        setBuscaFerramenta('');
+                        setFerramentaSelecionada(null);
+                        setListaFerramentasAberta(true);
+                      }} className="absolute right-3 top-3 text-slate-400 hover:text-slate-700"><X size={18} /></button>
+                    )}
+                    {listaFerramentasAberta && !carregandoFerramentas && !erroFerramentas && ferramentas.length > 0 && (
+                      <ul id={ferramentaListboxId} role="listbox" className="absolute z-10 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+                        {ferramentas.map((ferramenta, index) => (
+                          <li
+                            id={`${ferramentaListboxId}-${index}`}
+                            key={ferramenta.idFerramenta}
+                            role="option"
+                            aria-selected={ferramentaSelecionada?.idFerramenta === ferramenta.idFerramenta}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                              setFerramentaSelecionada(ferramenta);
+                              setBuscaFerramenta(ferramenta.nmFerramenta);
+                              setErroFerramentas(null);
+                              setListaFerramentasAberta(false);
+                            }}
+                            className={`cursor-pointer rounded-lg px-3 py-2 text-sm ${index === opcaoFerramentaAtiva ? 'bg-emerald-50 text-emerald-800' : 'text-slate-700 hover:bg-slate-50'}`}
+                          >{ferramenta.nmFerramenta}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  {listaFerramentasAberta && carregandoFerramentas && <p className="text-sm text-slate-500">Buscando ferramentas...</p>}
+                  {listaFerramentasAberta && !carregandoFerramentas && !erroFerramentas && ferramentas.length === 0 && <p className="text-sm text-slate-500">Nenhuma ferramenta encontrada.</p>}
+                  {listaFerramentasAberta && erroFerramentas && !carregandoFerramentas && (
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                      <span>{erroFerramentas}</span>
+                      <button type="button" onClick={() => setTentativaBuscaFerramenta(value => value + 1)} className="shrink-0 font-semibold hover:text-red-900">Tentar novamente</button>
+                    </div>
+                  )}
+                  </>
                   )}
                   <label className="block text-sm font-semibold text-slate-600">Retirado Por</label>
                   <select value={idRetirante ?? ''} onChange={(event) => setIdRetirante(Number(event.target.value))} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
