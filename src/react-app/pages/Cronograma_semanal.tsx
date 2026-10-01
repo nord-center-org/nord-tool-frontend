@@ -23,6 +23,24 @@ const statuses: { id: Status; label: string; hint: string }[] = [
 
 const categorias: Categoria[] = ["Pessoal", "Acadêmica", "Atlética", "Musical", "Devocional", "Engenharia", "Programação"];
 
+const corCategoria: Record<Categoria, string> = {
+  Pessoal: "bg-pink-500/15 text-pink-300 border border-pink-500/20",
+  Acadêmica: "bg-indigo-500/15 text-indigo-300 border border-indigo-500/20",
+  Atlética: "bg-orange-500/15 text-orange-300 border border-orange-500/20",
+  Musical: "bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/20",
+  Devocional: "bg-amber-500/15 text-amber-300 border border-amber-500/20",
+  Engenharia: "bg-sky-500/15 text-sky-300 border border-sky-500/20",
+  Programação: "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20",
+};
+
+const corStatus: Record<Status, string> = {
+  pendentes: "bg-slate-500/15 text-slate-300 border border-slate-500/20",
+  executar: "bg-blue-500/15 text-blue-300 border border-blue-500/20",
+  aguardar: "bg-amber-500/15 text-amber-300 border border-amber-500/20",
+  acompanhar: "bg-violet-500/15 text-violet-300 border border-violet-500/20",
+  finalizada: "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20",
+};
+
 // Dias cadastrados em dia_semana (id 6 = "Sem agendamento", não é um dia real; "Domingo" ainda não existe na tabela).
 const diasSemanaOpcoes: { id: number; label: string }[] = [
   { id: 1, label: "Segunda-Feira" },
@@ -339,7 +357,7 @@ export default function NordToolDashboard() {
               <p className="py-12 text-center text-sm text-slate-500">Carregando cronograma...</p>
             ) : (
               <AnimatePresence mode="wait">
-                <motion.div key="kanban" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-5">
+                <motion.div key="kanban" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex gap-4 overflow-x-auto pb-2">
                   {statuses.map(status => {
                     const itensDaColuna = filtrados
                       .filter(item => item.nmStatusCronograma === status.id)
@@ -349,17 +367,17 @@ export default function NordToolDashboard() {
                         key={status.id}
                         onDragOver={e => e.preventDefault()}
                         onDrop={e => soltar(e, status.id)}
-                        className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-3"
+                        className="flex w-72 shrink-0 flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-3"
                       >
                         <header className="flex items-center justify-between px-1">
                           <div>
-                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-300">{status.label}</h3>
-                            <p className="text-[10px] text-slate-500">{status.hint}</p>
+                            <h3 className={`inline-block rounded-md px-1.5 py-0.5 text-xs font-bold uppercase tracking-widest ${corStatus[status.id]}`}>{status.label}</h3>
+                            <p className="mt-1 text-[10px] text-slate-500">{status.hint}</p>
                           </div>
                           <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-300">{itensDaColuna.length}</span>
                         </header>
 
-                        <div className="flex flex-col gap-3 min-h-[80px]">
+                        <div className="flex max-h-[65vh] flex-col gap-3 overflow-y-auto min-h-[80px] pr-1">
                           {itensDaColuna.map(item => (
                             <div
                               key={item.id}
@@ -370,7 +388,7 @@ export default function NordToolDashboard() {
                               className={`cursor-pointer rounded-2xl border border-slate-800 bg-[#151921] p-4 shadow-xl transition-transform hover:scale-[1.02] ${dragging === item.id ? "opacity-50" : ""}`}
                             >
                               <div className="mb-2 flex items-center justify-between gap-2">
-                                <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-violet-300">{item.nmCategoria}</span>
+                                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${corCategoria[item.nmCategoria]}`}>{item.nmCategoria}</span>
                                 {item.nmTag && <span className="text-[10px] text-slate-500">{item.nmTag}</span>}
                               </div>
                               <p className="text-sm font-semibold leading-snug">{item.nmCronogramaSemanal}</p>
@@ -486,7 +504,11 @@ export default function NordToolDashboard() {
                           <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                             <input type="checkbox" checked={marcado} onChange={() => item.id && alternarSelecao(item.id)} />
                           </td>
-                          <td className="px-4 py-3 text-xs font-bold text-violet-300">{statuses.find(s => s.id === item.nmStatusCronograma)?.label}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${corStatus[item.nmStatusCronograma]}`}>
+                              {statuses.find(s => s.id === item.nmStatusCronograma)?.label}
+                            </span>
+                          </td>
                           <td className="px-4 py-3 text-xs text-slate-400">{formatarData(item.dtPrazo) ?? "—"}</td>
                           <td className="px-4 py-3 text-sm">
                             <strong className="text-slate-200">{item.nmCronogramaSemanal}</strong>
@@ -495,7 +517,9 @@ export default function NordToolDashboard() {
                               <button onClick={e => { e.stopPropagation(); abrirEdicao(item); }} className="mt-2 text-xs font-semibold text-violet-400 hover:text-violet-300">Abrir e editar</button>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-xs text-slate-400">{item.nmCategoria}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${corCategoria[item.nmCategoria]}`}>{item.nmCategoria}</span>
+                          </td>
                           <td className="px-4 py-3 text-xs text-slate-400">{item.nmTag || "—"}</td>
                         </tr>
                       );
@@ -571,7 +595,8 @@ export default function NordToolDashboard() {
                 })}
               </div>
             ) : (
-              <div className="grid grid-cols-7 gap-2">
+              <div className="overflow-x-auto">
+              <div className="grid min-w-[640px] grid-cols-7 gap-2">
                 {celulasDoMes.map(data => {
                   const itens = itensDoDia(data);
                   const foraDoMes = data.getMonth() !== dataCalendario.getMonth();
@@ -589,6 +614,7 @@ export default function NordToolDashboard() {
                     </section>
                   );
                 })}
+              </div>
               </div>
             )}
           </div>
