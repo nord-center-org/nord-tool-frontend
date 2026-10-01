@@ -71,19 +71,19 @@ const excluirOpcao = async (endpoint: string, id: number, descricao: string): Pr
 };
 
 export const OpcoesColaboradorService = {
-  listarEmpresas: () => listarOpcoes<Empresa>('/api/empresas', 'empresas'),
-  listarCargos: () => listarOpcoes<Cargo>('/api/cargos', 'cargos'),
-  listarPermissoes: () => listarOpcoes<Permissao>('/api/permissoes', 'permissões'),
+  listarEmpresas: () => listarOpcoes<Empresa>('/api/v1/nord-tool/empresas', 'empresas'),
+  listarCargos: () => listarOpcoes<Cargo>('/api/v1/nord-tool/cargos', 'cargos'),
+  listarPermissoes: () => listarOpcoes<Permissao>('/api/v1/nord-tool/permissoes', 'permissões'),
 
-  criarEmpresa: (nmEmpresa: string) => criarOpcao<Empresa>('/api/empresas', { nmEmpresa }, 'empresa'),
-  alterarEmpresa: (id: number, nmEmpresa: string) => alterarOpcao<Empresa>('/api/empresas', id, { nmEmpresa }, 'empresa'),
-  excluirEmpresa: (id: number) => excluirOpcao('/api/empresas', id, 'empresa'),
+  criarEmpresa: (nmEmpresa: string) => criarOpcao<Empresa>('/api/v1/nord-tool/empresas', { nmEmpresa }, 'empresa'),
+  alterarEmpresa: (id: number, nmEmpresa: string) => alterarOpcao<Empresa>('/api/v1/nord-tool/empresas', id, { nmEmpresa }, 'empresa'),
+  excluirEmpresa: (id: number) => excluirOpcao('/api/v1/nord-tool/empresas', id, 'empresa'),
 
-  criarCargo: (nmCargo: string) => criarOpcao<Cargo>('/api/cargos', { nmCargo }, 'cargo'),
-  alterarCargo: (id: number, nmCargo: string) => alterarOpcao<Cargo>('/api/cargos', id, { nmCargo }, 'cargo'),
-  excluirCargo: (id: number) => excluirOpcao('/api/cargos', id, 'cargo'),
+  criarCargo: (nmCargo: string) => criarOpcao<Cargo>('/api/v1/nord-tool/cargos', { nmCargo }, 'cargo'),
+  alterarCargo: (id: number, nmCargo: string) => alterarOpcao<Cargo>('/api/v1/nord-tool/cargos', id, { nmCargo }, 'cargo'),
+  excluirCargo: (id: number) => excluirOpcao('/api/v1/nord-tool/cargos', id, 'cargo'),
 
-  criarPermissao: (nmPermissao: string) => criarOpcao<Permissao>('/api/permissoes', { nmPermissao }, 'permissão'),
-  alterarPermissao: (id: number, nmPermissao: string) => alterarOpcao<Permissao>('/api/permissoes', id, { nmPermissao }, 'permissão'),
-  excluirPermissao: (id: number) => excluirOpcao('/api/permissoes', id, 'permissão'),
+  criarPermissao: (nmPermissao: string) => criarOpcao<Permissao>('/api/v1/nord-tool/permissoes', { nmPermissao }, 'permissão'),
+  alterarPermissao: (id: number, nmPermissao: string) => alterarOpcao<Permissao>('/api/v1/nord-tool/permissoes', id, { nmPermissao }, 'permissão'),
+  excluirPermissao: (id: number) => excluirOpcao('/api/v1/nord-tool/permissoes', id, 'permissão'),
 };

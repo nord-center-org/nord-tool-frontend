@@ -52,6 +52,19 @@ const apartamentoEntregue = (status?: string) =>
 const nomeItemRetirada = (retirada: RetiradaControleChaves) =>
   retirada?.apartamentoControleChavesDto?.nmApartamentoVistoria ?? retirada?.ferramentaControleChavesDto?.nmFerramenta;
 
+const listarFerramentasAtivas = async (): Promise<FerramentaControleChaves[]> => {
+  const limite = 100;
+  const ferramentas: FerramentaControleChaves[] = [];
+  let pagina = 0;
+  let lote: FerramentaControleChaves[] = [];
+  do {
+    lote = await ControleChavesService.listarFerramentas('', { limite, pagina });
+    ferramentas.push(...lote);
+    pagina += 1;
+  } while (lote.length === limite);
+  return ferramentas;
+};
+
 const valorColunaHistorico = (retirada: RetiradaControleChaves, coluna: ColunaHistorico) => {
   const aberta = retiradaAberta(retirada);
   const valores: Record<ColunaHistorico, string> = {
@@ -197,7 +210,7 @@ const App = () => {
     setCarregandoDashboard(true);
     setErroDashboard(null);
     try {
-      const [todosApartamentos, todasRetiradas] = await Promise.all([
+      const [todosApartamentos, todasRetiradas, ferramentasAtivas] = await Promise.all([
         apartamentoVistoriaService.listar(),
         (async () => {
           const limite = 100;
@@ -211,16 +224,22 @@ const App = () => {
           } while (lote.length === limite);
           return registros;
         })(),
+        idObra ? Promise.resolve([] as FerramentaControleChaves[]) : listarFerramentasAtivas(),
       ]);
       const apartamentosDaObra = todosApartamentos.filter(apartamento =>
         apartamentoPertenceAObra(apartamento.nmApartamentoVistoria, idObra));
       const retiradasDaObra = todasRetiradas.filter(retirada =>
         apartamentoPertenceAObra(retirada.apartamentoControleChavesDto?.nmApartamentoVistoria ?? '', idObra));
       const retiradasAbertas = retiradasDaObra.filter(retiradaAberta);
+      const ferramentasEmCampo = new Set(retiradasAbertas
+        .filter(retirada => retirada.nmTipoItem === 'FERRAMENTA')
+        .map(retirada => retirada.ferramentaControleChavesDto?.idFerramenta)
+        .filter((id): id is number => id !== undefined));
 
       setDashboard({
         qtChavesEmCampo: retiradasAbertas.length,
-        qtChavesNoQuadro: apartamentosDaObra.filter(apartamento => !apartamentoEntregue(apartamento.nmStatusVistoria)).length,
+        qtChavesNoQuadro: apartamentosDaObra.filter(apartamento => !apartamentoEntregue(apartamento.nmStatusVistoria)).length
+          + ferramentasAtivas.filter(ferramenta => !ferramentasEmCampo.has(ferramenta.idFerramenta)).length,
         qtChavesEntregues: apartamentosDaObra.filter(apartamento => apartamentoEntregue(apartamento.nmStatusVistoria)).length,
         retiradasRecentes: retiradasAbertas
           .sort((a, b) => (normalizarData(b.dtRetirada) ?? 0) - (normalizarData(a.dtRetirada) ?? 0))
@@ -516,7 +535,7 @@ const App = () => {
         ...atual,
         qtChavesEmCampo: Math.max(0, atual.qtChavesEmCampo - 1),
         qtChavesNoQuadro: atual.qtChavesNoQuadro + 1,
-        qtChavesEntregues: atual.qtChavesEntregues + 1,
+        qtChavesEntregues: atual.qtChavesEntregues + (retiradaSelecionada.nmTipoItem === 'APARTAMENTO' ? 1 : 0),
         retiradasRecentes: atual.retiradasRecentes.filter(item => item.idRequisicao !== retiradaSelecionada.idRequisicao),
       } : atual);
       fecharModal();

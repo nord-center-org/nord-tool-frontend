@@ -38,7 +38,7 @@ const CHAVES_LISTA_OBRAS = ['obras', 'items', 'content', 'data'] as const;
 const API_BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? '')
   .replace(/\/+$/, '')
   .replace(/\/api$/, '');
-const API_URL = `${API_BASE}/api/controle-chaves`;
+const API_URL = `${API_BASE}/api/v1/nord-tool/controleChaves`;
 
 const normalizarListaObras = (conteudo: unknown): ObraControleChaves[] => {
   if (Array.isArray(conteudo)) return conteudo as ObraControleChaves[];
