@@ -434,6 +434,7 @@ const App = () => {
     setSalvandoRetirada(true);
     try {
       await ControleChavesService.criarRetirada({
+        nmTipoItem: 'APARTAMENTO',
         idApartamentoVistoria: apartamentoSelecionado.idApartamentoVistoria,
         idUserRetirada: idRetirante,
         idUserLiberacao: idLiberador,
@@ -922,7 +923,7 @@ const App = () => {
                 </>
               ) : modalType === 'confirmar' ? (
                 <>
-                  <p className="text-slate-600">Confirma o recebimento da retirada <strong className="text-slate-900">{retiradaSelecionada?.cdCodigoRetirada}</strong>, apartamento <strong className="text-slate-900">{retiradaSelecionada?.apartamentoControleChavesDto.nmApartamentoVistoria}</strong>?</p>
+                  <p className="text-slate-600">Confirma o recebimento da retirada <strong className="text-slate-900">{retiradaSelecionada?.cdCodigoRetirada}</strong>, apartamento <strong className="text-slate-900">{retiradaSelecionada?.apartamentoControleChavesDto?.nmApartamentoVistoria ?? retiradaSelecionada?.ferramentaControleChavesDto?.nmFerramenta}</strong>?</p>
                   <label className="block text-sm font-semibold text-slate-600">Recebido Por</label>
                   <select value={idRecebedor ?? ''} onChange={(event) => { setIdRecebedor(Number(event.target.value)); setErroModal(null); }} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
                     <option value="" disabled>Selecione quem recebeu</option>
@@ -933,7 +934,7 @@ const App = () => {
               ) : modalType === 'editarRetirada' ? (
                 <>
                   <label className="block text-sm font-semibold text-slate-600">Apartamento</label>
-                  <input readOnly defaultValue={retiradaSelecionada?.apartamentoControleChavesDto.nmApartamentoVistoria} className="w-full p-3 bg-slate-100 text-slate-500 border border-slate-200 rounded-xl cursor-not-allowed" />
+                  <input readOnly defaultValue={retiradaSelecionada?.apartamentoControleChavesDto?.nmApartamentoVistoria ?? retiradaSelecionada?.ferramentaControleChavesDto?.nmFerramenta} className="w-full p-3 bg-slate-100 text-slate-500 border border-slate-200 rounded-xl cursor-not-allowed" />
                   <label className="block text-sm font-semibold text-slate-600">Retirado Por</label>
                   <input readOnly defaultValue={retiradaSelecionada?.retiranteControleChavesDto.nmPessoaRetirante} className="w-full p-3 bg-slate-100 text-slate-500 border border-slate-200 rounded-xl cursor-not-allowed" />
                   <label className="block text-sm font-semibold text-slate-600">Status</label>
