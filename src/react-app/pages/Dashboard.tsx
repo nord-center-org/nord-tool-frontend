@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { CheckCircle2, XCircle, Clock, Home, Loader2, AlertCircle, RotateCcw, CalendarDays } from "lucide-react";
 import type { DashboardStats } from "@/shared/types";
+import { apartamentoVistoriaService } from "@/react-app/services/ApartamentoVistoriaService";
+import { calcularDashboard } from "@/react-app/utils/dashboardStats";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -14,22 +16,15 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (startDate) params.append("startDate", startDate);
-      if (endDate) params.append("endDate", endDate);
-      if (selectedCondo) params.append("condo", selectedCondo);
+      // Mesma fonte da tela de Apartamentos (apiClient, com token); os totais saem da lista.
+      const apartamentos = await apartamentoVistoriaService.listar();
+      const payload: DashboardStats = calcularDashboard(apartamentos, {
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        condo: selectedCondo || undefined,
+      });
 
-      const response = await fetch(`/api/dashboard?${params.toString()}`);
-      const json = await response.json();
-      // Backend uses ApiResponseBody wrapper: { timestamp, nrStatus, body, txMensagem }
-      const payload = json?.body ?? json;
-
-      // Validate payload shape minimally
-      if (!payload || typeof payload !== "object") {
-        throw new Error("Resposta do dashboard inválida");
-      }
-
-      setStats(payload as DashboardStats);
+      setStats(payload);
     } catch (error) {
       console.error("Erro ao carregar estatísticas:", error);
       setStats(null);
