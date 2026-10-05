@@ -1,3 +1,5 @@
+import { apiFetch } from './apiClient';
+
 export type Status = 'pendentes' | 'executar' | 'aguardar' | 'acompanhar' | 'finalizada';
 export type Categoria = 'Pessoal' | 'Acadêmica' | 'Atlética' | 'Musical' | 'Devocional' | 'Engenharia' | 'Programação';
 
@@ -17,12 +19,7 @@ export interface CronogramaSemanalItem {
   flFixo: boolean;
 }
 
-interface ApiResponse<T> { body?: T; txMensagem?: string; error?: string }
-
-const API_BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? '')
-  .replace(/\/+$/, '')
-  .replace(/\/api$/, '');
-const API_URL = `${API_BASE}/api/v1/nord-tool/cronogramaSemanal`;
+const BASE_PATH = '/cronogramaSemanal';
 
 const doisDigitos = (valor: number) => String(valor).padStart(2, '0');
 
@@ -42,34 +39,17 @@ export const paraDataHoraInput = (valor?: string | null): string => {
   return `${ano}-${mes}-${dia}${hora ? `T${hora.slice(0, 5)}` : ''}`;
 };
 
-const requisitar = async <T>(url: string, init?: RequestInit): Promise<T> => {
-  const response = await fetch(url, init);
-  const text = await response.text();
-  let json: ApiResponse<T> | T | null = null;
-  if (text.trim()) {
-    try { json = JSON.parse(text) as ApiResponse<T> | T; }
-    catch { throw new Error(`Resposta inválida do servidor (HTTP ${response.status})`); }
-  }
-  if (!response.ok) {
-    const envelope = json && typeof json === 'object' ? json as ApiResponse<T> : null;
-    const detalhe = envelope?.txMensagem || envelope?.error || response.statusText;
-    throw new Error(`Falha na API de Cronograma Semanal (HTTP ${response.status})${detalhe ? `: ${detalhe}` : ''}`);
-  }
-  if (json && typeof json === 'object' && 'body' in json) return (json as ApiResponse<T>).body as T;
-  return json as T;
-};
-
 export const CronogramaSemanalService = {
   listar() {
-    return requisitar<CronogramaSemanalItem[]>(API_URL);
+    return apiFetch<CronogramaSemanalItem[]>(BASE_PATH);
   },
   buscarPorId(id: number) {
-    return requisitar<CronogramaSemanalItem>(`${API_URL}/${id}`);
+    return apiFetch<CronogramaSemanalItem>(`${BASE_PATH}/${id}`);
   },
   criar(item: CronogramaSemanalItem) {
-    return requisitar<CronogramaSemanalItem>(API_URL, {
+    return apiFetch<CronogramaSemanalItem>(BASE_PATH, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+     
       body: JSON.stringify({
         ...item,
         dtPrazo: paraDataHoraBackend(item.dtPrazo),
@@ -79,9 +59,9 @@ export const CronogramaSemanalService = {
     });
   },
   alterar(item: CronogramaSemanalItem) {
-    return requisitar<CronogramaSemanalItem>(API_URL, {
+    return apiFetch<CronogramaSemanalItem>(BASE_PATH, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+     
       body: JSON.stringify({
         idCronogramaSemanal: item.id,
         ...item,
@@ -92,7 +72,7 @@ export const CronogramaSemanalService = {
     });
   },
   excluir(id: number) {
-    return requisitar<void>(`${API_URL}/${id}`, { method: 'DELETE' });
+    return apiFetch<void>(`${BASE_PATH}/${id}`, { method: 'DELETE' });
   },
   moverStatus(ids: number[], status: Status, itens: CronogramaSemanalItem[]) {
     const porId = new Map(itens.map(item => [item.id, item]));

@@ -525,27 +525,15 @@ export default function DatabasePage() {
 
               console.log("Enviando para o backend:", JSON.stringify(payload));
 
-              const response = await fetch("http://localhost:8080/api/v1/nord-tool/apartamentoVistoria/atualizar-agenda-massa", {
-                method: "POST",
-                headers: { 
-                  "Content-Type": "application/json" 
-                },
-                body: JSON.stringify(payload)
-              });
+              await apartamentoVistoriaService.atualizarAgendaEmMassa(payload);
 
-              if (response.ok) {
-                alert("Agenda atualizada com sucesso!");
-                if (typeof fetchApartamentosSilencioso === 'function') {
-                  await fetchApartamentosSilencioso();
-                }
-              } else {
-                const erro = await response.text();
-                console.error("Erro do servidor:", erro);
-                alert("Erro ao atualizar: " + erro);
+              alert("Agenda atualizada com sucesso!");
+              if (typeof fetchApartamentosSilencioso === 'function') {
+                await fetchApartamentosSilencioso();
               }
             } catch (err) {
               console.error("Falha na requisição:", err);
-              alert("Falha de conexão com o servidor.");
+              alert(err instanceof Error ? err.message : "Falha de conexão com o servidor.");
             } finally {
               setLoading(false);
               setShowMassUpdateModal(false);
