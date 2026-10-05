@@ -60,3 +60,49 @@ export interface StatusVistoriaDto {
   idStatusVistoria: number;
   nmStatusVistoria: string;
 }
+
+export type SituacaoTermo = 'PENDENTE' | 'EM_ANDAMENTO' | 'CONCLUIDO';
+
+export interface TermoFotoDto {
+  idTermoFoto: number;
+  idTermoReprova: number;
+  nrPagina: number;
+  nrOrdem: number;
+  txLegenda: string | null;
+  /** dd/MM/yyyy HH:mm:ss */
+  dhAlteracao: string;
+  /** Epoch millis; usar em ?v= para invalidar cache da imagem. */
+  nrVersao: number;
+}
+
+export interface TermoReprovaResumo {
+  idTermoReprova: number;
+  nrTermo: number;
+  nmArquivo: string;
+  nmSituacao: SituacaoTermo;
+  nrPaginas: number;
+  qtFotos: number;
+  dhAlteracao: string;
+  nrVersao: number;
+}
+
+export interface TermoReprovaDto {
+  idTermoReprova: number;
+  idApartamentoVistoria: number;
+  nrTermo: number;
+  nmArquivo: string;
+  nrPaginas: number;
+  nmSituacao: SituacaoTermo;
+  txObservacao: string | null;
+  dhCriacao: string;
+  dhAlteracao: string;
+  nrVersao: number;
+  fotos: TermoFotoDto[];
+  /** Avisos da operação (ex.: fotos removidas ao trocar o PDF). */
+  avisos: string[];
+}
+
+export interface OrdemFoto {
+  idTermoFoto: number;
+  nrOrdem: number;
+}
