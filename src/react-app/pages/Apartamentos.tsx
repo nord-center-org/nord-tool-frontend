@@ -6,8 +6,6 @@ import {
   Trash2,
   Search,
   RotateCcw,
-  Filter,
-  ArrowUpDown,
   FileSpreadsheet,
   ChevronDown,
   Upload,
@@ -20,9 +18,57 @@ import * as XLSX from "xlsx";
 import ApartmentModal from "@/react-app/components/ApartmentModal";
 import { apartamentoVistoriaService } from "@/react-app/services/ApartamentoVistoriaService";
 import type { ApartamentoVistoriaDto } from "@/shared/types";
+import { ColumnFilter } from "@/react-app/components/ColumnFilter";
+import { useFiltrosColuna } from "@/react-app/hooks/useFiltrosColuna";
+import { aplicarFiltrosColuna, valoresUnicos, type ColunasFiltro } from "@/react-app/utils/filtroColuna";
 
 import MassUpdateModal from "@/react-app/components/MassUpdateModal";
 import { ClipboardPaste } from "lucide-react";
+
+type ColunaApartamento = "apartamento" | "status" | "data" | "horario" | "observacao";
+
+const dataIso = (dateValue?: string | null): string => {
+  if (!dateValue) return "";
+  try {
+    let cleanDate = String(dateValue).split('T')[0];
+    if (cleanDate.includes('/')) {
+      const parts = cleanDate.split('/');
+      if (parts.length === 3) cleanDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    const date = parseISO(cleanDate);
+    return isValid(date) ? format(date, "yyyy-MM-dd") : "";
+  } catch {
+    return "";
+  }
+};
+
+const formatarDataParaBusca = (dateValue?: string | null): string => {
+  const iso = dataIso(dateValue);
+  return iso ? format(parseISO(iso), "dd/MM/yyyy", { locale: ptBR }) : "";
+};
+
+const COLUNAS: ColunasFiltro<ApartamentoVistoriaDto, ColunaApartamento> = {
+  apartamento: { valor: apt => apt.nmApartamentoVistoria },
+  status: { valor: apt => apt.nmStatusVistoria },
+  data: {
+    valor: apt => formatarDataParaBusca(apt.dtApartamentoVigente),
+    ordem: apt => {
+      const iso = dataIso(apt.dtApartamentoVigente);
+      return iso ? `${iso} ${apt.nmHorarioVistoria || ""}` : null;
+    },
+  },
+  horario: { valor: apt => apt.nmHorarioVistoria },
+  observacao: { valor: apt => apt.txObservacaoRevistoria },
+};
+
+const lerStatusPadrao = (): string[] => {
+  try {
+    const salvo = JSON.parse(localStorage.getItem("@NordTool:filter_db_status") || '["Agendado", "Pendente"]');
+    return Array.isArray(salvo) ? salvo : [];
+  } catch {
+    return ["Agendado", "Pendente"];
+  }
+};
 
 export default function ApartamentosPage() {
   const outletContext = useOutletContext<{ sidebarOpen: boolean }>();
@@ -36,17 +82,13 @@ export default function ApartamentosPage() {
   const [nordSelecionado, setNordSelecionado] = useState<"N1" | "N2" | "EN" | null>(null);
   const [showExcelMenu, setShowExcelMenu] = useState(false);
   const [expandedObsId, setExpandedObsId] = useState<number | null>(null);
-  const [colFilters, setColFilters] = useState(() => {
-  const savedStatus = localStorage.getItem("@NordTool:filter_db_status");
-        return {
-      apartamento: "",
-      status: savedStatus ? JSON.parse(savedStatus) : ["Agendado", "Pendente"],
-      data: "",
-      horario: ""
-    };
-  });
-  const [visibleFilters, setVisibleFilters] = useState({ apartamento: false, status: false, data: false, horario: false });
-  const [sortConfig, setSortConfig] = useState<{ key: keyof ApartamentoVistoriaDto | null, direction: 'asc' | 'desc' }>({ key: 'dtApartamentoVigente', direction: 'asc' });
+  const { filtros, ordenacao, aplicarFiltro, ordenar, limpar } = useFiltrosColuna<ColunaApartamento>(
+    {},
+    { coluna: "data", direcao: "asc" },
+  );
+  // Preferências do Settings viram o estado inicial do filtro de Status.
+  const statusPadraoRef = useRef<string[]>(lerStatusPadrao());
+  const statusAplicadoRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [showMassUpdateModal, setShowMassUpdateModal] = useState(false);
@@ -56,23 +98,33 @@ export default function ApartamentosPage() {
       // 1. Lê a obra (Condomínio)
       const savedCondo = localStorage.getItem("@NordTool:filter_db_condo"); // Valor deve ser "Nord 1", "Nord 2" ou "Energy"
       
-      // 2. Lê os status selecionados
-      const savedStatus = JSON.parse(localStorage.getItem("@NordTool:filter_db_status") || '["Agendado", "Pendente"]');
+      // 2. Status padrão (aplicado como filtro inicial quando os dados chegam)
+      statusPadraoRef.current = lerStatusPadrao();
 
-      // 3. Aplica os filtros
+      // 3. Aplica a obra
       setNordSelecionado(savedCondo as "N1" | "N2" | "EN" | null);
-      setColFilters(prev => ({ ...prev, status: savedStatus }));
     };
 
     syncSettings();
     fetchApartamentos();
   }, []);
 
+  const aplicarStatusPadrao = (lista: ApartamentoVistoriaDto[]) => {
+    if (statusAplicadoRef.current) return;
+    statusAplicadoRef.current = true;
+    const padrao = statusPadraoRef.current.map(s => s.toLowerCase());
+    if (padrao.length === 0) return;
+    const selecionados = valoresUnicos(lista, COLUNAS.status)
+      .filter(valor => padrao.some(s => valor.toLowerCase().includes(s)));
+    if (selecionados.length > 0) aplicarFiltro("status", selecionados);
+  };
+
   const fetchApartamentos = async () => {
     setLoading(true);
     try {
       const data = await apartamentoVistoriaService.listar();
       setApartamentos(data || []);
+      aplicarStatusPadrao(data || []);
     } catch (error) {
       console.error("Erro ao carregar:", error);
     } finally {
@@ -83,21 +135,6 @@ export default function ApartamentosPage() {
   /* =======================
       HELPERS
   ======================= */
-  const formatarDataParaBusca = (dateValue?: string | null): string => {
-    if (!dateValue) return "";
-    try {
-      let cleanDate = String(dateValue).split('T')[0];
-      if (cleanDate.includes('/')) {
-        const parts = cleanDate.split('/');
-        if (parts.length === 3) cleanDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
-      }
-      const date = parseISO(cleanDate);
-      return isValid(date) ? format(date, "dd/MM/yyyy", { locale: ptBR }) : "";
-    } catch {
-      return "";
-    }
-  };
-
   const formatarDataExibicao = (dateValue?: string | null, diaSemana?: string | null) => {
     const formattedDate = formatarDataParaBusca(dateValue);
     if (formattedDate) {
@@ -200,27 +237,14 @@ export default function ApartamentosPage() {
     await fetchApartamentosSilencioso();
   };
 
-  const toggleFilter = (key: keyof typeof visibleFilters) => {
-    setVisibleFilters(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const handleSort = (key: keyof ApartamentoVistoriaDto) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
-
   /* =======================
       FILTER & SORT LOGIC
   ======================= */
-  const filteredApartamentos = useMemo(() => {
+  const baseApartamentos = useMemo(() => {
     const hiddenStatus = "não liberado";
-    
-    const result = apartamentos.filter((apt) => {
+
+    return apartamentos.filter((apt) => {
       const statusApt = apt.nmStatusVistoria?.toLowerCase() || "";
-      const dataFormatada = formatarDataParaBusca(apt.dtApartamentoVigente);
 
       if (!mostrarTodos && statusApt.includes(hiddenStatus)) return false;
       if (nordSelecionado) {
@@ -231,83 +255,47 @@ export default function ApartamentosPage() {
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
         const searchFields = [
-            apt.nmApartamentoVistoria, 
-            apt.nmStatusVistoria, 
-            dataFormatada,
-            apt.nmHorarioVistoria,
-            apt.txObservacaoRevistoria
+          apt.nmApartamentoVistoria,
+          apt.nmStatusVistoria,
+          formatarDataParaBusca(apt.dtApartamentoVigente),
+          apt.nmHorarioVistoria,
+          apt.txObservacaoRevistoria
         ].map(v => v?.toLowerCase() || "").join(" ");
         if (!searchFields.includes(term)) return false;
       }
-      
-      if (colFilters.apartamento && !apt.nmApartamentoVistoria?.toLowerCase().includes(colFilters.apartamento.toLowerCase())) return false;
-      if (colFilters.status.length > 0 && !colFilters.status.some((s: string) => statusApt.includes(s.toLowerCase()))) return false;
-      
-      if (colFilters.data) {
-        let dataNormalizada = String(apt.dtApartamentoVigente || "").split('T')[0];
-        if (dataNormalizada.includes('/')) {
-          const [dia, mes, ano] = dataNormalizada.split('/');
-          dataNormalizada = `${ano}-${mes}-${dia}`;
-        }
-        const parsed = parseISO(dataNormalizada);
-        const dataApt = isValid(parsed) ? format(parsed, "yyyy-MM-dd") : dataNormalizada;
-        
-        if (dataApt !== colFilters.data) return false;
-      }
-      
-      if (colFilters.horario && !apt.nmHorarioVistoria?.toLowerCase().includes(colFilters.horario.toLowerCase())) return false;
       return true;
     });
+  }, [apartamentos, searchTerm, mostrarTodos, nordSelecionado]);
 
-    if (sortConfig.key) {
-      result.sort((a, b) => {
-        // Tratamento exclusivo e lógico para a coluna de datas
-        if (sortConfig.key === 'dtApartamentoVigente') {
-          const dateA = a.dtApartamentoVigente;
-          const dateB = b.dtApartamentoVigente;
+  const valoresPorColuna = useMemo(() => ({
+    apartamento: valoresUnicos(baseApartamentos, COLUNAS.apartamento),
+    status: valoresUnicos(baseApartamentos, COLUNAS.status),
+    data: valoresUnicos(baseApartamentos, COLUNAS.data),
+    horario: valoresUnicos(baseApartamentos, COLUNAS.horario),
+    observacao: valoresUnicos(baseApartamentos, COLUNAS.observacao),
+  }), [baseApartamentos]);
 
-          // Os "sem agendamento" sempre vão para o final
-          if (!dateA && !dateB) return 0;
-          if (!dateA) return 1;
-          if (!dateB) return -1;
+  const filteredApartamentos = useMemo(
+    () => aplicarFiltrosColuna(
+      baseApartamentos,
+      COLUNAS,
+      filtros,
+      ordenacao ?? { coluna: "apartamento", direcao: "asc" },
+    ),
+    [baseApartamentos, filtros, ordenacao],
+  );
 
-          // Converte qualquer data para YYYY-MM-DD, blindando contra o fuso americano
-          const normalizarData = (d: string) => {
-            const clean = String(d).split('T')[0];
-            if (clean.includes('/')) {
-              const parts = clean.split('/');
-              if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
-            }
-            return clean;
-          };
-
-          const strA = normalizarData(dateA);
-          const strB = normalizarData(dateB);
-
-          if (strA === strB) {
-            const horaA = String(a.nmHorarioVistoria || "").toLowerCase();
-            const horaB = String(b.nmHorarioVistoria || "").toLowerCase();
-            return horaA.localeCompare(horaB) * (sortConfig.direction === 'asc' ? 1 : -1);
-          }
-
-          return strA.localeCompare(strB) * (sortConfig.direction === 'asc' ? 1 : -1);
-        }
-
-        // Lógica padrão para as outras colunas de texto
-        const valA = String(a[sortConfig.key!] || "").toLowerCase();
-        const valB = String(b[sortConfig.key!] || "").toLowerCase();
-
-        if (valA === valB) return 0;
-        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
-    } else {
-      result.sort((a, b) => (a.nmApartamentoVistoria || "").localeCompare(b.nmApartamentoVistoria || ""));
-    }
-
-    return result;
-  }, [apartamentos, searchTerm, mostrarTodos, nordSelecionado, colFilters, sortConfig]);
+  const filtroColuna = (coluna: ColunaApartamento, label: string, emptyLabel?: string) => (
+    <ColumnFilter
+      label={label}
+      emptyLabel={emptyLabel}
+      values={valoresPorColuna[coluna]}
+      selected={filtros[coluna] ?? null}
+      sortDirection={ordenacao?.coluna === coluna ? ordenacao.direcao : null}
+      onApply={(valores) => aplicarFiltro(coluna, valores)}
+      onSort={(direcao) => ordenar(coluna, direcao)}
+    />
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -332,9 +320,7 @@ export default function ApartamentosPage() {
           <button onClick={() => { 
             setSearchTerm(""); 
             setNordSelecionado(null); 
-            setColFilters({apartamento:"", status: [], data:"", horario: ""}); 
-            setVisibleFilters({apartamento:false, status:false, data:false, horario: false});
-            setSortConfig({ key: null, direction: 'asc' });
+            limpar();
           }} className="p-2 text-red-600 bg-white border border-slate-200 rounded-xl hover:bg-red-50 shadow-sm"><RotateCcw className="w-4 h-4" /></button>
           
           <div className="relative" ref={menuRef}>
@@ -388,54 +374,11 @@ export default function ApartamentosPage() {
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-200">
                 <th className="w-12 px-4 py-4 text-center border-r border-slate-100"><input type="checkbox" className="rounded text-blue-600" /></th>
-                <th className="px-4 py-4 text-left min-w-[150px]">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => toggleFilter('apartamento')} className="text-xs font-bold text-slate-400 uppercase tracking-wider hover:text-blue-500 flex items-center gap-1">
-                        Apartamento <Filter className="w-3 h-3" />
-                      </button>
-                      <button onClick={() => handleSort('nmApartamentoVistoria')}><ArrowUpDown className="w-3 h-3 text-slate-400" /></button>
-                    </div>
-                    {visibleFilters.apartamento && <input type="text" autoFocus placeholder="Filtrar..." value={colFilters.apartamento} onChange={(e) => setColFilters({...colFilters, apartamento: e.target.value})} className="text-[10px] p-1 border rounded" />}
-                  </div>
-                </th>
-                <th className="px-4 py-4 text-left min-w-[120px]">
-                  <div className="flex flex-col gap-2 relative">
-                    <button onClick={() => toggleFilter('status')} className="text-xs font-bold text-slate-400 uppercase tracking-wider hover:text-blue-500 flex items-center gap-1">Status <Filter className="w-3 h-3" /></button>
-                    {visibleFilters.status && (
-                        <div className="absolute top-full left-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl p-3 z-50 min-w-[160px] flex flex-col gap-2">
-                          {["Agendado", "Aprovado", "Aprovado DAT", "Reprovado", "Liberado", "Não Liberado", "Pendente", "Pendente DAT"].map((opt) => (
-                            <label key={opt} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-1 rounded">
-                              <input 
-                                type="checkbox"
-                                checked={colFilters.status.includes(opt)}
-                                onChange={(e) => {
-                                  const checked = e.target.checked;
-                                  setColFilters(prev => ({
-                                    ...prev,
-                                    status: checked ? [...prev.status, opt] : prev.status.filter((s: string) => s !== opt)
-                                  }));
-                                }}
-                                className="rounded text-blue-600 focus:ring-blue-500 w-3 h-3"
-                              />
-                              <span className="text-xs text-slate-700 font-medium">{opt}</span>
-                            </label>
-                          ))}
-                        </div>
-                    )}
-                  </div>
-                </th>
-                <th className="px-4 py-4 text-left min-w-[140px]">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => toggleFilter('data')} className="text-xs font-bold text-slate-400 uppercase tracking-wider hover:text-blue-500 flex items-center gap-1">Data <Filter className="w-3 h-3" /></button>
-                      <button onClick={() => handleSort('dtApartamentoVigente')}><ArrowUpDown className="w-3 h-3 text-slate-400" /></button>
-                    </div>
-                    {visibleFilters.data && <input type="date" value={colFilters.data} onChange={(e) => setColFilters({...colFilters, data: e.target.value})} className="text-[10px] p-1 border rounded" />}
-                  </div>
-                </th>
-                <th className="px-4 py-4 text-left min-w-[120px] text-xs font-bold text-slate-400 uppercase tracking-wider">Horário</th>
-                <th className="px-4 py-4 text-left min-w-[150px] text-xs font-bold text-slate-400 uppercase tracking-wider">Observação</th>
+                <th className="px-4 py-4 min-w-[150px] text-left text-xs font-bold text-slate-400 uppercase tracking-wider">{filtroColuna("apartamento", "Apartamento")}</th>
+                <th className="px-4 py-4 min-w-[120px] text-left text-xs font-bold text-slate-400 uppercase tracking-wider">{filtroColuna("status", "Status")}</th>
+                <th className="px-4 py-4 min-w-[140px] text-left text-xs font-bold text-slate-400 uppercase tracking-wider">{filtroColuna("data", "Data", "Sem data")}</th>
+                <th className="px-4 py-4 min-w-[120px] text-left text-xs font-bold text-slate-400 uppercase tracking-wider">{filtroColuna("horario", "Horário", "Sem horário")}</th>
+                <th className="px-4 py-4 min-w-[150px] text-left text-xs font-bold text-slate-400 uppercase tracking-wider">{filtroColuna("observacao", "Observação", "Sem observação")}</th>
                 <th className="px-4 py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider w-24">Ações</th>
               </tr>
             </thead>
