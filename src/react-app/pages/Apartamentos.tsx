@@ -24,7 +24,7 @@ import type { ApartamentoVistoriaDto } from "@/shared/types";
 import MassUpdateModal from "@/react-app/components/MassUpdateModal";
 import { ClipboardPaste } from "lucide-react";
 
-export default function DatabasePage() {
+export default function ApartamentosPage() {
   const outletContext = useOutletContext<{ sidebarOpen: boolean }>();
   const sidebarOpen = outletContext?.sidebarOpen ?? false;
   const [apartamentos, setApartamentos] = useState<ApartamentoVistoriaDto[]>([]);
@@ -313,7 +313,7 @@ export default function DatabasePage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4 flex-nowrap">
         <div className={`flex items-center gap-4 shrink-0 transition-all duration-300 ${!sidebarOpen ? 'pl-16' : 'pl-0'}`}>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Banco de Dados</h2>
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Apartamentos</h2>
           <div className="flex p-1 bg-slate-200/50 rounded-lg border border-slate-200">
             <button onClick={() => setNordSelecionado(nordSelecionado === "N1" ? null : "N1")} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${nordSelecionado === "N1" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}>Nord 1</button>
             <button onClick={() => setNordSelecionado(nordSelecionado === "N2" ? null : "N2")} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${nordSelecionado === "N2" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}>Nord 2</button>

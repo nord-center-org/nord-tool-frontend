@@ -47,7 +47,7 @@ export default function DeliveriesPage() {
     try {
       setLoading(true);
       const data = await apartamentoVistoriaService.listar();
-      // Unificando a forma de carregar os dados, igual à página de Database
+      // Unificando a forma de carregar os dados, igual à página de Apartamentos
       setApartamentos(data || []);
     } catch (error) {
       console.error("Erro ao carregar:", error);

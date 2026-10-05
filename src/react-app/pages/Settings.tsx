@@ -341,7 +341,7 @@ export default function SettingsPage() {
                     onClick={() => setActiveFilterTab("database")}
                     className={`px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${activeFilterTab === "database" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                   >
-                    <Database className="w-4 h-4" /> Banco de Dados
+                    <Database className="w-4 h-4" /> Apartamentos
                   </button>
                 </div>
 
@@ -376,7 +376,7 @@ export default function SettingsPage() {
                   </div>
                 )}
 
-                {/* Conteúdo: BANCO DE DADOS */}
+                {/* Conteúdo: APARTAMENTOS */}
                 {activeFilterTab === "database" && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
