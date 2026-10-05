@@ -6,7 +6,8 @@ import { apartamentoVistoriaService } from '../services/ApartamentoVistoriaServi
 import { podeLiberarChave, podeRetirarChave } from '../utils/elegibilidadeColaborador';
 import { ControleChavesService, type ApartamentoControleChaves, type FerramentaControleChaves, type TipoItemControleChaves, type DashboardControleChaves, type RetiradaControleChaves } from '../services/ControleChavesService';
 import { EVENTO_OBRA_CONTROLE_CHAVES, lerObraControleChaves } from '../utils/preferenciasControleChaves';
-import { HistoricoColumnFilter, type DirecaoOrdenacao } from '../components/HistoricoColumnFilter';
+import { ColumnFilter as HistoricoColumnFilter } from '../components/ColumnFilter';
+import { VALOR_VAZIO, normalizarTexto, normalizarData, compararValores, type DirecaoOrdenacao } from '../utils/filtroColuna';
 
 type ModalItem = Colaborador | RetiradaControleChaves;
 type ColunaHistorico = 'codigo' | 'data' | 'apartamento' | 'retirante' | 'recebedor' | 'status';
@@ -14,29 +15,11 @@ type FiltrosHistorico = Partial<Record<ColunaHistorico, string[]>>;
 type ColunaRetiradasRecentes = 'codigo' | 'data' | 'apartamento' | 'retirante' | 'liberador' | 'status';
 type FiltrosRetiradasRecentes = Partial<Record<ColunaRetiradasRecentes, string[]>>;
 
-const VALOR_VAZIO = '—';
-const normalizarTexto = (valor: unknown) => valor == null ? VALOR_VAZIO : String(valor).trim() || VALOR_VAZIO;
-const normalizarData = (valor: unknown) => {
-  if (valor == null || valor === '') return null;
-  const timestamp = valor instanceof Date ? valor.getTime() : new Date(String(valor)).getTime();
-  return Number.isFinite(timestamp) ? timestamp : null;
-};
 const formatarData = (valor?: string | null) => {
   const timestamp = normalizarData(valor);
   return timestamp === null
     ? VALOR_VAZIO
     : new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(timestamp);
-};
-
-const compararValores = (valorA: unknown, valorB: unknown, direcao: DirecaoOrdenacao, data = false) => {
-  const a = data ? normalizarData(valorA) : normalizarTexto(valorA).toLocaleLowerCase('pt-BR');
-  const b = data ? normalizarData(valorB) : normalizarTexto(valorB).toLocaleLowerCase('pt-BR');
-  if (a === null || a === VALOR_VAZIO) return b === null || b === VALOR_VAZIO ? 0 : 1;
-  if (b === null || b === VALOR_VAZIO) return -1;
-  const comparacao = typeof a === 'number' && typeof b === 'number'
-    ? a - b
-    : String(a).localeCompare(String(b), 'pt-BR', { numeric: true, sensitivity: 'base' });
-  return direcao === 'asc' ? comparacao : -comparacao;
 };
 
 const retiradaAberta = (retirada: RetiradaControleChaves) => {
