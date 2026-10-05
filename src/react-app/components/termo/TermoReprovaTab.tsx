@@ -11,6 +11,7 @@ import {
 } from "@/react-app/utils/termoRegras";
 import TermoPaginaCanvas from "@/react-app/components/termo/TermoPaginaCanvas";
 import PainelFotosPagina from "@/react-app/components/termo/PainelFotosPagina";
+import GerarPdfDialog from "@/react-app/components/termo/GerarPdfDialog";
 
 interface TermoReprovaTabProps {
   apartamento: ApartamentoVistoriaDto;
@@ -46,6 +47,7 @@ export default function TermoReprovaTab({ apartamento, ativa, onDirtyChange }: T
   const [situacao, setSituacao] = useState<SituacaoTermo>("PENDENTE");
   const [observacao, setObservacao] = useState("");
   const [arrastando, setArrastando] = useState(false);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
 
   const raiz = useRef<HTMLDivElement>(null);
 
@@ -328,8 +330,9 @@ export default function TermoReprovaTab({ apartamento, ativa, onDirtyChange }: T
               <button
                 type="button"
                 className={botaoPrimario}
-                disabled
-                title="Disponível na etapa do PDF lado a lado"
+                disabled={ocupado || !pdf || termo.fotos.length === 0}
+                title={termo.fotos.length === 0 ? "Anexe ao menos uma foto para gerar o PDF" : undefined}
+                onClick={() => setGerandoPdf(true)}
               >
                 Gerar PDF lado a lado
               </button>
@@ -415,6 +418,15 @@ export default function TermoReprovaTab({ apartamento, ativa, onDirtyChange }: T
             />
           </div>
         </>
+      )}
+
+      {gerandoPdf && termo && pdf && (
+        <GerarPdfDialog
+          codigoApartamento={apartamento.nmApartamentoVistoria}
+          termo={termo}
+          pdfBytes={pdf.bytes}
+          onFechar={() => setGerandoPdf(false)}
+        />
       )}
     </div>
   );
