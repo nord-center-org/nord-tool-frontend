@@ -1,19 +1,13 @@
 import { API_BASE } from "../config/api";
+import { getAuthToken, limparSessao, notificarSessaoExpirada } from "./tokenStore";
+
+export { getAuthToken };
 
 interface ApiEnvelope {
   body?: unknown;
   txMensagem?: string;
   message?: string;
   error?: string;
-}
-
-export function getAuthToken(): string | null {
-  // Stub: preenchido na etapa de login (E05)
-  try {
-    return sessionStorage.getItem("@NordTool:auth_token");
-  } catch {
-    return null;
-  }
 }
 
 function montarUrl(path: string): string {
@@ -31,6 +25,14 @@ function montarHeaders(init?: RequestInit, json = false): Headers {
     headers.set("Content-Type", "application/json");
   }
   return headers;
+}
+
+// 401 fora do login = sessão inválida/expirada: limpa a sessão e volta para /login.
+function tratarNaoAutorizado(response: Response, path: string): void {
+  if (response.status === 401 && !path.includes("/auth/login")) {
+    limparSessao();
+    notificarSessaoExpirada();
+  }
 }
 
 async function lerErro(response: Response): Promise<Error> {
@@ -55,7 +57,10 @@ export async function apiFetch<T = unknown>(path: string, init?: RequestInit): P
   const headers = montarHeaders(init, temBody && !isFormData);
 
   const response = await fetch(montarUrl(path), { ...init, headers });
-  if (!response.ok) throw await lerErro(response);
+  if (!response.ok) {
+    tratarNaoAutorizado(response, path);
+    throw await lerErro(response);
+  }
 
   const texto = await response.text();
   if (!texto.trim()) return null as T;
@@ -74,6 +79,9 @@ export async function apiFetch<T = unknown>(path: string, init?: RequestInit): P
 
 export async function apiBlob(path: string, init?: RequestInit): Promise<Blob> {
   const response = await fetch(montarUrl(path), { ...init, headers: montarHeaders(init) });
-  if (!response.ok) throw await lerErro(response);
+  if (!response.ok) {
+    tratarNaoAutorizado(response, path);
+    throw await lerErro(response);
+  }
   return response.blob();
 }

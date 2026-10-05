@@ -4,11 +4,15 @@ import {
   Database, BarChart3, Package, Settings, Menu, ChevronLeft, 
   Home as HomeIcon, Briefcase, GraduationCap,
   ClipboardCheck, AlertTriangle, Camera, FileText, BookOpen, 
-  TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Cat
+  TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Cat, LogOut, KeyRound
 } from "lucide-react";
+import { useAuth } from "@/react-app/contexts/AuthContext";
+import AlterarSenhaModal from "@/react-app/components/AlterarSenhaModal";
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [alterandoSenha, setAlterandoSenha] = useState(false);
+  const { usuario, logout } = useAuth();
 
   const menuGroups = [
     {
@@ -129,6 +133,27 @@ export default function Layout() {
               <Settings className="w-4 h-4" />
               <span>Configurações</span>
             </NavLink>
+
+            <div className="mt-3 flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-slate-700" title={usuario?.email}>{usuario?.nome}</p>
+                <p className="truncate text-[11px] text-slate-400">{usuario?.email}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAlterandoSenha(true)}
+                aria-label="Alterar senha"
+                title="Alterar senha"
+                className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-white hover:text-blue-600"
+              ><KeyRound className="h-4 w-4" /></button>
+              <button
+                type="button"
+                onClick={logout}
+                aria-label="Sair"
+                title="Sair"
+                className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-white hover:text-red-500"
+              ><LogOut className="h-4 w-4" /></button>
+            </div>
           </div>
 
         </div>
@@ -152,6 +177,7 @@ export default function Layout() {
           </div>
         </div>
       </main>
+      {alterandoSenha && <AlterarSenhaModal onClose={() => setAlterandoSenha(false)} />}
     </div>
   );
 }
