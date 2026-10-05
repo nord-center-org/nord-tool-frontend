@@ -51,3 +51,34 @@ export const SITUACOES_TERMO = [
 export function rotuloSituacao(valor: string): string {
   return SITUACOES_TERMO.find(s => s.valor === valor)?.rotulo ?? valor;
 }
+
+export const LEGENDA_MAX = 240;
+
+export function legendaValida(legenda: string): boolean {
+  return legenda.length <= LEGENDA_MAX;
+}
+
+export interface NovaOrdem {
+  idTermoFoto: number;
+  nrOrdem: number;
+}
+
+/**
+ * Move uma foto uma posição para cima/baixo dentro da própria página e devolve a ordem
+ * normalizada (0..n-1) de todas as fotos da página. Retorna null se não houver para onde mover.
+ */
+export function calcularNovaOrdem<T extends FotoDaPagina>(
+  fotos: T[],
+  idFoto: number,
+  direcao: 'cima' | 'baixo',
+): NovaOrdem[] | null {
+  const alvo = fotos.find(f => f.idTermoFoto === idFoto);
+  if (!alvo) return null;
+  const pagina = fotosDaPagina(fotos, alvo.nrPagina);
+  const indice = pagina.findIndex(f => f.idTermoFoto === idFoto);
+  const destino = direcao === 'cima' ? indice - 1 : indice + 1;
+  if (indice < 0 || destino < 0 || destino >= pagina.length) return null;
+  const ids = pagina.map(f => f.idTermoFoto);
+  [ids[indice], ids[destino]] = [ids[destino], ids[indice]];
+  return ids.map((id, nrOrdem) => ({ idTermoFoto: id, nrOrdem }));
+}

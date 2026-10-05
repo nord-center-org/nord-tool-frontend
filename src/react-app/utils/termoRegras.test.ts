@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  contarFotosPorPagina, fotosDaPagina, limitarPagina, mensagemExclusaoTermo,
+  calcularNovaOrdem, contarFotosPorPagina, fotosDaPagina, legendaValida, limitarPagina, mensagemExclusaoTermo,
   rotuloPagina, rotuloSituacao, rotuloTermo,
 } from './termoRegras.ts';
 
@@ -50,4 +50,27 @@ test('rótulos de situação', () => {
   assert.equal(rotuloSituacao('EM_ANDAMENTO'), 'Em andamento');
   assert.equal(rotuloSituacao('CONCLUIDO'), 'Concluído');
   assert.equal(rotuloSituacao('OUTRA'), 'OUTRA');
+});
+
+test('mover para cima/baixo troca vizinhos e normaliza a ordem da página', () => {
+  // página 2 na ordem: 2, 3, 4
+  assert.deepEqual(calcularNovaOrdem(fotos, 3, 'cima'), [
+    { idTermoFoto: 3, nrOrdem: 0 }, { idTermoFoto: 2, nrOrdem: 1 }, { idTermoFoto: 4, nrOrdem: 2 },
+  ]);
+  assert.deepEqual(calcularNovaOrdem(fotos, 3, 'baixo'), [
+    { idTermoFoto: 2, nrOrdem: 0 }, { idTermoFoto: 4, nrOrdem: 1 }, { idTermoFoto: 3, nrOrdem: 2 },
+  ]);
+});
+
+test('não move além das pontas nem foto inexistente', () => {
+  assert.equal(calcularNovaOrdem(fotos, 2, 'cima'), null);
+  assert.equal(calcularNovaOrdem(fotos, 4, 'baixo'), null);
+  assert.equal(calcularNovaOrdem(fotos, 1, 'baixo'), null); // única da página 1
+  assert.equal(calcularNovaOrdem(fotos, 99, 'cima'), null);
+});
+
+test('legenda aceita até 240 caracteres', () => {
+  assert.equal(legendaValida('x'.repeat(240)), true);
+  assert.equal(legendaValida('x'.repeat(241)), false);
+  assert.equal(legendaValida(''), true);
 });
