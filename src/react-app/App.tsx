@@ -1,7 +1,7 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import Layout from "@/react-app/components/Layout";
 import HomePage from "@/react-app/pages/Home";
-import DatabasePage from "@/react-app/pages/Database";
+import ApartamentosPage from "@/react-app/pages/Apartamentos";
 import DashboardPage from "@/react-app/pages/Dashboard";
 import DeliveriesPage from "@/react-app/pages/Deliveries";
 import SettingsPage from "@/react-app/pages/Settings";
@@ -17,7 +17,8 @@ export default function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
           <Route path="entregas" element={<DeliveriesPage />} />
-          <Route path="database" element={<DatabasePage />} />
+          <Route path="apartamentos" element={<ApartamentosPage />} />
+          <Route path="database" element={<Navigate to="/apartamentos" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="configuracoes" element={<SettingsPage />} />
 

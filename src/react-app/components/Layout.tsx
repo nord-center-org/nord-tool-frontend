@@ -21,7 +21,7 @@ export default function Layout() {
       title: "Entrega",
       items: [
         { path: "/entregas", label: "Agenda", icon: Package },
-        { path: "/database", label: "Banco de Dados", icon: Database },
+        { path: "/apartamentos", label: "Apartamentos", icon: Database },
         { path: "/dashboard", label: "Dashboard", icon: BarChart3 },
       ]
     },

@@ -11,7 +11,7 @@ export default function HomePage() {
   const subMenu: Record<string, { label: string, path: string, icon: LucideIcon }[]> = {
     "Entrega": [
       { label: "Agenda", path: "/entregas", icon: LayoutDashboard },
-      { label: "Banco de Dados", path: "/database", icon: Database },
+      { label: "Apartamentos", path: "/apartamentos", icon: Database },
     ],
     "Mapeamentos": [],
     "Organizacional": [
@@ -24,7 +24,7 @@ export default function HomePage() {
   };
 
   const modulos = [
-    { nome: "Entrega", icon: Package, cor: "from-blue-500 to-cyan-500", desc: "Gestão de vistorias e banco de dados" },
+    { nome: "Entrega", icon: Package, cor: "from-blue-500 to-cyan-500", desc: "Gestão de vistorias e apartamentos" },
     { nome: "Mapeamentos", icon: Map, cor: "from-indigo-500 to-purple-500", desc: "Conferências e relatórios visuais" },
     { nome: "Organizacional", icon: Briefcase, cor: "from-emerald-500 to-teal-500", desc: "Treinamentos, diários e escadinha" },
     { nome: "Gestão Individual", icon: UserCircle, cor: "from-orange-500 to-red-500", desc: "Finanças, treinos e repertório" }
