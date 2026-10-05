@@ -40,6 +40,6 @@
     "check": "tsc && vite build && wrangler deploy --dry-run",
     "dev": "vite",
     "lint": "eslint .",
-    "test": "node --test src/react-app/utils/elegibilidadeColaborador.test.ts src/react-app/utils/filtroColuna.test.ts"
+    "test": "node --test src/react-app/utils/elegibilidadeColaborador.test.ts src/react-app/utils/filtroColuna.test.ts src/react-app/utils/permissao.test.ts"
   }
 }

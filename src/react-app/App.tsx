@@ -9,11 +9,17 @@ import CronogramaPage from "@/react-app/pages/Cronograma_semanal";
 import ControleChavesPage from "@/react-app/pages/Controle_de_chaves";
 import DaviJobPage from "@/react-app/pages/DaviJob";
 import ConcretagemInProgress from "@/react-app/components/Placeholder";
+import LoginPage from "@/react-app/pages/Login";
+import RotaProtegida from "@/react-app/components/RotaProtegida";
+import { AuthProvider } from "@/react-app/contexts/AuthContext";
 
 export default function App() {
   return (
     <Router>
+      <AuthProvider>
       <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<RotaProtegida />}>
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
           <Route path="entregas" element={<DeliveriesPage />} />
@@ -45,7 +51,9 @@ export default function App() {
           <Route path="gestao/academico" element={<ConcretagemInProgress />} />
           <Route path="gestao/davi-job" element={<DaviJobPage />} />
         </Route>
+        </Route>
       </Routes>
+      </AuthProvider>
     </Router>
   );
 }

@@ -60,3 +60,25 @@ export interface StatusVistoriaDto {
   idStatusVistoria: number;
   nmStatusVistoria: string;
 }
+
+export interface PermissaoModulo {
+  /** "*" = todos os módulos. */
+  cdModulo: string;
+  /** LEITURA | ESCRITA */
+  cdAcao: string;
+}
+
+export interface UsuarioLogado {
+  id: number;
+  nome: string;
+  email: string;
+  perfil: string;
+  permissoes: PermissaoModulo[];
+}
+
+export interface LoginResponse {
+  token: string;
+  expiraEm: string;
+  inatividadeMinutos: number;
+  usuario: UsuarioLogado;
+}
