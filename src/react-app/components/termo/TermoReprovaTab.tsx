@@ -175,6 +175,14 @@ export default function TermoReprovaTab({ apartamento, ativa, onDirtyChange }: T
     }, "Não foi possível trocar o PDF.");
   };
 
+  /** Atualiza só as fotos do termo (sem baixar o PDF de novo nem mexer no rascunho de situação/observação). */
+  const recarregarFotos = useCallback(async () => {
+    if (selecionadoId === null) return;
+    const dto = await termoReprovaService.buscar(selecionadoId);
+    setTermo(atual => (atual && atual.idTermoReprova === dto.idTermoReprova ? { ...atual, fotos: dto.fotos } : atual));
+    await carregarLista(selecionadoId);
+  }, [selecionadoId, carregarLista]);
+
   const salvarAlteracoes = () => {
     if (!termo) return;
     void executar(async () => {
@@ -398,7 +406,13 @@ export default function TermoReprovaTab({ apartamento, ativa, onDirtyChange }: T
                 <div aria-busy="true" className="h-96 animate-pulse rounded-xl bg-slate-100" />
               )}
             </section>
-            <PainelFotosPagina fotos={termo.fotos} pagina={pagina} />
+            <PainelFotosPagina
+              idTermo={termo.idTermoReprova}
+              nrPaginas={termo.nrPaginas}
+              fotos={termo.fotos}
+              pagina={pagina}
+              onAlterado={recarregarFotos}
+            />
           </div>
         </>
       )}
