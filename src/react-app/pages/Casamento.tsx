@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { AlertCircle, Check, Heart, LayoutDashboard, Loader2, Store, Users, Flag, X, type LucideIcon } from "lucide-react";
+import { AlertCircle, Check, Download, Heart, LayoutDashboard, Loader2, Store, Users, Flag, X, type LucideIcon } from "lucide-react";
+import * as XLSX from "xlsx";
 
 import MarcosTab from "@/react-app/components/casamento/MarcosTab";
 import ConvidadosTab from "@/react-app/components/casamento/ConvidadosTab";
 import FornecedoresTab from "@/react-app/components/casamento/FornecedoresTab";
 import CasamentoDashboard from "@/react-app/components/casamento/CasamentoDashboard";
 import { useSincronizacao } from "@/react-app/hooks/useSincronizacao";
+import { casamentoService } from "@/react-app/services/CasamentoService";
+import { abasExportacao } from "@/react-app/utils/exportarCasamento";
 
 type AbaCasamento = "dashboard" | "fornecedores" | "convidados" | "marcos";
 
@@ -20,6 +23,31 @@ const ABAS: { id: AbaCasamento; label: string; icon: LucideIcon }[] = [
 export default function CasamentoPage() {
   const [aba, setAba] = useState<AbaCasamento>("dashboard");
   const sync = useSincronizacao();
+  const [exportando, setExportando] = useState(false);
+  const [erroExportacao, setErroExportacao] = useState<string | null>(null);
+
+  /** Backup em planilha: baixa fornecedores, convidados, marcos e configuração e gera um .xlsx. */
+  const exportarTudo = async () => {
+    setExportando(true);
+    setErroExportacao(null);
+    try {
+      const [configuracao, fornecedores, convidados, marcos] = await Promise.all([
+        casamentoService.buscarConfiguracao(),
+        casamentoService.listarFornecedores(),
+        casamentoService.listarConvidados(),
+        casamentoService.listarMarcos(),
+      ]);
+      const livro = XLSX.utils.book_new();
+      for (const aba of abasExportacao({ configuracao: configuracao ?? { casal: null, dataCasamento: null }, fornecedores, convidados, marcos })) {
+        XLSX.utils.book_append_sheet(livro, XLSX.utils.json_to_sheet(aba.linhas), aba.nome);
+      }
+      XLSX.writeFile(livro, "NordTool_Casamento.xlsx");
+    } catch (e) {
+      setErroExportacao(e instanceof Error && e.message ? e.message : "Não foi possível exportar.");
+    } finally {
+      setExportando(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12 text-slate-900">
@@ -46,8 +74,21 @@ export default function CasamentoPage() {
               </button>
             ))}
           </nav>
+          <button
+            type="button"
+            onClick={() => void exportarTudo()}
+            disabled={exportando}
+            title="Baixa uma planilha com fornecedores, convidados e marcos"
+            className="flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+          >
+            {exportando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Exportar tudo
+          </button>
         </div>
       </header>
+
+      {erroExportacao && (
+        <p role="alert" className="mx-auto mb-4 max-w-7xl rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{erroExportacao}</p>
+      )}
 
       <div className="mx-auto mb-4 flex max-w-7xl justify-end px-1" role="status" aria-live="polite">
         {sync.estado === "salvando" && (
