@@ -7,6 +7,17 @@ interface ApiEnvelope {
   error?: string;
 }
 
+/** Erro de HTTP da API, com o status (ex.: 409 = conflito de versão). */
+export class ApiError extends Error {
+  status: number;
+
+  constructor(mensagem: string, status: number) {
+    super(mensagem);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 export function getAuthToken(): string | null {
   // Stub: preenchido na etapa de login (E05)
   try {
@@ -33,7 +44,7 @@ function montarHeaders(init?: RequestInit, json = false): Headers {
   return headers;
 }
 
-async function lerErro(response: Response): Promise<Error> {
+async function lerErro(response: Response): Promise<ApiError> {
   let mensagem = `Erro HTTP ${response.status}${response.statusText ? `: ${response.statusText}` : ""}`;
   const texto = await response.text().catch(() => "");
   if (texto.trim()) {
@@ -46,7 +57,7 @@ async function lerErro(response: Response): Promise<Error> {
       mensagem = texto;
     }
   }
-  return new Error(mensagem);
+  return new ApiError(mensagem, response.status);
 }
 
 export async function apiFetch<T = unknown>(path: string, init?: RequestInit): Promise<T> {

@@ -187,3 +187,51 @@ export interface ImportacaoConvidados {
   importados: number;
   rejeitados: { linha: number; motivo: string }[];
 }
+
+// ---------- Caixinha ----------
+
+export type SituacaoCaixinha = 'TODOS' | 'A_PAGAR' | 'PAGO' | 'NAO_LANCADO';
+
+export interface CaixinhaResponsavel {
+  idResponsavel: number;
+  nmResponsavel: string;
+  inAtivo: boolean;
+}
+
+export interface CaixinhaLancamento {
+  idLancamento: number;
+  /** dd/MM/yyyy */
+  dtLancamento: string;
+  idResponsavel: number;
+  nmResponsavel: string;
+  txInsumo: string;
+  vlValor: number;
+  inLancado: boolean;
+  inPago: boolean;
+  /** Revisão para controle de concorrência. */
+  nrVersao: number;
+  qtComprovantes: number;
+}
+
+export interface CaixinhaLista {
+  lancamentos: CaixinhaLancamento[];
+  responsaveis: CaixinhaResponsavel[];
+}
+
+export interface CaixinhaResumo {
+  total: number;
+  pago: number;
+  aPagar: number;
+  qtLancamentos: number;
+  qtPagos: number;
+  qtPendentes: number;
+}
+
+export interface CaixinhaComprovante {
+  idComprovante: number;
+  idLancamento: number;
+  nmArquivo: string;
+  nmContentType: string;
+  nrTamanhoBytes: number;
+  nrVersao: number;
+}
