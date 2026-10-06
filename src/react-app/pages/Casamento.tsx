@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AlertCircle, Check, Heart, LayoutDashboard, Loader2, Store, Users, Flag, X, type LucideIcon } from "lucide-react";
 
+import FornecedoresTab from "@/react-app/components/casamento/FornecedoresTab";
 import CasamentoDashboard from "@/react-app/components/casamento/CasamentoDashboard";
 import { useSincronizacao } from "@/react-app/hooks/useSincronizacao";
 
@@ -72,7 +73,7 @@ export default function CasamentoPage() {
 
       <main role="tabpanel" className="mx-auto max-w-7xl space-y-8">
         {aba === "dashboard" && <CasamentoDashboard sync={sync} />}
-        {aba === "fornecedores" && <EmConstrucao titulo="Fornecedores" />}
+        {aba === "fornecedores" && <FornecedoresTab sync={sync} />}
         {aba === "convidados" && <EmConstrucao titulo="Convidados" />}
         {aba === "marcos" && <EmConstrucao titulo="Marcos" />}
       </main>

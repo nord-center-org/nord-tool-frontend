@@ -70,3 +70,27 @@ export function dataExtensa(dataIso: string | null | undefined): string {
   const [dia, mes, ano] = br.split("/").map(Number);
   return new Date(ano, mes - 1, dia).toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
 }
+
+export const ROTULO_STATUS_FORNECEDOR = {
+  PESQUISANDO: "Pesquisando",
+  ORCAMENTO: "Orçamento",
+  CONTRATADO: "Contratado",
+} as const;
+
+export interface TotaisFornecedores {
+  qtTotal: number;
+  qtContratados: number;
+  vlContratado: number;
+  /** Soma de todos os valores cadastrados, em qualquer status. */
+  vlEstimado: number;
+}
+
+/** Totais da aba Fornecedores; valor "contratado" só soma quem está CONTRATADO. */
+export function totaisFornecedores(itens: { nmStatus: string; vlValor: number }[]): TotaisFornecedores {
+  let qtContratados = 0, vlContratado = 0, vlEstimado = 0;
+  for (const f of itens) {
+    vlEstimado += f.vlValor || 0;
+    if (f.nmStatus === "CONTRATADO") { qtContratados += 1; vlContratado += f.vlValor || 0; }
+  }
+  return { qtTotal: itens.length, qtContratados, vlContratado, vlEstimado };
+}

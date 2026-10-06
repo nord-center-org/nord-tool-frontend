@@ -64,3 +64,13 @@ test('moeda em reais', () => {
   assert.match(formatarMoeda(16000.5), /R\$\s?16\.000,50/);
   assert.match(formatarMoeda(0), /R\$\s?0,00/);
 });
+
+test("totaisFornecedores soma contratado apenas para CONTRATADO", async () => {
+  const { totaisFornecedores } = await import("./casamento.ts");
+  const t = totaisFornecedores([
+    { nmStatus: "CONTRATADO", vlValor: 100 },
+    { nmStatus: "ORCAMENTO", vlValor: 50 },
+    { nmStatus: "CONTRATADO", vlValor: 25.5 },
+  ]);
+  assert.deepEqual(t, { qtTotal: 3, qtContratados: 2, vlContratado: 125.5, vlEstimado: 175.5 });
+});
