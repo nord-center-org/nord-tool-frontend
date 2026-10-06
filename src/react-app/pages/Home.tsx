@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Package, Map, Briefcase, UserCircle, Sparkles, LayoutDashboard, Database, BookOpen, Settings, ChevronDown, Key, Heart, type LucideIcon } from "lucide-react";
+import { Package, Map, Briefcase, UserCircle, Sparkles, LayoutDashboard, Database, BookOpen, Settings, ChevronDown, Key, Heart, PiggyBank, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -20,6 +20,7 @@ export default function HomePage() {
     ],
     "Gestão Individual": [
       { label: "Casamento", path: "/gestao/casamento", icon: Heart },
+      { label: "Caixinha", path: "/gestao/caixinha", icon: PiggyBank },
       { label: "Configurações", path: "/configuracoes", icon: Settings },
     ]
   };
