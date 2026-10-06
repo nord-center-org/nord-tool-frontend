@@ -73,6 +73,105 @@ const valorColunaRetiradaRecente = (retirada: RetiradaControleChaves, coluna: Co
   return valores[coluna];
 };
 
+interface TabelaRetiradasAbertasProps {
+  titulo: string;
+  itens: RetiradaControleChaves[];
+  carregando: boolean;
+  erro: boolean;
+  recebendoId: number | null;
+  onReceber: (retirada: RetiradaControleChaves) => void;
+}
+
+const COLUNAS_RETIRADAS: [ColunaRetiradasRecentes, string][] = [
+  ['codigo', 'Código'], ['data', 'Data'], ['apartamento', 'Item'],
+  ['retirante', 'Retirado por'], ['liberador', 'Liberado por'], ['status', 'Status'],
+];
+
+/** Tabela de retiradas em aberto de um tipo de item, com filtros/ordenação próprios. */
+function TabelaRetiradasAbertas({ titulo, itens, carregando, erro, recebendoId, onReceber }: TabelaRetiradasAbertasProps) {
+  const [filtros, setFiltros] = useState<FiltrosRetiradasRecentes>({});
+  const [ordenacao, setOrdenacao] = useState<{ coluna: ColunaRetiradasRecentes; direcao: DirecaoOrdenacao } | null>(null);
+
+  const valoresPorColuna = useMemo(() => Object.fromEntries(
+    COLUNAS_RETIRADAS.map(([coluna]) => [
+      coluna,
+      [...new Set(itens.map(item => valorColunaRetiradaRecente(item, coluna)))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true })),
+    ]),
+  ) as Record<ColunaRetiradasRecentes, string[]>, [itens]);
+
+  const filtradas = useMemo(() => {
+    const lista = itens.filter(item => Object.entries(filtros).every(([coluna, selecionados]) =>
+      selecionados?.includes(valorColunaRetiradaRecente(item, coluna as ColunaRetiradasRecentes))));
+    return lista.sort((a, b) => {
+      if (!ordenacao) return 0;
+      return ordenacao.coluna === 'data'
+        ? compararValores(a?.dtRetirada, b?.dtRetirada, ordenacao.direcao, true)
+        : compararValores(valorColunaRetiradaRecente(a, ordenacao.coluna), valorColunaRetiradaRecente(b, ordenacao.coluna), ordenacao.direcao);
+    });
+  }, [itens, filtros, ordenacao]);
+
+  const configurarFiltro = (coluna: ColunaRetiradasRecentes, valores: string[] | null) => {
+    setFiltros(atuais => {
+      const proximos = { ...atuais };
+      if (valores === null) delete proximos[coluna]; else proximos[coluna] = valores;
+      return proximos;
+    });
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 overflow-x-auto">
+      <h3 className="font-bold text-lg text-slate-800 mb-4">{titulo} <span className="text-sm font-semibold text-slate-400">({itens.length})</span></h3>
+      <div className="min-w-[560px]">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="text-slate-400 uppercase text-[10px] font-black tracking-widest border-b border-slate-100">
+              {COLUNAS_RETIRADAS.map(([coluna, label]) => (
+                <th key={coluna} className="pb-3">
+                  <HistoricoColumnFilter
+                    label={label}
+                    values={valoresPorColuna[coluna]}
+                    selected={filtros[coluna] ?? null}
+                    sortDirection={ordenacao?.coluna === coluna ? ordenacao.direcao : null}
+                    onApply={valores => configurarFiltro(coluna, valores)}
+                    onSort={direcao => setOrdenacao({ coluna, direcao })}
+                  />
+                </th>
+              ))}
+              <th className="pb-3">Ação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {!carregando && !erro && filtradas.length === 0 && (
+              <tr><td colSpan={7} className="py-8 text-center text-sm text-slate-500">Nenhuma retirada em aberto.</td></tr>
+            )}
+            {filtradas.map(r => (
+              <tr key={r.idRequisicao} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                <td className="py-4 font-mono font-bold text-emerald-600">{valorColunaRetiradaRecente(r, 'codigo')}</td>
+                <td className="py-4 text-slate-600 text-sm">{valorColunaRetiradaRecente(r, 'data')}</td>
+                <td className="py-4 text-slate-800 font-mono font-semibold text-sm">{valorColunaRetiradaRecente(r, 'apartamento')}</td>
+                <td className="py-4 text-slate-600 text-sm">{valorColunaRetiradaRecente(r, 'retirante')}</td>
+                <td className="py-4 text-slate-600 text-sm">{valorColunaRetiradaRecente(r, 'liberador')}</td>
+                <td className="py-4">
+                  <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">{valorColunaRetiradaRecente(r, 'status')}</span>
+                </td>
+                <td className="py-4">
+                  {retiradaAberta(r) && <button disabled={recebendoId === r.idRequisicao}
+                    onClick={() => onReceber(r)}
+                    title="Chave Recebida"
+                    className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors"
+                  >
+                    <CheckCircle size={18} />
+                  </button>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [modalType, setModalType] = useState<string | null>(null);
@@ -87,8 +186,6 @@ const App = () => {
   const [ordenacaoHistorico, setOrdenacaoHistorico] = useState<{ coluna: ColunaHistorico; direcao: DirecaoOrdenacao } | null>(null);
   const [carregandoHistorico, setCarregandoHistorico] = useState(true);
   const [erroHistorico, setErroHistorico] = useState<string | null>(null);
-  const [filtrosRetiradasRecentes, setFiltrosRetiradasRecentes] = useState<FiltrosRetiradasRecentes>({});
-  const [ordenacaoRetiradasRecentes, setOrdenacaoRetiradasRecentes] = useState<{ coluna: ColunaRetiradasRecentes; direcao: DirecaoOrdenacao } | null>(null);
   const [dashboard, setDashboard] = useState<DashboardControleChaves | null>(null);
   const [carregandoDashboard, setCarregandoDashboard] = useState(true);
   const [erroDashboard, setErroDashboard] = useState<string | null>(null);
@@ -140,6 +237,8 @@ const App = () => {
   });
 
   const retiradas = useMemo(() => (dashboard?.retiradasRecentes ?? []).filter(retiradaAberta), [dashboard?.retiradasRecentes]);
+  const retiradasChaves = useMemo(() => retiradas.filter(r => r.nmTipoItem !== 'FERRAMENTA'), [retiradas]);
+  const retiradasFerramentas = useMemo(() => retiradas.filter(r => r.nmTipoItem === 'FERRAMENTA'), [retiradas]);
 
   const carregarColaboradores = async (mostrarErroNoModal = false) => {
     setCarregandoColaboradores(true);
@@ -225,8 +324,7 @@ const App = () => {
           + ferramentasAtivas.filter(ferramenta => !ferramentasEmCampo.has(ferramenta.idFerramenta)).length,
         qtChavesEntregues: apartamentosDaObra.filter(apartamento => apartamentoEntregue(apartamento.nmStatusVistoria)).length,
         retiradasRecentes: retiradasAbertas
-          .sort((a, b) => (normalizarData(b.dtRetirada) ?? 0) - (normalizarData(a.dtRetirada) ?? 0))
-          .slice(0, 5),
+          .sort((a, b) => (normalizarData(b.dtRetirada) ?? 0) - (normalizarData(a.dtRetirada) ?? 0)),
       });
     }
     catch (err) {
@@ -257,8 +355,6 @@ const App = () => {
   useEffect(() => {
     setCurrentPage(1);
     setFiltrosHistorico({});
-    setFiltrosRetiradasRecentes({});
-    setOrdenacaoRetiradasRecentes(null);
   }, [idObra]);
 
   useEffect(() => {
@@ -367,32 +463,6 @@ const App = () => {
       return proximos;
     });
     setCurrentPage(1);
-  };
-
-  const valoresRetiradasRecentesPorColuna = useMemo(() => Object.fromEntries(
-    (['codigo', 'data', 'apartamento', 'retirante', 'liberador', 'status'] as ColunaRetiradasRecentes[]).map(coluna => [
-      coluna,
-      [...new Set(retiradas.map(item => valorColunaRetiradaRecente(item, coluna)))].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true })),
-    ]),
-  ) as Record<ColunaRetiradasRecentes, string[]>, [retiradas]);
-
-  const retiradasRecentesFiltradas = useMemo(() => {
-    const filtradas = retiradas.filter(item => Object.entries(filtrosRetiradasRecentes).every(([coluna, selecionados]) =>
-      selecionados?.includes(valorColunaRetiradaRecente(item, coluna as ColunaRetiradasRecentes))));
-    return filtradas.sort((a, b) => {
-      if (!ordenacaoRetiradasRecentes) return 0;
-      return ordenacaoRetiradasRecentes.coluna === 'data'
-        ? compararValores(a?.dtRetirada, b?.dtRetirada, ordenacaoRetiradasRecentes.direcao, true)
-        : compararValores(valorColunaRetiradaRecente(a, ordenacaoRetiradasRecentes.coluna), valorColunaRetiradaRecente(b, ordenacaoRetiradasRecentes.coluna), ordenacaoRetiradasRecentes.direcao);
-    });
-  }, [retiradas, filtrosRetiradasRecentes, ordenacaoRetiradasRecentes]);
-
-  const configurarFiltroRetiradasRecentes = (coluna: ColunaRetiradasRecentes, valores: string[] | null) => {
-    setFiltrosRetiradasRecentes(atuais => {
-      const proximos = { ...atuais };
-      if (valores === null) delete proximos[coluna]; else proximos[coluna] = valores;
-      return proximos;
-    });
   };
 
   const fecharModal = () => {
@@ -577,71 +647,18 @@ const App = () => {
             </div>
             {erroDashboard && <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><span>{erroDashboard}</span><button onClick={() => void carregarDashboard()} className="font-semibold">Tentar novamente</button></div>}
 
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 overflow-x-auto">
-              <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
-                <h3 className="font-bold text-lg text-slate-800">Retiradas Recentes</h3>
-                <button
-                  onClick={() => openModal('retirada')}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-all font-semibold text-sm shadow-md shadow-emerald-500/20"
-                >
-                  <PlusCircle size={18} /> Nova Retirada
-                </button>
-              </div>
-
-              <div className="min-w-[600px]">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="text-slate-400 uppercase text-[10px] font-black tracking-widest border-b border-slate-100">
-                      {([
-                        ['codigo', 'Código'],
-                        ['data', 'Data'],
-                        ['apartamento', 'Item'],
-                        ['retirante', 'Retirado por'],
-                        ['liberador', 'Liberado por'],
-                        ['status', 'Status'],
-                      ] as [ColunaRetiradasRecentes, string][]).map(([coluna, label]) => (
-                        <th key={coluna} className="pb-3">
-                          <HistoricoColumnFilter
-                            label={label}
-                            values={valoresRetiradasRecentesPorColuna[coluna]}
-                            selected={filtrosRetiradasRecentes[coluna] ?? null}
-                            sortDirection={ordenacaoRetiradasRecentes?.coluna === coluna ? ordenacaoRetiradasRecentes.direcao : null}
-                            onApply={valores => configurarFiltroRetiradasRecentes(coluna, valores)}
-                            onSort={direcao => setOrdenacaoRetiradasRecentes({ coluna, direcao })}
-                          />
-                        </th>
-                      ))}
-                      <th className="pb-3">Ação</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {!carregandoDashboard && !erroDashboard && retiradasRecentesFiltradas.length === 0 && (
-                      <tr><td colSpan={7} className="py-8 text-center text-sm text-slate-500">Nenhuma retirada recente.</td></tr>
-                    )}
-                    {retiradasRecentesFiltradas.map(r => (
-                      <tr key={r.idRequisicao} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                        <td className="py-4 font-mono font-bold text-emerald-600">{valorColunaRetiradaRecente(r, 'codigo')}</td>
-                        <td className="py-4 text-slate-600 text-sm">{valorColunaRetiradaRecente(r, 'data')}</td>
-                        <td className="py-4 text-slate-800 font-mono font-semibold text-sm">{valorColunaRetiradaRecente(r, 'apartamento')}</td>
-                        <td className="py-4 text-slate-600 text-sm">{valorColunaRetiradaRecente(r, 'retirante')}</td>
-                        <td className="py-4 text-slate-600 text-sm">{valorColunaRetiradaRecente(r, 'liberador')}</td>
-                        <td className="py-4">
-                          <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">{valorColunaRetiradaRecente(r, 'status')}</span>
-                        </td>
-                        <td className="py-4">
-                          {retiradaAberta(r) && <button disabled={recebendoId === r.idRequisicao}
-                            onClick={() => openModal('confirmar', r)}
-                            title="Chave Recebida"
-                            className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors"
-                          >
-                            <CheckCircle size={18} />
-                          </button>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="flex flex-wrap justify-between items-center gap-4">
+              <h3 className="font-bold text-lg text-slate-800">Retiradas em aberto</h3>
+              <button
+                onClick={() => openModal('retirada')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-all font-semibold text-sm shadow-md shadow-emerald-500/20"
+              >
+                <PlusCircle size={18} /> Nova Retirada
+              </button>
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+              <TabelaRetiradasAbertas key={`chaves-${idObra}`} titulo="Chaves" itens={retiradasChaves} carregando={carregandoDashboard} erro={!!erroDashboard} recebendoId={recebendoId} onReceber={r => openModal('confirmar', r)} />
+              <TabelaRetiradasAbertas key={`ferramentas-${idObra}`} titulo="Ferramentas" itens={retiradasFerramentas} carregando={carregandoDashboard} erro={!!erroDashboard} recebendoId={recebendoId} onReceber={r => openModal('confirmar', r)} />
             </div>
           </div>
         )}
