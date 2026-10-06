@@ -203,14 +203,23 @@ export default function NordToolDashboard() {
     return Array.from({ length: 42 }, (_, i) => { const d = new Date(inicio); d.setDate(inicio.getDate() + i); return d; });
   }, [dataCalendario]);
 
+  const horarioNoDia = (item: CronogramaSemanalItem, chave: string) =>
+    item.flFixo ? item.nmHorario ?? "" : (item.dtAgendamento && paraIso(item.dtAgendamento) === chave ? item.dtAgendamento.split(" ")[1] ?? "" : "");
+
+  const rotuloNoDia = (item: CronogramaSemanalItem, chave: string) =>
+    item.flFixo ? `📌 ${item.nmHorario ?? ""}`
+      : item.dtAgendamento && paraIso(item.dtAgendamento) === chave ? `◷ ${item.dtAgendamento.split(" ")[1]?.slice(0, 5) ?? ""}`
+      : "🗓 Prazo";
+
   const itensDoDia = (data: Date) => {
     const diaSemana = nomeDiaSemana(data);
     const chave = ymd(data);
     const fixos = items.filter(item => item.flFixo && item.nmDiaSemana === diaSemana);
-    const pontuais = items.filter(item => !item.flFixo && item.dtAgendamento && (paraIso(item.dtAgendamento) === chave));
+    // Demanda aparece no dia agendado e também no dia do prazo (a data marcada na demanda).
+    const pontuais = items.filter(item => !item.flFixo && ((item.dtAgendamento && paraIso(item.dtAgendamento) === chave) || (item.dtPrazo && paraIso(item.dtPrazo) === chave)));
     return [...fixos, ...pontuais]
       .filter(item => !categoriasRotina.length || categoriasRotina.includes(item.nmCategoria))
-      .sort((a, b) => (a.flFixo ? a.nmHorario ?? "" : a.dtAgendamento?.split(" ")[1] ?? "").localeCompare(b.flFixo ? b.nmHorario ?? "" : b.dtAgendamento?.split(" ")[1] ?? ""));
+      .sort((a, b) => horarioNoDia(a, chave).localeCompare(horarioNoDia(b, chave)));
   };
 
   const moverCalendario = (quantidade: number) => {
@@ -583,7 +592,7 @@ export default function NordToolDashboard() {
                         {itens.map(item => (
                           <button key={`${item.flFixo ? "f" : "p"}-${item.id}`} onClick={() => abrirEdicao(item)} className="rounded-xl border border-slate-800 bg-[#151921] p-2 text-left hover:border-violet-700">
                             <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-500">
-                              {item.flFixo ? "📌" : "◷"} {item.flFixo ? item.nmHorario : item.dtAgendamento?.split(" ")[1]?.slice(0, 5)}
+                              {rotuloNoDia(item, ymd(data))}
                             </div>
                             <p className="text-xs font-semibold text-slate-200 leading-snug">{item.nmCronogramaSemanal}</p>
                           </button>
@@ -606,7 +615,7 @@ export default function NordToolDashboard() {
                       <div className="flex flex-col gap-1">
                         {itens.slice(0, 3).map(item => (
                           <button key={`${item.flFixo ? "f" : "p"}-${item.id}`} onClick={() => abrirEdicao(item)} className="truncate rounded-lg bg-slate-900 px-1.5 py-0.5 text-left text-[9px] text-slate-300 hover:bg-slate-800">
-                            {item.flFixo ? "📌" : "◷"} {item.nmCronogramaSemanal}
+                            {rotuloNoDia(item, ymd(data)).split(" ")[0]} {item.nmCronogramaSemanal}
                           </button>
                         ))}
                         {itens.length > 3 && <span className="text-[9px] text-slate-500">+{itens.length - 3} compromissos</span>}
