@@ -33,6 +33,16 @@ export interface ApartamentoVistoriaDto {
   inMarcarRevistoria?: boolean;
   txObservacaoRevistoria?: string;
   dtRevistoriaVigente?: string;
+
+  // Último termo de reprova (agregado pelo backend; ausente em respostas antigas)
+  inTermoAnexado?: boolean;
+  qtTermos?: number;
+  nrUltimoTermo?: number | null;
+  /** PENDENTE | EM_ANDAMENTO | CONCLUIDO */
+  nmSituacaoTermo?: string | null;
+  qtFotosTermo?: number;
+  nrPaginasTermo?: number | null;
+  nrPaginasComFoto?: number;
 }
 
 export interface ApartamentoVistoriaForm {

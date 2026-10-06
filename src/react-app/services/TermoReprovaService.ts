@@ -5,6 +5,7 @@ import type {
   TermoReprovaDto,
   TermoReprovaResumo,
 } from "@/shared/types";
+import type { ResumoTermos } from "../utils/termoLista";
 import { apiBlob, apiFetch } from "./apiClient";
 
 const BASE = "/apartamentoVistoria";
@@ -36,6 +37,11 @@ function formArquivo(arquivo: Blob, nome: string, nrPaginas: number): FormData {
 }
 
 export const termoReprovaService = {
+  /** Totais do "Controle de finalização do DAT" (dashboard). */
+  resumoGeral(): Promise<ResumoTermos> {
+    return apiFetch<ResumoTermos>(`${TERMOS}/resumo`);
+  },
+
   async listar(idApartamento: number): Promise<TermoReprovaResumo[]> {
     return (await apiFetch<TermoReprovaResumo[]>(`${BASE}/${idApartamento}/termos-reprova`)) ?? [];
   },

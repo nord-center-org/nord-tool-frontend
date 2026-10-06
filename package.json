@@ -42,6 +42,6 @@
     "check": "tsc && vite build && wrangler deploy --dry-run",
     "dev": "vite",
     "lint": "eslint .",
-    "test": "node --test src/react-app/utils/elegibilidadeColaborador.test.ts src/react-app/utils/filtroColuna.test.ts src/react-app/utils/blobCache.test.ts src/react-app/utils/imagem.test.ts src/react-app/utils/pdfTermoRegras.test.ts src/react-app/utils/termoRegras.test.ts src/react-app/utils/apartamentoNome.test.ts src/react-app/utils/dashboardStats.test.ts"
+    "test": "node --test src/react-app/utils/elegibilidadeColaborador.test.ts src/react-app/utils/filtroColuna.test.ts src/react-app/utils/blobCache.test.ts src/react-app/utils/imagem.test.ts src/react-app/utils/pdfTermoRegras.test.ts src/react-app/utils/termoRegras.test.ts src/react-app/utils/apartamentoNome.test.ts src/react-app/utils/dashboardStats.test.ts src/react-app/utils/termoLista.test.ts"
   }
 }

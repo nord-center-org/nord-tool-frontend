@@ -3,6 +3,9 @@ import { CheckCircle2, XCircle, Clock, Home, Loader2, AlertCircle, RotateCcw, Ca
 import type { DashboardStats } from "@/shared/types";
 import { apartamentoVistoriaService } from "@/react-app/services/ApartamentoVistoriaService";
 import { calcularDashboard } from "@/react-app/utils/dashboardStats";
+import { termoReprovaService } from "@/react-app/services/TermoReprovaService";
+import type { ResumoTermos } from "@/react-app/utils/termoLista";
+import CardFinalizacaoDat from "@/react-app/components/CardFinalizacaoDat";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -11,6 +14,9 @@ export default function DashboardPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedCondo, setSelectedCondo] = useState<string>(""); 
+  const [resumoDat, setResumoDat] = useState<ResumoTermos | null>(null);
+  const [carregandoDat, setCarregandoDat] = useState(true);
+  const [erroDat, setErroDat] = useState<string | null>(null);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -37,6 +43,16 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+
+  // O card do DAT não depende dos filtros de período/obra e não deve derrubar o restante do Dashboard.
+  useEffect(() => {
+    let ativo = true;
+    termoReprovaService.resumoGeral()
+      .then(dados => { if (ativo) setResumoDat(dados); })
+      .catch(e => { if (ativo) setErroDat(e instanceof Error && e.message ? e.message : "Não foi possível carregar o controle do DAT."); })
+      .finally(() => { if (ativo) setCarregandoDat(false); });
+    return () => { ativo = false; };
+  }, []);
 
   const toggleCondoFilter = (value: string) => {
     setSelectedCondo(prev => prev === value ? "" : value);
@@ -183,6 +199,8 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      <CardFinalizacaoDat resumo={resumoDat} carregando={carregandoDat} erro={erroDat} />
 
       {/* Tabela de Resumo Detalhado */}
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-100">
