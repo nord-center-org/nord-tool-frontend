@@ -15,6 +15,8 @@ interface ApartmentModalProps {
   apartment: ApartamentoVistoriaDto | null;
   onClose: () => void;
   onSave: (data: ApartamentoVistoriaForm) => void;
+  /** Termo/fotos mudaram: a lista de apartamentos deve ser atualizada sem fechar o modal. */
+  onTermoAlterado?: () => void;
   /** Aba aberta inicialmente (ex.: "termo" ao clicar na coluna Termo da lista). */
   abaInicial?: AbaApartamento;
 }
@@ -26,6 +28,7 @@ export default function ApartmentModal({
   apartment,
   onClose,
   onSave,
+  onTermoAlterado,
   abaInicial = "dados",
 }: ApartmentModalProps) {
   const salvo = Boolean(apartment?.idApartamentoVistoria);
@@ -131,6 +134,7 @@ export default function ApartmentModal({
                 apartamento={apartment}
                 ativa={aba === "termo"}
                 onDirtyChange={handleTermoSujo}
+                onTermosAlterados={onTermoAlterado}
               />
             </div>
           )}

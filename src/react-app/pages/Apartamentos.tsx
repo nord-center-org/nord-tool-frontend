@@ -482,6 +482,7 @@ export default function ApartamentosPage() {
           abaInicial={abaModal}
           onClose={() => { setShowModal(false); setSelectedApartment(null); }}
           onSave={handleSaveApartment}
+          onTermoAlterado={() => void fetchApartamentosSilencioso()}
         />
       )}
 

@@ -1,7 +1,7 @@
 /** Regras puras do PDF do termo (sem dependências, testáveis em node). */
 
 export const PDF_MAX_BYTES = 15 * 1024 * 1024;
-export const PDF_MAX_PAGINAS = 40;
+export const PDF_MAX_PAGINAS = 80;
 
 export function validarArquivoPdf(arquivo: { name: string; size: number }): void {
   if (!/\.pdf$/i.test(arquivo.name)) {
