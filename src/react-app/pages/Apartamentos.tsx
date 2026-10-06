@@ -15,7 +15,7 @@ import { format, parseISO, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import * as XLSX from "xlsx";
 
-import ApartmentModal from "@/react-app/components/ApartmentModal";
+import ApartmentModal, { type AbaApartamento } from "@/react-app/components/ApartmentModal";
 import { apartamentoVistoriaService } from "@/react-app/services/ApartamentoVistoriaService";
 import type { ApartamentoVistoriaDto } from "@/shared/types";
 import { ColumnFilter } from "@/react-app/components/ColumnFilter";
@@ -24,8 +24,11 @@ import { aplicarFiltrosColuna, valoresUnicos, type ColunasFiltro } from "@/react
 
 import MassUpdateModal from "@/react-app/components/MassUpdateModal";
 import { ClipboardPaste } from "lucide-react";
+import {
+  classeSituacao, descricaoDoTermo, ordemFotos, progressoPaginas, situacaoDoTermo, valorFotos,
+} from "@/react-app/utils/termoLista";
 
-type ColunaApartamento = "apartamento" | "status" | "data" | "horario" | "observacao";
+type ColunaApartamento = "apartamento" | "status" | "data" | "horario" | "observacao" | "termo" | "fotos";
 
 const dataIso = (dateValue?: string | null): string => {
   if (!dateValue) return "";
@@ -59,6 +62,8 @@ const COLUNAS: ColunasFiltro<ApartamentoVistoriaDto, ColunaApartamento> = {
   },
   horario: { valor: apt => apt.nmHorarioVistoria },
   observacao: { valor: apt => apt.txObservacaoRevistoria },
+  termo: { valor: apt => situacaoDoTermo(apt) },
+  fotos: { valor: apt => valorFotos(apt), ordem: apt => ordemFotos(apt) },
 };
 
 const lerStatusPadrao = (): string[] => {
@@ -77,6 +82,7 @@ export default function ApartamentosPage() {
   const [loading, setLoading] = useState(true);
   const [selectedApartment, setSelectedApartment] = useState<ApartamentoVistoriaDto | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [abaModal, setAbaModal] = useState<AbaApartamento>("dados");
   const [searchTerm, setSearchTerm] = useState("");
   const [mostrarTodos, setMostrarTodos] = useState(false);
   const [nordSelecionado, setNordSelecionado] = useState<"N1" | "N2" | "EN" | null>(null);
@@ -205,7 +211,8 @@ export default function ApartamentosPage() {
   /* =======================
       ACTIONS
   ======================= */
-  const handleEdit = (apt: ApartamentoVistoriaDto) => {
+  const handleEdit = (apt: ApartamentoVistoriaDto, aba: AbaApartamento = "dados") => {
+    setAbaModal(aba);
     setSelectedApartment(apt);
     setShowModal(true);
   };
@@ -273,6 +280,8 @@ export default function ApartamentosPage() {
     data: valoresUnicos(baseApartamentos, COLUNAS.data),
     horario: valoresUnicos(baseApartamentos, COLUNAS.horario),
     observacao: valoresUnicos(baseApartamentos, COLUNAS.observacao),
+    termo: valoresUnicos(baseApartamentos, COLUNAS.termo),
+    fotos: valoresUnicos(baseApartamentos, COLUNAS.fotos),
   }), [baseApartamentos]);
 
   const filteredApartamentos = useMemo(
@@ -379,12 +388,14 @@ export default function ApartamentosPage() {
                 <th className="px-4 py-4 min-w-[140px] text-left text-xs font-bold text-slate-400 uppercase tracking-wider">{filtroColuna("data", "Data", "Sem data")}</th>
                 <th className="px-4 py-4 min-w-[120px] text-left text-xs font-bold text-slate-400 uppercase tracking-wider">{filtroColuna("horario", "Horário", "Sem horário")}</th>
                 <th className="px-4 py-4 min-w-[150px] text-left text-xs font-bold text-slate-400 uppercase tracking-wider">{filtroColuna("observacao", "Observação", "Sem observação")}</th>
+                <th className="px-4 py-4 min-w-[140px] text-left text-xs font-bold text-slate-400 uppercase tracking-wider">{filtroColuna("termo", "Termo")}</th>
+                <th className="px-4 py-4 min-w-[140px] text-left text-xs font-bold text-slate-400 uppercase tracking-wider">{filtroColuna("fotos", "Fotos", "Sem termo")}</th>
                 <th className="px-4 py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider w-24">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={7} className="py-20 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" /></td></tr>
+                <tr><td colSpan={9} className="py-20 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" /></td></tr>
               ) : (
                 filteredApartamentos.map((apt) => {
                   const status = apt.nmStatusVistoria?.toLowerCase() || "";
@@ -415,6 +426,28 @@ export default function ApartamentosPage() {
                             {apt.txObservacaoRevistoria || "-"}
                           </div>
                         </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(apt, "termo")}
+                            title="Abrir o termo de reprova"
+                            className="flex flex-col items-start gap-1 text-left"
+                          >
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${classeSituacao(situacaoDoTermo(apt))}`}>{situacaoDoTermo(apt)}</span>
+                            {descricaoDoTermo(apt) && <span className="text-[11px] text-slate-400">{descricaoDoTermo(apt)}</span>}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(apt, "termo")}
+                            title="Abrir as fotos do termo"
+                            className="flex flex-col items-start text-left"
+                          >
+                            <span className="text-sm font-medium text-slate-600">{valorFotos(apt) ?? "—"}</span>
+                            {progressoPaginas(apt) && <span className="text-[11px] text-slate-400">{progressoPaginas(apt)}</span>}
+                          </button>
+                        </td>
                         <td className="px-4 py-4 text-center">
                           <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => handleEdit(apt)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 className="w-4 h-4" /></button>
@@ -426,7 +459,7 @@ export default function ApartamentosPage() {
                       {/* Sub-linha que expande ocupando toda a largura */}
                       {expandedObsId === apt.idApartamentoVistoria && apt.txObservacaoRevistoria && (
                         <tr>
-                          <td colSpan={7} className="px-8 py-4 bg-blue-50/30 border-b border-slate-200 shadow-inner">
+                          <td colSpan={9} className="px-8 py-4 bg-blue-50/30 border-b border-slate-200 shadow-inner">
                             <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Observações Completas</div>
                             <div className="text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed">
                               {apt.txObservacaoRevistoria}
@@ -446,6 +479,7 @@ export default function ApartamentosPage() {
       {showModal && (
         <ApartmentModal
           apartment={selectedApartment}
+          abaInicial={abaModal}
           onClose={() => { setShowModal(false); setSelectedApartment(null); }}
           onSave={handleSaveApartment}
         />
