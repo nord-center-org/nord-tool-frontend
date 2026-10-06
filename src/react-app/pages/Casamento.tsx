@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { Heart, LayoutDashboard, Store, Users, Flag, type LucideIcon } from "lucide-react";
+import { AlertCircle, Check, Heart, LayoutDashboard, Loader2, Store, Users, Flag, X, type LucideIcon } from "lucide-react";
+
+import CasamentoDashboard from "@/react-app/components/casamento/CasamentoDashboard";
+import { useSincronizacao } from "@/react-app/hooks/useSincronizacao";
 
 type AbaCasamento = "dashboard" | "fornecedores" | "convidados" | "marcos";
 
@@ -19,13 +22,14 @@ function EmConstrucao({ titulo }: { titulo: string }) {
   );
 }
 
-/** Casca do módulo Casamento (Gestão Individual). O conteúdo de cada aba entra nas etapas E15–E18. */
+/** Módulo Casamento (Gestão Individual). */
 export default function CasamentoPage() {
   const [aba, setAba] = useState<AbaCasamento>("dashboard");
+  const sync = useSincronizacao();
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12 text-slate-900">
-      <header className="mx-auto mb-8 max-w-7xl rounded-2xl bg-slate-900 text-white shadow-xl">
+      <header className="mx-auto mb-4 max-w-7xl rounded-2xl bg-slate-900 text-white shadow-xl">
         <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
           <h1 className="flex items-center gap-2 text-2xl font-black tracking-tight text-blue-400">
             <Heart className="h-6 w-6" /> Casamento
@@ -51,8 +55,23 @@ export default function CasamentoPage() {
         </div>
       </header>
 
+      <div className="mx-auto mb-4 flex max-w-7xl justify-end px-1" role="status" aria-live="polite">
+        {sync.estado === "salvando" && (
+          <span className="flex items-center gap-2 text-xs font-medium text-slate-500"><Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" /> Salvando…</span>
+        )}
+        {sync.estado === "ocioso" && (
+          <span className="flex items-center gap-1.5 text-xs font-medium text-slate-400"><Check className="h-3.5 w-3.5" /> Tudo salvo</span>
+        )}
+        {sync.estado === "erro" && (
+          <span role="alert" className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {sync.erro}
+            <button type="button" onClick={sync.limparErro} aria-label="Dispensar erro" className="rounded p-0.5 hover:bg-red-100"><X className="h-3.5 w-3.5" /></button>
+          </span>
+        )}
+      </div>
+
       <main role="tabpanel" className="mx-auto max-w-7xl space-y-8">
-        {aba === "dashboard" && <EmConstrucao titulo="Dashboard do casamento" />}
+        {aba === "dashboard" && <CasamentoDashboard sync={sync} />}
         {aba === "fornecedores" && <EmConstrucao titulo="Fornecedores" />}
         {aba === "convidados" && <EmConstrucao titulo="Convidados" />}
         {aba === "marcos" && <EmConstrucao titulo="Marcos" />}

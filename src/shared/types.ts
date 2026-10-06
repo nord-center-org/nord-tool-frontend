@@ -116,3 +116,74 @@ export interface OrdemFoto {
   idTermoFoto: number;
   nrOrdem: number;
 }
+
+// ---------- Casamento ----------
+
+export type StatusFornecedor = 'PESQUISANDO' | 'ORCAMENTO' | 'CONTRATADO';
+export type StatusConvidado = 'NAO_CONVIDADO' | 'CONVIDADO' | 'CONFIRMADO' | 'NAO_IRA';
+
+export interface CasamentoConfig {
+  casal: string | null;
+  /** yyyy-MM-dd */
+  dataCasamento: string | null;
+}
+
+export interface CasamentoFornecedor {
+  idFornecedor: number;
+  nmFornecedor: string;
+  nmCategoria: string;
+  txContato: string | null;
+  nmStatus: StatusFornecedor;
+  vlValor: number;
+  txObservacao: string | null;
+  qtAnexos: number;
+}
+
+export interface CasamentoAnexo {
+  idAnexo: number;
+  idFornecedor: number;
+  nmArquivo: string;
+  nmContentType: string;
+  nrTamanhoBytes: number;
+  txDescricao: string | null;
+  nrVersao: number;
+}
+
+export interface CasamentoConvidado {
+  idConvidado: number;
+  nmConvidado: string;
+  nmGrupo: string | null;
+  nrTelefone: string | null;
+  nmRelacao: string | null;
+  nmStatus: StatusConvidado;
+  nrAcompanhantes: number;
+  nmMesa: string | null;
+}
+
+export interface CasamentoMarco {
+  idMarco: number;
+  nmTitulo: string;
+  /** dd/MM/yyyy */
+  dtPrazo: string | null;
+  inConcluido: boolean;
+  txObservacao: string | null;
+}
+
+export interface CasamentoDashboard {
+  configuracao: CasamentoConfig;
+  qtFornecedores: number;
+  qtFornecedoresContratados: number;
+  vlContratado: number;
+  qtConvidados: number;
+  qtConvidadosConfirmados: number;
+  qtPessoasConfirmadas: number;
+  qtMarcos: number;
+  qtMarcosConcluidos: number;
+  pcMarcosConcluidos: number;
+  proximosMarcos: CasamentoMarco[];
+}
+
+export interface ImportacaoConvidados {
+  importados: number;
+  rejeitados: { linha: number; motivo: string }[];
+}
