@@ -94,3 +94,11 @@ export function totaisFornecedores(itens: { nmStatus: string; vlValor: number }[
   }
   return { qtTotal: itens.length, qtContratados, vlContratado, vlEstimado };
 }
+
+/** Marcos por prazo crescente; sem prazo vão para o fim (empate: ordem original). */
+export function ordenarMarcos<T extends { dtPrazo: string | null }>(marcos: T[]): T[] {
+  return marcos
+    .map((marco, indice) => ({ marco, indice, chave: dataBrParaIso(marco.dtPrazo) ?? "9999-99-99" }))
+    .sort((a, b) => a.chave.localeCompare(b.chave) || a.indice - b.indice)
+    .map(x => x.marco);
+}
