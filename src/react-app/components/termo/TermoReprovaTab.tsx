@@ -18,6 +18,8 @@ interface TermoReprovaTabProps {
   /** Aba visível (controla os atalhos de teclado). */
   ativa: boolean;
   onDirtyChange?: (sujo: boolean) => void;
+  /** Chamado após qualquer alteração que muda situação/quantidade de fotos (para atualizar a lista de fora). */
+  onTermosAlterados?: () => void;
 }
 
 const botaoSecundario =
@@ -29,7 +31,7 @@ function mensagemDe(e: unknown, padrao: string): string {
   return e instanceof Error && e.message ? e.message : padrao;
 }
 
-export default function TermoReprovaTab({ apartamento, ativa, onDirtyChange }: TermoReprovaTabProps) {
+export default function TermoReprovaTab({ apartamento, ativa, onDirtyChange, onTermosAlterados }: TermoReprovaTabProps) {
   const idApartamento = apartamento.idApartamentoVistoria;
 
   const [termos, setTermos] = useState<TermoReprovaResumo[] | null>(null);
@@ -50,6 +52,8 @@ export default function TermoReprovaTab({ apartamento, ativa, onDirtyChange }: T
   const [gerandoPdf, setGerandoPdf] = useState(false);
 
   const raiz = useRef<HTMLDivElement>(null);
+  const notificarRef = useRef(onTermosAlterados);
+  useEffect(() => { notificarRef.current = onTermosAlterados; }, [onTermosAlterados]);
 
   // ---------- carga ----------
 
@@ -57,6 +61,8 @@ export default function TermoReprovaTab({ apartamento, ativa, onDirtyChange }: T
   const carregarLista = useCallback(async (preferido?: number | null) => {
     const lista = await termoReprovaService.listar(idApartamento);
     setTermos(lista);
+    // A carga inicial chama sem argumento; toda mutação passa o termo preferido (ou null).
+    if (preferido !== undefined) notificarRef.current?.();
     setSelecionadoId(atual => {
       if (preferido !== undefined && preferido !== null && lista.some(t => t.idTermoReprova === preferido)) return preferido;
       if (atual !== null && lista.some(t => t.idTermoReprova === atual)) return atual;
@@ -136,7 +142,7 @@ export default function TermoReprovaTab({ apartamento, ativa, onDirtyChange }: T
     }
   };
 
-  /** Lê o PDF no navegador para obter o nº de páginas (validando 15 MB / 40 páginas). */
+  /** Lê o PDF no navegador para obter o nº de páginas (validando 15 MB / 80 páginas). */
   const contarPaginas = async (arquivo: File | Blob): Promise<number> => {
     const lido = await lerPdf(arquivo);
     const total = lido.nrPaginas;
@@ -275,7 +281,7 @@ export default function TermoReprovaTab({ apartamento, ativa, onDirtyChange }: T
               <FilePlus2 className="h-4 w-4" /> Criar termo em branco
             </button>
           </div>
-          <small className="text-xs text-slate-400">PDF de até 15 MB e 40 páginas. Você também pode arrastar o arquivo para cá.</small>
+          <small className="text-xs text-slate-400">PDF de até 15 MB e 80 páginas. Você também pode arrastar o arquivo para cá.</small>
         </section>
       </div>
     );

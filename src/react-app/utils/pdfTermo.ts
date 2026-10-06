@@ -10,7 +10,7 @@ export interface PdfLido {
 }
 
 /**
- * Lê um PDF (File, Blob ou bytes) com pdf.js. Valida ≤ 15 MB e ≤ 40 páginas.
+ * Lê um PDF (File, Blob ou bytes) com pdf.js. Valida ≤ 15 MB e ≤ 80 páginas.
  * Quem chama deve chamar `documento.destroy()` ao terminar.
  */
 export async function lerPdf(origem: File | Blob | Uint8Array): Promise<PdfLido> {

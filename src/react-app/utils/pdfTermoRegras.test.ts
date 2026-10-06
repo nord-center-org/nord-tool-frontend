@@ -15,11 +15,11 @@ test('limite de 15 MB é inclusivo', () => {
   assert.throws(() => validarTamanhoPdf(PDF_MAX_BYTES + 1), /15 MB/);
 });
 
-test('limite de 1 a 40 páginas', () => {
+test('limite de 1 a 80 páginas', () => {
   assert.doesNotThrow(() => validarPaginasPdf(1));
   assert.doesNotThrow(() => validarPaginasPdf(PDF_MAX_PAGINAS));
   assert.throws(() => validarPaginasPdf(0), /não tem páginas/);
-  assert.throws(() => validarPaginasPdf(PDF_MAX_PAGINAS + 1), /40 páginas/);
+  assert.throws(() => validarPaginasPdf(PDF_MAX_PAGINAS + 1), /80 páginas/);
 });
 
 test('escala de renderização é limitada a 2 e a 1400 px de largura', () => {
