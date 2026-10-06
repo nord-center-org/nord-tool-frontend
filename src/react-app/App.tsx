@@ -8,6 +8,7 @@ import SettingsPage from "@/react-app/pages/Settings";
 import CronogramaPage from "@/react-app/pages/Cronograma_semanal";
 import ControleChavesPage from "@/react-app/pages/Controle_de_chaves";
 import DaviJobPage from "@/react-app/pages/DaviJob";
+import CasamentoPage from "@/react-app/pages/Casamento";
 import ConcretagemInProgress from "@/react-app/components/Placeholder";
 
 export default function App() {
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="gestao/treinos" element={<ConcretagemInProgress />} />
           <Route path="gestao/repertorio" element={<ConcretagemInProgress />} />
           <Route path="gestao/academico" element={<ConcretagemInProgress />} />
+          <Route path="gestao/casamento" element={<CasamentoPage />} />
           <Route path="gestao/davi-job" element={<DaviJobPage />} />
         </Route>
       </Routes>
