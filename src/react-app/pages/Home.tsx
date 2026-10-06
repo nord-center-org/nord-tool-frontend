@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Package, Map, Briefcase, UserCircle, Sparkles, LayoutDashboard, Database, BookOpen, Settings, ChevronDown, Key, type LucideIcon } from "lucide-react";
+import { Package, Map, Briefcase, UserCircle, Sparkles, LayoutDashboard, Database, BookOpen, Settings, ChevronDown, Key, Heart, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -19,6 +19,7 @@ export default function HomePage() {
       { label: "Controle de chaves", path: "/organizacional/controle-chaves", icon: Key },
     ],
     "Gestão Individual": [
+      { label: "Casamento", path: "/gestao/casamento", icon: Heart },
       { label: "Configurações", path: "/configuracoes", icon: Settings },
     ]
   };
@@ -27,7 +28,7 @@ export default function HomePage() {
     { nome: "Entrega", icon: Package, cor: "from-blue-500 to-cyan-500", desc: "Gestão de vistorias e apartamentos" },
     { nome: "Mapeamentos", icon: Map, cor: "from-indigo-500 to-purple-500", desc: "Conferências e relatórios visuais" },
     { nome: "Organizacional", icon: Briefcase, cor: "from-emerald-500 to-teal-500", desc: "Treinamentos, diários e escadinha" },
-    { nome: "Gestão Individual", icon: UserCircle, cor: "from-orange-500 to-red-500", desc: "Finanças, treinos e repertório" }
+    { nome: "Gestão Individual", icon: UserCircle, cor: "from-orange-500 to-red-500", desc: "Finanças, treinos, repertório e casamento" }
   ];
 
   return (
