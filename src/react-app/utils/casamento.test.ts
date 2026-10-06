@@ -74,3 +74,11 @@ test("totaisFornecedores soma contratado apenas para CONTRATADO", async () => {
   ]);
   assert.deepEqual(t, { qtTotal: 3, qtContratados: 2, vlContratado: 125.5, vlEstimado: 175.5 });
 });
+
+test("ordenarMarcos ordena por prazo e deixa sem prazo no fim", async () => {
+  const { ordenarMarcos } = await import("./casamento.ts");
+  const r = ordenarMarcos([
+    { id: 1, dtPrazo: null }, { id: 2, dtPrazo: "01/03/2027" }, { id: 3, dtPrazo: "15/12/2026" }, { id: 4, dtPrazo: null },
+  ]);
+  assert.deepEqual(r.map(m => m.id), [3, 2, 1, 4]);
+});

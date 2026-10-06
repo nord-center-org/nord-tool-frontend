@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AlertCircle, Check, Heart, LayoutDashboard, Loader2, Store, Users, Flag, X, type LucideIcon } from "lucide-react";
 
+import MarcosTab from "@/react-app/components/casamento/MarcosTab";
 import ConvidadosTab from "@/react-app/components/casamento/ConvidadosTab";
 import FornecedoresTab from "@/react-app/components/casamento/FornecedoresTab";
 import CasamentoDashboard from "@/react-app/components/casamento/CasamentoDashboard";
@@ -14,15 +15,6 @@ const ABAS: { id: AbaCasamento; label: string; icon: LucideIcon }[] = [
   { id: "convidados", label: "Convidados", icon: Users },
   { id: "marcos", label: "Marcos", icon: Flag },
 ];
-
-function EmConstrucao({ titulo }: { titulo: string }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-16 text-center">
-      <h3 className="text-lg font-bold text-slate-700">{titulo}</h3>
-      <p className="mt-1 text-sm text-slate-400">Esta aba será liberada nas próximas etapas.</p>
-    </div>
-  );
-}
 
 /** Módulo Casamento (Gestão Individual). */
 export default function CasamentoPage() {
@@ -76,7 +68,7 @@ export default function CasamentoPage() {
         {aba === "dashboard" && <CasamentoDashboard sync={sync} />}
         {aba === "fornecedores" && <FornecedoresTab sync={sync} />}
         {aba === "convidados" && <ConvidadosTab sync={sync} />}
-        {aba === "marcos" && <EmConstrucao titulo="Marcos" />}
+        {aba === "marcos" && <MarcosTab sync={sync} />}
       </main>
     </div>
   );
