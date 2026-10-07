@@ -23,6 +23,7 @@ import { useFiltrosColuna } from "@/react-app/hooks/useFiltrosColuna";
 import { aplicarFiltrosColuna, valoresUnicos, type ColunasFiltro } from "@/react-app/utils/filtroColuna";
 
 import MassUpdateModal from "@/react-app/components/MassUpdateModal";
+import MovimentacaoMassaModal from "@/react-app/components/MovimentacaoMassaModal";
 import { ClipboardPaste } from "lucide-react";
 import {
   classeSituacao, descricaoDoTermo, ordemFotos, progressoPaginas, situacaoDoTermo, valorFotos,
@@ -98,6 +99,9 @@ export default function ApartamentosPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [showMassUpdateModal, setShowMassUpdateModal] = useState(false);
+  // Movimentação em massa: apartamentos marcados na tabela.
+  const [selecionados, setSelecionados] = useState<number[]>([]);
+  const [movendo, setMovendo] = useState(false);
 
   useEffect(() => {
     const syncSettings = () => {
@@ -294,6 +298,17 @@ export default function ApartamentosPage() {
     [baseApartamentos, filtros, ordenacao],
   );
 
+  const idsVisiveis = filteredApartamentos.map(a => a.idApartamentoVistoria);
+  const todosVisiveisMarcados = idsVisiveis.length > 0 && idsVisiveis.every(id => selecionados.includes(id));
+  const algumVisivelMarcado = idsVisiveis.some(id => selecionados.includes(id));
+  const alternarSelecao = (id: number) =>
+    setSelecionados(atual => (atual.includes(id) ? atual.filter(x => x !== id) : [...atual, id]));
+  const alternarTodosVisiveis = () =>
+    setSelecionados(atual => (todosVisiveisMarcados
+      ? atual.filter(id => !idsVisiveis.includes(id))
+      : [...new Set([...atual, ...idsVisiveis])]));
+  const apartamentosSelecionados = apartamentos.filter(a => selecionados.includes(a.idApartamentoVistoria));
+
   const filtroColuna = (coluna: ColunaApartamento, label: string, emptyLabel?: string) => (
     <ColumnFilter
       label={label}
@@ -382,7 +397,7 @@ export default function ApartamentosPage() {
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-200">
-                <th className="w-12 px-4 py-4 text-center border-r border-slate-100"><input type="checkbox" className="rounded text-blue-600" /></th>
+                <th className="w-12 px-4 py-4 text-center border-r border-slate-100"><input type="checkbox" aria-label="Selecionar todos os apartamentos visíveis" className="rounded text-blue-600" checked={todosVisiveisMarcados} ref={el => { if (el) el.indeterminate = algumVisivelMarcado && !todosVisiveisMarcados; }} onChange={alternarTodosVisiveis} /></th>
                 <th className="px-4 py-4 min-w-[150px] text-left text-xs font-bold text-slate-400 uppercase tracking-wider">{filtroColuna("apartamento", "Apartamento")}</th>
                 <th className="px-4 py-4 min-w-[120px] text-left text-xs font-bold text-slate-400 uppercase tracking-wider">{filtroColuna("status", "Status")}</th>
                 <th className="px-4 py-4 min-w-[140px] text-left text-xs font-bold text-slate-400 uppercase tracking-wider">{filtroColuna("data", "Data", "Sem data")}</th>
@@ -409,7 +424,7 @@ export default function ApartamentosPage() {
                   return (
                     <Fragment key={apt.idApartamentoVistoria}>
                       <tr className={`hover:bg-slate-50/50 transition-colors group ${expandedObsId === apt.idApartamentoVistoria ? 'bg-slate-50' : ''}`}>
-                        <td className="px-4 py-4 text-center border-r border-slate-50"><input type="checkbox" className="rounded text-blue-600" /></td>
+                        <td className="px-4 py-4 text-center border-r border-slate-50"><input type="checkbox" aria-label={`Selecionar ${apt.nmApartamentoVistoria}`} className="rounded text-blue-600" checked={selecionados.includes(apt.idApartamentoVistoria)} onChange={() => alternarSelecao(apt.idApartamentoVistoria)} /></td>
                         <td className="px-4 py-4 text-sm font-bold text-slate-700">{apt.nmApartamentoVistoria}</td>
                         <td className="px-4 py-4 text-xs font-bold uppercase">
                           <span className={`px-2.5 py-1 rounded-full ${statusClasses}`}>
@@ -475,6 +490,27 @@ export default function ApartamentosPage() {
           </table>
         </div>
       </div>
+
+      {selecionados.length > 0 && (
+        <div role="region" aria-label="Ações em massa" className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-900 px-4 py-3 text-white shadow-2xl">
+          <span className="text-sm font-semibold">{selecionados.length} selecionado(s)</span>
+          <button type="button" onClick={() => setMovendo(true)} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold hover:bg-blue-700">Mover de status</button>
+          <button type="button" onClick={() => setSelecionados([])} className="rounded-xl px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800">Limpar seleção</button>
+        </div>
+      )}
+
+      {movendo && apartamentosSelecionados.length > 0 && (
+        <MovimentacaoMassaModal
+          apartamentos={apartamentosSelecionados}
+          onConcluir={idsAlterados => {
+            setMovendo(false);
+            if (idsAlterados.length > 0) {
+              setSelecionados(atual => atual.filter(id => !idsAlterados.includes(id)));
+              void fetchApartamentosSilencioso();
+            }
+          }}
+        />
+      )}
 
       {showModal && (
         <ApartmentModal
