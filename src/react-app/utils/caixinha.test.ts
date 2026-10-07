@@ -68,3 +68,12 @@ test('linhas da planilha trazem data ISO, Sim/Não e valor numérico', () => {
   const [linha] = linhasPlanilha([{ ...itens[0], qtComprovantes: 2 }]);
   assert.deepEqual(linha, { Data: '2026-10-01', 'Responsável': 'Ana', Insumo: 'Cimento', Valor: 100.1, 'Lançado': 'Sim', Pago: 'Sim', Comprovantes: 2 });
 });
+
+test('resumo normalizado nunca traz undefined (nome antigo "apagar", campos ausentes ou resposta nula)', async () => {
+  const { normalizarResumo } = await import('./caixinha.ts');
+  assert.deepEqual(normalizarResumo({ total: 10, pago: 4, apagar: 6, qtLancamentos: 3, qtPagos: 1, qtPendentes: 2 }),
+    { total: 10, pago: 4, aPagar: 6, qtLancamentos: 3, qtPagos: 1, qtPendentes: 2 });
+  assert.equal(normalizarResumo({ total: 10.1, pago: 0.2 }).aPagar, 9.9);
+  assert.deepEqual(normalizarResumo(null), { total: 0, pago: 0, aPagar: 0, qtLancamentos: 0, qtPagos: 0, qtPendentes: 0 });
+  assert.equal(normalizarResumo({ aPagar: 5, total: 5, pago: 0 }).aPagar, 5);
+});

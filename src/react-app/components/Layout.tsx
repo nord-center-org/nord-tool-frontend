@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Outlet, NavLink } from "react-router";
+import { Outlet, NavLink, useLocation } from "react-router";
+import ErrorBoundary from "@/react-app/components/ErrorBoundary";
 import { 
   Database, BarChart3, Package, Settings, Menu, ChevronLeft, 
   Home as HomeIcon, Briefcase, GraduationCap,
@@ -8,6 +9,7 @@ import {
 } from "lucide-react";
 
 export default function Layout() {
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const menuGroups = [
@@ -150,7 +152,9 @@ export default function Layout() {
 
         <div className="flex-1 overflow-auto h-full">
           <div className={`transition-all duration-300 h-full ${!sidebarOpen ? "pl-20 pt-6" : "p-8"}`}>
-            <Outlet context={{ sidebarOpen }} />
+            <ErrorBoundary resetKey={location.pathname}>
+              <Outlet context={{ sidebarOpen }} />
+            </ErrorBoundary>
           </div>
         </div>
       </main>

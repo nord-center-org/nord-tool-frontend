@@ -6,6 +6,7 @@ import type {
   CaixinhaResumo,
   SituacaoCaixinha,
 } from "@/shared/types";
+import { normalizarResumo } from "../utils/caixinha";
 import { apiBlob, apiFetch } from "./apiClient";
 
 const BASE = "/caixinha";
@@ -49,7 +50,8 @@ export const caixinhaService = {
     const lista = await apiFetch<CaixinhaLista>(`${BASE}/lancamentos${consulta(filtro)}`);
     return { lancamentos: lista?.lancamentos ?? [], responsaveis: lista?.responsaveis ?? [] };
   },
-  resumo: (filtro: FiltroCaixinha = {}) => apiFetch<CaixinhaResumo>(`${BASE}/resumo${consulta(filtro)}`),
+  resumo: async (filtro: FiltroCaixinha = {}): Promise<CaixinhaResumo> =>
+    normalizarResumo(await apiFetch<Partial<CaixinhaResumo> & { apagar?: number }>(`${BASE}/resumo${consulta(filtro)}`)),
 
   criar: (form: LancamentoForm) => apiFetch<CaixinhaLancamento>(`${BASE}/lancamentos`, { method: "POST", body: json(form) }),
   alterar: (id: number, form: LancamentoForm) =>

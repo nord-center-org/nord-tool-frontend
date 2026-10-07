@@ -28,6 +28,32 @@ export interface TotaisCaixinha {
   qtPendentes: number;
 }
 
+export interface ResumoCaixinha {
+  total: number;
+  pago: number;
+  aPagar: number;
+  qtLancamentos: number;
+  qtPagos: number;
+  qtPendentes: number;
+}
+
+/** Tolera campos ausentes (e o nome "apagar" que um backend antigo devolvia): a tela nunca recebe undefined. */
+export function normalizarResumo(r: (Partial<ResumoCaixinha> & { apagar?: number }) | null): ResumoCaixinha {
+  const total = Number(r?.total) || 0;
+  const pago = Number(r?.pago) || 0;
+  const aPagar = r?.aPagar ?? r?.apagar;
+  const qtLancamentos = Number(r?.qtLancamentos) || 0;
+  const qtPagos = Number(r?.qtPagos) || 0;
+  return {
+    total,
+    pago,
+    aPagar: typeof aPagar === "number" ? aPagar : Math.round((total - pago) * 100) / 100,
+    qtLancamentos,
+    qtPagos,
+    qtPendentes: Number(r?.qtPendentes ?? qtLancamentos - qtPagos) || 0,
+  };
+}
+
 const centavos = (valor: number) => Math.round((valor || 0) * 100);
 
 /** Soma em centavos (sem erro de ponto flutuante). */

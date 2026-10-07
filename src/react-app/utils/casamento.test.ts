@@ -63,6 +63,9 @@ test('percentual inteiro e seguro com total zero', () => {
 test('moeda em reais', () => {
   assert.match(formatarMoeda(16000.5), /R\$\s?16\.000,50/);
   assert.match(formatarMoeda(0), /R\$\s?0,00/);
+  assert.equal(formatarMoeda(undefined), '—');
+  assert.equal(formatarMoeda(null), '—');
+  assert.equal(formatarMoeda(NaN), '—');
 });
 
 test("totaisFornecedores soma contratado apenas para CONTRATADO", async () => {
