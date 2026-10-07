@@ -32,7 +32,9 @@ export function doisDigitos(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-export function formatarMoeda(valor: number): string {
+export function formatarMoeda(valor: number | null | undefined): string {
+  // Campo ausente/inválido na resposta da API não pode derrubar a tela.
+  if (typeof valor !== "number" || !Number.isFinite(valor)) return "—";
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
