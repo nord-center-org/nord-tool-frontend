@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import PreCarregamentoApartamentosEditor from "@/react-app/components/PreCarregamentoApartamentosEditor";
+import { listarStatusVistoria } from "@/react-app/services/EndpointsDominioService";
+import { CHAVE_PRE_CARREGAMENTO, lerPreCarregamento, type PreCarregamento } from "@/react-app/utils/preCarregamentoApartamentos";
 import {
   Settings as SettingsIcon, Save, ChevronDown, ChevronUp,
   Loader2, Building2, Clock, Filter, Database, LayoutDashboard, FolderCog, Wrench
@@ -40,7 +43,8 @@ export default function SettingsPage() {
   const [showTimeSlotsList, setShowTimeSlotsList] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
-  const [defaultDbStatus, setDefaultDbStatus] = useState<string[]>([]);
+  const [preCarregamento, setPreCarregamento] = useState<PreCarregamento>(() => lerPreCarregamento(localStorage));
+  const [statusConhecidos, setStatusConhecidos] = useState<string[]>([]);
   const [obrasControleChaves, setObrasControleChaves] = useState<ObraControleChaves[]>([]);
   const [obraControleChaves, setObraControleChaves] = useState<string>(() => lerObraControleChaves());
   const [erroObrasControleChaves, setErroObrasControleChaves] = useState("");
@@ -59,8 +63,7 @@ export default function SettingsPage() {
   const [tentativaCadastro, setTentativaCadastro] = useState(0);
 
   useEffect(() => {
-    const statusSalvos = localStorage.getItem("@NordTool:filter_db_status");
-    setDefaultDbStatus(statusSalvos ? JSON.parse(statusSalvos) : ["Agendado", "Pendente"]);
+    void listarStatusVistoria().then(lista => setStatusConhecidos(lista.map(s => s.nmStatusVistoria)));
     const fetchSettings = async () => {
       setLoading(true);
       try {
@@ -135,6 +138,7 @@ export default function SettingsPage() {
       localStorage.setItem("@NordTool:filter_del_time", defaultDeliveryTime);
       localStorage.setItem("@NordTool:filter_db_condo", defaultDbCondo);
       localStorage.setItem("@NordTool:filter_db_showall", String(defaultDbShowAll));
+      localStorage.setItem(CHAVE_PRE_CARREGAMENTO, JSON.stringify(preCarregamento));
       salvarObraControleChaves(obraControleChaves);
 
       setMessage("Parâmetros fixados com sucesso!");
@@ -144,7 +148,6 @@ export default function SettingsPage() {
     } finally {
       setSaving(false);
     }
-    localStorage.setItem("@NordTool:filter_db_status", JSON.stringify(defaultDbStatus));
   };
 
   if (loading) {
@@ -391,24 +394,14 @@ export default function SettingsPage() {
                       </div>
                     </div>
 
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                      <input type="checkbox" checked={defaultDbShowAll} onChange={(e) => setDefaultDbShowAll(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
+                      Abrir já mostrando os apartamentos "Não liberados" (botão Mostrar Todos)
+                    </label>
+
                     <div className="space-y-3">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status carregados automaticamente</label>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-4 rounded-xl border border-slate-200">
-                        {["Agendado", "Aprovado", "Reprovado", "Pendente", "Liberado","Aprovado DAT","Pendente DAT"].map((status) => (
-                          <label key={status} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-2 rounded-lg">
-                            <input
-                              type="checkbox"
-                              checked={defaultDbStatus.includes(status)}
-                              onChange={(e) => {
-                                const checked = e.target.checked;
-                                setDefaultDbStatus(prev => checked ? [...prev, status] : prev.filter(s => s !== status));
-                              }}
-                              className="rounded text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-slate-700">{status}</span>
-                          </label>
-                        ))}
-                      </div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filtros e ordenação carregados automaticamente</label>
+                      <PreCarregamentoApartamentosEditor valor={preCarregamento} onChange={setPreCarregamento} statusOpcoes={statusConhecidos} />
                     </div>
                   </div>
                 )}
