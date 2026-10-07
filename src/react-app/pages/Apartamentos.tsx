@@ -24,6 +24,7 @@ import { aplicarFiltrosColuna, valoresUnicos, type ColunasFiltro } from "@/react
 
 import MassUpdateModal from "@/react-app/components/MassUpdateModal";
 import MovimentacaoMassaModal from "@/react-app/components/MovimentacaoMassaModal";
+import { lerPreCarregamento, resolverPreCarregamento, type ColunaPreCarregamento } from "@/react-app/utils/preCarregamentoApartamentos";
 import { ClipboardPaste } from "lucide-react";
 import {
   classeSituacao, descricaoDoTermo, ordemFotos, progressoPaginas, situacaoDoTermo, valorFotos,
@@ -67,15 +68,6 @@ const COLUNAS: ColunasFiltro<ApartamentoVistoriaDto, ColunaApartamento> = {
   fotos: { valor: apt => valorFotos(apt), ordem: apt => ordemFotos(apt) },
 };
 
-const lerStatusPadrao = (): string[] => {
-  try {
-    const salvo = JSON.parse(localStorage.getItem("@NordTool:filter_db_status") || '["Agendado", "Pendente"]');
-    return Array.isArray(salvo) ? salvo : [];
-  } catch {
-    return ["Agendado", "Pendente"];
-  }
-};
-
 export default function ApartamentosPage() {
   const outletContext = useOutletContext<{ sidebarOpen: boolean }>();
   const sidebarOpen = outletContext?.sidebarOpen ?? false;
@@ -85,17 +77,17 @@ export default function ApartamentosPage() {
   const [showModal, setShowModal] = useState(false);
   const [abaModal, setAbaModal] = useState<AbaApartamento>("dados");
   const [searchTerm, setSearchTerm] = useState("");
-  const [mostrarTodos, setMostrarTodos] = useState(false);
+  // Preferências de pré-carregamento (Configurações): filtros, ordenação e "mostrar todos" iniciais.
+  const preRef = useRef(lerPreCarregamento(localStorage));
+  const [mostrarTodos, setMostrarTodos] = useState(() => localStorage.getItem("@NordTool:filter_db_showall") === "true");
   const [nordSelecionado, setNordSelecionado] = useState<"N1" | "N2" | "EN" | null>(null);
   const [showExcelMenu, setShowExcelMenu] = useState(false);
   const [expandedObsId, setExpandedObsId] = useState<number | null>(null);
   const { filtros, ordenacao, aplicarFiltro, ordenar, limpar } = useFiltrosColuna<ColunaApartamento>(
     {},
-    { coluna: "data", direcao: "asc" },
+    preRef.current.ordenacao ?? { coluna: "data", direcao: "asc" },
   );
-  // Preferências do Settings viram o estado inicial do filtro de Status.
-  const statusPadraoRef = useRef<string[]>(lerStatusPadrao());
-  const statusAplicadoRef = useRef(false);
+  const preAplicadoRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [showMassUpdateModal, setShowMassUpdateModal] = useState(false);
@@ -108,8 +100,8 @@ export default function ApartamentosPage() {
       // 1. Lê a obra (Condomínio)
       const savedCondo = localStorage.getItem("@NordTool:filter_db_condo"); // Valor deve ser "Nord 1", "Nord 2" ou "Energy"
       
-      // 2. Status padrão (aplicado como filtro inicial quando os dados chegam)
-      statusPadraoRef.current = lerStatusPadrao();
+      // 2. Filtros e ordenação padrão (aplicados quando os dados chegam)
+      preRef.current = lerPreCarregamento(localStorage);
 
       // 3. Aplica a obra
       setNordSelecionado(savedCondo as "N1" | "N2" | "EN" | null);
@@ -119,14 +111,18 @@ export default function ApartamentosPage() {
     fetchApartamentos();
   }, []);
 
-  const aplicarStatusPadrao = (lista: ApartamentoVistoriaDto[]) => {
-    if (statusAplicadoRef.current) return;
-    statusAplicadoRef.current = true;
-    const padrao = statusPadraoRef.current.map(s => s.toLowerCase());
-    if (padrao.length === 0) return;
-    const selecionados = valoresUnicos(lista, COLUNAS.status)
-      .filter(valor => padrao.some(s => valor.toLowerCase().includes(s)));
-    if (selecionados.length > 0) aplicarFiltro("status", selecionados);
+  /** Aplica os filtros pré-carregados (uma vez), casando-os com os valores que existem nos dados. */
+  const aplicarPreCarregamento = (lista: ApartamentoVistoriaDto[]) => {
+    if (preAplicadoRef.current) return;
+    preAplicadoRef.current = true;
+    const valores = Object.fromEntries(
+      (Object.keys(COLUNAS) as ColunaPreCarregamento[]).map(coluna => [coluna, valoresUnicos(lista, COLUNAS[coluna])]),
+    ) as Record<ColunaPreCarregamento, string[]>;
+    const filtrosIniciais = resolverPreCarregamento(preRef.current, valores);
+    (Object.keys(filtrosIniciais) as ColunaPreCarregamento[]).forEach(coluna => {
+      const selecionados = filtrosIniciais[coluna];
+      if (selecionados && selecionados.length > 0) aplicarFiltro(coluna, selecionados);
+    });
   };
 
   const fetchApartamentos = async () => {
@@ -134,7 +130,7 @@ export default function ApartamentosPage() {
     try {
       const data = await apartamentoVistoriaService.listar();
       setApartamentos(data || []);
-      aplicarStatusPadrao(data || []);
+      aplicarPreCarregamento(data || []);
     } catch (error) {
       console.error("Erro ao carregar:", error);
     } finally {
