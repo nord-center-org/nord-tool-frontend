@@ -385,3 +385,63 @@ export interface FinanceiroLeitura {
   dtLeitura: string;
   vlLeitura: number;
 }
+
+// ---------- Financeiro: investimentos (fundos imobiliários) ----------
+
+export interface FinanceiroOperacao {
+  idOperacao: number;
+  /** dd/MM/yyyy */
+  dtOperacao: string;
+  cdTipo: 'COMPRA' | 'VENDA';
+  qtCotas: number;
+  /** Preço por cota. */
+  vlPreco: number;
+}
+
+export interface FinanceiroProvento {
+  idProvento: number;
+  /** dd/MM/yyyy */
+  dtCom: string;
+  /** dd/MM/yyyy */
+  dtPagamento: string;
+  vlPorCota: number;
+  /** Cotas que se tinha ao fim da data-com. */
+  qtCotas: number;
+  vlTotal: number;
+  recebido: boolean;
+  cdOrigem: 'MANUAL' | 'COTACAO';
+}
+
+export interface FinanceiroAtivo {
+  idAtivo: number;
+  cdTicker: string;
+  nmAtivo: string | null;
+  idPessoa: number;
+  nmPessoa: string;
+  qtCotas: number;
+  vlPrecoMedio: number;
+  vlInvestido: number;
+  vlCotacao: number | null;
+  /** dd/MM/yyyy HH:mm */
+  dhCotacao: string | null;
+  cotacaoAoVivo: boolean;
+  vlPatrimonio: number;
+  vlResultado: number;
+  /** Resultado sobre o investido, em %. */
+  pcResultado: number;
+  vlAReceber: number;
+  operacoes: FinanceiroOperacao[];
+  proventos: FinanceiroProvento[];
+  nrVersao: number;
+}
+
+export interface FinanceiroInvestimentos {
+  ativos: FinanceiroAtivo[];
+  vlInvestido: number;
+  vlPatrimonio: number;
+  vlResultado: number;
+  pcResultado: number;
+  vlAReceber: number;
+  vlAReceberMes: number;
+  cotacaoAoVivo: boolean;
+}

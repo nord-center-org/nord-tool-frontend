@@ -1,9 +1,11 @@
 import type {
   FinanceiroCategoria,
   FinanceiroConfiguracao,
+  FinanceiroAtivo,
   FinanceiroFechamento,
   FinanceiroLancamento,
   FinanceiroLeitura,
+  FinanceiroInvestimentos,
   FinanceiroLista,
   FinanceiroPessoa,
   FinanceiroProjecaoMes,
@@ -79,6 +81,24 @@ export interface RecorrenciaForm {
   inAtivo?: boolean;
   /** Obrigatório na edição. */
   nrVersao?: number;
+}
+
+export interface OperacaoForm {
+  /** UUID gerado ao abrir o formulário: reenviar não duplica. */
+  cdRequisicao: string;
+  /** yyyy-MM-dd */
+  dtOperacao: string;
+  cdTipo: "COMPRA" | "VENDA";
+  qtCotas: number;
+  vlPreco: number;
+}
+
+export interface ProventoForm {
+  /** yyyy-MM-dd */
+  dtCom: string;
+  /** yyyy-MM-dd */
+  dtPagamento: string;
+  vlPorCota: number;
 }
 
 function consulta(filtro: FiltroFinanceiro): string {
@@ -161,4 +181,23 @@ export const financeiroService = {
     apiFetch<FinanceiroRecorrencia>(`${BASE}/recorrencias/${id}`, { method: "PUT", body: json(form) }),
   gerarRecorrencias: (competencia: string) =>
     apiFetch<{ competencia: string; criados: number }>(`${BASE}/recorrencias/gerar/${competencia}`, { method: "POST" }),
+
+  // ---------- investimentos ----------
+
+  investimentos: (idPessoa?: number) =>
+    apiFetch<FinanceiroInvestimentos>(`${BASE}/investimentos${idPessoa ? `?idPessoa=${idPessoa}` : ""}`),
+  criarAtivo: (cdTicker: string, idPessoa: number, nmAtivo?: string) =>
+    apiFetch<FinanceiroAtivo>(`${BASE}/investimentos/ativos`, { method: "POST", body: json({ cdTicker, idPessoa, nmAtivo }) }),
+  arquivarAtivo: (id: number, nrVersao: number) =>
+    apiFetch<FinanceiroAtivo>(`${BASE}/investimentos/ativos/${id}`, { method: "PUT", body: json({ inAtivo: false, nrVersao }) }),
+  registrarOperacao: (idAtivo: number, form: OperacaoForm) =>
+    apiFetch<FinanceiroAtivo>(`${BASE}/investimentos/ativos/${idAtivo}/operacoes`, { method: "POST", body: json(form) }),
+  excluirOperacao: (id: number) =>
+    apiFetch<FinanceiroAtivo>(`${BASE}/investimentos/operacoes/${id}`, { method: "DELETE" }),
+  registrarProvento: (idAtivo: number, form: ProventoForm) =>
+    apiFetch<FinanceiroAtivo>(`${BASE}/investimentos/ativos/${idAtivo}/proventos`, { method: "POST", body: json(form) }),
+  excluirProvento: (id: number) =>
+    apiFetch<FinanceiroAtivo>(`${BASE}/investimentos/proventos/${id}`, { method: "DELETE" }),
+  sincronizarProventos: (idAtivo: number) =>
+    apiFetch<{ importados: number }>(`${BASE}/investimentos/ativos/${idAtivo}/proventos/sincronizar`, { method: "POST" }),
 };
