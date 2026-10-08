@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
-import { LineChart, Loader2, Wallet } from "lucide-react";
+import { Loader2, Wallet } from "lucide-react";
 
 import type { FinanceiroCategoria, FinanceiroPessoa } from "@/shared/types";
 import CadastrosFinanceiroModal from "@/react-app/components/financeiro/CadastrosFinanceiroModal";
 import DashboardTab from "@/react-app/components/financeiro/DashboardTab";
 import ExtratoTab from "@/react-app/components/financeiro/ExtratoTab";
+import InvestimentosTab from "@/react-app/components/financeiro/InvestimentosTab";
 import { financeiroService } from "@/react-app/services/FinanceiroService";
 
 type Aba = "dashboard" | "extrato" | "investimentos";
@@ -28,17 +29,6 @@ function lerFiltroPessoa(): number {
 
 function gravarFiltroPessoa(id: number) {
   try { localStorage.setItem(FILTRO_PESSOA, String(id)); } catch { /* sem armazenamento: segue sem lembrar */ }
-}
-
-function EmBreve({ titulo, descricao }: { titulo: string; descricao: string }) {
-  return (
-    <section aria-label={titulo} className="mx-auto max-w-lg rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
-      <LineChart className="mx-auto h-8 w-8 text-slate-300" />
-      <h2 className="mt-3 text-lg font-bold text-slate-700">{titulo}</h2>
-      <p className="mt-1 text-sm text-slate-500">{descricao}</p>
-      <p className="mt-3 text-xs font-bold uppercase tracking-wide text-slate-400">Em breve</p>
-    </section>
-  );
 }
 
 export default function FinanceiroPage() {
@@ -128,10 +118,7 @@ export default function FinanceiroPage() {
               <DashboardTab pessoas={pessoas} categorias={categorias} idPessoa={idPessoaEfetivo}
                 onGerenciarCadastros={() => setCadastros(true)} onVerExtrato={() => escolherAba("extrato")} />
             )}
-            {aba === "investimentos" && (
-              <EmBreve titulo="Investimentos"
-                descricao="Seus fundos imobiliários com a cota em tempo real e os dividendos a receber." />
-            )}
+            {aba === "investimentos" && <InvestimentosTab pessoas={pessoas} idPessoa={idPessoaEfetivo} />}
           </>
         )}
       </main>
