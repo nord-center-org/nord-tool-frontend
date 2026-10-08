@@ -7,6 +7,7 @@ import CadastrosFinanceiroModal from "@/react-app/components/financeiro/Cadastro
 import DashboardTab from "@/react-app/components/financeiro/DashboardTab";
 import ExtratoTab from "@/react-app/components/financeiro/ExtratoTab";
 import InvestimentosTab from "@/react-app/components/financeiro/InvestimentosTab";
+import { ApiError } from "@/react-app/services/apiClient";
 import { financeiroService } from "@/react-app/services/FinanceiroService";
 
 type Aba = "dashboard" | "extrato" | "investimentos";
@@ -39,6 +40,7 @@ export default function FinanceiroPage() {
   const [categorias, setCategorias] = useState<FinanceiroCategoria[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [semPermissao, setSemPermissao] = useState(false);
   const [idPessoa, setIdPessoa] = useState(lerFiltroPessoa);
   const [cadastros, setCadastros] = useState(false);
 
@@ -49,7 +51,9 @@ export default function FinanceiroPage() {
       setPessoas(p);
       setCategorias(c);
       setErro(null);
+      setSemPermissao(false);
     } catch (e) {
+      setSemPermissao(e instanceof ApiError && e.status === 403);
       setErro(e instanceof Error && e.message ? e.message : "Não foi possível carregar o Financeiro.");
     } finally {
       setCarregando(false);
@@ -103,6 +107,11 @@ export default function FinanceiroPage() {
 
         {carregando ? (
           <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-blue-500" aria-label="Carregando" /></div>
+        ) : semPermissao ? (
+          <div role="alert" className="mx-auto max-w-md rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-sm">
+            <h3 className="text-lg font-bold text-slate-800">Sem permissão para o Financeiro</h3>
+            <p className="mt-1 text-sm text-slate-500">O Financeiro tem dados pessoais. Peça a um administrador para liberar o módulo FINANCEIRO no seu perfil.</p>
+          </div>
         ) : erro ? (
           <div role="alert" className="mx-auto max-w-md rounded-2xl border border-red-200 bg-white p-8 text-center shadow-sm">
             <h3 className="text-lg font-bold text-slate-800">Não foi possível carregar o Financeiro</h3>

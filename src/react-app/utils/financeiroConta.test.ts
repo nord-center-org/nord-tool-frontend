@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  avisoConferencia, caminho, cicloDaFatura, dadosDoGrafico, diaDoCiclo, ehEstimado, escalaBonita, mesesDoPainel, textoFolga,
+  avisoConferencia, caminho, cicloDaFatura, dadosDoGrafico, diaDoCiclo, ehEstimado, escalaBonita, linhasFechamento, mesesDoPainel, textoFolga,
   textoPrevistos, type AreaGrafico,
 } from './financeiroConta.ts';
 
@@ -108,4 +108,25 @@ test('gráfico: sem projeção quando já está no valor final, quando não há 
 test('caminho SVG liga os pontos na ordem', () => {
   assert.equal(caminho([{ x: 1, y: 2 }, { x: 3.14159, y: 4 }]), 'M1.0 2.0 L3.1 4.0');
   assert.equal(caminho([]), '');
+});
+
+test("planilha do fechamento: saldo anterior, entradas, saídas, totais e saldo", () => {
+  const linhas = linhasFechamento({
+    competencia: "2026-10", fechado: false, comSaldoAnterior: true, saldoAnterior: 600,
+    entradas: [{ nmCategoria: "Salário", projetado: 3000, origem: "REAL" }],
+    saidas: [{ nmCategoria: "Fatura", projetado: 2000, origem: "RITMO" }, { nmCategoria: "Apartamento", projetado: 1000, origem: "REAL" }],
+    totalEntradas: 3000, totalSaidas: 3000, saldoFinal: 600, metaSaldo: 500,
+  });
+  assert.deepEqual(linhas.map(l => l.Item), ["Saldo anterior", "Salário", "Total de entradas", "Fatura", "Apartamento", "Total de saídas", "Saldo projetado", "Meta de saldo"]);
+  assert.equal(linhas.find(l => l.Item === "Fatura")?.Origem, "Estimado (Ritmo do ciclo)");
+  assert.equal(linhas.find(l => l.Item === "Apartamento")?.Origem, "Lançado");
+  assert.equal(linhas.find(l => l.Item === "Saldo projetado")?.Valor, 600);
+});
+
+test("planilha do fechamento: mês fechado e filtro de pessoa (sem saldo anterior nem meta)", () => {
+  const linhas = linhasFechamento({
+    competencia: "2026-09", fechado: true, comSaldoAnterior: false, saldoAnterior: null,
+    entradas: [], saidas: [], totalEntradas: 0, totalSaidas: 0, saldoFinal: 0, metaSaldo: null,
+  });
+  assert.deepEqual(linhas.map(l => l.Item), ["Total de entradas", "Total de saídas", "Saldo final"]);
 });

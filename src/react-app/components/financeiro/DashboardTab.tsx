@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, Settings } from "lucide-react";
+import * as XLSX from "xlsx";
 
 import type { FinanceiroCategoria, FinanceiroConfiguracao, FinanceiroPessoa, FinanceiroProjecaoMes } from "@/shared/types";
 import ConfiguracaoFinanceiroModal from "@/react-app/components/financeiro/ConfiguracaoFinanceiroModal";
 import FaturaCard from "@/react-app/components/financeiro/FaturaCard";
 import LancamentoFinanceiroModal from "@/react-app/components/financeiro/LancamentoFinanceiroModal";
 import PainelMes from "@/react-app/components/financeiro/PainelMes";
+import { useAtalhos } from "@/react-app/hooks/useAtalhos";
 import { financeiroService, type LancamentoFinanceiroForm } from "@/react-app/services/FinanceiroService";
 import { hojeSaoPaulo } from "@/react-app/utils/caixinha";
 import { competenciaDaData, deslocarMes, rotuloMes } from "@/react-app/utils/financeiro";
-import { avisoConferencia, mesesDoPainel } from "@/react-app/utils/financeiroConta";
+import { avisoConferencia, linhasFechamento, mesesDoPainel } from "@/react-app/utils/financeiroConta";
 
 interface DashboardTabProps {
   pessoas: FinanceiroPessoa[];
@@ -95,6 +97,20 @@ export default function DashboardTab({ pessoas, categorias, idPessoa, onGerencia
     }
   };
 
+  const atalhos = useMemo(() => ({
+    ArrowLeft: () => setCentral(c => deslocarMes(c, -1)),
+    ArrowRight: () => setCentral(c => deslocarMes(c, 1)),
+    t: () => setCentral(mesHoje),
+  }), [mesHoje]);
+  useAtalhos(atalhos);
+
+  const exportar = (mes: FinanceiroProjecaoMes) => {
+    const planilha = XLSX.utils.json_to_sheet(linhasFechamento(mes), { header: ["Item", "Tipo", "Valor", "Origem"] });
+    const livro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(livro, planilha, mes.competencia);
+    XLSX.writeFile(livro, `NordTool_Fechamento_${mes.competencia}.xlsx`);
+  };
+
   const lembrete = avisoConferencia(hoje, config?.nrDiaConferencia ?? 8, esq, anterior, central === mesHoje);
   const projetadoFatura = dir ? dir.saidas.filter(l => l.cdProjecao === "RITMO_FATURA").reduce((s, l) => s + l.projetado, 0) : null;
 
@@ -102,9 +118,9 @@ export default function DashboardTab({ pessoas, categorias, idPessoa, onGerencia
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1" role="group" aria-label="Navegar entre os meses">
-          <button type="button" aria-label="Mês anterior" onClick={() => setCentral(c => deslocarMes(c, -1))} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50"><ChevronLeft className="h-4 w-4" /></button>
+          <button type="button" aria-label="Mês anterior" title="Seta para a esquerda" onClick={() => setCentral(c => deslocarMes(c, -1))} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50"><ChevronLeft className="h-4 w-4" /></button>
           <span className="min-w-40 text-center text-sm font-bold text-slate-700">{rotuloMes(anterior)} · {rotuloMes(atual)}</span>
-          <button type="button" aria-label="Próximo mês" onClick={() => setCentral(c => deslocarMes(c, 1))} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50"><ChevronRight className="h-4 w-4" /></button>
+          <button type="button" aria-label="Próximo mês" title="Seta para a direita" onClick={() => setCentral(c => deslocarMes(c, 1))} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50"><ChevronRight className="h-4 w-4" /></button>
           {central !== mesHoje && <button type="button" onClick={() => setCentral(mesHoje)} className="ml-1 text-xs font-bold text-blue-600 hover:underline">Voltar para hoje</button>}
         </div>
         <div className="flex items-center gap-3">
@@ -129,11 +145,11 @@ export default function DashboardTab({ pessoas, categorias, idPessoa, onGerencia
         <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-blue-500" aria-label="Carregando" /></div>
       ) : esq && dir ? (
         <div className={`grid items-start gap-4 transition-opacity xl:grid-cols-2 [&>*]:min-w-0 ${atualizando ? "opacity-60" : ""}`}>
-          <PainelMes mes={esq} ocupado={ocupado === `f${esq.competencia}` || ocupado === `r${esq.competencia}`}
+          <PainelMes mes={esq} onExportar={() => exportar(esq)} ocupado={ocupado === `f${esq.competencia}` || ocupado === `r${esq.competencia}`}
             onFechar={idPessoa === 0 ? () => fechar(esq) : undefined} onReabrir={idPessoa === 0 ? () => reabrir(esq) : undefined}
             onSaldoInicial={idPessoa === 0 ? v => salvarSaldoInicial(esq.competencia, v) : undefined} />
           <div className="min-w-0 space-y-4">
-            <PainelMes mes={dir} destaque ocupado={ocupado === `f${dir.competencia}` || ocupado === `r${dir.competencia}`}
+            <PainelMes mes={dir} destaque onExportar={() => exportar(dir)} ocupado={ocupado === `f${dir.competencia}` || ocupado === `r${dir.competencia}`}
               onFechar={idPessoa === 0 ? () => fechar(dir) : undefined} onReabrir={idPessoa === 0 ? () => reabrir(dir) : undefined}
               onSaldoInicial={idPessoa === 0 ? v => salvarSaldoInicial(dir.competencia, v) : undefined} />
             {config && !dir.fechado && (

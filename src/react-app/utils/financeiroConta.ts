@@ -54,6 +54,35 @@ export function textoPrevistos(qt: number): string {
   return qt === 1 ? "1 lançamento ainda previsto" : `${qt} lançamentos ainda previstos`;
 }
 
+// ---------- exportação do fechamento ----------
+
+export interface MesParaPlanilha {
+  competencia: string;
+  fechado: boolean;
+  comSaldoAnterior: boolean;
+  saldoAnterior: number | null;
+  entradas: { nmCategoria: string; projetado: number; origem: string }[];
+  saidas: { nmCategoria: string; projetado: number; origem: string }[];
+  totalEntradas: number;
+  totalSaidas: number;
+  saldoFinal: number;
+  metaSaldo: number | null;
+}
+
+/** Linhas da planilha de fechamento (como a original): saldo anterior, entradas, saídas, totais e saldo final. */
+export function linhasFechamento(mes: MesParaPlanilha): { Item: string; Tipo: string; Valor: number; Origem: string }[] {
+  const origem = (o: string) => (ehEstimado({ origem: o }) ? `Estimado (${ROTULO_ORIGEM[o as keyof typeof ROTULO_ORIGEM] ?? o})` : "Lançado");
+  const linhas: { Item: string; Tipo: string; Valor: number; Origem: string }[] = [];
+  if (mes.comSaldoAnterior && mes.saldoAnterior !== null) linhas.push({ Item: "Saldo anterior", Tipo: "Entrada", Valor: mes.saldoAnterior, Origem: "Mês anterior" });
+  for (const l of mes.entradas) linhas.push({ Item: l.nmCategoria, Tipo: "Entrada", Valor: l.projetado, Origem: origem(l.origem) });
+  linhas.push({ Item: "Total de entradas", Tipo: "Total", Valor: mes.totalEntradas, Origem: "" });
+  for (const l of mes.saidas) linhas.push({ Item: l.nmCategoria, Tipo: "Saída", Valor: l.projetado, Origem: origem(l.origem) });
+  linhas.push({ Item: "Total de saídas", Tipo: "Total", Valor: mes.totalSaidas, Origem: "" });
+  linhas.push({ Item: mes.fechado ? "Saldo final" : "Saldo projetado", Tipo: "Saldo", Valor: mes.saldoFinal, Origem: mes.fechado ? "Mês fechado" : "Projeção" });
+  if (mes.metaSaldo !== null) linhas.push({ Item: "Meta de saldo", Tipo: "Meta", Valor: mes.metaSaldo, Origem: "" });
+  return linhas;
+}
+
 // ---------- ciclo e gráfico da fatura ----------
 
 export interface Ciclo {
