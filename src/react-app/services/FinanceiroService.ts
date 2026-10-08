@@ -1,8 +1,13 @@
 import type {
   FinanceiroCategoria,
+  FinanceiroConfiguracao,
+  FinanceiroFechamento,
   FinanceiroLancamento,
+  FinanceiroLeitura,
   FinanceiroLista,
   FinanceiroPessoa,
+  FinanceiroProjecaoMes,
+  FinanceiroRecorrencia,
   FinanceiroResumo,
   RegraData,
   SituacaoFinanceiro,
@@ -61,6 +66,21 @@ export interface CategoriaForm {
   inAtivo?: boolean;
 }
 
+export interface RecorrenciaForm {
+  idCategoria: number;
+  idPessoa: number;
+  dsRecorrencia?: string;
+  vlRecorrencia: number;
+  nrDia?: number | null;
+  /** yyyy-MM-dd */
+  dtInicio: string;
+  /** yyyy-MM-dd; vazio = sem fim */
+  dtFim?: string | null;
+  inAtivo?: boolean;
+  /** Obrigatório na edição. */
+  nrVersao?: number;
+}
+
 function consulta(filtro: FiltroFinanceiro): string {
   const params = new URLSearchParams();
   if (filtro.competencia) params.set("competencia", filtro.competencia);
@@ -113,4 +133,32 @@ export const financeiroService = {
   criarCategoria: (form: CategoriaForm) => apiFetch<FinanceiroCategoria>(`${BASE}/categorias`, { method: "POST", body: json(form) }),
   atualizarCategoria: (id: number, form: CategoriaForm) =>
     apiFetch<FinanceiroCategoria>(`${BASE}/categorias/${id}`, { method: "PUT", body: json(form) }),
+
+  // ---------- conta do mês ----------
+
+  /** A conta do mês (yyyy-MM). Com `idPessoa` não há saldo anterior nem meta. */
+  mes: (competencia: string, idPessoa?: number) =>
+    apiFetch<FinanceiroProjecaoMes>(`${BASE}/mes/${competencia}${idPessoa ? `?idPessoa=${idPessoa}` : ""}`),
+  definirSaldoInicial: (competencia: string, vlSaldoInicial: number | null) =>
+    apiFetch<FinanceiroProjecaoMes>(`${BASE}/mes/${competencia}/saldo-inicial`, { method: "PUT", body: json({ vlSaldoInicial }) }),
+  fecharMes: (competencia: string) =>
+    apiFetch<FinanceiroFechamento>(`${BASE}/mes/${competencia}/fechar`, { method: "POST" }),
+  reabrirMes: (competencia: string) =>
+    apiFetch<FinanceiroProjecaoMes>(`${BASE}/mes/${competencia}/reabrir`, { method: "POST" }),
+
+  configuracao: () => apiFetch<FinanceiroConfiguracao>(`${BASE}/configuracao`),
+  atualizarConfiguracao: (form: FinanceiroConfiguracao) =>
+    apiFetch<FinanceiroConfiguracao>(`${BASE}/configuracao`, { method: "PUT", body: json(form) }),
+
+  leituras: async (idLancamento: number): Promise<FinanceiroLeitura[]> =>
+    (await apiFetch<FinanceiroLeitura[]>(`${BASE}/lancamentos/${idLancamento}/leituras`)) ?? [],
+
+  recorrencias: async (): Promise<FinanceiroRecorrencia[]> =>
+    (await apiFetch<FinanceiroRecorrencia[]>(`${BASE}/recorrencias`)) ?? [],
+  criarRecorrencia: (form: RecorrenciaForm) =>
+    apiFetch<FinanceiroRecorrencia>(`${BASE}/recorrencias`, { method: "POST", body: json(form) }),
+  atualizarRecorrencia: (id: number, form: RecorrenciaForm) =>
+    apiFetch<FinanceiroRecorrencia>(`${BASE}/recorrencias/${id}`, { method: "PUT", body: json(form) }),
+  gerarRecorrencias: (competencia: string) =>
+    apiFetch<{ competencia: string; criados: number }>(`${BASE}/recorrencias/gerar/${competencia}`, { method: "POST" }),
 };

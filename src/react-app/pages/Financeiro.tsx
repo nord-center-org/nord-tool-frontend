@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
-import { LineChart, Loader2, ReceiptText, Wallet } from "lucide-react";
+import { LineChart, Loader2, Wallet } from "lucide-react";
 
 import type { FinanceiroCategoria, FinanceiroPessoa } from "@/shared/types";
 import CadastrosFinanceiroModal from "@/react-app/components/financeiro/CadastrosFinanceiroModal";
+import DashboardTab from "@/react-app/components/financeiro/DashboardTab";
 import ExtratoTab from "@/react-app/components/financeiro/ExtratoTab";
 import { financeiroService } from "@/react-app/services/FinanceiroService";
 
@@ -29,11 +30,10 @@ function gravarFiltroPessoa(id: number) {
   try { localStorage.setItem(FILTRO_PESSOA, String(id)); } catch { /* sem armazenamento: segue sem lembrar */ }
 }
 
-function EmBreve({ titulo, descricao, icone }: { titulo: string; descricao: string; icone: "dashboard" | "investimentos" }) {
-  const Icone = icone === "dashboard" ? ReceiptText : LineChart;
+function EmBreve({ titulo, descricao }: { titulo: string; descricao: string }) {
   return (
     <section aria-label={titulo} className="mx-auto max-w-lg rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
-      <Icone className="mx-auto h-8 w-8 text-slate-300" />
+      <LineChart className="mx-auto h-8 w-8 text-slate-300" />
       <h2 className="mt-3 text-lg font-bold text-slate-700">{titulo}</h2>
       <p className="mt-1 text-sm text-slate-500">{descricao}</p>
       <p className="mt-3 text-xs font-bold uppercase tracking-wide text-slate-400">Em breve</p>
@@ -43,7 +43,7 @@ function EmBreve({ titulo, descricao, icone }: { titulo: string; descricao: stri
 
 export default function FinanceiroPage() {
   const [params, setParams] = useSearchParams();
-  const aba: Aba = ABAS.some(a => a.id === params.get("aba")) ? (params.get("aba") as Aba) : "extrato";
+  const aba: Aba = ABAS.some(a => a.id === params.get("aba")) ? (params.get("aba") as Aba) : "dashboard";
 
   const [pessoas, setPessoas] = useState<FinanceiroPessoa[]>([]);
   const [categorias, setCategorias] = useState<FinanceiroCategoria[]>([]);
@@ -73,7 +73,7 @@ export default function FinanceiroPage() {
   const idPessoaEfetivo = pessoaValida ? idPessoa : 0;
 
   const escolherPessoa = (id: number) => { setIdPessoa(id); gravarFiltroPessoa(id); };
-  const escolherAba = (nova: Aba) => setParams(nova === "extrato" ? {} : { aba: nova }, { replace: true });
+  const escolherAba = (nova: Aba) => setParams(nova === "dashboard" ? {} : { aba: nova }, { replace: true });
 
   const classeChip = (ativo: boolean) =>
     `rounded-full px-4 py-1.5 text-sm font-bold transition-colors ${ativo ? "bg-blue-600 text-white shadow" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"}`;
@@ -125,11 +125,11 @@ export default function FinanceiroPage() {
               <ExtratoTab pessoas={pessoas} categorias={categorias} idPessoa={idPessoaEfetivo} onGerenciarCadastros={() => setCadastros(true)} />
             )}
             {aba === "dashboard" && (
-              <EmBreve icone="dashboard" titulo="Dashboard do mês"
-                descricao="O último mês fechado ao lado da estimativa do mês corrente, com a projeção de quanto vai sobrar." />
+              <DashboardTab pessoas={pessoas} categorias={categorias} idPessoa={idPessoaEfetivo}
+                onGerenciarCadastros={() => setCadastros(true)} onVerExtrato={() => escolherAba("extrato")} />
             )}
             {aba === "investimentos" && (
-              <EmBreve icone="investimentos" titulo="Investimentos"
+              <EmBreve titulo="Investimentos"
                 descricao="Seus fundos imobiliários com a cota em tempo real e os dividendos a receber." />
             )}
           </>
