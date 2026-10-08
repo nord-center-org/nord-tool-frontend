@@ -20,6 +20,8 @@ interface LancamentoFinanceiroModalProps {
   categorias: FinanceiroCategoria[];
   /** Pessoa pré-selecionada num lançamento novo (a do filtro da tela ou a última usada). */
   idPessoaPadrao?: number | null;
+  /** Categoria pré-selecionada num lançamento novo. */
+  categoriaPadrao?: number | null;
   /** Devolve a mensagem de erro (o modal continua aberto) ou null se salvou. */
   onSalvar: (form: LancamentoFinanceiroForm) => Promise<string | null>;
   onGerenciarCadastros: () => void;
@@ -27,7 +29,7 @@ interface LancamentoFinanceiroModalProps {
 }
 
 export default function LancamentoFinanceiroModal({
-  lancamento, modelo, pessoas, categorias, idPessoaPadrao, onSalvar, onGerenciarCadastros, onFechar,
+  lancamento, modelo, pessoas, categorias, idPessoaPadrao, categoriaPadrao, onSalvar, onGerenciarCadastros, onFechar,
 }: LancamentoFinanceiroModalProps) {
   const origem = lancamento ?? modelo;
   // Um UUID por abertura: se o envio for repetido (duplo clique, rede), o servidor não duplica.
@@ -35,7 +37,7 @@ export default function LancamentoFinanceiroModal({
   const [data, setData] = useState(lancamento ? dataBrParaIso(lancamento.dtLancamento) ?? hojeSaoPaulo() : hojeSaoPaulo());
   const [competencia, setCompetencia] = useState(lancamento?.competencia ?? "");
   const [valor, setValor] = useState(origem ? String(origem.vlLancamento).replace(".", ",") : "");
-  const [idCategoria, setIdCategoria] = useState<number | "">(origem?.idCategoria ?? "");
+  const [idCategoria, setIdCategoria] = useState<number | "">(origem?.idCategoria ?? categoriaPadrao ?? "");
   const [idPessoa, setIdPessoa] = useState<number | "">(origem?.idPessoa ?? idPessoaPadrao ?? "");
   const [descricao, setDescricao] = useState(origem?.dsLancamento ?? "");
   const [realizado, setRealizado] = useState(lancamento?.inRealizado ?? false);

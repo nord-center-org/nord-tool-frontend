@@ -305,3 +305,83 @@ export interface FinanceiroLista {
   pessoas: FinanceiroPessoa[];
   categorias: FinanceiroCategoria[];
 }
+
+// ---------- Financeiro: a conta do mês ----------
+
+export type OrigemValor = 'REAL' | 'MEDIA' | 'RECORRENCIA' | 'RITMO' | 'SEM_DADOS';
+export type SituacaoMes = 'VERDE' | 'VERMELHO';
+
+/** Uma categoria na conta do mês: o que foi lançado e o que entra na conta (real ou estimado). */
+export interface FinanceiroProjecaoLinha {
+  idCategoria: number;
+  nmCategoria: string;
+  cdTipo: TipoFluxo;
+  cdProjecao: TipoProjecao;
+  real: number;
+  projetado: number;
+  origem: OrigemValor;
+  /** Como o valor foi obtido (ex.: "Média dos últimos 3 mês(es) com lançamento"). */
+  detalhe: string;
+}
+
+/** O "fechamento do mês" da planilha: entradas, saídas, saldo anterior e saldo final. */
+export interface FinanceiroProjecaoMes {
+  /** yyyy-MM */
+  competencia: string;
+  fechado: boolean;
+  /** Há valores estimados (mês aberto, atual ou futuro). */
+  estimado: boolean;
+  /** Falso com filtro de pessoa: o saldo anterior e a meta são da conta toda. */
+  comSaldoAnterior: boolean;
+  saldoAnterior: number | null;
+  entradas: FinanceiroProjecaoLinha[];
+  saidas: FinanceiroProjecaoLinha[];
+  totalEntradas: number;
+  totalSaidas: number;
+  saldoFinal: number;
+  metaSaldo: number | null;
+  /** Saldo final − meta: quanto sobra (ou falta) em relação à meta. */
+  folga: number | null;
+  situacao: SituacaoMes;
+  /** Lançamentos do mês ainda não marcados como recebidos/pagos. */
+  qtPrevistos: number;
+}
+
+export interface FinanceiroFechamento {
+  mes: FinanceiroProjecaoMes;
+  recorrenciasGeradas: number;
+}
+
+export interface FinanceiroConfiguracao {
+  vlMetaSaldo: number;
+  nrMesesMedia: number;
+  nrDiaConferencia: number;
+  nrDiaFechamentoFatura: number;
+}
+
+/** Lançamento fixo (apartamento, evolução de obra, investimentos...). */
+export interface FinanceiroRecorrencia {
+  idRecorrencia: number;
+  idCategoria: number;
+  nmCategoria: string;
+  cdTipo: TipoFluxo;
+  idPessoa: number;
+  nmPessoa: string;
+  dsRecorrencia: string | null;
+  vlRecorrencia: number;
+  /** Dia do mês do lançamento gerado (vazio = dia 1). */
+  nrDia: number | null;
+  /** dd/MM/yyyy */
+  dtInicio: string;
+  /** dd/MM/yyyy; vazio = sem fim */
+  dtFim: string | null;
+  inAtivo: boolean;
+  nrVersao: number;
+}
+
+/** Valor parcial da fatura numa data (uma leitura por dia). */
+export interface FinanceiroLeitura {
+  /** dd/MM/yyyy */
+  dtLeitura: string;
+  vlLeitura: number;
+}
