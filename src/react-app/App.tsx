@@ -10,6 +10,7 @@ import ControleChavesPage from "@/react-app/pages/Controle_de_chaves";
 import DaviJobPage from "@/react-app/pages/DaviJob";
 import CasamentoPage from "@/react-app/pages/Casamento";
 import CaixinhaPage from "@/react-app/pages/Caixinha";
+import FinanceiroPage from "@/react-app/pages/Financeiro";
 import ConcretagemInProgress from "@/react-app/components/Placeholder";
 
 export default function App() {
@@ -41,7 +42,7 @@ export default function App() {
           <Route path="organizacional/cronograma" element={<CronogramaPage />} />
 
           {/* Gestão Individual */}
-          <Route path="gestao/financeiro" element={<ConcretagemInProgress />} />
+          <Route path="gestao/financeiro" element={<FinanceiroPage />} />
           <Route path="gestao/treinos" element={<ConcretagemInProgress />} />
           <Route path="gestao/repertorio" element={<ConcretagemInProgress />} />
           <Route path="gestao/academico" element={<ConcretagemInProgress />} />

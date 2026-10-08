@@ -235,3 +235,73 @@ export interface CaixinhaComprovante {
   nrTamanhoBytes: number;
   nrVersao: number;
 }
+
+// ---------- Financeiro ----------
+
+export type TipoFluxo = 'ENTRADA' | 'SAIDA';
+export type TipoProjecao = 'FIXA_MEDIA' | 'SALDO_ANTERIOR' | 'FIXA_VALOR' | 'RITMO_FATURA' | 'VARIAVEL_MEDIA' | 'MANUAL';
+export type RegraData = 'DIA_MES' | 'DIA_UTIL';
+export type SituacaoFinanceiro = 'TODOS' | 'REALIZADO' | 'PREVISTO';
+
+/** De quem é o lançamento (Nick, Thaina, Casal). Diferente do autor, que é o login. */
+export interface FinanceiroPessoa {
+  idPessoa: number;
+  nmPessoa: string;
+  inCompartilhado: boolean;
+  idUsuario: number | null;
+  nrOrdem: number;
+  inAtivo: boolean;
+}
+
+export interface FinanceiroCategoria {
+  idCategoria: number;
+  nmCategoria: string;
+  cdTipo: TipoFluxo;
+  cdProjecao: TipoProjecao;
+  inFixa: boolean;
+  cdRegraData: RegraData | null;
+  nrDia: number | null;
+  nrOrdem: number;
+  inAtivo: boolean;
+}
+
+export interface FinanceiroLancamento {
+  idLancamento: number;
+  /** Mês a que pertence, yyyy-MM. */
+  competencia: string;
+  /** dd/MM/yyyy */
+  dtLancamento: string;
+  idCategoria: number;
+  nmCategoria: string;
+  cdTipo: TipoFluxo;
+  idPessoa: number;
+  nmPessoa: string;
+  dsLancamento: string | null;
+  /** Sempre positivo: entrada ou saída vem da categoria. */
+  vlLancamento: number;
+  inRealizado: boolean;
+  nrParcela: number | null;
+  qtParcela: number | null;
+  /** Quem digitou o lançamento (o login). */
+  idUsuarioCriacao: number | null;
+  nmUsuarioCriacao: string | null;
+  /** Revisão para controle de concorrência. */
+  nrVersao: number;
+}
+
+export interface FinanceiroResumo {
+  entradas: number;
+  saidas: number;
+  saldo: number;
+  entradasRealizadas: number;
+  saidasRealizadas: number;
+  qtLancamentos: number;
+  qtRealizados: number;
+}
+
+export interface FinanceiroLista {
+  lancamentos: FinanceiroLancamento[];
+  resumo: FinanceiroResumo | null;
+  pessoas: FinanceiroPessoa[];
+  categorias: FinanceiroCategoria[];
+}
