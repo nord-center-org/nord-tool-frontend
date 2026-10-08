@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 import type { FinanceiroCategoria, FinanceiroLancamento, FinanceiroPessoa, FinanceiroResumo, SituacaoFinanceiro, TipoFluxo } from "@/shared/types";
 import { ColumnFilter } from "@/react-app/components/ColumnFilter";
 import LancamentoFinanceiroModal from "@/react-app/components/financeiro/LancamentoFinanceiroModal";
+import { useAtalhos } from "@/react-app/hooks/useAtalhos";
 import { useFiltrosColuna } from "@/react-app/hooks/useFiltrosColuna";
 import { useSincronizacao } from "@/react-app/hooks/useSincronizacao";
 import { ApiError } from "@/react-app/services/apiClient";
@@ -205,6 +206,9 @@ export default function ExtratoTab({ pessoas, categorias, idPessoa, onGerenciarC
     XLSX.writeFile(livro, "NordTool_Financeiro.xlsx");
   };
 
+  const atalhos = useMemo(() => ({ n: () => setModal({}) }), []);
+  useAtalhos(atalhos);
+
   const idPessoaPadrao = idPessoa || lerUltimaPessoa();
   const tituloPeriodo = todosOsMeses ? "Todos os meses" : rotuloMes(competencia);
 
@@ -244,7 +248,7 @@ export default function ExtratoTab({ pessoas, categorias, idPessoa, onGerenciarC
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={onGerenciarCadastros} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"><Settings2 className="h-4 w-4" /> Pessoas e categorias</button>
           <button type="button" onClick={exportar} disabled={visiveis.length === 0} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"><Download className="h-4 w-4" /> Exportar</button>
-          <button type="button" onClick={() => setModal({})} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700"><Plus className="h-4 w-4" /> Novo lançamento</button>
+          <button type="button" title="Atalho: N" onClick={() => setModal({})} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700"><Plus className="h-4 w-4" /> Novo lançamento</button>
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, Lock, Pencil, Unlock, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, Loader2, Lock, Pencil, Unlock, XCircle } from "lucide-react";
 
 import type { FinanceiroProjecaoLinha, FinanceiroProjecaoMes } from "@/shared/types";
 import { formatarMoeda } from "@/react-app/utils/casamento";
@@ -12,6 +12,7 @@ interface PainelMesProps {
   /** Painel do mês corrente: o saldo final ganha destaque. */
   destaque?: boolean;
   ocupado?: boolean;
+  onExportar?: () => void;
   onFechar?: () => void;
   onReabrir?: () => void;
   onSaldoInicial?: (valor: number | null) => Promise<string | null>;
@@ -55,7 +56,7 @@ function Tabela({ titulo, linhas, total, cor }: { titulo: string; linhas: Financ
 }
 
 /** O "fechamento do mês" da planilha: entradas, saídas e o saldo final verde ou vermelho. */
-export default function PainelMes({ mes, destaque, ocupado, onFechar, onReabrir, onSaldoInicial }: PainelMesProps) {
+export default function PainelMes({ mes, destaque, ocupado, onExportar, onFechar, onReabrir, onSaldoInicial }: PainelMesProps) {
   const [editando, setEditando] = useState(false);
   const [texto, setTexto] = useState("");
   const [erro, setErro] = useState<string | null>(null);
@@ -74,8 +75,14 @@ export default function PainelMes({ mes, destaque, ocupado, onFechar, onReabrir,
     <article aria-label={rotuloMes(mes.competencia)} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <header className="flex items-center justify-between gap-2 bg-slate-900 px-4 py-3 text-white">
         <h3 className="text-base font-bold">Fechamento de {rotuloMes(mes.competencia)}</h3>
-        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${mes.fechado ? "bg-slate-700 text-slate-200" : "bg-blue-500/20 text-blue-200"}`}>
-          {mes.fechado ? <><Lock className="h-3 w-3" /> Fechado</> : mes.estimado ? "Em projeção" : "Aberto"}
+        <span className="flex items-center gap-2">
+          {onExportar && (
+            <button type="button" onClick={onExportar} aria-label={`Exportar ${rotuloMes(mes.competencia)} para planilha`} title="Exportar para planilha"
+              className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-700 hover:text-white"><Download className="h-4 w-4" /></button>
+          )}
+          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${mes.fechado ? "bg-slate-700 text-slate-200" : "bg-blue-500/20 text-blue-200"}`}>
+            {mes.fechado ? <><Lock className="h-3 w-3" /> Fechado</> : mes.estimado ? "Em projeção" : "Aberto"}
+          </span>
         </span>
       </header>
 

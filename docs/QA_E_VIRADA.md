@@ -17,6 +17,9 @@ Estado em **06/10/2026**. Legenda: ✅ verificado (teste automatizado ou navegad
 | 7 | Anexos de fornecedor | ✅/🔶 | Listar/abrir/excluir em mock e testes de serviço; anexar um arquivo real no dev: 🔶. |
 | 8 | Caixinha completa (lançamentos, marcações, conflito 409, comprovantes PDF, exportação) | ✅/🔶 | 409 em marcação e exclusão, idempotência de criação e fila de comprovantes verificados em navegador (mock com versões) e em testes do backend (226 passando). **Exportação XLSX** só coberta por teste das linhas; baixar o arquivo e abrir no Excel: 🔶. Segundo navegador editando a mesma linha contra o backend real: 🔶. |
 | 9 | Exportar tudo do Casamento (backup em planilha) | ✅/🔶 | Montagem das abas coberta por teste; botão no cabeçalho do Casamento. Baixar e abrir o arquivo: 🔶. |
+| 11 | Financeiro: Dashboard (último mês fechado × mês corrente em projeção), fechar/reabrir mês, ritmo da fatura, ajustes e lançamentos fixos | ✅/🔶 | Testado em navegador com API simulada (painéis, saldo verde/vermelho, gráfico da fatura com tooltip e tabela, fechar/reabrir, filtro por pessoa, celular de 390 px, atalhos, exportação .xlsx). Regras de projeção e fechamento cobertas por testes do backend (inclui banco real). **Contra o backend real e com a planilha de verdade: 🔶.** |
+| 12 | Financeiro: Extrato e Investimentos (FIIs, cotação ao vivo, proventos) | ✅/🔶 | Extrato (filtros, parcelas, duplicar, exportar) e Investimentos (compra/venda, provento, importação, novo fundo) em navegador com API simulada. Provedor de cotação testado com servidor simulado; **cotação real (brapi.dev) e importação de proventos só no ambiente com `NORD_COTACAO_TOKEN`: 🔶.** |
+| 13 | Financeiro: acesso restrito (módulo `FINANCEIRO`) | ✅/🔶 | Backend recusa com 403 quem não tem `FINANCEIRO:LEITURA` (consulta) ou `FINANCEIRO:ESCRITA` (altera); `*` do administrador vale. Testado (`FinanceiroAcessoTest`). **Conferir com o login da Thaina após liberar o módulo no perfil dela: 🔶.** |
 | 10 | Backup do Postgres | ⛔ | Rotina de backup no Railway **não configurada por mim** (acesso é seu). Ver seção 3. |
 
 ## 2. Desempenho e capacidade (a medir no ambiente real)
@@ -34,7 +37,9 @@ Nada disto pôde ser medido sem o ambiente publicado; fica como roteiro:
 - 🔶 Variáveis no Railway: `NORD_JWT_SECRET`, `NORD_ADMIN_*` (primeiro acesso), depois `NORD_SECURITY_ENABLED=true`.
 - ⛔ **Remover `NORD_ADMIN_PASSWORD`** (e `NORD_ADMIN_*`) do Railway após o primeiro login.
 - ⛔ Backup do Postgres no Railway (snapshots/`pg_dump` agendado) e teste de restauração.
-- Dados pessoais/financeiros (Casamento, Caixinha, contratos, comprovantes) saem com `Cache-Control: no-store`.
+- Dados pessoais/financeiros (Casamento, Caixinha, Financeiro, contratos, comprovantes) saem com `Cache-Control: no-store`.
+- ✅ **Financeiro exige o módulo `FINANCEIRO`** no perfil (LEITURA consulta, ESCRITA altera; `*` do ADMIN vale). Sem isso a API responde 403 e a tela avisa. Liberar um perfil: ver `nord-tool-backend/README.md` (seção Financeiro).
+- 🔶 Cotação dos fundos: `NORD_COTACAO_TOKEN` (brapi.dev, gratuito) no Railway; sem ele só alguns tickers respondem e a tela usa a última cotação guardada.
 
 ## 4. Inventário do que ainda vive só no Lugia
 
@@ -62,5 +67,6 @@ Nada disto pôde ser medido sem o ambiente publicado; fica como roteiro:
 - ⛔ CSVs do Lugia (Casamento e Caixinha) + confirmação da ordem das colunas.
 - ⛔ Decisão sobre os PDFs antigos da Caixinha e sobre o histórico da Entrega DAT.
 - ⛔ Backup do Postgres no Railway.
+- ⛔ Financeiro: aplicar SQL → publicar backend → publicar frontend; liberar o módulo `FINANCEIRO` aos perfis do Nick e da Thaina; vincular as pessoas aos logins; CSV do histórico da planilha para `MIGRACAO/financeiro/`.
 - 🔶 Roteiro de QA em aparelho real (fotos iOS/Android, PDF no celular) e medições da seção 2.
 - Assinatura do Nicolas no checklist final.

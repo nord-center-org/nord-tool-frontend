@@ -1,7 +1,7 @@
 ## Nord Tool (frontend)
 
 React 19 · Vite · Tailwind · TypeScript. Módulos: Apartamentos (termos de reprova, fotos, PDF lado a lado), Controle de chaves,
-Cronograma semanal, Casamento e Caixinha (Gestão Individual).
+Cronograma semanal, Casamento, Caixinha e Financeiro (Gestão Individual: dashboard do mês, extrato e investimentos).
 
 ### Rodando
 ```
@@ -27,6 +27,7 @@ lança `ApiError` (com `status`, ex.: 409 = conflito de versão).
 ### Convenções
 - Serviços em `src/react-app/services`, regras puras em `src/react-app/utils` (cada uma com `*.test.ts`, listado no script `test` do `package.json`).
 - Tabelas usam o filtro padrão `ColumnFilter` + `useFiltrosColuna`.
+- Financeiro: `pages/Financeiro.tsx` (abas Dashboard, Extrato e Investimentos em `components/financeiro/`); regras puras em `utils/financeiro*.ts` e `utils/investimentos.ts`. Gráfico da fatura é SVG próprio (sem biblioteca). Atalhos: `N` novo lançamento (Extrato), `←`/`→`/`T` meses (Dashboard). Exige o módulo `FINANCEIRO` no perfil (403 mostra aviso).
 - Casamento e Caixinha usam atualização otimista com rollback (`useSincronizacao` / `executarOtimista`).
 - Arquivos protegidos (PDF/imagem) são baixados com token e abertos via `abrirArquivoAutenticado` ou `ImagemAutenticada`.
 
