@@ -24,6 +24,8 @@ import { aplicarFiltrosColuna, valoresUnicos, type ColunasFiltro } from "@/react
 
 import MassUpdateModal from "@/react-app/components/MassUpdateModal";
 import MovimentacaoMassaModal from "@/react-app/components/MovimentacaoMassaModal";
+import DownloadTermosModal from "@/react-app/components/termo/DownloadTermosModal";
+import { separarConcluidos } from "@/react-app/utils/termosConcluidos";
 import { lerPreCarregamento, resolverPreCarregamento, type ColunaPreCarregamento } from "@/react-app/utils/preCarregamentoApartamentos";
 import { ClipboardPaste } from "lucide-react";
 import {
@@ -94,6 +96,7 @@ export default function ApartamentosPage() {
   // Movimentação em massa: apartamentos marcados na tabela.
   const [selecionados, setSelecionados] = useState<number[]>([]);
   const [movendo, setMovendo] = useState(false);
+  const [baixandoTermos, setBaixandoTermos] = useState(false);
 
   useEffect(() => {
     const syncSettings = () => {
@@ -304,6 +307,7 @@ export default function ApartamentosPage() {
       ? atual.filter(id => !idsVisiveis.includes(id))
       : [...new Set([...atual, ...idsVisiveis])]));
   const apartamentosSelecionados = apartamentos.filter(a => selecionados.includes(a.idApartamentoVistoria));
+  const qtTermosConcluidosSelecionados = separarConcluidos(apartamentosSelecionados).concluidos.length;
 
   const filtroColuna = (coluna: ColunaApartamento, label: string, emptyLabel?: string) => (
     <ColumnFilter
@@ -491,8 +495,13 @@ export default function ApartamentosPage() {
         <div role="region" aria-label="Ações em massa" className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-900 px-4 py-3 text-white shadow-2xl">
           <span className="text-sm font-semibold">{selecionados.length} selecionado(s)</span>
           <button type="button" onClick={() => setMovendo(true)} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold hover:bg-blue-700">Mover de status</button>
+          <button type="button" onClick={() => setBaixandoTermos(true)} disabled={qtTermosConcluidosSelecionados === 0} title={qtTermosConcluidosSelecionados === 0 ? "Nenhum selecionado tem termo concluído" : undefined} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40">Baixar termos concluídos ({qtTermosConcluidosSelecionados})</button>
           <button type="button" onClick={() => setSelecionados([])} className="rounded-xl px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800">Limpar seleção</button>
         </div>
+      )}
+
+      {baixandoTermos && apartamentosSelecionados.length > 0 && (
+        <DownloadTermosModal apartamentos={apartamentosSelecionados} onFechar={() => setBaixandoTermos(false)} />
       )}
 
       {movendo && apartamentosSelecionados.length > 0 && (
