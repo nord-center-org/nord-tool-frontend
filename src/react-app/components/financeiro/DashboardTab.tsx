@@ -11,7 +11,7 @@ import { useAtalhos } from "@/react-app/hooks/useAtalhos";
 import { financeiroService, type LancamentoFinanceiroForm } from "@/react-app/services/FinanceiroService";
 import { hojeSaoPaulo } from "@/react-app/utils/caixinha";
 import { competenciaDaData, deslocarMes, rotuloMes } from "@/react-app/utils/financeiro";
-import { avisoConferencia, linhasFechamento, mesesDoPainel } from "@/react-app/utils/financeiroConta";
+import { avisoConferencia, linhasFechamento, mesCentralPadrao, mesesDoPainel } from "@/react-app/utils/financeiroConta";
 
 interface DashboardTabProps {
   pessoas: FinanceiroPessoa[];
@@ -27,7 +27,10 @@ const mensagem = (e: unknown, padrao: string) => (e instanceof Error && e.messag
 export default function DashboardTab({ pessoas, categorias, idPessoa, onGerenciarCadastros, onVerExtrato }: DashboardTabProps) {
   const hoje = hojeSaoPaulo();
   const mesHoje = competenciaDaData(hoje);
-  const [central, setCentral] = useState(mesHoje);
+  const mesPassado = deslocarMes(mesHoje, -1);
+  // Antes de saber se o mês passado já foi fechado, o par é o do mês a fechar (agosto | setembro em outubro).
+  const [padrao, setPadrao] = useState(mesPassado);
+  const [central, setCentral] = useState(mesPassado);
   const { anterior, atual } = mesesDoPainel(central);
 
   const [esq, setEsq] = useState<FinanceiroProjecaoMes | null>(null);
@@ -59,6 +62,18 @@ export default function DashboardTab({ pessoas, categorias, idPessoa, onGerencia
   }, [anterior, atual, idPessoa]);
 
   useEffect(() => { void carregar(); }, [carregar]);
+
+  // Mês passado já fechado: o par passa a ser ele | mês corrente (em projeção). Só ajusta na abertura da tela.
+  useEffect(() => {
+    let ativo = true;
+    financeiroService.mes(mesPassado).then(m => {
+      if (!ativo || !m?.fechado) return;
+      const novo = mesCentralPadrao(mesHoje, true);
+      setPadrao(novo);
+      setCentral(novo);
+    }).catch(() => { /* sem a resposta fica o par do mês a fechar */ });
+    return () => { ativo = false; };
+  }, [mesHoje, mesPassado]);
 
   const executar = async (chave: string, acao: () => Promise<unknown>, sucesso?: (r: unknown) => string | null) => {
     setOcupado(chave);
@@ -100,8 +115,8 @@ export default function DashboardTab({ pessoas, categorias, idPessoa, onGerencia
   const atalhos = useMemo(() => ({
     ArrowLeft: () => setCentral(c => deslocarMes(c, -1)),
     ArrowRight: () => setCentral(c => deslocarMes(c, 1)),
-    t: () => setCentral(mesHoje),
-  }), [mesHoje]);
+    t: () => setCentral(padrao),
+  }), [padrao]);
   useAtalhos(atalhos);
 
   const exportar = (mes: FinanceiroProjecaoMes) => {
@@ -111,7 +126,7 @@ export default function DashboardTab({ pessoas, categorias, idPessoa, onGerencia
     XLSX.writeFile(livro, `NordTool_Fechamento_${mes.competencia}.xlsx`);
   };
 
-  const lembrete = avisoConferencia(hoje, config?.nrDiaConferencia ?? 8, esq, anterior, central === mesHoje);
+  const lembrete = avisoConferencia(hoje, config?.nrDiaConferencia ?? 8, dir, atual, atual === mesPassado);
   const projetadoFatura = dir ? dir.saidas.filter(l => l.cdProjecao === "RITMO_FATURA").reduce((s, l) => s + l.projetado, 0) : null;
 
   return (
@@ -121,7 +136,7 @@ export default function DashboardTab({ pessoas, categorias, idPessoa, onGerencia
           <button type="button" aria-label="Mês anterior" title="Seta para a esquerda" onClick={() => setCentral(c => deslocarMes(c, -1))} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50"><ChevronLeft className="h-4 w-4" /></button>
           <span className="min-w-40 text-center text-sm font-bold text-slate-700">{rotuloMes(anterior)} · {rotuloMes(atual)}</span>
           <button type="button" aria-label="Próximo mês" title="Seta para a direita" onClick={() => setCentral(c => deslocarMes(c, 1))} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50"><ChevronRight className="h-4 w-4" /></button>
-          {central !== mesHoje && <button type="button" onClick={() => setCentral(mesHoje)} className="ml-1 text-xs font-bold text-blue-600 hover:underline">Voltar para hoje</button>}
+          {central !== padrao && <button type="button" onClick={() => setCentral(padrao)} className="ml-1 text-xs font-bold text-blue-600 hover:underline">Voltar ao mês a fechar</button>}
         </div>
         <div className="flex items-center gap-3">
           <button type="button" onClick={onVerExtrato} className="text-sm font-bold text-blue-600 hover:underline">Ver extrato</button>

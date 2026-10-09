@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  avisoConferencia, caminho, cicloDaFatura, dadosDoGrafico, diaDoCiclo, ehEstimado, escalaBonita, linhasFechamento, mesesDoPainel, textoFolga,
+  avisoConferencia, caminho, cicloDaFatura, dadosDoGrafico, diaDoCiclo, ehEstimado, escalaBonita, linhasFechamento, mesCentralPadrao, mesesDoPainel, textoFolga,
   textoPrevistos, type AreaGrafico,
 } from './financeiroConta.ts';
 
@@ -20,7 +20,7 @@ test('o painel compara o mês anterior com o central', () => {
   assert.deepEqual(mesesDoPainel('2027-01'), { anterior: '2026-12', atual: '2027-01' });
 });
 
-test('lembrete da conferência: só do dia combinado em diante, com o anterior aberto e olhando o mês corrente', () => {
+test('lembrete da conferência: só do dia combinado em diante, com o mês a fechar aberto e visível', () => {
   const aberto = { fechado: false };
   assert.match(avisoConferencia('2026-10-08', 8, aberto, '2026-09', true) ?? '', /feche setembro de 2026/);
   assert.match(avisoConferencia('2026-10-20', 8, aberto, '2026-09', true) ?? '', /dia 8/);
@@ -129,4 +129,14 @@ test("planilha do fechamento: mês fechado e filtro de pessoa (sem saldo anterio
     entradas: [], saidas: [], totalEntradas: 0, totalSaidas: 0, saldoFinal: 0, metaSaldo: null,
   });
   assert.deepEqual(linhas.map(l => l.Item), ["Total de entradas", "Total de saídas", "Saldo final"]);
+});
+
+test('par padrão do dashboard: último fechado | mês a fechar (em outubro, agosto | setembro)', () => {
+  assert.equal(mesCentralPadrao('2026-10', false), '2026-09');
+  assert.deepEqual(mesesDoPainel(mesCentralPadrao('2026-10', false)), { anterior: '2026-08', atual: '2026-09' });
+  // setembro já fechado: o par passa a ser setembro | outubro (corrente em projeção)
+  assert.equal(mesCentralPadrao('2026-10', true), '2026-10');
+  assert.deepEqual(mesesDoPainel(mesCentralPadrao('2026-10', true)), { anterior: '2026-09', atual: '2026-10' });
+  // virada de ano
+  assert.equal(mesCentralPadrao('2027-01', false), '2026-12');
 });
