@@ -113,10 +113,10 @@ function diaDoMes(competencia: string, dia: number): Date {
 const iso = (d: Date) => `${d.getUTCFullYear()}-${dois(d.getUTCMonth() + 1)}-${dois(d.getUTCDate())}`;
 const DIA_MS = 86_400_000;
 
-/** Ciclo da fatura do mês: do dia seguinte ao fechamento do mês anterior até o fechamento do mês (como no backend). */
+/** Ciclo da fatura "do mês M" (as compras de M): do dia seguinte ao fechamento de M até o fechamento de M+1 (como no backend). */
 export function cicloDaFatura(competencia: string, diaFechamento: number): Ciclo {
-  const fim = diaDoMes(competencia, diaFechamento);
-  const inicio = new Date(diaDoMes(deslocarMes(competencia, -1), diaFechamento).getTime() + DIA_MS);
+  const fim = diaDoMes(deslocarMes(competencia, 1), diaFechamento);
+  const inicio = new Date(diaDoMes(competencia, diaFechamento).getTime() + DIA_MS);
   return { inicio: iso(inicio), fim: iso(fim), dias: Math.round((fim.getTime() - inicio.getTime()) / DIA_MS) + 1 };
 }
 
