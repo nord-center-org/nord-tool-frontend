@@ -1,16 +1,21 @@
 import { useState } from "react";
 import { Outlet, NavLink, useLocation } from "react-router";
 import ErrorBoundary from "@/react-app/components/ErrorBoundary";
+import { ExigeModuloDaRota } from "@/react-app/components/RotaProtegida";
+import { useAuth } from "@/react-app/hooks/useAuth";
+import { podeAbrirRota } from "@/react-app/utils/sessao";
 import { 
   Database, BarChart3, Package, Settings, Menu, ChevronLeft, 
   Home as HomeIcon, Briefcase, GraduationCap,
   ClipboardCheck, AlertTriangle, Camera, FileText, BookOpen, 
-  TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Cat, Heart, PiggyBank
+  TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Cat, Heart, PiggyBank,
+  KeyRound, LogOut
 } from "lucide-react";
 
 export default function Layout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { usuario, sair } = useAuth();
 
   const menuGroups = [
     {
@@ -88,7 +93,10 @@ export default function Layout() {
           </div>
 
           <nav className="px-4 py-6 flex-1 overflow-y-auto space-y-8 no-scrollbar">
-            {menuGroups.map((group, idx) => (
+            {menuGroups
+              .map(group => ({ ...group, items: group.items.filter(item => podeAbrirRota(usuario?.permissoes, item.path)) }))
+              .filter(group => group.items.length > 0)
+              .map((group, idx) => (
               <div key={idx}>
                 <h3 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 ml-3">
                   {group.title}
@@ -117,8 +125,14 @@ export default function Layout() {
             ))}
           </nav>
 
-          {/* Configurações fixadas no rodapé */}
-          <div className="p-4 border-t border-slate-100 bg-white">
+          {/* Usuário, configurações e saída fixados no rodapé */}
+          <div className="p-4 border-t border-slate-100 bg-white space-y-1">
+            {usuario && (
+              <div className="px-3 pb-2">
+                <p className="text-sm font-bold text-slate-800 truncate">{usuario.nome}</p>
+                <p className="text-xs text-slate-400 truncate">{usuario.email}</p>
+              </div>
+            )}
             <NavLink
               to="/configuracoes"
               onClick={() => setSidebarOpen(false)}
@@ -133,6 +147,28 @@ export default function Layout() {
               <Settings className="w-4 h-4" />
               <span>Configurações</span>
             </NavLink>
+            <NavLink
+              to="/conta/senha"
+              onClick={() => setSidebarOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 text-sm ${
+                  isActive
+                    ? "bg-slate-800 text-white shadow-md font-bold"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium"
+                }`
+              }
+            >
+              <KeyRound className="w-4 h-4" />
+              <span>Alterar senha</span>
+            </NavLink>
+            <button
+              type="button"
+              onClick={sair}
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 text-sm text-slate-600 hover:bg-red-50 hover:text-red-600 font-medium"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sair</span>
+            </button>
           </div>
 
         </div>
@@ -153,7 +189,9 @@ export default function Layout() {
         <div className="flex-1 overflow-auto h-full">
           <div className={`transition-all duration-300 h-full ${!sidebarOpen ? "pl-20 pt-6" : "p-8"}`}>
             <ErrorBoundary resetKey={location.pathname}>
-              <Outlet context={{ sidebarOpen }} />
+              <ExigeModuloDaRota>
+                <Outlet context={{ sidebarOpen }} />
+              </ExigeModuloDaRota>
             </ErrorBoundary>
           </div>
         </div>
