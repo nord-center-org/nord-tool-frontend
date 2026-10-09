@@ -132,7 +132,7 @@ export default function ConfiguracaoFinanceiroModal({ configuracao, pessoas, cat
             <Campo rotulo="Dia da conferência" dica="Lembrete de fechar o mês">
               <input type="number" min={1} max={28} value={conferencia} onChange={e => setConferencia(e.target.value)} className={classeInput} />
             </Campo>
-            <Campo rotulo="Fecha a fatura no dia" dica="Ciclo do cartão">
+            <Campo rotulo="Fecha a fatura no dia" dica="A fatura de setembro vai do dia seguinte em setembro até esse dia em outubro">
               <input type="number" min={1} max={28} value={fechamento} onChange={e => setFechamento(e.target.value)} className={classeInput} />
             </Campo>
           </div>
