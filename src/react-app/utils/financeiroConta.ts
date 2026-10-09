@@ -20,9 +20,18 @@ export function ehEstimado(linha: Pick<LinhaConta, "origem">): boolean {
   return linha.origem === "MEDIA" || linha.origem === "RECORRENCIA" || linha.origem === "RITMO";
 }
 
-/** Os dois meses lado a lado: o anterior ao central (em geral o último a fechar) e o central (o mês corrente). */
+/** Os dois meses lado a lado: o anterior ao central (o último fechado) e o central (o mês a fechar, ou o corrente em projeção). */
 export function mesesDoPainel(central: string): { anterior: string; atual: string } {
   return { anterior: deslocarMes(central, -1), atual: central };
+}
+
+/**
+ * Mês central ao abrir o dashboard: o par é "último mês fechado | mês seguinte a fechar".
+ * Em outubro (com setembro ainda aberto) o par é agosto | setembro, porque é em outubro que se fecha setembro;
+ * depois de fechar setembro vira setembro | outubro (o mês corrente em projeção).
+ */
+export function mesCentralPadrao(mesHoje: string, mesAnteriorAoCorrenteFechado: boolean): string {
+  return mesAnteriorAoCorrenteFechado ? mesHoje : deslocarMes(mesHoje, -1);
 }
 
 export interface MesParaAviso {
@@ -30,16 +39,16 @@ export interface MesParaAviso {
 }
 
 /**
- * Lembrete da conferência: a partir do dia combinado, se o mês anterior ainda não foi fechado.
- * Só vale olhando o mês corrente de verdade (`centralEhHoje`).
+ * Lembrete da conferência: a partir do dia combinado, se o mês a fechar (o do mês passado) ainda não foi fechado.
+ * Só vale quando o painel mostra esse mês (`ehOMesAFechar`).
  */
 export function avisoConferencia(
-  hojeIso: string, diaConferencia: number, anterior: MesParaAviso | null, competenciaAnterior: string, centralEhHoje: boolean,
+  hojeIso: string, diaConferencia: number, mesAFechar: MesParaAviso | null, competenciaAFechar: string, ehOMesAFechar: boolean,
 ): string | null {
-  if (!centralEhHoje || !anterior || anterior.fechado) return null;
+  if (!ehOMesAFechar || !mesAFechar || mesAFechar.fechado) return null;
   const dia = Number(hojeIso.slice(8, 10));
   if (!(dia >= diaConferencia)) return null;
-  return `Já passou do dia ${diaConferencia}: confira os valores e feche ${rotuloMes(competenciaAnterior)}.`;
+  return `Já passou do dia ${diaConferencia}: confira os valores e feche ${rotuloMes(competenciaAFechar)}.`;
 }
 
 /** Frase da folga em relação à meta, para o card do mês. */
