@@ -14,15 +14,26 @@ npm test         # testes das funções puras (node --test)
 
 ### Configuração da API
 
-A URL base da API vem de `VITE_API_BASE_URL`. Sem a variável, o app usa o backend publicado no Railway (fallback em `src/react-app/config/api.ts`).
+A URL base da API vem de `VITE_API_BASE_URL`, **obrigatória no build** (`vite.config.ts` falha sem ela, para um build de produção nunca
+apontar para o backend errado). Em `npm run dev`, sem a variável, o app usa o proxy do Vite (`/api` → `localhost:8081`).
 
 Para desenvolvimento local, crie `.env.local` (não commitado):
 ```
 VITE_API_BASE_URL=http://localhost:8081/api/v1/nord-tool
 ```
 
-Todas as chamadas à API passam por `src/react-app/services/apiClient.ts` (`apiFetch` / `apiBlob`), que envia o token JWT e
-lança `ApiError` (com `status`, ex.: 409 = conflito de versão).
+Todas as chamadas à API passam por `src/react-app/services/apiClient.ts` (`apiFetch` / `apiBlob`), que envia o token JWT e um
+`X-Request-Id`, e lança `ApiError` (com `status` e `cdErro`; ex.: 409 = conflito de versão). Em erro 500 a mensagem traz o código
+de correlação, o mesmo do log do backend.
+
+### Login e sessão
+- `/login` é a única tela pública; as demais ficam dentro de `RotaProtegida` (sem sessão → login, voltando à tela pedida).
+- `components/AuthProvider.tsx` guarda a sessão em `sessionStorage` (por aba), renova o token 2 min antes de expirar se houve
+  atividade e encerra a sessão quando a API responde 401 (token expirado ou revogado). Regras puras em `utils/sessao.ts`.
+- O menu e as telas seguem as permissões efetivas devolvidas pelo login (`useAuth().pode(modulo, acao)`); quem decide de verdade é
+  o backend (403).
+- `/conta/senha` troca a senha (10 caracteres a 72 bytes); o backend encerra as outras sessões e devolve um token novo.
+- O build injeta uma Content-Security-Policy (só scripts próprios; `connect-src` com a origem da API).
 
 ### Convenções
 - Serviços em `src/react-app/services`, regras puras em `src/react-app/utils` (cada uma com `*.test.ts`, listado no script `test` do `package.json`).

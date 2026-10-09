@@ -38,6 +38,9 @@ jobs:
         run: npm run lint
 
       - name: Build
+        env:
+          # O build exige a URL da API (vite.config.ts); no CI basta uma URL válida.
+          VITE_API_BASE_URL: https://api.exemplo.invalid/api/v1/nord-tool
         run: npm run build
 
       - name: Test
