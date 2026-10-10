@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CornerDownRight, Download, FileSpreadsheet, Loader2, MessageCircle, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
+import { CornerDownRight, Download, FileSpreadsheet, Loader2, MessageCircle, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
 import * as XLSX from "xlsx";
 
 import type { CasamentoConvidado, ImportacaoConvidados, StatusConvidado } from "@/shared/types";
@@ -14,13 +14,14 @@ import {
 } from "@/react-app/utils/convidados";
 import { aplicarFiltrosColuna, valoresUnicos, type ColunasFiltro } from "@/react-app/utils/filtroColuna";
 
-type Coluna = "nome" | "grupo" | "telefone" | "relacao" | "status" | "mesa";
+type Coluna = "nome" | "grupo" | "telefone" | "relacao" | "cortejo" | "status" | "mesa";
 
 const COLUNAS: ColunasFiltro<CasamentoConvidado, Coluna> = {
   nome: { valor: c => c.nmConvidado },
   grupo: { valor: c => c.nmGrupo ?? SEM_GRUPO },
   telefone: { valor: c => c.nrTelefone },
   relacao: { valor: c => c.nmRelacao },
+  cortejo: { valor: c => c.nmCortejo },
   status: { valor: c => ROTULO_STATUS_CONVIDADO[c.nmStatus] },
   mesa: { valor: c => c.nmMesa ?? SEM_MESA },
 };
@@ -41,6 +42,7 @@ const paraForm = (c: CasamentoConvidado, extra: Partial<ConvidadoForm> = {}): Co
   nrAcompanhantes: c.nrAcompanhantes,
   nmMesa: c.nmMesa ?? "",
   idConvidadoPrincipal: c.idConvidadoPrincipal,
+  nmCortejo: c.nmCortejo ?? "",
   ...extra,
 });
 
@@ -244,6 +246,7 @@ export default function ConvidadosTab({ sync }: { sync: Sincronizacao }) {
               <th className="px-4 py-3">{filtro("grupo", "Grupo")}</th>
               <th className="px-4 py-3">{filtro("telefone", "Telefone", "Sem telefone")}</th>
               <th className="px-4 py-3">{filtro("relacao", "Relação", "Sem relação")}</th>
+              <th className="px-4 py-3">{filtro("cortejo", "Cortejo", "Fora do cortejo")}</th>
               <th className="px-4 py-3">{filtro("status", "Confirmação")}</th>
               <th className="px-4 py-3 text-right">Acomp.</th>
               <th className="px-4 py-3">{filtro("mesa", "Mesa")}</th>
@@ -252,14 +255,14 @@ export default function ConvidadosTab({ sync }: { sync: Sincronizacao }) {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {visiveis.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400">
+              <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-400">
                 {itens.length === 0 ? "Nenhum convidado cadastrado. Cadastre ou importe uma planilha." : "Nenhum convidado com os filtros atuais."}
               </td></tr>
             )}
             {linhas.map(({ item: c, nivel, principalForaDaLista }) => {
               const whats = linkWhatsapp(c.nrTelefone);
               return (
-                <tr key={c.idConvidado} className="hover:bg-slate-50/60">
+                <tr key={c.idConvidado} className={c.nmCortejo ? "bg-violet-50/50 hover:bg-violet-50" : "hover:bg-slate-50/60"} style={c.nmCortejo ? { boxShadow: "inset 4px 0 0 0 #a78bfa" } : undefined}>
                   <td className="px-4 py-3 font-semibold text-slate-700">
                     <span className="inline-flex items-center gap-1.5" style={{ paddingLeft: `${nivel * 1.25}rem` }}>
                       {nivel > 0 && <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-slate-300" aria-label="Acompanhante" />}
@@ -273,6 +276,11 @@ export default function ConvidadosTab({ sync }: { sync: Sincronizacao }) {
                     {whats && <a href={whats} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp de ${c.nmConvidado}`} title="Abrir no WhatsApp" className="ml-2 inline-flex align-middle text-green-600 hover:text-green-700"><MessageCircle className="h-4 w-4" /></a>}
                   </td>
                   <td className="px-4 py-3 text-slate-500">{c.nmRelacao || "—"}</td>
+                  <td className="px-4 py-3">
+                    {c.nmCortejo
+                      ? <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-700"><Sparkles className="h-3 w-3" aria-hidden /> {c.nmCortejo}</span>
+                      : <span className="text-slate-300">—</span>}
+                  </td>
                   <td className="px-4 py-3">
                     <select
                       aria-label={`Confirmação de ${c.nmConvidado}`}

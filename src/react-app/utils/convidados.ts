@@ -171,3 +171,24 @@ export function descendentes(itens: ConvidadoLigavel[], id: number): Set<number>
   }
   return achados;
 }
+
+// ---------- cortejo nupcial ----------
+
+export const PAPEIS_CORTEJO_PADRAO = ["Padrinho", "Madrinha", "Daminha", "Pajem", "Dama de honra"] as const;
+
+/** Sugestões do campo: os papéis padrão e os que já foram usados (sem repetir, ignorando caixa e acento). */
+export function papeisDoCortejo(itens: { nmCortejo: string | null }[]): string[] {
+  const chave = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+  const vistos = new Map<string, string>();
+  for (const p of PAPEIS_CORTEJO_PADRAO) vistos.set(chave(p), p);
+  for (const i of itens) {
+    const t = i.nmCortejo?.trim();
+    if (t && !vistos.has(chave(t))) vistos.set(chave(t), t);
+  }
+  return [...vistos.values()].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
+}
+
+/** Quantos convidados fazem parte do cortejo. */
+export function qtNoCortejo(itens: { nmCortejo: string | null }[]): number {
+  return itens.filter(i => (i.nmCortejo ?? "").trim() !== "").length;
+}
