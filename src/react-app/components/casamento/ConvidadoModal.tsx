@@ -1,21 +1,23 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
 import type { CasamentoConvidado, StatusConvidado } from "@/shared/types";
 import Campo, { classeInput } from "@/react-app/components/casamento/Campo";
 import ModalBase from "@/react-app/components/casamento/ModalBase";
 import type { ConvidadoForm } from "@/react-app/services/CasamentoService";
-import { ROTULO_STATUS_CONVIDADO } from "@/react-app/utils/convidados";
+import { ROTULO_STATUS_CONVIDADO, descendentes } from "@/react-app/utils/convidados";
 
 interface ConvidadoModalProps {
   /** Ausente = novo convidado. */
   convidado?: CasamentoConvidado;
   /** Grupos já usados, para sugerir no campo. */
   grupos: string[];
+  /** Todos os convidados: a lista de "acompanhante de quem". */
+  convidados: CasamentoConvidado[];
   onSalvar: (form: ConvidadoForm) => void;
   onFechar: () => void;
 }
 
-export default function ConvidadoModal({ convidado, grupos, onSalvar, onFechar }: ConvidadoModalProps) {
+export default function ConvidadoModal({ convidado, grupos, convidados, onSalvar, onFechar }: ConvidadoModalProps) {
   const [form, setForm] = useState({
     nmConvidado: convidado?.nmConvidado ?? "",
     nmGrupo: convidado?.nmGrupo ?? "",
@@ -25,7 +27,18 @@ export default function ConvidadoModal({ convidado, grupos, onSalvar, onFechar }
     nrAcompanhantes: String(convidado?.nrAcompanhantes ?? 0),
     nmMesa: convidado?.nmMesa ?? "",
   });
+  const [acompanhante, setAcompanhante] = useState(convidado?.idConvidadoPrincipal != null);
+  const [idPrincipal, setIdPrincipal] = useState(convidado?.idConvidadoPrincipal != null ? String(convidado.idConvidadoPrincipal) : "");
   const [erro, setErro] = useState<string | null>(null);
+
+  // Não dá para acompanhar a si mesmo nem alguém que já está ligado a ele (faria um círculo).
+  const opcoesPrincipal = useMemo(() => {
+    const fora = convidado ? descendentes(convidados, convidado.idConvidado) : new Set<number>();
+    return convidados
+      .filter(c => c.idConvidado !== convidado?.idConvidado && !fora.has(c.idConvidado))
+      .sort((a, b) => a.nmConvidado.localeCompare(b.nmConvidado, "pt-BR", { sensitivity: "base" }));
+  }, [convidados, convidado]);
+
   const alterar = (campo: keyof typeof form, valor: string) => setForm(f => ({ ...f, [campo]: valor }));
 
   const enviar = (e: FormEvent) => {
@@ -35,6 +48,7 @@ export default function ConvidadoModal({ convidado, grupos, onSalvar, onFechar }
     if (!Number.isInteger(acompanhantes) || acompanhantes < 0 || acompanhantes > 50) {
       return setErro("Acompanhantes deve ser um número inteiro entre 0 e 50.");
     }
+    if (acompanhante && idPrincipal === "") return setErro("Escolha de quem ele é acompanhante.");
     onSalvar({
       nmConvidado: form.nmConvidado.trim(),
       nmGrupo: form.nmGrupo.trim(),
@@ -43,6 +57,7 @@ export default function ConvidadoModal({ convidado, grupos, onSalvar, onFechar }
       nmStatus: form.nmStatus,
       nrAcompanhantes: acompanhantes,
       nmMesa: form.nmMesa.trim(),
+      idConvidadoPrincipal: acompanhante ? Number(idPrincipal) : null,
     });
     onFechar();
   };
@@ -62,6 +77,20 @@ export default function ConvidadoModal({ convidado, grupos, onSalvar, onFechar }
           <Campo rotulo="Relação">
             <input maxLength={80} value={form.nmRelacao} onChange={e => alterar("nmRelacao", e.target.value)} className={classeInput} />
           </Campo>
+        </div>
+        <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <input type="checkbox" checked={acompanhante} onChange={e => { setAcompanhante(e.target.checked); if (!e.target.checked) setIdPrincipal(""); }} className="h-4 w-4 accent-blue-600" />
+            É acompanhante de outro convidado
+          </label>
+          {acompanhante && (
+            <Campo rotulo="Acompanhante de quem?" dica={opcoesPrincipal.length === 0 ? "Cadastre antes o convidado principal." : undefined}>
+              <select value={idPrincipal} onChange={e => setIdPrincipal(e.target.value)} className={classeInput}>
+                <option value="">Selecione…</option>
+                {opcoesPrincipal.map(c => <option key={c.idConvidado} value={c.idConvidado}>{c.nmConvidado}{c.nmGrupo ? ` (${c.nmGrupo})` : ""}</option>)}
+              </select>
+            </Campo>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Campo rotulo="Telefone">

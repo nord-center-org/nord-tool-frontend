@@ -81,7 +81,7 @@ export default function PainelMes({ mes, destaque, ocupado, onExportar, onFechar
               className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-700 hover:text-white"><Download className="h-4 w-4" /></button>
           )}
           <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${mes.fechado ? "bg-slate-700 text-slate-200" : "bg-blue-500/20 text-blue-200"}`}>
-            {mes.fechado ? <><Lock className="h-3 w-3" /> Fechado</> : mes.estimado ? "Em projeção" : "Aberto"}
+            {mes.fechado ? <><Lock className="h-3 w-3" /> Fechado</> : mes.estimado ? "Em projeção" : "A fechar"}
           </span>
         </span>
       </header>

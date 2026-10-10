@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  avisoConferencia, caminho, cicloDaFatura, dadosDoGrafico, diaDoCiclo, ehEstimado, escalaBonita, linhasFechamento, mesesDoPainel, textoFolga,
+  avisoConferencia, caminho, cicloDaFatura, dadosDoGrafico, diaDoCiclo, ehEstimado, escalaBonita, linhasFechamento, mesCentralPadrao, mesesDoPainel, textoFolga,
   textoPrevistos, type AreaGrafico,
 } from './financeiroConta.ts';
 
@@ -20,7 +20,7 @@ test('o painel compara o mês anterior com o central', () => {
   assert.deepEqual(mesesDoPainel('2027-01'), { anterior: '2026-12', atual: '2027-01' });
 });
 
-test('lembrete da conferência: só do dia combinado em diante, com o anterior aberto e olhando o mês corrente', () => {
+test('lembrete da conferência: só do dia combinado em diante, com o mês a fechar aberto e visível', () => {
   const aberto = { fechado: false };
   assert.match(avisoConferencia('2026-10-08', 8, aberto, '2026-09', true) ?? '', /feche setembro de 2026/);
   assert.match(avisoConferencia('2026-10-20', 8, aberto, '2026-09', true) ?? '', /dia 8/);
@@ -40,18 +40,18 @@ test('textos da folga e dos previstos', () => {
   assert.equal(textoPrevistos(3), '3 lançamentos ainda previstos');
 });
 
-test('ciclo da fatura: do dia seguinte ao fechamento anterior até o fechamento do mês', () => {
-  assert.deepEqual(cicloDaFatura('2026-10', 8), { inicio: '2026-09-09', fim: '2026-10-08', dias: 30 });
+test('ciclo da fatura do mês M: do dia seguinte ao fechamento de M até o fechamento de M+1', () => {
+  assert.deepEqual(cicloDaFatura('2026-09', 8), { inicio: '2026-09-09', fim: '2026-10-08', dias: 30 });
   // 2032 é bissexto: 21/02 a 20/03 = 29 dias
-  assert.deepEqual(cicloDaFatura('2032-03', 20), { inicio: '2032-02-21', fim: '2032-03-20', dias: 29 });
-  // dia 31 em fevereiro vale o último dia; o ciclo começa em 01/02
-  assert.deepEqual(cicloDaFatura('2027-02', 31), { inicio: '2027-02-01', fim: '2027-02-28', dias: 28 });
+  assert.deepEqual(cicloDaFatura('2032-02', 20), { inicio: '2032-02-21', fim: '2032-03-20', dias: 29 });
+  // dia 31 em fevereiro vale o último dia; o ciclo de janeiro começa em 01/02
+  assert.deepEqual(cicloDaFatura('2027-01', 31), { inicio: '2027-02-01', fim: '2027-02-28', dias: 28 });
   // virada de ano
-  assert.deepEqual(cicloDaFatura('2027-01', 8), { inicio: '2026-12-09', fim: '2027-01-08', dias: 31 });
+  assert.deepEqual(cicloDaFatura('2026-12', 8), { inicio: '2026-12-09', fim: '2027-01-08', dias: 31 });
 });
 
 test('dia do ciclo conta a partir do primeiro dia', () => {
-  const c = cicloDaFatura('2026-10', 8);
+  const c = cicloDaFatura('2026-09', 8);
   assert.equal(diaDoCiclo(c, '2026-09-09'), 0);
   assert.equal(diaDoCiclo(c, '2026-09-24'), 15);
   assert.equal(diaDoCiclo(c, '2026-10-08'), 29);
@@ -69,7 +69,7 @@ test('escala com topo redondo e 4 divisões', () => {
 });
 
 test('gráfico: leituras viram pontos, a projeção fica no fechamento e fora do ciclo é ignorado', () => {
-  const ciclo = cicloDaFatura('2026-10', 8);
+  const ciclo = cicloDaFatura('2026-09', 8);
   const g = dadosDoGrafico([
     { dtLeitura: '24/09/2026', vlLeitura: 1200 },
     { dtLeitura: '12/09/2026', vlLeitura: 500 },
@@ -96,7 +96,7 @@ test('gráfico: leituras viram pontos, a projeção fica no fechamento e fora do
 });
 
 test('gráfico: sem projeção quando já está no valor final, quando não há leitura ou o ciclo acabou', () => {
-  const ciclo = cicloDaFatura('2026-10', 8);
+  const ciclo = cicloDaFatura('2026-09', 8);
   assert.equal(dadosDoGrafico([{ dtLeitura: '24/09/2026', vlLeitura: 1200 }], ciclo, 1200, AREA).projecao, null);
   assert.equal(dadosDoGrafico([{ dtLeitura: '24/09/2026', vlLeitura: 1200 }], ciclo, null, AREA).projecao, null);
   assert.equal(dadosDoGrafico([], ciclo, 2000, AREA).projecao, null);
@@ -129,4 +129,14 @@ test("planilha do fechamento: mês fechado e filtro de pessoa (sem saldo anterio
     entradas: [], saidas: [], totalEntradas: 0, totalSaidas: 0, saldoFinal: 0, metaSaldo: null,
   });
   assert.deepEqual(linhas.map(l => l.Item), ["Total de entradas", "Total de saídas", "Saldo final"]);
+});
+
+test('par padrão do dashboard: último fechado | mês a fechar (em outubro, agosto | setembro)', () => {
+  assert.equal(mesCentralPadrao('2026-10', false), '2026-09');
+  assert.deepEqual(mesesDoPainel(mesCentralPadrao('2026-10', false)), { anterior: '2026-08', atual: '2026-09' });
+  // setembro já fechado: o par passa a ser setembro | outubro (corrente em projeção)
+  assert.equal(mesCentralPadrao('2026-10', true), '2026-10');
+  assert.deepEqual(mesesDoPainel(mesCentralPadrao('2026-10', true)), { anterior: '2026-09', atual: '2026-10' });
+  // virada de ano
+  assert.equal(mesCentralPadrao('2027-01', false), '2026-12');
 });
