@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  COLUNAS_PLANILHA, descendentes, linhasPlanilha, linkWhatsapp, organizarEmFamilias, resumoPorGrupo, resumoPorMesa, totaisConvidados,
+  COLUNAS_PLANILHA, descendentes, linhasPlanilha, linkWhatsapp, organizarEmFamilias, papeisDoCortejo, qtNoCortejo, resumoPorGrupo, resumoPorMesa, totaisConvidados,
 } from './convidados.ts';
 
 const c = (nmGrupo: string | null, nmMesa: string | null, nmStatus: string, nrAcompanhantes: number) =>
@@ -75,4 +75,14 @@ test('família: descendentes de um convidado (para não oferecer como principal 
   assert.deepEqual([...descendentes(lista, 1)].sort(), [2, 3]);
   assert.deepEqual([...descendentes(lista, 3)], []);
   assert.deepEqual([...descendentes(lista, 4)], [5]);
+});
+
+test('cortejo: sugestões são os papéis padrão mais os já usados, sem repetir', () => {
+  const lista = papeisDoCortejo([{ nmCortejo: 'padrinho' }, { nmCortejo: 'Florista' }, { nmCortejo: ' florista ' }, { nmCortejo: null }, { nmCortejo: 'Pagem de alianças' }]);
+  assert.deepEqual(lista, ['Dama de honra', 'Daminha', 'Florista', 'Madrinha', 'Padrinho', 'Pagem de alianças', 'Pajem']);
+  assert.deepEqual(papeisDoCortejo([]).length, 5);
+});
+
+test('cortejo: conta só quem tem papel preenchido', () => {
+  assert.equal(qtNoCortejo([{ nmCortejo: 'Madrinha' }, { nmCortejo: null }, { nmCortejo: '  ' }, { nmCortejo: 'Pajem' }]), 2);
 });
