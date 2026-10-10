@@ -13,6 +13,10 @@ RUN npm install
 # Copia do projeto
 COPY . .
 
+# URL da API, obrigatória no build (vite.config.ts). No Railway, a variável do serviço chega aqui como build arg.
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
 # Gera build de produção
 RUN npm run build
 
