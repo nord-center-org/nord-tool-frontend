@@ -112,3 +112,62 @@ export function linhasPlanilha(itens: ConvidadoExportavel[]): Record<(typeof COL
     Mesa: c.nmMesa ?? "",
   }));
 }
+
+// ---------- família: convidados ligados em cascata ----------
+
+export interface ConvidadoLigavel {
+  idConvidado: number;
+  idConvidadoPrincipal: number | null;
+}
+
+export interface LinhaFamilia<T> {
+  item: T;
+  /** 0 = principal (ou sem o principal na lista); 1 = ligado a um principal; 2 = ligado a um ligado… */
+  nivel: number;
+  /** Tem principal, mas ele não está na lista (filtrado): a linha aparece solta, com o aviso de quem ela acompanha. */
+  principalForaDaLista: boolean;
+}
+
+/**
+ * Põe cada convidado logo abaixo de quem ele acompanha (em cascata), mantendo a ordem recebida entre irmãos.
+ * Quem acompanha alguém que não está na lista (filtro) aparece como principal, marcado com `principalForaDaLista`.
+ */
+export function organizarEmFamilias<T extends ConvidadoLigavel>(itens: T[]): LinhaFamilia<T>[] {
+  const ids = new Set(itens.map(i => i.idConvidado));
+  const filhos = new Map<number, T[]>();
+  const raizes: T[] = [];
+  for (const i of itens) {
+    const p = i.idConvidadoPrincipal;
+    if (p !== null && p !== i.idConvidado && ids.has(p)) filhos.set(p, [...(filhos.get(p) ?? []), i]);
+    else raizes.push(i);
+  }
+  const saida: LinhaFamilia<T>[] = [];
+  const vistos = new Set<number>();
+  const visitar = (i: T, nivel: number) => {
+    if (vistos.has(i.idConvidado)) return;
+    vistos.add(i.idConvidado);
+    saida.push({ item: i, nivel, principalForaDaLista: nivel === 0 && i.idConvidadoPrincipal !== null && !ids.has(i.idConvidadoPrincipal) });
+    for (const f of filhos.get(i.idConvidado) ?? []) visitar(f, nivel + 1);
+  };
+  for (const r of raizes) visitar(r, 0);
+  // Defesa: um círculo (que o backend recusa) não faz ninguém sumir da tela.
+  for (const i of itens) visitar(i, 0);
+  return saida;
+}
+
+/** Todos os que estão ligados, direta ou indiretamente, a `id` (não podem virar o principal dele: faria um círculo). */
+export function descendentes(itens: ConvidadoLigavel[], id: number): Set<number> {
+  const achados = new Set<number>();
+  let novos = [id];
+  while (novos.length > 0) {
+    const proximos: number[] = [];
+    for (const i of itens) {
+      if (i.idConvidadoPrincipal !== null && novos.includes(i.idConvidadoPrincipal) && !achados.has(i.idConvidado) && i.idConvidado !== id) {
+        achados.add(i.idConvidado);
+        proximos.push(i.idConvidado);
+      }
+    }
+    novos = proximos;
+  }
+  return achados;
+}

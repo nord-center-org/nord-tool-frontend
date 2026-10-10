@@ -158,6 +158,9 @@ export interface CasamentoConvidado {
   nmStatus: StatusConvidado;
   nrAcompanhantes: number;
   nmMesa: string | null;
+  /** Convidado que este acompanha (família); null se for principal. */
+  idConvidadoPrincipal: number | null;
+  nmConvidadoPrincipal: string | null;
 }
 
 export interface CasamentoMarco {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  COLUNAS_PLANILHA, linhasPlanilha, linkWhatsapp, resumoPorGrupo, resumoPorMesa, totaisConvidados,
+  COLUNAS_PLANILHA, descendentes, linhasPlanilha, linkWhatsapp, organizarEmFamilias, resumoPorGrupo, resumoPorMesa, totaisConvidados,
 } from './convidados.ts';
 
 const c = (nmGrupo: string | null, nmMesa: string | null, nmStatus: string, nrAcompanhantes: number) =>
@@ -47,4 +47,32 @@ test('linhas da planilha seguem o cabeçalho do importador e trocam o código pe
   assert.equal(linha.Status, 'Não irá');
   assert.equal(linha.Acompanhantes, 2);
   assert.equal(linha['Relação'], 'Prima');
+});
+
+test('família: cada ligado aparece logo abaixo de quem acompanha, em cascata', () => {
+  const l = (idConvidado: number, idConvidadoPrincipal: number | null) => ({ idConvidado, idConvidadoPrincipal });
+  // ordem recebida: Ana(1), Caio(3, de Bia), Bia(2, de Ana), Dora(4)
+  const linhas = organizarEmFamilias([l(1, null), l(3, 2), l(2, 1), l(4, null)]);
+  assert.deepEqual(linhas.map(x => [x.item.idConvidado, x.nivel]), [[1, 0], [2, 1], [3, 2], [4, 0]]);
+  assert.equal(linhas.some(x => x.principalForaDaLista), false);
+});
+
+test('família: ligado cujo principal foi filtrado aparece solto e marcado', () => {
+  const linhas = organizarEmFamilias([{ idConvidado: 2, idConvidadoPrincipal: 1 }, { idConvidado: 5, idConvidadoPrincipal: null }]);
+  assert.deepEqual(linhas.map(x => [x.item.idConvidado, x.nivel, x.principalForaDaLista]), [[2, 0, true], [5, 0, false]]);
+});
+
+test('família: irmãos mantêm a ordem recebida e um círculo não faz ninguém sumir', () => {
+  const l = (idConvidado: number, idConvidadoPrincipal: number | null) => ({ idConvidado, idConvidadoPrincipal });
+  assert.deepEqual(organizarEmFamilias([l(1, null), l(3, 1), l(2, 1)]).map(x => x.item.idConvidado), [1, 3, 2]);
+  const circulo = organizarEmFamilias([l(1, 2), l(2, 1)]);
+  assert.deepEqual(circulo.map(x => x.item.idConvidado).sort(), [1, 2]);
+});
+
+test('família: descendentes de um convidado (para não oferecer como principal dele)', () => {
+  const l = (idConvidado: number, idConvidadoPrincipal: number | null) => ({ idConvidado, idConvidadoPrincipal });
+  const lista = [l(1, null), l(2, 1), l(3, 2), l(4, null), l(5, 4)];
+  assert.deepEqual([...descendentes(lista, 1)].sort(), [2, 3]);
+  assert.deepEqual([...descendentes(lista, 3)], []);
+  assert.deepEqual([...descendentes(lista, 4)], [5]);
 });
