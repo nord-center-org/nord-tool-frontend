@@ -57,6 +57,8 @@ export default function App() {
             <Route path="gestao/caixinha" element={<CaixinhaPage />} />
             <Route path="gestao/davi-job" element={<DaviJobPage />} />
           </Route>
+          {/* URL inexistente: volta ao início (que leva ao login quando não há sessão) em vez de tela em branco */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </AuthProvider>
