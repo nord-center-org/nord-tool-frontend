@@ -30,6 +30,8 @@ export interface ConvidadoForm {
   nmStatus?: StatusConvidado;
   nrAcompanhantes?: number;
   nmMesa?: string;
+  /** Convidado que este acompanha; null = convidado principal (limpa a ligação). */
+  idConvidadoPrincipal?: number | null;
 }
 
 export interface MarcoForm {
