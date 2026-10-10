@@ -161,6 +161,8 @@ export interface CasamentoConvidado {
   /** Convidado que este acompanha (família); null se for principal. */
   idConvidadoPrincipal: number | null;
   nmConvidadoPrincipal: string | null;
+  /** Papel no cortejo nupcial (padrinho, madrinha, daminha...); null = não faz parte. */
+  nmCortejo: string | null;
 }
 
 export interface CasamentoMarco {

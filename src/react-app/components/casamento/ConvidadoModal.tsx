@@ -4,7 +4,7 @@ import type { CasamentoConvidado, StatusConvidado } from "@/shared/types";
 import Campo, { classeInput } from "@/react-app/components/casamento/Campo";
 import ModalBase from "@/react-app/components/casamento/ModalBase";
 import type { ConvidadoForm } from "@/react-app/services/CasamentoService";
-import { ROTULO_STATUS_CONVIDADO, descendentes } from "@/react-app/utils/convidados";
+import { ROTULO_STATUS_CONVIDADO, descendentes, papeisDoCortejo } from "@/react-app/utils/convidados";
 
 interface ConvidadoModalProps {
   /** Ausente = novo convidado. */
@@ -26,6 +26,7 @@ export default function ConvidadoModal({ convidado, grupos, convidados, onSalvar
     nmStatus: (convidado?.nmStatus ?? "NAO_CONVIDADO") as StatusConvidado,
     nrAcompanhantes: String(convidado?.nrAcompanhantes ?? 0),
     nmMesa: convidado?.nmMesa ?? "",
+    nmCortejo: convidado?.nmCortejo ?? "",
   });
   const [acompanhante, setAcompanhante] = useState(convidado?.idConvidadoPrincipal != null);
   const [idPrincipal, setIdPrincipal] = useState(convidado?.idConvidadoPrincipal != null ? String(convidado.idConvidadoPrincipal) : "");
@@ -39,6 +40,7 @@ export default function ConvidadoModal({ convidado, grupos, convidados, onSalvar
       .sort((a, b) => a.nmConvidado.localeCompare(b.nmConvidado, "pt-BR", { sensitivity: "base" }));
   }, [convidados, convidado]);
 
+  const papeis = useMemo(() => papeisDoCortejo(convidados), [convidados]);
   const alterar = (campo: keyof typeof form, valor: string) => setForm(f => ({ ...f, [campo]: valor }));
 
   const enviar = (e: FormEvent) => {
@@ -58,6 +60,7 @@ export default function ConvidadoModal({ convidado, grupos, convidados, onSalvar
       nrAcompanhantes: acompanhantes,
       nmMesa: form.nmMesa.trim(),
       idConvidadoPrincipal: acompanhante ? Number(idPrincipal) : null,
+      nmCortejo: form.nmCortejo.trim(),
     });
     onFechar();
   };
@@ -110,6 +113,10 @@ export default function ConvidadoModal({ convidado, grupos, convidados, onSalvar
             <input maxLength={40} value={form.nmMesa} onChange={e => alterar("nmMesa", e.target.value)} placeholder="Ex.: 3" className={classeInput} />
           </Campo>
         </div>
+        <Campo rotulo="Cortejo nupcial" dica="Se faz parte do cortejo: padrinho, madrinha, daminha… Deixe vazio se não faz.">
+          <input list="papeis-cortejo" maxLength={40} value={form.nmCortejo} onChange={e => alterar("nmCortejo", e.target.value)} placeholder="Ex.: Madrinha" className={classeInput} />
+          <datalist id="papeis-cortejo">{papeis.map(p => <option key={p} value={p} />)}</datalist>
+        </Campo>
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onFechar} className="rounded-xl px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100">Cancelar</button>
           <button type="submit" className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">Salvar</button>

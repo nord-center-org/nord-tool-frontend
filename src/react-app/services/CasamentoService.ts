@@ -32,6 +32,8 @@ export interface ConvidadoForm {
   nmMesa?: string;
   /** Convidado que este acompanha; null = convidado principal (limpa a ligação). */
   idConvidadoPrincipal?: number | null;
+  /** Papel no cortejo nupcial; vazio = não faz parte. */
+  nmCortejo?: string;
 }
 
 export interface MarcoForm {
