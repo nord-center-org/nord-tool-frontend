@@ -19,7 +19,8 @@ export interface ConvidadoBasico {
   nrAcompanhantes: number;
 }
 
-const pessoas = (c: ConvidadoBasico) => 1 + (c.nrAcompanhantes || 0);
+/** Cada convidado é uma pessoa: os acompanhantes são cadastrados como convidados (ligados a outro), então o número de acompanhantes sem cadastro não entra nos indicadores. */
+const PESSOAS_POR_CONVIDADO = 1;
 const rotuloOu = (valor: string | null, padrao: string) => (valor && valor.trim() ? valor.trim() : padrao);
 
 export interface ResumoGrupo {
@@ -37,19 +38,19 @@ export interface ResumoMesa {
 export interface TotaisConvidados {
   qtConvidados: number;
   qtConfirmados: number;
-  /** Convidados + acompanhantes, qualquer status. */
+  /** Pessoas cadastradas, qualquer status (acompanhantes são convidados ligados). */
   qtPessoas: number;
-  /** Convidados confirmados + seus acompanhantes. */
+  /** Pessoas confirmadas. */
   qtPessoasConfirmadas: number;
 }
 
 export function totaisConvidados(itens: ConvidadoBasico[]): TotaisConvidados {
   let qtConfirmados = 0, qtPessoas = 0, qtPessoasConfirmadas = 0;
   for (const c of itens) {
-    qtPessoas += pessoas(c);
+    qtPessoas += PESSOAS_POR_CONVIDADO;
     if (c.nmStatus === "CONFIRMADO") {
       qtConfirmados += 1;
-      qtPessoasConfirmadas += pessoas(c);
+      qtPessoasConfirmadas += PESSOAS_POR_CONVIDADO;
     }
   }
   return { qtConvidados: itens.length, qtConfirmados, qtPessoas, qtPessoasConfirmadas };
@@ -64,7 +65,7 @@ export function resumoPorGrupo(itens: ConvidadoBasico[]): ResumoGrupo[] {
     const grupo = rotuloOu(c.nmGrupo, SEM_GRUPO);
     const atual = mapa.get(grupo) ?? { grupo, qtConvidados: 0, qtConfirmados: 0, qtPessoas: 0 };
     atual.qtConvidados += 1;
-    atual.qtPessoas += pessoas(c);
+    atual.qtPessoas += PESSOAS_POR_CONVIDADO;
     if (c.nmStatus === "CONFIRMADO") atual.qtConfirmados += 1;
     mapa.set(grupo, atual);
   }
@@ -77,7 +78,7 @@ export function resumoPorMesa(itens: ConvidadoBasico[]): ResumoMesa[] {
   const mapa = new Map<string, number>();
   for (const c of itens) {
     const mesa = rotuloOu(c.nmMesa, SEM_MESA);
-    mapa.set(mesa, (mapa.get(mesa) ?? 0) + pessoas(c));
+    mapa.set(mesa, (mapa.get(mesa) ?? 0) + PESSOAS_POR_CONVIDADO);
   }
   return [...mapa.entries()]
     .map(([mesa, qtPessoas]) => ({ mesa, qtPessoas }))
@@ -191,4 +192,60 @@ export function papeisDoCortejo(itens: { nmCortejo: string | null }[]): string[]
 /** Quantos convidados fazem parte do cortejo. */
 export function qtNoCortejo(itens: { nmCortejo: string | null }[]): number {
   return itens.filter(i => (i.nmCortejo ?? "").trim() !== "").length;
+}
+
+// ---------- busca ----------
+
+const semAcento = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+
+export interface ConvidadoPesquisavel {
+  nmConvidado: string;
+  nmGrupo: string | null;
+  nrTelefone: string | null;
+  nmRelacao: string | null;
+  nmMesa: string | null;
+  nmCortejo: string | null;
+  nmConvidadoPrincipal: string | null;
+}
+
+/**
+ * Busca por texto, sem diferenciar maiúsculas nem acentos: todas as palavras digitadas precisam aparecer
+ * no nome, grupo, telefone (com ou sem formatação), relação, mesa, cortejo ou no nome de quem ele acompanha.
+ */
+export function filtrarPorBusca<T extends ConvidadoPesquisavel>(itens: T[], termo: string): T[] {
+  const palavras = semAcento(termo).split(/\s+/).filter(Boolean);
+  if (palavras.length === 0) return itens;
+  return itens.filter(c => {
+    const telefone = c.nrTelefone ?? "";
+    const texto = semAcento([c.nmConvidado, c.nmGrupo, telefone, telefone.replace(/\D/g, ""), c.nmRelacao, c.nmMesa, c.nmCortejo, c.nmConvidadoPrincipal]
+      .filter(Boolean).join(" "));
+    return palavras.every(p => texto.includes(p));
+  });
+}
+
+/** Para cada linha principal (nível 0) da cascata: quantos ligados vêm logo abaixo dela. */
+export function contarLigadosAbaixo<T>(linhas: { item: T; nivel: number }[]): Map<T, number> {
+  const contagem = new Map<T, number>();
+  let raiz: T | null = null;
+  for (const l of linhas) {
+    if (l.nivel === 0) {
+      raiz = l.item;
+      contagem.set(raiz, 0);
+    } else if (raiz !== null) {
+      contagem.set(raiz, (contagem.get(raiz) ?? 0) + 1);
+    }
+  }
+  return contagem;
+}
+
+// ---------- ações em massa ----------
+
+/**
+ * Convidados que podem ser o principal de todos os selecionados: não pode ser um dos selecionados
+ * nem alguém ligado a eles (ligar um selecionado a um descendente dele fecharia um círculo).
+ */
+export function opcoesPrincipalEmMassa<T extends ConvidadoLigavel>(todos: T[], idsSelecionados: number[]): T[] {
+  const proibidos = new Set<number>(idsSelecionados);
+  for (const id of idsSelecionados) for (const d of descendentes(todos, id)) proibidos.add(d);
+  return todos.filter(c => !proibidos.has(c.idConvidado));
 }
