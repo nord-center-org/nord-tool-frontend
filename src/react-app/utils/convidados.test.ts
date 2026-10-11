@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  COLUNAS_PLANILHA, descendentes, linhasPlanilha, linkWhatsapp, organizarEmFamilias, contarLigadosAbaixo, filtrarPorBusca, opcoesPrincipalEmMassa, papeisDoCortejo, qtNoCortejo, resumoPorGrupo, resumoPorMesa, totaisConvidados,
+  COLUNAS_PLANILHA, descendentes, linhasPlanilha, linkWhatsapp, organizarEmFamilias, filtrarPorBusca, opcoesPrincipalEmMassa, papeisDoCortejo, qtNoCortejo, resumirCascata, resumoPorGrupo, resumoPorMesa, totaisConvidados,
 } from './convidados.ts';
 
 const c = (nmGrupo: string | null, nmMesa: string | null, nmStatus: string, nrAcompanhantes: number) =>
@@ -111,14 +111,6 @@ test('busca: acha por telefone com ou sem formatação, mesa, cortejo, relação
   assert.deepEqual(filtrarPorBusca(lista, 'bia').map(x => x.nmConvidado), ['Bia', 'Caio']); // Caio acompanha a Bia
 });
 
-test('cascata oculta: conta quantos ligados vêm abaixo de cada principal', () => {
-  const a = { id: 1 }, b = { id: 2 }, c2 = { id: 3 }, d = { id: 4 };
-  const contagem = contarLigadosAbaixo([{ item: a, nivel: 0 }, { item: b, nivel: 1 }, { item: c2, nivel: 2 }, { item: d, nivel: 0 }]);
-  assert.equal(contagem.get(a), 2);
-  assert.equal(contagem.get(d), 0);
-  assert.equal(contagem.has(b), false);
-});
-
 test('ações em massa: o principal não pode ser selecionado nem ligado a um selecionado', () => {
   const l = (idConvidado: number, idConvidadoPrincipal: number | null) => ({ idConvidado, idConvidadoPrincipal });
   // 1 <- 2 <- 3 ; 4 solto ; 5 solto
@@ -127,4 +119,18 @@ test('ações em massa: o principal não pode ser selecionado nem ligado a um se
   assert.deepEqual(opcoesPrincipalEmMassa(todos, [1]).map(x => x.idConvidado), [4, 5]); // 2 e 3 descendem do 1
   assert.deepEqual(opcoesPrincipalEmMassa(todos, [2, 5]).map(x => x.idConvidado), [1, 4]);
   assert.deepEqual(opcoesPrincipalEmMassa(todos, []).length, 5);
+});
+
+test('cascata por linha: recolher um convidado esconde só o que vem embaixo dele', () => {
+  const l = (idConvidado: number, nivel: number) => ({ item: { idConvidado }, nivel });
+  // 1 (2 (3)) , 4 (5)
+  const linhas = [l(1, 0), l(2, 1), l(3, 2), l(4, 0), l(5, 1)];
+  const ids = (r: { visiveis: { item: { idConvidado: number } }[] }) => r.visiveis.map(x => x.item.idConvidado);
+  const nenhum = resumirCascata(linhas, new Set());
+  assert.deepEqual(ids(nenhum), [1, 2, 3, 4, 5]);
+  assert.deepEqual([...nenhum.abaixo.entries()], [[1, 2], [2, 1], [3, 0], [4, 1], [5, 0]]);
+  assert.deepEqual(ids(resumirCascata(linhas, new Set([1]))), [1, 4, 5]); // esconde 2 e 3 (todos os níveis)
+  assert.deepEqual(ids(resumirCascata(linhas, new Set([2]))), [1, 2, 4, 5]); // só o ramo do 2
+  assert.deepEqual(ids(resumirCascata(linhas, new Set([1, 4]))), [1, 4]);
+  assert.deepEqual(ids(resumirCascata(linhas, new Set([3, 5]))), [1, 2, 3, 4, 5]); // quem não tem ligados não esconde nada
 });
