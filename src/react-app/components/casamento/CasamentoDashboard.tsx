@@ -159,7 +159,7 @@ export default function CasamentoDashboard({ sync }: CasamentoDashboardProps) {
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-slate-400"><Users className="h-4 w-4" /> Convidados</div>
           <p className="text-3xl font-black text-slate-800">{dados.qtConvidadosConfirmados}<span className="text-lg font-bold text-slate-400"> / {dados.qtConvidados}</span></p>
-          <p className="mt-1 text-sm text-slate-500">confirmados na lista · <strong className="text-slate-700">{dados.qtPessoasConfirmadas}</strong> pessoas com acompanhantes</p>
+          <p className="mt-1 text-sm text-slate-500">confirmados na lista</p>
         </article>
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase text-slate-400"><Wallet className="h-4 w-4" /> Valor contratado</div>
