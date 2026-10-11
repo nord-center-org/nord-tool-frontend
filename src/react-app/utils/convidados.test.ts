@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  COLUNAS_PLANILHA, descendentes, linhasPlanilha, linkWhatsapp, organizarEmFamilias, filtrarPorBusca, opcoesPrincipalEmMassa, papeisDoCortejo, qtNoCortejo, resumirCascata, resumoPorGrupo, resumoPorMesa, totaisConvidados,
+  COLUNAS_PLANILHA, descendentes, linhasPlanilha, linkWhatsapp, organizarEmFamilias, filtrarPorBusca, gruposEfetivos, opcoesPrincipalEmMassa, papeisDoCortejo, qtNoCortejo, resumirCascata, resumoPorGrupo, resumoPorMesa, totaisConvidados,
 } from './convidados.ts';
 
 const c = (nmGrupo: string | null, nmMesa: string | null, nmStatus: string, nrAcompanhantes: number) =>
@@ -133,4 +133,22 @@ test('cascata por linha: recolher um convidado esconde só o que vem embaixo del
   assert.deepEqual(ids(resumirCascata(linhas, new Set([2]))), [1, 2, 4, 5]); // só o ramo do 2
   assert.deepEqual(ids(resumirCascata(linhas, new Set([1, 4]))), [1, 4]);
   assert.deepEqual(ids(resumirCascata(linhas, new Set([3, 5]))), [1, 2, 3, 4, 5]); // quem não tem ligados não esconde nada
+});
+
+test('grupo da família: o acompanhante conta no grupo de quem ele acompanha (do topo da cascata)', () => {
+  const l = (idConvidado: number, idConvidadoPrincipal: number | null, nmGrupo: string | null) => ({ idConvidado, idConvidadoPrincipal, nmGrupo });
+  // Ana (Família) <- Bia (Agregados) <- Caio (Agregados); Dora (Agregados) sem principal; Eva (sem grupo) <- Fabi (Amigos)
+  const mapa = gruposEfetivos([l(1, null, 'Família'), l(2, 1, 'Agregados'), l(3, 2, 'Agregados'), l(4, null, 'Agregados'), l(5, null, null), l(6, 5, 'Amigos')]);
+  assert.equal(mapa.get(1), 'Família');
+  assert.equal(mapa.get(2), 'Família');
+  assert.equal(mapa.get(3), 'Família');
+  assert.equal(mapa.get(4), 'Agregados'); // sem principal, vale o próprio grupo
+  assert.equal(mapa.get(5), 'Sem grupo');
+  assert.equal(mapa.get(6), 'Sem grupo'); // o principal manda, mesmo sem grupo
+});
+
+test('grupo da família: ligação circular não trava e principal inexistente vale o próprio grupo', () => {
+  const l = (idConvidado: number, idConvidadoPrincipal: number | null, nmGrupo: string | null) => ({ idConvidado, idConvidadoPrincipal, nmGrupo });
+  assert.equal(gruposEfetivos([l(1, 2, 'A'), l(2, 1, 'B')]).size, 2);
+  assert.equal(gruposEfetivos([l(1, 99, 'A')]).get(1), 'A');
 });
