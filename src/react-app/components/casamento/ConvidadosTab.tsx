@@ -10,7 +10,7 @@ import { useFiltrosColuna } from "@/react-app/hooks/useFiltrosColuna";
 import type { Sincronizacao } from "@/react-app/hooks/useSincronizacao";
 import { casamentoService, type ConvidadoForm } from "@/react-app/services/CasamentoService";
 import {
-  COLUNAS_PLANILHA, ROTULO_STATUS_CONVIDADO, SEM_GRUPO, SEM_MESA, filtrarPorBusca, linhasPlanilha, linkWhatsapp,
+  COLUNAS_PLANILHA, ROTULO_STATUS_CONVIDADO, SEM_GRUPO, SEM_MESA, filtrarPorBusca, gruposEfetivos, linhasPlanilha, linkWhatsapp,
   organizarEmFamilias, resumirCascata, resumoPorGrupo, resumoPorMesa, totaisConvidados,
 } from "@/react-app/utils/convidados";
 import { aplicarFiltrosColuna, valoresUnicos, type ColunasFiltro } from "@/react-app/utils/filtroColuna";
@@ -18,15 +18,15 @@ import { executarEmLotes } from "@/react-app/utils/movimentacaoMassa";
 
 type Coluna = "nome" | "grupo" | "telefone" | "relacao" | "cortejo" | "status" | "mesa";
 
-const COLUNAS: ColunasFiltro<CasamentoConvidado, Coluna> = {
+const colunasDaTabela = (grupoPorId: Map<number, string>): ColunasFiltro<CasamentoConvidado, Coluna> => ({
   nome: { valor: c => c.nmConvidado },
-  grupo: { valor: c => c.nmGrupo ?? SEM_GRUPO },
+  grupo: { valor: c => grupoPorId.get(c.idConvidado) ?? SEM_GRUPO },
   telefone: { valor: c => c.nrTelefone },
   relacao: { valor: c => c.nmRelacao },
   cortejo: { valor: c => c.nmCortejo },
   status: { valor: c => ROTULO_STATUS_CONVIDADO[c.nmStatus] },
   mesa: { valor: c => c.nmMesa ?? SEM_MESA },
-};
+});
 
 const COR_STATUS: Record<StatusConvidado, string> = {
   NAO_CONVIDADO: "bg-slate-100 text-slate-600",
@@ -96,10 +96,14 @@ export default function ConvidadosTab({ sync }: { sync: Sincronizacao }) {
     setSelecionados(atual => { const ids = new Set(itens.map(c => c.idConvidado)); const resto = atual.filter(id => ids.has(id)); return resto.length === atual.length ? atual : resto; });
   }, [itens]);
 
+  // Quem acompanha alguém conta no grupo de quem ele acompanha (não existe grupo só de acompanhantes).
+  const grupoPorId = useMemo(() => gruposEfetivos(itens), [itens]);
+  const COLUNAS = useMemo(() => colunasDaTabela(grupoPorId), [grupoPorId]);
+
   // Filtros por coluna e depois a busca por texto (nome, grupo, telefone, mesa, cortejo...).
   const visiveis = useMemo(
     () => filtrarPorBusca(aplicarFiltrosColuna(itens, COLUNAS, filtros, ordenacao), busca),
-    [itens, filtros, ordenacao, busca],
+    [itens, COLUNAS, filtros, ordenacao, busca],
   );
   // Cada ligado fica logo abaixo de quem acompanha (cascata), respeitando filtros e ordenação.
   const linhasCompletas = useMemo(() => organizarEmFamilias(visiveis), [visiveis]);
@@ -146,7 +150,10 @@ export default function ConvidadosTab({ sync }: { sync: Sincronizacao }) {
     });
   };
   const totais = useMemo(() => totaisConvidados(itens), [itens]);
-  const porGrupo = useMemo(() => resumoPorGrupo(itens), [itens]);
+  const porGrupo = useMemo(
+    () => resumoPorGrupo(itens.map(c => ({ ...c, nmGrupo: grupoPorId.get(c.idConvidado) === SEM_GRUPO ? null : grupoPorId.get(c.idConvidado) ?? null }))),
+    [itens, grupoPorId],
+  );
   const porMesa = useMemo(() => resumoPorMesa(itens), [itens]);
   const grupos = useMemo(() => porGrupo.map(g => g.grupo).filter(g => g !== SEM_GRUPO), [porGrupo]);
   const filtrosAtivos = Object.keys(filtros).length > 0;
@@ -390,7 +397,9 @@ export default function ConvidadosTab({ sync }: { sync: Sincronizacao }) {
                     </span>
                     {principalForaDaLista && c.nmConvidadoPrincipal && <span className="block pl-0 text-xs font-normal text-slate-400">acompanha {c.nmConvidadoPrincipal}</span>}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{c.nmGrupo || "—"}</td>
+                  <td className="px-4 py-3 text-slate-600" title={c.idConvidadoPrincipal !== null && c.nmGrupo && c.nmGrupo !== grupoPorId.get(c.idConvidado) ? `Conta no grupo de quem acompanha (grupo cadastrado: ${c.nmGrupo})` : undefined}>
+                    {grupoPorId.get(c.idConvidado) === SEM_GRUPO ? "—" : grupoPorId.get(c.idConvidado)}
+                  </td>
                   <td className="px-4 py-3 text-slate-600">
                     {c.nrTelefone || "—"}
                     {whats && <a href={whats} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp de ${c.nmConvidado}`} title="Abrir no WhatsApp" className="ml-2 inline-flex align-middle text-green-600 hover:text-green-700"><MessageCircle className="h-4 w-4" /></a>}

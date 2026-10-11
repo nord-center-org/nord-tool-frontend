@@ -260,3 +260,23 @@ export function opcoesPrincipalEmMassa<T extends ConvidadoLigavel>(todos: T[], i
   for (const id of idsSelecionados) for (const d of descendentes(todos, id)) proibidos.add(d);
   return todos.filter(c => !proibidos.has(c.idConvidado));
 }
+
+// ---------- grupo da família ----------
+
+/**
+ * Grupo de cada convidado para cards, filtro e coluna: quem acompanha alguém conta no grupo de quem ele acompanha
+ * (do principal no topo da cascata), então não surge um grupo à parte só para os acompanhantes ("Agregados").
+ * O grupo gravado no cadastro do acompanhante não é alterado, só deixa de valer nesses lugares.
+ */
+export function gruposEfetivos(itens: (ConvidadoLigavel & { nmGrupo: string | null })[]): Map<number, string> {
+  const porId = new Map(itens.map(i => [i.idConvidado, i]));
+  const resultado = new Map<number, string>();
+  for (const i of itens) {
+    let atual = i;
+    for (let passos = 0; atual.idConvidadoPrincipal !== null && porId.has(atual.idConvidadoPrincipal) && passos < 50; passos++) {
+      atual = porId.get(atual.idConvidadoPrincipal) as typeof i;
+    }
+    resultado.set(i.idConvidado, rotuloOu(atual.nmGrupo, SEM_GRUPO));
+  }
+  return resultado;
+}
