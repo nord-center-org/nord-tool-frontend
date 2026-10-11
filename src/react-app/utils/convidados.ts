@@ -223,19 +223,30 @@ export function filtrarPorBusca<T extends ConvidadoPesquisavel>(itens: T[], term
   });
 }
 
-/** Para cada linha principal (nível 0) da cascata: quantos ligados vêm logo abaixo dela. */
-export function contarLigadosAbaixo<T>(linhas: { item: T; nivel: number }[]): Map<T, number> {
-  const contagem = new Map<T, number>();
-  let raiz: T | null = null;
-  for (const l of linhas) {
-    if (l.nivel === 0) {
-      raiz = l.item;
-      contagem.set(raiz, 0);
-    } else if (raiz !== null) {
-      contagem.set(raiz, (contagem.get(raiz) ?? 0) + 1);
-    }
+/**
+ * Recolhe a cascata linha a linha: quem está em `recolhidos` esconde tudo o que vem embaixo dele (todos os níveis).
+ * `abaixo` diz quantos ligados cada convidado tem logo abaixo (para mostrar a setinha e o "+N").
+ */
+export function resumirCascata<L extends { item: { idConvidado: number }; nivel: number }>(
+  linhas: L[], recolhidos: Set<number>,
+): { visiveis: L[]; abaixo: Map<number, number> } {
+  const abaixo = new Map<number, number>();
+  for (let i = 0; i < linhas.length; i++) {
+    let n = 0;
+    for (let j = i + 1; j < linhas.length && linhas[j].nivel > linhas[i].nivel; j++) n++;
+    abaixo.set(linhas[i].item.idConvidado, n);
   }
-  return contagem;
+  const visiveis: L[] = [];
+  let corte: number | null = null;
+  for (const l of linhas) {
+    if (corte !== null) {
+      if (l.nivel > corte) continue;
+      corte = null;
+    }
+    visiveis.push(l);
+    if (recolhidos.has(l.item.idConvidado) && (abaixo.get(l.item.idConvidado) ?? 0) > 0) corte = l.nivel;
+  }
+  return { visiveis, abaixo };
 }
 
 // ---------- ações em massa ----------

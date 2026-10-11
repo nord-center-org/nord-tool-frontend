@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronsDownUp, ChevronsUpDown, CornerDownRight, Download, FileSpreadsheet, Loader2, MessageCircle, Pencil, Plus, Search, Sparkles, Trash2, Upload, X } from "lucide-react";
+import { ChevronDown, ChevronRight, CornerDownRight, Download, FileSpreadsheet, Loader2, MessageCircle, Pencil, Plus, Search, Sparkles, Trash2, Upload, X } from "lucide-react";
 import * as XLSX from "xlsx";
 
 import type { CasamentoConvidado, ImportacaoConvidados, StatusConvidado } from "@/shared/types";
@@ -10,8 +10,8 @@ import { useFiltrosColuna } from "@/react-app/hooks/useFiltrosColuna";
 import type { Sincronizacao } from "@/react-app/hooks/useSincronizacao";
 import { casamentoService, type ConvidadoForm } from "@/react-app/services/CasamentoService";
 import {
-  COLUNAS_PLANILHA, ROTULO_STATUS_CONVIDADO, SEM_GRUPO, SEM_MESA, contarLigadosAbaixo, filtrarPorBusca, linhasPlanilha, linkWhatsapp,
-  organizarEmFamilias, resumoPorGrupo, resumoPorMesa, totaisConvidados,
+  COLUNAS_PLANILHA, ROTULO_STATUS_CONVIDADO, SEM_GRUPO, SEM_MESA, filtrarPorBusca, linhasPlanilha, linkWhatsapp,
+  organizarEmFamilias, resumirCascata, resumoPorGrupo, resumoPorMesa, totaisConvidados,
 } from "@/react-app/utils/convidados";
 import { aplicarFiltrosColuna, valoresUnicos, type ColunasFiltro } from "@/react-app/utils/filtroColuna";
 import { executarEmLotes } from "@/react-app/utils/movimentacaoMassa";
@@ -35,13 +35,15 @@ const COR_STATUS: Record<StatusConvidado, string> = {
   NAO_IRA: "bg-red-100 text-red-700",
 };
 
-const CASCATA_OCULTA = "@NordTool:casamento_ocultar_cascata";
+const CASCATA_RECOLHIDA = "@NordTool:casamento_cascata_recolhida";
 
-function lerCascataOculta(): boolean {
+/** Convidados cuja cascata o usuário recolheu (lembrado no navegador). */
+function lerRecolhidos(): number[] {
   try {
-    return localStorage.getItem(CASCATA_OCULTA) === "1";
+    const lista = JSON.parse(localStorage.getItem(CASCATA_RECOLHIDA) ?? "[]");
+    return Array.isArray(lista) ? lista.filter((x): x is number => typeof x === "number") : [];
   } catch {
-    return false;
+    return [];
   }
 }
 
@@ -67,7 +69,7 @@ export default function ConvidadosTab({ sync }: { sync: Sincronizacao }) {
   const [massaOcupada, setMassaOcupada] = useState(false);
   const [avisoMassa, setAvisoMassa] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
-  const [ocultarCascata, setOcultarCascata] = useState(lerCascataOculta);
+  const [recolhidos, setRecolhidos] = useState<number[]>(lerRecolhidos);
   const [menuAberto, setMenuAberto] = useState(false);
   const [importando, setImportando] = useState(false);
   const [relatorio, setRelatorio] = useState<ImportacaoConvidados | null>(null);
@@ -101,11 +103,11 @@ export default function ConvidadosTab({ sync }: { sync: Sincronizacao }) {
   );
   // Cada ligado fica logo abaixo de quem acompanha (cascata), respeitando filtros e ordenação.
   const linhasCompletas = useMemo(() => organizarEmFamilias(visiveis), [visiveis]);
-  const temLigados = useMemo(() => itens.some(c => c.idConvidadoPrincipal !== null), [itens]);
-  // Com a cascata oculta só aparecem os principais; ao buscar, tudo o que casa aparece (senão um ligado achado ficaria escondido).
-  const escondendo = ocultarCascata && busca.trim() === "";
-  const linhas = useMemo(() => (escondendo ? linhasCompletas.filter(l => l.nivel === 0) : linhasCompletas), [linhasCompletas, escondendo]);
-  const ligadosAbaixo = useMemo(() => contarLigadosAbaixo(linhasCompletas), [linhasCompletas]);
+  // Cada convidado com acompanhantes tem uma setinha na própria linha para recolher/mostrar a sua cascata.
+  // Ao buscar, tudo o que a busca encontra aparece (senão um ligado achado ficaria escondido).
+  const emBusca = busca.trim() !== "";
+  const cascata = useMemo(() => resumirCascata(linhasCompletas, emBusca ? new Set<number>() : new Set(recolhidos)), [linhasCompletas, recolhidos, emBusca]);
+  const linhas = cascata.visiveis;
   const selecionadosItens = useMemo(() => itens.filter(c => selecionados.includes(c.idConvidado)), [itens, selecionados]);
   const idsVisiveis = useMemo(() => linhas.map(l => l.item.idConvidado), [linhas]);
   const todosMarcados = idsVisiveis.length > 0 && idsVisiveis.every(id => selecionados.includes(id));
@@ -136,10 +138,11 @@ export default function ConvidadosTab({ sync }: { sync: Sincronizacao }) {
     });
   };
 
-  const alternarCascata = () => {
-    setOcultarCascata(v => {
-      try { localStorage.setItem(CASCATA_OCULTA, v ? "0" : "1"); } catch { /* sem armazenamento: segue sem lembrar */ }
-      return !v;
+  const alternarRecolhido = (id: number) => {
+    setRecolhidos(atual => {
+      const proximo = atual.includes(id) ? atual.filter(x => x !== id) : [...atual, id];
+      try { localStorage.setItem(CASCATA_RECOLHIDA, JSON.stringify(proximo)); } catch { /* sem armazenamento: segue sem lembrar */ }
+      return proximo;
     });
   };
   const totais = useMemo(() => totaisConvidados(itens), [itens]);
@@ -291,18 +294,11 @@ export default function ConvidadosTab({ sync }: { sync: Sincronizacao }) {
           </div>
           <div className="text-sm text-slate-500">
             {visiveis.length} de {itens.length} convidados
-            {escondendo && linhasCompletas.length > linhas.length && <span className="ml-1 text-xs text-slate-400">({linhasCompletas.length - linhas.length} na cascata oculta)</span>}
+            {linhasCompletas.length > linhas.length && <span className="ml-1 text-xs text-slate-400">({linhasCompletas.length - linhas.length} recolhido(s))</span>}
             {(filtrosAtivos || busca) && <button type="button" onClick={() => { limpar(); setBusca(""); }} className="ml-3 text-xs font-bold text-blue-600 hover:underline">Limpar filtros</button>}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {temLigados && (
-            <button type="button" onClick={alternarCascata} aria-pressed={ocultarCascata}
-              title={ocultarCascata ? "Mostrar os acompanhantes embaixo de cada convidado" : "Mostrar só os convidados principais (a busca sempre mostra tudo o que encontra)"}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50">
-              {ocultarCascata ? <ChevronsUpDown className="h-4 w-4" /> : <ChevronsDownUp className="h-4 w-4" />} {ocultarCascata ? "Mostrar cascata" : "Ocultar cascata"}
-            </button>
-          )}
           <div className="relative">
             <input ref={inputArquivo} type="file" accept=".xlsx" hidden onChange={e => void importar(e.target.files?.[0])} />
             <button type="button" aria-haspopup="menu" aria-expanded={menuAberto} onClick={() => setMenuAberto(a => !a)} disabled={importando}
@@ -379,9 +375,17 @@ export default function ConvidadosTab({ sync }: { sync: Sincronizacao }) {
                   <td className="px-4 py-3 font-semibold text-slate-700">
                     <span className="inline-flex items-center gap-1.5" style={{ paddingLeft: `${nivel * 1.25}rem` }}>
                       {nivel > 0 && <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-slate-300" aria-label="Acompanhante" />}
+                      {!emBusca && (cascata.abaixo.get(c.idConvidado) ?? 0) > 0 && (
+                        <button type="button" onClick={() => alternarRecolhido(c.idConvidado)} aria-expanded={!recolhidos.includes(c.idConvidado)}
+                          aria-label={`${recolhidos.includes(c.idConvidado) ? "Mostrar" : "Ocultar"} acompanhantes de ${c.nmConvidado}`}
+                          title={recolhidos.includes(c.idConvidado) ? "Mostrar os acompanhantes" : "Ocultar os acompanhantes"}
+                          className="-ml-1 rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600">
+                          {recolhidos.includes(c.idConvidado) ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </button>
+                      )}
                       {c.nmConvidado}
-                      {escondendo && (ligadosAbaixo.get(c) ?? 0) > 0 && (
-                        <span title={`${ligadosAbaixo.get(c)} ligado(s) oculto(s)`} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">+{ligadosAbaixo.get(c)}</span>
+                      {!emBusca && recolhidos.includes(c.idConvidado) && (cascata.abaixo.get(c.idConvidado) ?? 0) > 0 && (
+                        <span title={`${cascata.abaixo.get(c.idConvidado)} acompanhante(s) oculto(s)`} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">+{cascata.abaixo.get(c.idConvidado)}</span>
                       )}
                     </span>
                     {principalForaDaLista && c.nmConvidadoPrincipal && <span className="block pl-0 text-xs font-normal text-slate-400">acompanha {c.nmConvidadoPrincipal}</span>}
