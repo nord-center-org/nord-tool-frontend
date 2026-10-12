@@ -19,6 +19,11 @@ export interface CronogramaSemanalItem {
   flFixo: boolean;
 }
 
+export interface CronogramaSemanalExcecao {
+  idCronogramaSemanal: number;
+  dtExcecao: string;
+}
+
 const BASE_PATH = '/cronogramaSemanal';
 
 const doisDigitos = (valor: number) => String(valor).padStart(2, '0');
@@ -70,6 +75,15 @@ export const CronogramaSemanalService = {
         dtAgendamento: paraDataHoraBackend(item.dtAgendamento),
       }),
     });
+  },
+  listarExcecoes() {
+    return apiFetch<CronogramaSemanalExcecao[]>(`${BASE_PATH}/excecoes`);
+  },
+  incluirExcecao(id: number, data: string) {
+    return apiFetch<void>(`${BASE_PATH}/${id}/excecoes/${data}`, { method: 'PUT' });
+  },
+  removerExcecao(id: number, data: string) {
+    return apiFetch<void>(`${BASE_PATH}/${id}/excecoes/${data}`, { method: 'DELETE' });
   },
   excluir(id: number) {
     return apiFetch<void>(`${BASE_PATH}/${id}`, { method: 'DELETE' });
