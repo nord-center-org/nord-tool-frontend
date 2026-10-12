@@ -33,6 +33,8 @@ const corCategoria: Record<Categoria, string> = {
   Programação: "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20",
 };
 
+const CHAVE_IGNORADOS = "@NordTool:cronograma_fixos_ignorados";
+
 const corStatus: Record<Status, string> = {
   pendentes: "bg-slate-500/15 text-slate-300 border border-slate-500/20",
   executar: "bg-blue-500/15 text-blue-300 border border-blue-500/20",
@@ -110,6 +112,16 @@ export default function NordToolDashboard() {
   const [visaoCalendario, setVisaoCalendario] = useState<"semana" | "mes">("semana");
   const [dataCalendario, setDataCalendario] = useState(new Date());
   const [categoriasRotina, setCategoriasRotina] = useState<Categoria[]>([]);
+
+  const [ignorados, setIgnorados] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(CHAVE_IGNORADOS) ?? "[]"); } catch { return []; }
+  });
+  const alternarIgnorado = (item: CronogramaSemanalItem, chave: string) => setIgnorados(atual => {
+    const id = `${item.id}|${chave}`;
+    const novo = atual.includes(id) ? atual.filter(i => i !== id) : [...atual, id];
+    try { localStorage.setItem(CHAVE_IGNORADOS, JSON.stringify(novo)); } catch { /* sem storage */ }
+    return novo;
+  });
 
   const carregar = async () => {
     setCarregando(true);
@@ -589,14 +601,26 @@ export default function NordToolDashboard() {
                         <strong className="text-sm text-slate-200">{data.getDate()}</strong>
                       </header>
                       <div className="flex flex-col gap-2">
-                        {itens.map(item => (
-                          <button key={`${item.flFixo ? "f" : "p"}-${item.id}`} onClick={() => abrirEdicao(item)} className="rounded-xl border border-slate-800 bg-[#151921] p-2 text-left hover:border-violet-700">
-                            <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-500">
-                              {rotuloNoDia(item, ymd(data))}
+                        {itens.map(item => {
+                          const ignorado = item.flFixo && ignorados.includes(`${item.id}|${ymd(data)}`);
+                          return (
+                            <div key={`${item.flFixo ? "f" : "p"}-${item.id}`} className={`relative rounded-xl p-2 text-left hover:brightness-125 ${corCategoria[item.nmCategoria]} ${ignorado ? "opacity-40" : ""}`}>
+                              <button onClick={() => abrirEdicao(item)} className="block w-full text-left">
+                                <div className="flex items-center gap-1 text-[9px] font-bold">{rotuloNoDia(item, ymd(data))}</div>
+                                <p className={`pr-5 text-xs font-semibold leading-snug text-slate-100 ${ignorado ? "line-through" : ""}`}>{item.nmCronogramaSemanal}</p>
+                              </button>
+                              {item.flFixo && (
+                                <button
+                                  onClick={() => alternarIgnorado(item, ymd(data))}
+                                  title={ignorado ? "Reativar só neste dia" : "Desmarcar só neste dia"}
+                                  className="absolute right-1.5 top-1.5 text-[11px] font-bold text-slate-300 hover:text-white"
+                                >
+                                  {ignorado ? "↺" : "×"}
+                                </button>
+                              )}
                             </div>
-                            <p className="text-xs font-semibold text-slate-200 leading-snug">{item.nmCronogramaSemanal}</p>
-                          </button>
-                        ))}
+                          );
+                        })}
                         {!itens.length && <div className="rounded-xl border border-dashed border-slate-800 p-3 text-center text-[10px] font-bold uppercase text-slate-700">Livre</div>}
                       </div>
                     </section>
@@ -614,7 +638,7 @@ export default function NordToolDashboard() {
                       <header className="mb-1 text-[10px] font-bold text-slate-400">{data.getDate()}</header>
                       <div className="flex flex-col gap-1">
                         {itens.slice(0, 3).map(item => (
-                          <button key={`${item.flFixo ? "f" : "p"}-${item.id}`} onClick={() => abrirEdicao(item)} className="truncate rounded-lg bg-slate-900 px-1.5 py-0.5 text-left text-[9px] text-slate-300 hover:bg-slate-800">
+                          <button key={`${item.flFixo ? "f" : "p"}-${item.id}`} onClick={() => abrirEdicao(item)} className={`truncate rounded-lg px-1.5 py-0.5 text-left text-[9px] hover:brightness-125 ${corCategoria[item.nmCategoria]} ${item.flFixo && ignorados.includes(`${item.id}|${ymd(data)}`) ? "line-through opacity-40" : ""}`}>
                             {rotuloNoDia(item, ymd(data)).split(" ")[0]} {item.nmCronogramaSemanal}
                           </button>
                         ))}
