@@ -33,8 +33,6 @@ const corCategoria: Record<Categoria, string> = {
   Programação: "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20",
 };
 
-const CHAVE_IGNORADOS = "@NordTool:cronograma_fixos_ignorados";
-
 const corStatus: Record<Status, string> = {
   pendentes: "bg-slate-500/15 text-slate-300 border border-slate-500/20",
   executar: "bg-blue-500/15 text-blue-300 border border-blue-500/20",
@@ -113,15 +111,21 @@ export default function NordToolDashboard() {
   const [dataCalendario, setDataCalendario] = useState(new Date());
   const [categoriasRotina, setCategoriasRotina] = useState<Categoria[]>([]);
 
-  const [ignorados, setIgnorados] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem(CHAVE_IGNORADOS) ?? "[]"); } catch { return []; }
-  });
-  const alternarIgnorado = (item: CronogramaSemanalItem, chave: string) => setIgnorados(atual => {
+  const [ignorados, setIgnorados] = useState<string[]>([]);
+  const alternarIgnorado = async (item: CronogramaSemanalItem, chave: string) => {
+    if (item.id == null) return;
     const id = `${item.id}|${chave}`;
-    const novo = atual.includes(id) ? atual.filter(i => i !== id) : [...atual, id];
-    try { localStorage.setItem(CHAVE_IGNORADOS, JSON.stringify(novo)); } catch { /* sem storage */ }
-    return novo;
-  });
+    const desmarcado = ignorados.includes(id);
+    // Atualiza na hora e desfaz se o servidor recusar.
+    setIgnorados(atual => desmarcado ? atual.filter(i => i !== id) : [...atual, id]);
+    try {
+      if (desmarcado) await CronogramaSemanalService.removerExcecao(item.id, chave);
+      else await CronogramaSemanalService.incluirExcecao(item.id, chave);
+    } catch (err) {
+      setIgnorados(atual => desmarcado ? [...atual, id] : atual.filter(i => i !== id));
+      setErro(err instanceof Error ? err.message : "Falha ao salvar a exceção do dia.");
+    }
+  };
 
   const carregar = async () => {
     setCarregando(true);
@@ -129,6 +133,9 @@ export default function NordToolDashboard() {
     try {
       const dados = await CronogramaSemanalService.listar();
       setItems(dados);
+      // Exceções são acessório: se falhar, a rotina segue sem elas.
+      const excecoes = await CronogramaSemanalService.listarExcecoes().catch(() => []);
+      setIgnorados(excecoes.map(e => `${e.idCronogramaSemanal}|${e.dtExcecao}`));
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Falha ao carregar o cronograma.");
     } finally {
@@ -611,7 +618,7 @@ export default function NordToolDashboard() {
                               </button>
                               {item.flFixo && (
                                 <button
-                                  onClick={() => alternarIgnorado(item, ymd(data))}
+                                  onClick={() => void alternarIgnorado(item, ymd(data))}
                                   title={ignorado ? "Reativar só neste dia" : "Desmarcar só neste dia"}
                                   className="absolute right-1.5 top-1.5 text-[11px] font-bold text-slate-300 hover:text-white"
                                 >
