@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, Check, ChevronRight, Loader2, Pencil, Plus, Ruler, Trash2, X } from "lucide-react";
 
 import type { Medicao, MedicaoStatus } from "@/shared/types";
+import BotaoCopiar from "@/react-app/components/medicoes/BotaoCopiar";
 import MedicaoModal from "@/react-app/components/medicoes/MedicaoModal";
 import { useSincronizacao } from "@/react-app/hooks/useSincronizacao";
 import { ApiError } from "@/react-app/services/apiClient";
@@ -242,9 +243,15 @@ export default function MedicoesPage() {
                     </div>
                   </div>
                   {aberto && (
-                    <div className="border-t border-slate-100 px-4 py-3 pl-10 text-sm text-slate-600">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Observação (Sienge)</p>
-                      <p className="mt-1">{observacaoSienge(m)}</p>
+                    <div className="space-y-3 border-t border-slate-100 px-4 py-3 pl-10 text-sm text-slate-600">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Observação (Sienge)</p>
+                        <p className="mt-1">{observacaoSienge(m)}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <BotaoCopiar texto={tituloBoletim(m)} rotulo="Copiar boletim" />
+                        <BotaoCopiar texto={observacaoSienge(m)} rotulo="Copiar observação" />
+                      </div>
                     </div>
                   )}
                 </li>

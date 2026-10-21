@@ -3,11 +3,12 @@ import { Loader2 } from "lucide-react";
 
 import type { Medicao, MedicaoStatus } from "@/shared/types";
 import Campo, { classeInput } from "@/react-app/components/casamento/Campo";
+import BotaoCopiar from "@/react-app/components/medicoes/BotaoCopiar";
 import ModalBase from "@/react-app/components/casamento/ModalBase";
 import type { MedicaoForm } from "@/react-app/services/MedicaoService";
 import { hojeSaoPaulo, lerValor } from "@/react-app/utils/caixinha";
 import {
-  STATUS_PENDENTE, acharContrato, contratosConhecidos, observacaoSienge, tituloBoletim,
+  STATUS_PENDENTE, acharContrato, analisarMemorial, contratosConhecidos, moedaSienge, observacaoSienge, tituloBoletim,
 } from "@/react-app/utils/medicoes";
 
 interface MedicaoModalProps {
@@ -50,6 +51,11 @@ export default function MedicaoModal({ medicao, medicoes, status, onSalvar, onFe
 
   const numero = /^\d+$/.test(nrMedicao.trim()) ? Number(nrMedicao.trim()) : null;
   const valorLido = lerValor(valor);
+  const analise = useMemo(() => analisarMemorial(memorial), [memorial]);
+  // O valor que o memorial indica: o informado depois do "=" ou, sem ele, o resultado da conta.
+  const valorDoMemorial = analise.informado ?? analise.conta;
+  const diferenteDoValor = valorDoMemorial !== null && valorDoMemorial !== valorLido;
+  const contaDivergente = analise.conta !== null && analise.informado !== null && Math.abs(analise.conta - analise.informado) > 0.01;
   const previa = {
     nrMedicao: numero ?? 0, cdContrato: cdContrato.trim(), nmRazaoSocial: razao.trim(), nrContrato: nrContrato.trim(),
     vlMedicao: valorLido ?? 0, txMemorial: memorial,
@@ -122,15 +128,31 @@ export default function MedicaoModal({ medicao, medicoes, status, onSalvar, onFe
         <Campo rotulo="Memorial de cálculo" dica="Continua o texto depois do valor. Ex.: referente a 73 apartamentos recebidos (73*500=36.500)">
           <textarea rows={3} maxLength={1000} value={memorial} onChange={e => setMemorial(e.target.value)} className={classeInput} />
         </Campo>
+        {valorDoMemorial !== null && (diferenteDoValor || contaDivergente) && (
+          <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <span>
+              {contaDivergente
+                ? `A conta do memorial dá ${moedaSienge(analise.conta ?? 0)}, mas o texto diz ${moedaSienge(analise.informado ?? 0)}.`
+                : `O memorial indica ${moedaSienge(valorDoMemorial)}.`}
+            </span>
+            {diferenteDoValor && (
+              <button type="button" onClick={() => setValor(String(valorDoMemorial).replace(".", ","))} className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 font-bold hover:bg-amber-100">
+                Usar {moedaSienge(valorDoMemorial)} como valor
+              </button>
+            )}
+          </div>
+        )}
 
         <section aria-label="Prévia" className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Boletim</p>
             <p className="font-semibold text-slate-700">{tituloBoletim(previa)}</p>
+            <div className="mt-1.5"><BotaoCopiar texto={tituloBoletim(previa)} rotulo="Copiar boletim" /></div>
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Observação (Sienge)</p>
             <p>{observacaoSienge(previa)}</p>
+            <div className="mt-1.5"><BotaoCopiar texto={observacaoSienge(previa)} rotulo="Copiar observação" /></div>
           </div>
         </section>
 
