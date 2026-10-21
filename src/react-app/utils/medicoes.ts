@@ -103,7 +103,7 @@ export function contratosConhecidos(itens: ItemMedicao[]): ContratoConhecido[] {
     if (m.dtMedicao > atual._data) Object.assign(atual, { cdContrato: m.cdContrato, nmRazaoSocial: m.nmRazaoSocial, _data: m.dtMedicao });
   }
   return [...mapa.values()]
-    .map(({ _data, ...contrato }) => contrato)
+    .map(c => ({ nrContrato: c.nrContrato, cdContrato: c.cdContrato, nmRazaoSocial: c.nmRazaoSocial, proximaMedicao: c.proximaMedicao }))
     .sort((a, b) => a.nrContrato.localeCompare(b.nrContrato, "pt-BR", { numeric: true }));
 }
 
