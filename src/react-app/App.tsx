@@ -10,6 +10,7 @@ import ControleChavesPage from "@/react-app/pages/Controle_de_chaves";
 import DaviJobPage from "@/react-app/pages/DaviJob";
 import CasamentoPage from "@/react-app/pages/Casamento";
 import CaixinhaPage from "@/react-app/pages/Caixinha";
+import MedicoesPage from "@/react-app/pages/Medicoes";
 import FinanceiroPage from "@/react-app/pages/Financeiro";
 import ConcretagemInProgress from "@/react-app/components/Placeholder";
 import LoginPage from "@/react-app/pages/Login";
@@ -55,6 +56,7 @@ export default function App() {
             <Route path="gestao/academico" element={<ConcretagemInProgress />} />
             <Route path="gestao/casamento" element={<CasamentoPage />} />
             <Route path="gestao/caixinha" element={<CaixinhaPage />} />
+            <Route path="organizacional/medicoes" element={<MedicoesPage />} />
             <Route path="gestao/davi-job" element={<DaviJobPage />} />
           </Route>
           {/* URL inexistente: volta ao início (que leva ao login quando não há sessão) em vez de tela em branco */}
