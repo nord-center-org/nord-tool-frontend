@@ -1,14 +1,17 @@
 import { useState } from "react";
-import { Package, Map, Briefcase, UserCircle, Sparkles, LayoutDashboard, Database, BookOpen, Settings, ChevronDown, Key, Heart, PiggyBank, type LucideIcon } from "lucide-react";
+import { Package, Map, Briefcase, UserCircle, Sparkles, LayoutDashboard, Database, BookOpen, Settings, ChevronDown, Key, Heart, PiggyBank, Ruler, CalendarDays, Wallet, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/react-app/hooks/useAuth";
+import { podeAbrirRota } from "@/react-app/utils/sessao";
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { usuario } = useAuth();
   const [activeModule, setActiveModule] = useState<string | null>(null);
 
-  // Definindo as opções internas de cada módulo
-  const subMenu: Record<string, { label: string, path: string, icon: LucideIcon }[]> = {
+  // Opções internas de cada módulo (filtradas pelas permissões do usuário logo abaixo)
+  const todasAsOpcoes: Record<string, { label: string, path: string, icon: LucideIcon }[]> = {
     "Entrega": [
       { label: "Agenda", path: "/entregas", icon: LayoutDashboard },
       { label: "Apartamentos", path: "/apartamentos", icon: Database },
@@ -17,18 +20,25 @@ export default function HomePage() {
     "Organizacional": [
       { label: "Treinamentos", path: "/treinamentos", icon: BookOpen },
       { label: "Controle de chaves", path: "/organizacional/controle-chaves", icon: Key },
+      { label: "Cronograma semanal", path: "/organizacional/cronograma", icon: CalendarDays },
+      { label: "Medições", path: "/organizacional/medicoes", icon: Ruler },
     ],
     "Gestão Individual": [
+      { label: "Gestão financeira", path: "/gestao/financeiro", icon: Wallet },
       { label: "Casamento", path: "/gestao/casamento", icon: Heart },
       { label: "Caixinha", path: "/gestao/caixinha", icon: PiggyBank },
       { label: "Configurações", path: "/configuracoes", icon: Settings },
     ]
   };
 
+  const subMenu = Object.fromEntries(
+    Object.entries(todasAsOpcoes).map(([modulo, opcoes]) => [modulo, opcoes.filter(o => podeAbrirRota(usuario?.permissoes, o.path))]),
+  );
+
   const modulos = [
     { nome: "Entrega", icon: Package, cor: "from-blue-500 to-cyan-500", desc: "Gestão de vistorias e apartamentos" },
     { nome: "Mapeamentos", icon: Map, cor: "from-indigo-500 to-purple-500", desc: "Conferências e relatórios visuais" },
-    { nome: "Organizacional", icon: Briefcase, cor: "from-emerald-500 to-teal-500", desc: "Treinamentos, diários e escadinha" },
+    { nome: "Organizacional", icon: Briefcase, cor: "from-emerald-500 to-teal-500", desc: "Treinamentos, chaves, cronograma e medições" },
     { nome: "Gestão Individual", icon: UserCircle, cor: "from-orange-500 to-red-500", desc: "Finanças, treinos, repertório e casamento" }
   ];
 
