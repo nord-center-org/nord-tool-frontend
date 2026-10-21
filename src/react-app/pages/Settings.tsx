@@ -4,7 +4,7 @@ import { listarStatusVistoria } from "@/react-app/services/EndpointsDominioServi
 import { CHAVE_PRE_CARREGAMENTO, lerPreCarregamento, type PreCarregamento } from "@/react-app/utils/preCarregamentoApartamentos";
 import {
   Settings as SettingsIcon, Save, ChevronDown, ChevronUp,
-  Loader2, Building2, Clock, Filter, Database, LayoutDashboard, FolderCog, Wrench
+  Loader2, Building2, Clock, Filter, Database, LayoutDashboard, FolderCog, Wrench, ShieldCheck
 } from "lucide-react";
 import { ControleChavesService, type ObraControleChaves } from "../services/ControleChavesService";
 import { OpcoesColaboradorService, type Empresa, type Cargo, type Permissao } from "../services/OpcoesColaboradorService";
@@ -12,6 +12,9 @@ import { FerramentaService, type Ferramenta } from "../services/FerramentaServic
 import { lerObraControleChaves, salvarObraControleChaves } from "../utils/preferenciasControleChaves";
 import CadastroSimples from "../components/CadastroSimples";
 import CadastroFerramentas from "../components/CadastroFerramentas";
+import AcessosModal from "../components/administracao/AcessosModal";
+import { useAuth } from "../hooks/useAuth";
+import { podeAcessar } from "../utils/sessao";
 
 type AbaCadastro = "empresas" | "cargos" | "permissoes" | "ferramentas";
 
@@ -25,6 +28,9 @@ const normalizarIdObraControleChaves = (id: unknown): string =>
   typeof id === "string" && Object.prototype.hasOwnProperty.call(ROTULOS_OBRAS_CONTROLE_CHAVES, id) ? id : "";
 
 export default function SettingsPage() {
+  const { usuario } = useAuth();
+  const ehAdmin = podeAcessar(usuario?.permissoes, "ADMINISTRACAO", "ADMIN");
+  const [acessosAberto, setAcessosAberto] = useState(false);
   const [apartmentList, setApartmentList] = useState("");
   const [timeSlotsList, setTimeSlotsList] = useState("");
 
@@ -176,6 +182,21 @@ export default function SettingsPage() {
 
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200/60 p-2 overflow-hidden">
         <div className="p-6 md:p-8 space-y-6">
+
+          {ehAdmin && (
+            <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-blue-200 bg-blue-50/40 p-5 shadow-sm" aria-labelledby="config-administracao">
+              <div className="flex items-start gap-4">
+                <div className="rounded-xl bg-blue-100 p-2.5 text-blue-700"><ShieldCheck className="h-5 w-5" /></div>
+                <div>
+                  <h3 id="config-administracao" className="text-lg font-bold text-slate-800">Administração</h3>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500">Perfis e telas que cada usuário pode ver.</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setAcessosAberto(true)} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">
+                <ShieldCheck className="h-4 w-4" /> Acessos
+              </button>
+            </section>
+          )}
 
           <section className="border border-emerald-200 rounded-2xl bg-emerald-50/30 p-5 shadow-sm" aria-labelledby="config-controle-chaves">
             <div className="flex items-start gap-4">
@@ -472,6 +493,7 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+      {acessosAberto && <AcessosModal onFechar={() => setAcessosAberto(false)} />}
     </div>
   );
 }
