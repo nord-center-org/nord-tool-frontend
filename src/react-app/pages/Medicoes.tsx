@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, Check, ChevronRight, Loader2, Ruler, X } from "lucide-react";
+import { AlertCircle, Check, ChevronRight, Loader2, Pencil, Plus, Ruler, Trash2, X } from "lucide-react";
 
 import type { Medicao, MedicaoStatus } from "@/shared/types";
+import MedicaoModal from "@/react-app/components/medicoes/MedicaoModal";
 import { useSincronizacao } from "@/react-app/hooks/useSincronizacao";
 import { ApiError } from "@/react-app/services/apiClient";
-import { medicaoService } from "@/react-app/services/MedicaoService";
+import { medicaoService, type MedicaoForm } from "@/react-app/services/MedicaoService";
 import { formatarMoeda } from "@/react-app/utils/casamento";
 import {
   STATUS_PENDENTE, classeStatus, dataIsoParaBr, filtrarMedicoes, observacaoSienge, resumirMedicoes, tituloBoletim,
@@ -22,6 +23,7 @@ export default function MedicoesPage() {
 
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("");
+  const [modal, setModal] = useState<{ medicao?: Medicao } | null>(null);
   const [abertos, setAbertos] = useState<number[]>([]);
   // Linhas com salvamento em andamento ficam travadas: a próxima troca usaria uma versão velha (409).
   const [ocupados, setOcupados] = useState<number[]>([]);
@@ -74,6 +76,48 @@ export default function MedicoesPage() {
     });
   };
 
+  /** Devolve a mensagem de erro para o modal (ou null se salvou). Em 409 fecha o modal, avisa e recarrega. */
+  const salvar = async (form: MedicaoForm, atual?: Medicao): Promise<string | null> => {
+    try {
+      if (atual) await medicaoService.alterar(atual.id, form);
+      else await medicaoService.criar(form);
+      setModal(null);
+      await recarregar(true);
+      return null;
+    } catch (e) {
+      const mensagem = e instanceof Error && e.message ? e.message : "Não foi possível salvar a medição.";
+      if (e instanceof ApiError && e.status === 409) {
+        setModal(null);
+        setAviso(mensagem);
+        await recarregar(true);
+        return null;
+      }
+      return mensagem;
+    }
+  };
+
+  const excluir = (m: Medicao) => {
+    if (!window.confirm(`Excluir "${tituloBoletim(m)}" (${formatarMoeda(m.vlMedicao)})?`)) return;
+    ocupar(m.id, true);
+    const antes = medicoes;
+    let conflito = false;
+    void sync.executar({
+      aplicar: () => setMedicoes(lista => lista.filter(x => x.id !== m.id)),
+      desfazer: () => setMedicoes(antes),
+      enviar: async () => {
+        try {
+          await medicaoService.excluir(m.id, m.nrVersao);
+        } catch (e) {
+          conflito = e instanceof ApiError && e.status === 409;
+          throw e;
+        }
+      },
+    }).then(r => {
+      ocupar(m.id, false);
+      if (!r.ok && conflito) { setAviso("A medição foi alterada por outra pessoa."); void recarregar(true); }
+    });
+  };
+
   // Ativos + o status atual da medição (mesmo que já esteja inativo).
   const opcoesDe = (m: Medicao) => status.filter(s => s.inAtivo || s.cdStatus === m.cdStatus);
 
@@ -88,7 +132,7 @@ export default function MedicoesPage() {
               <p className="text-sm text-slate-400">Boletins de medição dos contratos</p>
             </div>
           </div>
-          <div className="flex items-center gap-5 text-right" aria-label="Resumo">
+          <div className="flex items-center gap-5" aria-label="Resumo">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-amber-300">Pendentes</p>
               <p className="text-lg font-black tabular-nums">
@@ -96,6 +140,7 @@ export default function MedicoesPage() {
                 <span className="ml-2 text-sm font-semibold text-slate-300">{formatarMoeda(resumo.porStatus[STATUS_PENDENTE]?.valor ?? 0)}</span>
               </p>
             </div>
+            <button type="button" onClick={() => setModal({})} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700"><Plus className="h-4 w-4" /> Nova medição</button>
           </div>
         </div>
       </header>
@@ -191,6 +236,10 @@ export default function MedicoesPage() {
                     >
                       {opcoesDe(m).map(s => <option key={s.cdStatus} value={s.cdStatus}>{s.nmStatus}</option>)}
                     </select>
+                    <div className="flex items-center">
+                      <button type="button" disabled={ocupado} onClick={() => setModal({ medicao: m })} aria-label={`Editar ${tituloBoletim(m)}`} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600 disabled:opacity-40"><Pencil className="h-4 w-4" /></button>
+                      <button type="button" disabled={ocupado} onClick={() => excluir(m)} aria-label={`Excluir ${tituloBoletim(m)}`} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"><Trash2 className="h-4 w-4" /></button>
+                    </div>
                   </div>
                   {aberto && (
                     <div className="border-t border-slate-100 px-4 py-3 pl-10 text-sm text-slate-600">
@@ -204,6 +253,17 @@ export default function MedicoesPage() {
           </ul>
         )}
       </main>
+
+      {modal && (
+        <MedicaoModal
+          key={modal.medicao?.id ?? "nova"}
+          medicao={modal.medicao}
+          medicoes={medicoes}
+          status={status}
+          onSalvar={form => salvar(form, modal.medicao)}
+          onFechar={() => setModal(null)}
+        />
+      )}
     </div>
   );
 }
