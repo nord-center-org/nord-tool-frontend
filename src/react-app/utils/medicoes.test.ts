@@ -70,3 +70,19 @@ test("classeStatus: pendente, feita e status novos têm cor", () => {
   assert.match(classeStatus("FEITA"), /green/);
   assert.match(classeStatus("EM_ANALISE"), /slate/);
 });
+
+test("contratosConhecidos: um por contrato, próxima medição e dados da mais recente", async () => {
+  const { contratosConhecidos, acharContrato } = await import("./medicoes.ts");
+  const lista = [
+    item({ nrContrato: "CT/4916-239", nrMedicao: 2, cdContrato: "35125", nmRazaoSocial: "COSTA ANTIGA", dtMedicao: "2026-08-01" }),
+    item({ nrContrato: "CT/4916-239", nrMedicao: 3, cdContrato: "35125", nmRazaoSocial: "COSTA NASCIMENTO", dtMedicao: "2026-09-01" }),
+    item({ nrContrato: "CT/4916-209", nrMedicao: 12, cdContrato: "34515" }),
+  ];
+  const contratos = contratosConhecidos(lista);
+  assert.deepEqual(contratos.map(c => c.nrContrato), ["CT/4916-209", "CT/4916-239"]);
+  assert.equal(contratos[1].proximaMedicao, 4);
+  assert.equal(contratos[1].nmRazaoSocial, "COSTA NASCIMENTO");
+  assert.equal(acharContrato(contratos, " ct/4916-209 ")?.proximaMedicao, 13);
+  assert.equal(acharContrato(contratos, "CT/0000"), null);
+  assert.equal(acharContrato(contratos, "  "), null);
+});

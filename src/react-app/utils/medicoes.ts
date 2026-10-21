@@ -79,3 +79,36 @@ export function classeStatus(cdStatus: string): string {
   if (cdStatus === "FEITA") return "border-green-200 bg-green-50 text-green-700";
   return "border-slate-200 bg-slate-50 text-slate-600";
 }
+
+export interface ContratoConhecido {
+  nrContrato: string;
+  cdContrato: string;
+  nmRazaoSocial: string;
+  /** Maior nº de medição já lançado neste contrato + 1. */
+  proximaMedicao: number;
+}
+
+/** Contratos já usados (um por nº de contrato, dados da medição mais recente), para preencher o cadastro. */
+export function contratosConhecidos(itens: ItemMedicao[]): ContratoConhecido[] {
+  const mapa = new Map<string, ContratoConhecido & { _data: string }>();
+  for (const m of itens) {
+    const chave = m.nrContrato.trim().toLocaleLowerCase("pt-BR");
+    const atual = mapa.get(chave);
+    const proxima = m.nrMedicao + 1;
+    if (!atual) {
+      mapa.set(chave, { nrContrato: m.nrContrato, cdContrato: m.cdContrato, nmRazaoSocial: m.nmRazaoSocial, proximaMedicao: proxima, _data: m.dtMedicao });
+      continue;
+    }
+    atual.proximaMedicao = Math.max(atual.proximaMedicao, proxima);
+    if (m.dtMedicao > atual._data) Object.assign(atual, { cdContrato: m.cdContrato, nmRazaoSocial: m.nmRazaoSocial, _data: m.dtMedicao });
+  }
+  return [...mapa.values()]
+    .map(c => ({ nrContrato: c.nrContrato, cdContrato: c.cdContrato, nmRazaoSocial: c.nmRazaoSocial, proximaMedicao: c.proximaMedicao }))
+    .sort((a, b) => a.nrContrato.localeCompare(b.nrContrato, "pt-BR", { numeric: true }));
+}
+
+/** Acha o contrato pelo número digitado (sem diferenciar caixa nem espaços nas pontas). */
+export function acharContrato(contratos: ContratoConhecido[], nrContrato: string): ContratoConhecido | null {
+  const chave = nrContrato.trim().toLocaleLowerCase("pt-BR");
+  return chave ? contratos.find(c => c.nrContrato.trim().toLocaleLowerCase("pt-BR") === chave) ?? null : null;
+}
