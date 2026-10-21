@@ -112,3 +112,76 @@ export function acharContrato(contratos: ContratoConhecido[], nrContrato: string
   const chave = nrContrato.trim().toLocaleLowerCase("pt-BR");
   return chave ? contratos.find(c => c.nrContrato.trim().toLocaleLowerCase("pt-BR") === chave) ?? null : null;
 }
+
+/** Número em texto brasileiro ("36.500", "7000", "14,5") → número; nulo se inválido. */
+function lerNumero(texto: string): number | null {
+  const t = texto.trim();
+  if (!/^\d+(?:\.\d{3})*(?:,\d+)?$|^\d+(?:\.\d+)?$/.test(t)) return null;
+  const normal = /^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(t) || t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t;
+  const n = Number(normal);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Calculadora de + - * / x × e parênteses, sem eval; nulo se a expressão for inválida ou dividir por zero. */
+export function calcularExpressao(expressao: string): number | null {
+  const fichas = expressao.replace(/[x×]/gi, "*").match(/\d[\d.,]*|[-+*/()]|\S/g);
+  if (!fichas) return null;
+  let i = 0;
+  let falhou = false;
+  const fator = (): number => {
+    const f = fichas[i++];
+    if (f === undefined) { falhou = true; return 0; }
+    if (f === "-") return -fator();
+    if (f === "(") {
+      const v = soma();
+      if (fichas[i++] !== ")") falhou = true;
+      return v;
+    }
+    const n = /^\d/.test(f) ? lerNumero(f) : null;
+    if (n === null) falhou = true;
+    return n ?? 0;
+  };
+  const produto = (): number => {
+    let v = fator();
+    while (fichas[i] === "*" || fichas[i] === "/") {
+      const op = fichas[i++];
+      const d = fator();
+      if (op === "/" && d === 0) falhou = true;
+      v = op === "*" ? v * d : d === 0 ? 0 : v / d;
+    }
+    return v;
+  };
+  const soma = (): number => {
+    let v = produto();
+    while (fichas[i] === "+" || fichas[i] === "-") v = fichas[i++] === "+" ? v + produto() : v - produto();
+    return v;
+  };
+  const resultado = soma();
+  if (falhou || i !== fichas.length || !Number.isFinite(resultado)) return null;
+  return Math.round(resultado * 100) / 100;
+}
+
+export interface AnaliseMemorial {
+  /** Resultado da conta escrita no memorial (ex.: 73*500 → 36500). */
+  conta: number | null;
+  /** Valor informado depois do "=" (ex.: =36.500 → 36500), se houver. */
+  informado: number | null;
+}
+
+/**
+ * Procura no memorial a última conta entre parênteses — "(73*500=36.500)", "(7000/30*7)" — e a calcula.
+ * Contas com texto no meio ou sem operador (só um número) são ignoradas.
+ */
+export function analisarMemorial(memorial: string | null | undefined): AnaliseMemorial {
+  const vazio: AnaliseMemorial = { conta: null, informado: null };
+  const grupos = [...(memorial ?? "").matchAll(/\(([^()]*)\)/g)].map(g => g[1]);
+  for (let k = grupos.length - 1; k >= 0; k--) {
+    const [esquerda, direita] = grupos[k].split("=", 2);
+    if (!/[*/+\-x×]/i.test(esquerda.replace(/^\s*-/, ""))) continue;
+    const conta = calcularExpressao(esquerda);
+    if (conta === null) continue;
+    const informado = direita === undefined ? null : lerNumero(direita.replace(/\s/g, ""));
+    return { conta, informado };
+  }
+  return vazio;
+}

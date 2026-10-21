@@ -86,3 +86,29 @@ test("contratosConhecidos: um por contrato, próxima medição e dados da mais r
   assert.equal(acharContrato(contratos, "CT/0000"), null);
   assert.equal(acharContrato(contratos, "  "), null);
 });
+
+test("calcularExpressao: precedência, parênteses, x, vírgula e milhar", async () => {
+  const { calcularExpressao } = await import("./medicoes.ts");
+  assert.equal(calcularExpressao("73*500"), 36500);
+  assert.equal(calcularExpressao("2+3*4"), 14);
+  assert.equal(calcularExpressao("(2+3)*4"), 20);
+  assert.equal(calcularExpressao("13 x 300"), 3900);
+  assert.equal(calcularExpressao("7000/30*7"), 1633.33);
+  assert.equal(calcularExpressao("1.500,50*2"), 3001);
+  assert.equal(calcularExpressao("-5+10"), 5);
+  assert.equal(calcularExpressao("10/0"), null);
+  assert.equal(calcularExpressao("2+"), null);
+  assert.equal(calcularExpressao("2 abc"), null);
+  assert.equal(calcularExpressao(""), null);
+  assert.equal(calcularExpressao("(2+3"), null);
+});
+
+test("analisarMemorial: pega a última conta entre parênteses e o valor informado", async () => {
+  const { analisarMemorial } = await import("./medicoes.ts");
+  assert.deepEqual(analisarMemorial("referente a 73 apartamentos recebidos (73*500=36.500)"), { conta: 36500, informado: 36500 });
+  assert.deepEqual(analisarMemorial("referente a 7 dias trabalhados entre julho e agosto (7000/30*7=1634)."), { conta: 1633.33, informado: 1634 });
+  assert.deepEqual(analisarMemorial("(4 apartamentos) (4*500)"), { conta: 2000, informado: null });
+  assert.deepEqual(analisarMemorial("referente à 2ª Vistoria da proposta PEO 001-26."), { conta: null, informado: null });
+  assert.deepEqual(analisarMemorial("(20 apartamentos)"), { conta: null, informado: null });
+  assert.deepEqual(analisarMemorial(null), { conta: null, informado: null });
+});
