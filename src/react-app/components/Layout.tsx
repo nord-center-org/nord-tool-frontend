@@ -9,7 +9,7 @@ import {
   Home as HomeIcon, Briefcase, GraduationCap,
   ClipboardCheck, AlertTriangle, Camera, FileText, BookOpen, 
   TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Cat, Heart, PiggyBank,
-  KeyRound, LogOut
+  KeyRound, LogOut, Ruler
 } from "lucide-react";
 
 export default function Layout() {
@@ -52,6 +52,7 @@ export default function Layout() {
         { path: "/organizacional/fvs", label: "Controle de FVs", icon: FileCheck },
         { path: "/organizacional/projetos", label: "Controle de projetos", icon: Briefcase },
         { path: "/organizacional/cronograma", label: "Cronograma semanal", icon: CalendarDays },
+        { path: "/organizacional/medicoes", label: "Medições", icon: Ruler },
       ]
     },
     {

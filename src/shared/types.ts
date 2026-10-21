@@ -450,3 +450,34 @@ export interface FinanceiroInvestimentos {
   vlAReceberMes: number;
   cotacaoAoVivo: boolean;
 }
+
+// ---------- Medições ----------
+
+export interface MedicaoStatus {
+  cdStatus: string;
+  nmStatus: string;
+  inAtivo: boolean;
+}
+
+export interface Medicao {
+  id: number;
+  nrMedicao: number;
+  /** Código do contrato (ex.: 34515). */
+  cdContrato: string;
+  nmRazaoSocial: string;
+  /** Número do contrato (ex.: CT/4916-209). */
+  nrContrato: string;
+  /** yyyy-MM-dd */
+  dtMedicao: string;
+  vlMedicao: number;
+  txMemorial: string | null;
+  cdStatus: string;
+  nmStatus: string;
+  /** Revisão para controle de concorrência. */
+  nrVersao: number;
+}
+
+export interface MedicaoLista {
+  medicoes: Medicao[];
+  status: MedicaoStatus[];
+}
