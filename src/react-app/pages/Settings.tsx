@@ -13,6 +13,7 @@ import { lerObraControleChaves, salvarObraControleChaves } from "../utils/prefer
 import CadastroSimples from "../components/CadastroSimples";
 import CadastroFerramentas from "../components/CadastroFerramentas";
 import AcessosModal from "../components/administracao/AcessosModal";
+import ObrasModal from "../components/administracao/ObrasModal";
 import { useAuth } from "../hooks/useAuth";
 import { podeAcessar } from "../utils/sessao";
 
@@ -31,6 +32,7 @@ export default function SettingsPage() {
   const { usuario } = useAuth();
   const ehAdmin = podeAcessar(usuario?.permissoes, "ADMINISTRACAO", "ADMIN");
   const [acessosAberto, setAcessosAberto] = useState(false);
+  const [obrasAberto, setObrasAberto] = useState(false);
   const [apartmentList, setApartmentList] = useState("");
   const [timeSlotsList, setTimeSlotsList] = useState("");
 
@@ -189,12 +191,17 @@ export default function SettingsPage() {
                 <div className="rounded-xl bg-blue-100 p-2.5 text-blue-700"><ShieldCheck className="h-5 w-5" /></div>
                 <div>
                   <h3 id="config-administracao" className="text-lg font-bold text-slate-800">Administração</h3>
-                  <p className="mt-0.5 text-xs font-medium text-slate-500">Perfis e telas que cada usuário pode ver.</p>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500">Obras, fases, equipes e o que cada usuário pode ver.</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setAcessosAberto(true)} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">
-                <ShieldCheck className="h-4 w-4" /> Acessos
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => setObrasAberto(true)} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50">
+                  <Building2 className="h-4 w-4" /> Obras e fases
+                </button>
+                <button type="button" onClick={() => setAcessosAberto(true)} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">
+                  <ShieldCheck className="h-4 w-4" /> Acessos
+                </button>
+              </div>
             </section>
           )}
 
@@ -494,6 +501,7 @@ export default function SettingsPage() {
         </div>
       </div>
       {acessosAberto && <AcessosModal onFechar={() => setAcessosAberto(false)} />}
+      {obrasAberto && <ObrasModal onFechar={() => setObrasAberto(false)} />}
     </div>
   );
 }
