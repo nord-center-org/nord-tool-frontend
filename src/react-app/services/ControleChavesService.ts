@@ -26,14 +26,15 @@ export interface DashboardControleChaves {
   qtChavesEmCampo: number; qtChavesNoQuadro: number; qtChavesEntregues: number;
   retiradasRecentes: RetiradaControleChaves[];
 }
+/** Usuário ativo que pode retirar chave ou ferramenta. */
+export interface PessoaControleChaves { id: number; nmNome: string; nmCargo?: string | null; nmEmpresa?: string | null }
 export interface NovaRetiradaControleChaves {
   nmTipoItem: TipoItemControleChaves;
   idApartamentoVistoria?: number;
   idFerramenta?: number;
+  /** Usuário que está retirando. Quem libera é o usuário logado. */
   idUserRetirada: number;
-  idUserLiberacao: number;
 }
-export interface RecebimentoControleChaves { idUserRecebimento: number }
 
 const CHAVES_LISTA_OBRAS = ['obras', 'items', 'content', 'data'] as const;
 const BASE_PATH = '/controleChaves';
@@ -55,6 +56,9 @@ const normalizarListaObras = (conteudo: unknown): ObraControleChaves[] => {
 };
 
 export const ControleChavesService = {
+  listarPessoas() {
+    return apiFetch<PessoaControleChaves[]>(`${BASE_PATH}/pessoas`);
+  },
   async listarObras(options: { signal?: AbortSignal } = {}) {
     const conteudo = await apiFetch<unknown>(`${BASE_PATH}/obras`, { signal: options.signal });
     return normalizarListaObras(conteudo);
@@ -80,7 +84,8 @@ export const ControleChavesService = {
   criarRetirada(payload: NovaRetiradaControleChaves) {
     return apiFetch<RetiradaControleChaves>(`${BASE_PATH}/retiradas`, { method: 'POST', body: JSON.stringify(payload) });
   },
-  receberRetirada(id: number, payload: RecebimentoControleChaves) {
-    return apiFetch<RetiradaControleChaves>(`${BASE_PATH}/retiradas/${id}/recebimento`, { method: 'PATCH', body: JSON.stringify(payload) });
+  /** Quem recebe é o usuário logado. */
+  receberRetirada(id: number) {
+    return apiFetch<RetiradaControleChaves>(`${BASE_PATH}/retiradas/${id}/recebimento`, { method: 'PATCH', body: JSON.stringify({}) });
   },
 };

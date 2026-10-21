@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Loader2, Search, ShieldCheck, UserX, X } from "lucide-react";
+import { ArrowLeft, Check, History, Loader2, Search, ShieldCheck, UserX, X } from "lucide-react";
 
+import ColaboradoresLegados from "@/react-app/components/administracao/ColaboradoresLegados";
+import DadosUsuario from "@/react-app/components/administracao/DadosUsuario";
 import { useAuth } from "@/react-app/hooks/useAuth";
+import { OpcoesColaboradorService } from "@/react-app/services/OpcoesColaboradorService";
 import { acessoService, type Acessos, type AcessoUsuario } from "@/react-app/services/AcessoService";
 import {
   MODULOS, NIVEIS, ROTULO_NIVEL, alterado, completar, filtrarUsuarios, nomeModulo, personalizados, qtModulosLiberados,
@@ -26,6 +29,9 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
+  const [vendoLegados, setVendoLegados] = useState(false);
+  const [empresas, setEmpresas] = useState<{ id: number; nome: string }[]>([]);
+  const [cargos, setCargos] = useState<{ id: number; nome: string }[]>([]);
 
   const carregar = useCallback(async () => {
     setErroCarga(null);
@@ -37,6 +43,11 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
   }, []);
 
   useEffect(() => { void carregar(); }, [carregar]);
+  useEffect(() => {
+    // Opções de empresa e cargo para os dados do usuário (falha aqui não impede a tela).
+    OpcoesColaboradorService.listarEmpresas().then(l => setEmpresas(l.map(e => ({ id: e.id, nome: e.nmEmpresa })))).catch(() => undefined);
+    OpcoesColaboradorService.listarCargos().then(l => setCargos(l.map(c => ({ id: c.id, nome: c.nmCargo })))).catch(() => undefined);
+  }, []);
   useEffect(() => {
     const aoTeclar = (e: KeyboardEvent) => { if (e.key === "Escape") onFechar(); };
     window.addEventListener("keydown", aoTeclar);
@@ -99,6 +110,9 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
               <p className="text-xs text-slate-500">Escolha o usuário e o que ele pode ver. A mudança vale no próximo login dele.</p>
             </div>
           </div>
+          <button type="button" onClick={() => setVendoLegados(v => !v)} className="ml-auto mr-2 hidden items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 sm:inline-flex">
+            <History className="h-3.5 w-3.5" /> Colaboradores antigos
+          </button>
           <button type="button" onClick={fechar} aria-label="Fechar" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button>
         </header>
 
@@ -111,6 +125,8 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
               </div>
             ) : <Loader2 className="h-8 w-8 animate-spin text-blue-500" aria-label="Carregando" />}
           </div>
+        ) : vendoLegados ? (
+          <ColaboradoresLegados usuarios={dados.usuarios} onVoltar={() => setVendoLegados(false)} />
         ) : (
           <div className="flex min-h-0 flex-1">
             {/* Lista de usuários (no celular some quando um usuário está aberto) */}
@@ -167,6 +183,9 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
                       Ativo
                     </label>
                   </div>
+
+                  <DadosUsuario key={selecionado.id} usuario={selecionado} empresas={empresas} cargos={cargos}
+                    onSalvo={u => setDados(d => d && { ...d, usuarios: d.usuarios.map(x => (x.id === u.id ? u : x)) })} />
 
                   {!rascunho.inAtivo && (
                     <p className="mx-4 mt-3 flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700"><UserX className="h-4 w-4" /> Usuário inativo não consegue entrar no app.</p>
