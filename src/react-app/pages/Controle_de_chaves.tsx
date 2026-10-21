@@ -1,15 +1,13 @@
 import { useState, useEffect, useId, useMemo, useCallback } from 'react';
-import { LayoutDashboard, Users, Archive, PlusCircle, Key, Box, CheckCircle, Clock, X, Edit2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
-import { ColaboradorService, Colaborador } from '../services/ColaboradorService';
-import { OpcoesColaboradorService, type Empresa, type Cargo, type Permissao } from '../services/OpcoesColaboradorService';
+import { LayoutDashboard, Archive, PlusCircle, Key, Box, CheckCircle, Clock, X, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 import { apartamentoVistoriaService } from '../services/ApartamentoVistoriaService';
-import { podeLiberarChave, podeRetirarChave } from '../utils/elegibilidadeColaborador';
-import { ControleChavesService, type ApartamentoControleChaves, type FerramentaControleChaves, type TipoItemControleChaves, type DashboardControleChaves, type RetiradaControleChaves } from '../services/ControleChavesService';
+import { ControleChavesService, type ApartamentoControleChaves, type FerramentaControleChaves, type TipoItemControleChaves, type DashboardControleChaves, type RetiradaControleChaves, type PessoaControleChaves } from '../services/ControleChavesService';
 import { EVENTO_OBRA_CONTROLE_CHAVES, lerObraControleChaves } from '../utils/preferenciasControleChaves';
 import { ColumnFilter as HistoricoColumnFilter } from '../components/ColumnFilter';
 import { VALOR_VAZIO, normalizarTexto, normalizarData, compararValores, type DirecaoOrdenacao } from '../utils/filtroColuna';
 
-type ModalItem = Colaborador | RetiradaControleChaves;
+type ModalItem = RetiradaControleChaves;
 type ColunaHistorico = 'codigo' | 'data' | 'apartamento' | 'retirante' | 'recebedor' | 'status';
 type FiltrosHistorico = Partial<Record<ColunaHistorico, string[]>>;
 type ColunaRetiradasRecentes = 'codigo' | 'data' | 'apartamento' | 'retirante' | 'liberador' | 'status';
@@ -158,6 +156,7 @@ function TabelaRetiradasAbertas({ titulo, itens, carregando, erro, recebendoId, 
                   {retiradaAberta(r) && <button disabled={recebendoId === r.idRequisicao}
                     onClick={() => onReceber(r)}
                     title="Chave Recebida"
+                    aria-label={`Confirmar recebimento de ${r.cdCodigoRetirada}`}
                     className="p-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors"
                   >
                     <CheckCircle size={18} />
@@ -173,6 +172,7 @@ function TabelaRetiradasAbertas({ titulo, itens, carregando, erro, recebendoId, 
 }
 
 const App = () => {
+  const { usuario } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [modalType, setModalType] = useState<string | null>(null);
   const [editingColab, setEditingColab] = useState<ModalItem | null>(null);
@@ -190,20 +190,12 @@ const App = () => {
   const [carregandoDashboard, setCarregandoDashboard] = useState(true);
   const [erroDashboard, setErroDashboard] = useState<string | null>(null);
   const [recebendoId, setRecebendoId] = useState<number | null>(null);
-  const [idRecebedor, setIdRecebedor] = useState<number | null>(null);
   const [erroModal, setErroModal] = useState<string | null>(null);
   const [idObra, setIdObra] = useState<string>(() => lerObraControleChaves());
 
   // Estado dos colaboradores carregados do banco
-  const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
-  const [carregandoColaboradores, setCarregandoColaboradores] = useState(true);
-  const [erroColaboradores, setErroColaboradores] = useState<string | null>(null);
-  const [salvandoColaborador, setSalvandoColaborador] = useState(false);
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [cargos, setCargos] = useState<Cargo[]>([]);
-  const [permissoes, setPermissoes] = useState<Permissao[]>([]);
-  const [carregandoOpcoes, setCarregandoOpcoes] = useState(true);
-  const [erroOpcoes, setErroOpcoes] = useState<string | null>(null);
+  // Quem pode retirar: usuários ativos da base única. Quem libera e quem recebe é sempre o usuário logado.
+  const [pessoas, setPessoas] = useState<PessoaControleChaves[]>([]);
   const [buscaApartamento, setBuscaApartamento] = useState('');
   const [apartamentos, setApartamentos] = useState<ApartamentoControleChaves[]>([]);
   const [apartamentoSelecionado, setApartamentoSelecionado] = useState<ApartamentoControleChaves | null>(null);
@@ -222,69 +214,21 @@ const App = () => {
   const [opcaoFerramentaAtiva, setOpcaoFerramentaAtiva] = useState(-1);
   const [tentativaBuscaFerramenta, setTentativaBuscaFerramenta] = useState(0);
   const [idRetirante, setIdRetirante] = useState<number | null>(null);
-  const [idLiberador, setIdLiberador] = useState<number | null>(null);
   const [salvandoRetirada, setSalvandoRetirada] = useState(false);
   const apartamentoListboxId = useId();
   const ferramentaListboxId = useId();
-
-  // Estado do formulário de colaborador
-  const [formData, setFormData] = useState<Colaborador>({
-    nmColaborador: '',
-    nrCelular: '',
-    idEmpresa: 0,
-    idCargo: 0,
-    idPermissao: 0
-  });
 
   const retiradas = useMemo(() => (dashboard?.retiradasRecentes ?? []).filter(retiradaAberta), [dashboard?.retiradasRecentes]);
   const retiradasChaves = useMemo(() => retiradas.filter(r => r.nmTipoItem !== 'FERRAMENTA'), [retiradas]);
   const retiradasFerramentas = useMemo(() => retiradas.filter(r => r.nmTipoItem === 'FERRAMENTA'), [retiradas]);
 
-  const carregarColaboradores = async (mostrarErroNoModal = false) => {
-    setCarregandoColaboradores(true);
-    setErroColaboradores(null);
+  const carregarPessoas = async () => {
     try {
-      const dados = await ColaboradorService.listar();
-      setColaboradores(Array.isArray(dados) ? dados : []);
+      const dados = await ControleChavesService.listarPessoas();
+      setPessoas(Array.isArray(dados) ? dados : []);
     } catch (err) {
-      console.error("Erro ao carregar colaboradores:", err);
-      setColaboradores([]);
-      const mensagem = err instanceof Error ? err.message : 'Erro ao carregar colaboradores.';
-      setErroColaboradores(mensagem);
-      if (mostrarErroNoModal) setErroModal(mensagem);
-    } finally {
-      setCarregandoColaboradores(false);
-    }
-  };
-
-  const carregarOpcoes = async () => {
-    setCarregandoOpcoes(true);
-    setErroOpcoes(null);
-    try {
-      const [novasEmpresas, novosCargos, novasPermissoes] = await Promise.all([
-        OpcoesColaboradorService.listarEmpresas(),
-        OpcoesColaboradorService.listarCargos(),
-        OpcoesColaboradorService.listarPermissoes(),
-      ]);
-      setEmpresas(novasEmpresas);
-      setCargos(novosCargos);
-      setPermissoes(novasPermissoes);
-
-      const listasVazias = [
-        novasEmpresas.length === 0 && 'empresas',
-        novosCargos.length === 0 && 'cargos',
-        novasPermissoes.length === 0 && 'permissões',
-      ].filter(Boolean);
-      if (listasVazias.length) {
-        setErroOpcoes(`Nenhuma opção encontrada para: ${listasVazias.join(', ')}.`);
-      }
-    } catch (err) {
-      setEmpresas([]);
-      setCargos([]);
-      setPermissoes([]);
-      setErroOpcoes(err instanceof Error ? err.message : 'Erro ao carregar as opções do colaborador.');
-    } finally {
-      setCarregandoOpcoes(false);
+      setPessoas([]);
+      setErroModal(err instanceof Error ? err.message : 'Erro ao carregar as pessoas.');
     }
   };
 
@@ -333,10 +277,6 @@ const App = () => {
     } finally { setCarregandoDashboard(false); }
   }, [idObra]);
 
-  useEffect(() => {
-    carregarColaboradores();
-    carregarOpcoes();
-  }, []);
 
   useEffect(() => {
     void carregarDashboard();
@@ -469,14 +409,12 @@ const App = () => {
     setModalType(null);
     setEditingColab(null);
     setErroModal(null);
-    setIdRecebedor(null);
   };
 
   const openModal = (type: string, colab: ModalItem | null = null) => {
     setModalType(type);
     setEditingColab(colab);
     setErroModal(null);
-    setIdRecebedor(null);
 
     if (type === 'retirada') {
       setTipoItemRetirada('APARTAMENTO');
@@ -491,51 +429,10 @@ const App = () => {
       setErroFerramentas(null);
       setListaFerramentasAberta(false);
       setIdRetirante(null);
-      setIdLiberador(null);
       setSalvandoRetirada(false);
-      void carregarColaboradores(true);
+      void carregarPessoas();
     }
 
-    if (type === 'confirmar') void carregarColaboradores(true);
-
-    if (type === 'colaborador' || type === 'editarColaborador') {
-      if (colab && 'nmColaborador' in colab) {
-        setFormData({
-          id: colab.id,
-          nmColaborador: colab.nmColaborador || '',
-          nrCelular: colab.nrCelular || '',
-          idEmpresa: colab.idEmpresa ?? 0,
-          idCargo: colab.idCargo ?? 0,
-          idPermissao: colab.idPermissao ?? 0,
-        });
-      } else {
-        setFormData({
-          nmColaborador: '',
-          nrCelular: '',
-          idEmpresa: empresas[0]?.id ?? 0,
-          idCargo: cargos[0]?.id ?? 0,
-          idPermissao: permissoes[0]?.id ?? 0,
-        });
-      }
-    }
-  };
-
-  const handleSalvarColaborador = async () => {
-    setErroModal(null);
-    if (!formData.nmColaborador.trim() || !formData.nrCelular.trim() || !formData.idEmpresa || !formData.idCargo || !formData.idPermissao) {
-      setErroModal('Preencha nome, celular, empresa, cargo e permissão.');
-      return;
-    }
-    setSalvandoColaborador(true);
-    try {
-      await ColaboradorService.salvar(formData);
-      await carregarColaboradores();
-      fecharModal();
-    } catch (err) {
-      setErroModal(err instanceof Error ? err.message : 'Erro ao salvar colaborador no banco.');
-    } finally {
-      setSalvandoColaborador(false);
-    }
   };
 
   const retiradaSelecionada = editingColab && 'cdCodigoRetirada' in editingColab ? editingColab : null;
@@ -543,8 +440,8 @@ const App = () => {
   const handleCriarRetirada = async () => {
     if (salvandoRetirada) return;
     setErroModal(null);
-    if (idRetirante === null || idLiberador === null) {
-      setErroModal('Selecione quem retirou e quem liberou.');
+    if (idRetirante === null) {
+      setErroModal('Selecione quem está retirando.');
       return;
     }
     if (tipoItemRetirada === 'APARTAMENTO' && !apartamentoSelecionado) {
@@ -562,10 +459,9 @@ const App = () => {
         idApartamentoVistoria: tipoItemRetirada === 'APARTAMENTO' ? apartamentoSelecionado?.idApartamentoVistoria : undefined,
         idFerramenta: tipoItemRetirada === 'FERRAMENTA' ? ferramentaSelecionada?.idFerramenta : undefined,
         idUserRetirada: idRetirante,
-        idUserLiberacao: idLiberador,
       });
       fecharModal();
-      await Promise.all([carregarDashboard(), carregarColaboradores()]);
+      await carregarDashboard();
       setTentativaHistorico(value => value + 1);
     } catch (err) {
       setErroModal(err instanceof Error ? err.message : 'Falha ao criar retirada.');
@@ -577,13 +473,9 @@ const App = () => {
   const handleReceberRetirada = async () => {
     if (!retiradaSelecionada || recebendoId !== null) return;
     setErroModal(null);
-    if (idRecebedor === null) {
-      setErroModal('Selecione quem recebeu a chave.');
-      return;
-    }
     setRecebendoId(retiradaSelecionada.idRequisicao);
     try {
-      await ControleChavesService.receberRetirada(retiradaSelecionada.idRequisicao, { idUserRecebimento: idRecebedor });
+      await ControleChavesService.receberRetirada(retiradaSelecionada.idRequisicao);
       setDashboard(atual => atual ? {
         ...atual,
         qtChavesEmCampo: Math.max(0, atual.qtChavesEmCampo - 1),
@@ -592,7 +484,7 @@ const App = () => {
         retiradasRecentes: atual.retiradasRecentes.filter(item => item.idRequisicao !== retiradaSelecionada.idRequisicao),
       } : atual);
       fecharModal();
-      await Promise.all([carregarDashboard(), carregarColaboradores()]);
+      await carregarDashboard();
       setTentativaHistorico(value => value + 1);
     } catch (err) {
       setErroModal(err instanceof Error ? err.message : 'Falha ao confirmar recebimento.');
@@ -609,7 +501,6 @@ const App = () => {
           <nav className="flex flex-wrap gap-2">
             {[
               { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-              { id: 'colaboradores', label: 'Colaboradores', icon: Users },
               { id: 'historico', label: 'Histórico', icon: Archive }
             ].map(tab => (
               <button
@@ -659,60 +550,6 @@ const App = () => {
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
               <TabelaRetiradasAbertas key={`chaves-${idObra}`} titulo="Chaves" itens={retiradasChaves} carregando={carregandoDashboard} erro={!!erroDashboard} recebendoId={recebendoId} onReceber={r => openModal('confirmar', r)} />
               <TabelaRetiradasAbertas key={`ferramentas-${idObra}`} titulo="Ferramentas" itens={retiradasFerramentas} carregando={carregandoDashboard} erro={!!erroDashboard} recebendoId={recebendoId} onReceber={r => openModal('confirmar', r)} />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'colaboradores' && (
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 overflow-x-auto">
-            <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
-              <h3 className="font-bold text-lg text-slate-800">Colaboradores</h3>
-              <button
-                onClick={() => openModal('colaborador')}
-                className="bg-emerald-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-emerald-700 transition-all font-semibold text-sm"
-              >
-                <PlusCircle size={18} /> Cadastrar
-              </button>
-            </div>
-
-            <div className="min-w-[600px]">
-              {carregandoColaboradores && (
-                <p className="py-4 text-sm text-slate-500">Carregando colaboradores...</p>
-              )}
-              {erroColaboradores && !modalType && (
-                <div className="mb-4 flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  <span>{erroColaboradores}</span>
-                  <button onClick={() => void carregarColaboradores()} className="font-semibold hover:text-red-900">Tentar novamente</button>
-                </div>
-              )}
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-slate-400 uppercase text-[10px] font-black tracking-widest border-b border-slate-100">
-                    <th className="pb-3">Nome</th>
-                    <th className="pb-3">Empresa</th>
-                    <th className="pb-3">Cargo</th>
-                    <th className="pb-3">Celular</th>
-                    <th className="pb-3">Permissão</th>
-                    <th className="pb-3">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {colaboradores.map(c => (
-                    <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td className="py-4 text-slate-800 font-semibold text-sm">{c.nmColaborador}</td>
-                      <td className="py-4 text-slate-600 text-sm">{c.nmEmpresa || `Empresa ${c.idEmpresa}`}</td>
-                      <td className="py-4 text-slate-600 text-sm">{c.nmCargo || `Cargo ${c.idCargo}`}</td>
-                      <td className="py-4 text-slate-600 font-mono text-xs">{c.nrCelular}</td>
-                      <td className="py-4 text-slate-600 text-sm">{c.nmPermissao || `Permissão ${c.idPermissao}`}</td>
-                      <td className="py-4">
-                        <button onClick={() => openModal('editarColaborador', c)} className="text-emerald-600 hover:text-emerald-800">
-                          <Edit2 size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         )}
@@ -826,7 +663,7 @@ const App = () => {
           <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl border border-slate-100">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-slate-900">
-                {modalType === 'retirada' ? 'Nova Retirada' : modalType === 'confirmar' ? 'Confirmar Recebimento' : modalType === 'editarRetirada' ? 'Editar Retirada' : 'Dados do Colaborador'}
+                {modalType === 'retirada' ? 'Nova Retirada' : modalType === 'confirmar' ? 'Confirmar Recebimento' : 'Editar Retirada'}
               </h2>
               <button onClick={fecharModal} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
             </div>
@@ -837,68 +674,7 @@ const App = () => {
                   {erroModal}
                 </div>
               )}
-              {modalType === 'colaborador' || modalType === 'editarColaborador' ? (
-                <>
-                  {carregandoOpcoes && (
-                    <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Carregando opções...</p>
-                  )}
-                  {erroOpcoes && !carregandoOpcoes && (
-                    <div className="flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      <span>{erroOpcoes}</span>
-                      <button onClick={carregarOpcoes} className="shrink-0 font-semibold hover:text-red-900">Tentar novamente</button>
-                    </div>
-                  )}
-                  <label className="block text-sm font-semibold text-slate-600">Nome Completo</label>
-                  <input
-                    value={formData.nmColaborador}
-                    onChange={e => setFormData({...formData, nmColaborador: e.target.value})}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  <label className="block text-sm font-semibold text-slate-600">Celular</label>
-                  <input
-                    value={formData.nrCelular}
-                    onChange={e => setFormData({...formData, nrCelular: e.target.value})}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  <label className="block text-sm font-semibold text-slate-600">Empresa</label>
-                  <select
-                    value={formData.idEmpresa}
-                    onChange={e => setFormData({...formData, idEmpresa: Number(e.target.value)})}
-                    disabled={carregandoOpcoes || empresas.length === 0}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value={0} disabled>Selecione uma empresa</option>
-                    {empresas.map(empresa => <option key={empresa.id} value={empresa.id}>{empresa.nmEmpresa}</option>)}
-                  </select>
-                  <label className="block text-sm font-semibold text-slate-600">Cargo</label>
-                  <select
-                    value={formData.idCargo}
-                    onChange={e => setFormData({...formData, idCargo: Number(e.target.value)})}
-                    disabled={carregandoOpcoes || cargos.length === 0}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value={0} disabled>Selecione um cargo</option>
-                    {cargos.map(cargo => <option key={cargo.id} value={cargo.id}>{cargo.nmCargo}</option>)}
-                  </select>
-                  <label className="block text-sm font-semibold text-slate-600">Permissão</label>
-                  <select
-                    value={formData.idPermissao}
-                    onChange={e => setFormData({...formData, idPermissao: Number(e.target.value)})}
-                    disabled={carregandoOpcoes || permissoes.length === 0}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value={0} disabled>Selecione uma permissão</option>
-                    {permissoes.map(permissao => <option key={permissao.id} value={permissao.id}>{permissao.nmPermissao}</option>)}
-                  </select>
-                  <button
-                    onClick={handleSalvarColaborador}
-                    disabled={salvandoColaborador || carregandoOpcoes || !!erroOpcoes}
-                    className="w-full bg-slate-900 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 text-white font-bold py-3 rounded-xl mt-4 transition-colors"
-                  >
-                    {salvandoColaborador ? 'Salvando...' : 'Confirmar'}
-                  </button>
-                </>
-              ) : modalType === 'retirada' ? (
+              {modalType === 'retirada' ? (
                 <>
                   <label className="block text-sm font-semibold text-slate-600">Tipo de item</label>
                   <div className="mb-1 flex rounded-xl bg-slate-100 p-1">
@@ -1073,15 +849,11 @@ const App = () => {
                   </>
                   )}
                   <label className="block text-sm font-semibold text-slate-600">Retirado Por</label>
-                  <select value={idRetirante ?? ''} onChange={(event) => setIdRetirante(Number(event.target.value))} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
-                    <option value="" disabled>Selecione quem retirou</option>
-                    {colaboradores.filter(podeRetirarChave).map(c => <option key={c.id} value={c.id}>{c.nmColaborador}</option>)}
+                  <select aria-label="Retirado por" value={idRetirante ?? ''} onChange={(event) => setIdRetirante(Number(event.target.value))} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="" disabled>Selecione quem está retirando</option>
+                    {pessoas.map(p => <option key={p.id} value={p.id}>{p.nmNome}{p.nmCargo ? ` · ${p.nmCargo}` : ''}</option>)}
                   </select>
-                  <label className="block text-sm font-semibold text-slate-600">Liberado Por</label>
-                  <select value={idLiberador ?? ''} onChange={(event) => setIdLiberador(Number(event.target.value))} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
-                    <option value="" disabled>Selecione quem liberou</option>
-                    {colaboradores.filter(podeLiberarChave).map(c => <option key={c.id} value={c.id}>{c.nmColaborador}</option>)}
-                  </select>
+                  <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Liberado por <strong>{usuario?.nome ?? 'você'}</strong> (usuário logado).</p>
                   <button
                     type="button"
                     onClick={handleCriarRetirada}
@@ -1092,11 +864,7 @@ const App = () => {
               ) : modalType === 'confirmar' ? (
                 <>
                   <p className="text-slate-600">Confirma o recebimento da retirada <strong className="text-slate-900">{retiradaSelecionada?.cdCodigoRetirada}</strong>, apartamento <strong className="text-slate-900">{retiradaSelecionada?.apartamentoControleChavesDto?.nmApartamentoVistoria ?? retiradaSelecionada?.ferramentaControleChavesDto?.nmFerramenta}</strong>?</p>
-                  <label className="block text-sm font-semibold text-slate-600">Recebido Por</label>
-                  <select value={idRecebedor ?? ''} onChange={(event) => { setIdRecebedor(Number(event.target.value)); setErroModal(null); }} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
-                    <option value="" disabled>Selecione quem recebeu</option>
-                    {colaboradores.filter(podeLiberarChave).map(c => <option key={c.id} value={c.id}>{c.nmColaborador}</option>)}
-                  </select>
+                  <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Recebido por <strong>{usuario?.nome ?? 'você'}</strong> (usuário logado).</p>
                   <button disabled={recebendoId !== null} onClick={handleReceberRetirada} className="w-full bg-slate-900 disabled:opacity-50 hover:bg-slate-800 text-white font-bold py-3 rounded-xl mt-4 transition-colors">{recebendoId !== null ? 'Confirmando...' : 'Confirmar'}</button>
                 </>
               ) : modalType === 'editarRetirada' ? (
