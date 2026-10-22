@@ -17,6 +17,7 @@ import EsqueciSenhaPage from "@/react-app/pages/EsqueciSenha";
 import RedefinirSenhaPage from "@/react-app/pages/RedefinirSenha";
 import FinanceiroPage from "@/react-app/pages/Financeiro";
 import ConcretagemInProgress from "@/react-app/components/Placeholder";
+import RelatorioFotograficoPage from "@/react-app/pages/RelatorioFotografico";
 import LoginPage from "@/react-app/pages/Login";
 import AlterarSenhaPage from "@/react-app/pages/AlterarSenha";
 import RotaProtegida from "@/react-app/components/RotaProtegida";
@@ -43,7 +44,7 @@ export default function App() {
             {/* Mapeamentos */}
             <Route path="mapeamentos/conferencias" element={<ConcretagemInProgress />} />
             <Route path="mapeamentos/pendencias" element={<ConcretagemInProgress />} />
-            <Route path="mapeamentos/relatorio-fotografico" element={<ConcretagemInProgress />} />
+            <Route path="mapeamentos/relatorio-fotografico" element={<RelatorioFotograficoPage />} />
   
             {/* Organizacional */}
             <Route path="organizacional/rte" element={<ConcretagemInProgress />} />

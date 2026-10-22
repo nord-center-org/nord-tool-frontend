@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Package, Map, Briefcase, UserCircle, Sparkles, LayoutDashboard, Database, BookOpen, Settings, ChevronDown, Key, Heart, PiggyBank, Ruler, CalendarDays, Wallet, type LucideIcon } from "lucide-react";
+import { Package, Map, Briefcase, UserCircle, Sparkles, LayoutDashboard, Database, BookOpen, Settings, ChevronDown, Key, Heart, PiggyBank, Ruler, CalendarDays, Wallet, Camera, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/react-app/hooks/useAuth";
@@ -16,7 +16,9 @@ export default function HomePage() {
       { label: "Agenda", path: "/entregas", icon: LayoutDashboard },
       { label: "Apartamentos", path: "/apartamentos", icon: Database },
     ],
-    "Mapeamentos": [],
+    "Mapeamentos": [
+      { label: "Relatório fotográfico", path: "/mapeamentos/relatorio-fotografico", icon: Camera },
+    ],
     "Organizacional": [
       { label: "Treinamentos", path: "/treinamentos", icon: BookOpen },
       { label: "Controle de chaves", path: "/organizacional/controle-chaves", icon: Key },
