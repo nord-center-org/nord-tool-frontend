@@ -17,6 +17,12 @@ export interface CronogramaSemanalItem {
   nmTag?: string;
   dtAgendamento?: string | null;
   flFixo: boolean;
+  /** Cronograma pessoal (vêm do backend). */
+  idDono?: number | null;
+  nmDono?: string | null;
+  /** false = compartilhado comigo por outra pessoa (só leitura). */
+  flProprio?: boolean;
+  idsCompartilhados?: number[];
 }
 
 export interface CronogramaSemanalExcecao {
@@ -45,6 +51,14 @@ export const paraDataHoraInput = (valor?: string | null): string => {
 };
 
 export const CronogramaSemanalService = {
+  /** Pessoas com quem dá para compartilhar (inEquipe = abaixo de mim na hierarquia). */
+  async pessoas() {
+    return (await apiFetch<import('../utils/compartilhamento').PessoaCompartilhavel[]>(`${BASE_PATH}/pessoas`)) ?? [];
+  },
+  /** Substitui a lista de quem vê o item (lista vazia = só eu). */
+  compartilhar(id: number, idsUsuarios: number[]) {
+    return apiFetch<CronogramaSemanalItem>(`${BASE_PATH}/${id}/compartilhamento`, { method: 'PUT', body: JSON.stringify({ idsUsuarios }) });
+  },
   listar() {
     return apiFetch<CronogramaSemanalItem[]>(BASE_PATH);
   },
