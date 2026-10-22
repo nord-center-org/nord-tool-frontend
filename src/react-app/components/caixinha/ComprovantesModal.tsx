@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Download, ExternalLink, FileText, Loader2, Trash2, Upload, XCircle } from "lucide-react";
+import { Camera, CheckCircle2, Download, ExternalLink, FileText, ImagePlus, Loader2, Trash2, Upload, XCircle } from "lucide-react";
 
 import type { CaixinhaComprovante, CaixinhaLancamento } from "@/shared/types";
 import ModalBase from "@/react-app/components/casamento/ModalBase";
 import { caixinhaService } from "@/react-app/services/CaixinhaService";
 import { abrirArquivoAutenticado } from "@/react-app/utils/abrirArquivoAutenticado";
 import { validarPdfComprovante } from "@/react-app/utils/caixinha";
+import { prepararFoto } from "@/react-app/utils/imagem";
+import { fotosParaPdf } from "@/react-app/utils/pdfCaixinha";
 
 interface ComprovantesModalProps {
   lancamento: CaixinhaLancamento;
@@ -77,6 +79,34 @@ export default function ComprovantesModal({ lancamento, onAlterado, onFechar }: 
     if (entrada.current) entrada.current.value = "";
   };
 
+  /** Foto(s) do recibo: reduz no aparelho, junta num PDF (uma página por foto) e anexa como comprovante. */
+  const enviarFotos = async (arquivos: FileList | null) => {
+    if (!arquivos || arquivos.length === 0) return;
+    setErro(null);
+    const lista = Array.from(arquivos);
+    const chave = crypto.randomUUID();
+    const nome = `recibo-${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "")}.pdf`;
+    setFila(f => [...f, { chave, nome: `${nome} (${lista.length} foto${lista.length > 1 ? "s" : ""})`, estado: "enviando" }]);
+    const atualizar = (parcial: Partial<ItemFila>) => setFila(f => f.map(x => (x.chave === chave ? { ...x, ...parcial } : x)));
+    try {
+      const fotos = [];
+      for (const arquivo of lista) {
+        const preparada = await prepararFoto(arquivo);
+        fotos.push({ bytes: new Uint8Array(await preparada.imagem.arrayBuffer()), tipo: "image/jpeg" as const });
+      }
+      const bytes = await fotosParaPdf(fotos, `Comprovante - ${lancamento.txInsumo}`);
+      const pdf = new File([bytes as BlobPart], nome, { type: "application/pdf" });
+      const problema = await validarArquivo(pdf);
+      if (problema) { atualizar({ estado: "erro", mensagem: problema }); return; }
+      await caixinhaService.anexarComprovante(idLancamento, pdf, chave);
+      atualizar({ estado: "ok" });
+      await carregar();
+      onAlterado();
+    } catch (e) {
+      atualizar({ estado: "erro", mensagem: mensagemDe(e, "Não foi possível converter a foto.") });
+    }
+  };
+
   const visualizar = async (c: CaixinhaComprovante) => {
     setErro(null);
     try {
@@ -120,10 +150,21 @@ export default function ComprovantesModal({ lancamento, onAlterado, onFechar }: 
 
         <div>
           <input ref={entrada} type="file" accept="application/pdf,.pdf" multiple hidden onChange={e => void enviar(e.target.files)} />
-          <button type="button" onClick={() => entrada.current?.click()} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">
-            <Upload className="h-4 w-4" /> Anexar PDFs
-          </button>
-          <span className="ml-3 text-xs text-slate-400">Até 5 MB cada. Você pode escolher vários.</span>
+          <div className="flex flex-wrap gap-2">
+            {/* Recibo quase sempre é foto: a câmera abre direto no celular e a foto vira PDF. */}
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">
+              <Camera className="h-4 w-4" /> Tirar foto
+              <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={e => { void enviarFotos(e.target.files); e.target.value = ""; }} />
+            </label>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+              <ImagePlus className="h-4 w-4" /> Fotos da galeria
+              <input type="file" accept="image/jpeg,image/png" multiple className="sr-only" onChange={e => { void enviarFotos(e.target.files); e.target.value = ""; }} />
+            </label>
+            <button type="button" onClick={() => entrada.current?.click()} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+              <Upload className="h-4 w-4" /> Anexar PDFs
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-slate-400">Fotos viram um PDF (várias fotos escolhidas juntas = um PDF com várias páginas). PDFs até 5 MB cada.</p>
         </div>
 
         {fila.length > 0 && (
