@@ -20,6 +20,7 @@ import { useAuth } from "../hooks/useAuth";
 import { podeAcessar } from "../utils/sessao";
 import { useObra } from "../hooks/useObra";
 import { iniciais } from "../utils/menuLateral";
+import CabecalhoPagina from "../components/ui/CabecalhoPagina";
 
 type AbaCadastro = "empresas" | "cargos" | "permissoes" | "ferramentas";
 
@@ -173,20 +174,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-4xl animate-in fade-in zoom-in-95 duration-500 mx-auto">
-      <div className="flex items-center gap-4 mb-8">
-        <div className="p-3.5 bg-white border border-slate-200 rounded-2xl shadow-sm">
-          <SettingsIcon className="w-6 h-6 text-blue-600" />
-        </div>
-        <div>
-          <h2 className="text-3xl font-black tracking-tight text-slate-800">
-            Configurações Globais
-          </h2>
-          <p className="text-sm text-slate-500 font-medium mt-1">
-            Ajuste os parâmetros do sistema para todas as frentes de serviço
-          </p>
-        </div>
-      </div>
+    <div className="max-w-4xl animate-entrada mx-auto">
+      <CabecalhoPagina icone={SettingsIcon} titulo="Configurações" subtitulo="Sua conta, a administração e os parâmetros das frentes de serviço" />
 
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200/60 p-2 overflow-hidden">
         <div className="p-6 md:p-8 space-y-6">
@@ -407,7 +396,7 @@ export default function SettingsPage() {
 
                 {/* Conteúdo: AGENDA */}
                 {activeFilterTab === "agenda" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-left-2 duration-300">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-da-esquerda">
                     <div className="space-y-3">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Obra/Condomínio Padrão</label>
                       <select
@@ -436,7 +425,7 @@ export default function SettingsPage() {
 
                 {/* Conteúdo: APARTAMENTOS */}
                 {activeFilterTab === "database" && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
+                  <div className="space-y-6 animate-da-direita">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-3">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Obra/Condomínio Padrão</label>

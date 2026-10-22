@@ -166,7 +166,7 @@ export default function Layout() {
                     </button>
                   )}
                   {aberto && (
-                    <div id={idLista} className="space-y-1 pb-2 pt-1">
+                    <div id={idLista} className="space-y-1 pb-2 pt-1 animate-entrada">
                       {group.items.map((item) => (
                         <NavLink
                           key={item.path}
@@ -174,7 +174,7 @@ export default function Layout() {
                           end={item.path === "/"}
                           onClick={() => setSidebarOpen(false)}
                           className={({ isActive }) =>
-                            `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${
+                            `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm active:scale-[0.98] ${
                               isActive
                                 ? "bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold"
                                 : "text-slate-600 hover:bg-slate-50 hover:text-blue-600 font-medium"
@@ -230,7 +230,8 @@ export default function Layout() {
             <ErrorBoundary resetKey={location.pathname}>
               <ExigeModuloDaRota>
                 {/* Trocar de obra recarrega a tela com os dados da nova obra. */}
-                <div key={idObra ?? "sem-obra"} className="h-full">
+                {/* Cada tela entra com o mesmo movimento curto. */}
+                <div key={`${idObra ?? "sem-obra"}:${location.pathname}`} className="h-full animate-entrada">
                   <Outlet context={{ sidebarOpen }} />
                 </div>
               </ExigeModuloDaRota>
