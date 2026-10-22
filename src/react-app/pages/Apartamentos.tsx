@@ -327,8 +327,8 @@ export default function ApartamentosPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4 flex-nowrap">
-        <div className={`flex items-center gap-4 shrink-0 transition-all duration-300 ${!sidebarOpen ? 'pl-16' : 'pl-0'}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3 lg:flex-nowrap lg:gap-4">
+        <div className={`flex flex-wrap items-center gap-3 sm:gap-4 transition-all duration-300 ${!sidebarOpen ? 'md:pl-16' : 'pl-0'}`}>
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Apartamentos</h2>
           <div className="flex p-1 bg-slate-200/50 rounded-lg border border-slate-200">
             {fases.map(f => (
@@ -337,7 +337,7 @@ export default function ApartamentosPage() {
           </div>
         </div>
 
-        <div className="relative max-w-xs w-full">
+        <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input type="text" placeholder="Busca global (ex: 18/02)..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm" />
         </div>
@@ -349,7 +349,7 @@ export default function ApartamentosPage() {
             setSearchTerm(""); 
             setNordSelecionado(null); 
             limpar();
-          }} className="p-2 text-red-600 bg-white border border-slate-200 rounded-xl hover:bg-red-50 shadow-sm"><RotateCcw className="w-4 h-4" /></button>
+          }} aria-label="Limpar filtros" className="p-2 text-red-600 bg-white border border-slate-200 rounded-xl hover:bg-red-50 shadow-sm"><RotateCcw className="w-4 h-4" /></button>
           
           <div className="relative" ref={menuRef}>
             <input 

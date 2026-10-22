@@ -119,16 +119,16 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-0 md:p-8">
       {/* Botões Nord - Lógica idêntica às Entregas */}
-      <div className="flex items-center gap-6 mb-8">
-        <h2 className="text-3xl font-bold text-slate-800">Dashboard</h2>
+      <div className="flex flex-wrap items-center gap-3 sm:gap-6 mb-6 sm:mb-8">
+        <h2 className="text-2xl sm:text-3xl font-bold text-slate-800">Dashboard</h2>
         <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
           {fases.map(f => (
             <button
               key={f.sigla}
               onClick={() => toggleCondoFilter(f.sigla)}
-              className={`px-6 py-1.5 rounded-md text-sm font-bold transition-all ${selectedCondo === f.sigla ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+              className={`px-3 sm:px-6 py-1.5 rounded-md text-sm font-bold transition-all ${selectedCondo === f.sigla ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
             >
               {f.nome}
             </button>
@@ -136,17 +136,17 @@ export default function DashboardPage() {
         </div>
       </div>
       
-      <div className="flex flex-col xl:flex-row gap-8 mb-8">
+      <div className="flex flex-col xl:flex-row gap-4 sm:gap-8 mb-8">
         {/* Filtros de Data */}
-        <div className="bg-white rounded-xl shadow-md p-6 flex flex-1 flex-col items-center justify-center gap-4">
-          <div className="flex gap-6">
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 flex flex-1 flex-col items-center justify-center gap-4">
+          <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto sm:gap-6">
             <div className="flex flex-col">
               <label className="text-xs font-bold text-slate-400 uppercase mb-1">Data inicial</label>
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full min-w-0 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div className="flex flex-col">
               <label className="text-xs font-bold text-slate-400 uppercase mb-1">Data final</label>
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full min-w-0 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
           </div>
           <div className="flex gap-2">
@@ -160,7 +160,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Sumário Executivo Atualizado para o Filtro Ativo */}
-        <div className="bg-white rounded-xl shadow-md border border-slate-100 p-6 min-w-[380px]">
+        <div className="bg-white rounded-xl shadow-md border border-slate-100 p-4 sm:p-6 xl:min-w-[380px]">
           <h4 className="text-xs font-bold text-slate-400 uppercase mb-4 border-b border-slate-50 pb-2">RESUMO GERAL {selectedCondo ? `(${selectedCondo})` : "(TODOS)"}</h4>
           <div className="space-y-4">
             <div className="flex justify-between items-center">

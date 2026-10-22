@@ -227,7 +227,7 @@ export default function DeliveriesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-4 w-full">
-        <div className={`flex flex-wrap items-center gap-4 transition-all duration-300 ${!sidebarOpen ? 'pl-16' : 'pl-0'}`}>
+        <div className={`flex flex-wrap items-center gap-4 transition-all duration-300 ${!sidebarOpen ? 'md:pl-16' : 'pl-0'}`}>
           <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Entregas</h2>
           
           <div className="flex p-1 bg-slate-200/50 rounded-lg border border-slate-200 shadow-sm">

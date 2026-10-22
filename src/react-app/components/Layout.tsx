@@ -103,12 +103,16 @@ export default function Layout() {
   return (
     <div className="flex h-screen w-full bg-slate-50 overflow-hidden relative font-sans">
       
+      {/* No celular o menu fica por cima da tela, com fundo escuro que fecha ao tocar. */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-slate-900/40 animate-aparecer md:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
+      )}
       <aside
-        className={`bg-white border-r border-slate-200 shadow-2xl transition-all duration-300 ease-in-out flex flex-col overflow-hidden z-50 ${
-          sidebarOpen ? "w-80 opacity-100" : "w-0 opacity-0 border-none"
+        className={`bg-white border-r border-slate-200 shadow-2xl transition-all duration-300 ease-in-out flex flex-col overflow-hidden z-50 fixed inset-y-0 left-0 md:static ${
+          sidebarOpen ? "w-[85vw] max-w-80 md:w-80 opacity-100" : "w-0 opacity-0 border-none"
         }`}
       >
-        <div className="w-80 flex flex-col h-full">
+        <div className="w-[85vw] max-w-80 md:w-80 flex flex-col h-full">
           <div className="p-6 flex items-center justify-between border-b border-slate-100 bg-white sticky top-0 z-10">
             <div>
               <h1 className="text-2xl font-black tracking-tight">
@@ -118,6 +122,7 @@ export default function Layout() {
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
+              aria-label="Fechar menu"
               className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-red-500 transition-colors"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -215,9 +220,10 @@ export default function Layout() {
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {!sidebarOpen && (
-          <div className="absolute top-6 left-6 z-50 flex items-center gap-4">
+          <div className="absolute left-3 top-3 z-30 flex items-center gap-4 md:left-6 md:top-6">
             <button
               onClick={() => setSidebarOpen(true)}
+              aria-label="Abrir menu"
               className="p-3 bg-white/50 backdrop-blur-md border border-white/60 rounded-2xl shadow-sm hover:bg-white transition-all group"
             >
               <Menu className="w-5 h-5 text-slate-700 group-hover:text-blue-600 transition-colors" />
@@ -226,7 +232,7 @@ export default function Layout() {
         )}
 
         <div className="flex-1 overflow-auto h-full">
-          <div className={`transition-all duration-300 h-full ${!sidebarOpen ? "pl-20 pt-6" : "p-8"}`}>
+          <div className={`transition-all duration-300 h-full px-3 pb-6 pt-16 sm:px-4 ${!sidebarOpen ? "md:pl-20 md:pr-6 md:pt-6" : "md:p-8"}`}>
             <ErrorBoundary resetKey={location.pathname}>
               <ExigeModuloDaRota>
                 {/* Trocar de obra recarrega a tela com os dados da nova obra. */}
