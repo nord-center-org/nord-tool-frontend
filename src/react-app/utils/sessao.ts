@@ -14,6 +14,7 @@ export type Modulo =
   | "FINANCEIRO"
   | "CASAMENTO"
   | "MEDICOES"
+  | "RELATORIO_FOTOGRAFICO"
   | "CADASTROS"
   | "ADMINISTRACAO";
 
@@ -62,6 +63,7 @@ const MODULO_POR_ROTA: Array<[string, Modulo]> = [
   ["/organizacional/controle-chaves", "CONTROLE_CHAVES"],
   ["/organizacional/cronograma", "CRONOGRAMA"],
   ["/organizacional/medicoes", "MEDICOES"],
+  ["/mapeamentos/relatorio-fotografico", "RELATORIO_FOTOGRAFICO"],
   ["/gestao/financeiro", "FINANCEIRO"],
   ["/gestao/casamento", "CASAMENTO"],
   ["/gestao/caixinha", "CAIXINHA"],
