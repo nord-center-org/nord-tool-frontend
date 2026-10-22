@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Building2, Check, Loader2, Plus, Search, Users, X } from "lucide-react";
+import { ArrowLeft, Building2, Check, Link2, Loader2, Plus, Search, Users, X } from "lucide-react";
 
 import { acessoService, type AcessoUsuario } from "@/react-app/services/AcessoService";
 import { obraService, type Fase, type Obra } from "@/react-app/services/ObraService";
@@ -87,6 +87,7 @@ export default function ObrasModal({ onFechar }: ObrasModalProps) {
                   </li>
                 ))}
               </ul>
+              <LigarApartamentos />
             </aside>
 
             <section className={`${selecao !== null ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col overflow-y-auto`} aria-label="Obra">
@@ -291,5 +292,35 @@ function NovaFase({ idObra, proximaOrdem, onCriada }: { idObra: number; proximaO
       </button>
       {erro && <p role="alert" className="w-full text-sm text-red-700">{erro}</p>}
     </form>
+  );
+}
+
+/** Liga os apartamentos já cadastrados à fase cuja sigla começa o código (ex.: N1-01-0101 → N1). */
+function LigarApartamentos() {
+  const [ligando, setLigando] = useState(false);
+  const [aviso, setAviso] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  const ligar = async () => {
+    setLigando(true);
+    setAviso(null);
+    try {
+      const r = await obraService.vincularApartamentos();
+      setAviso({ ok: true, texto: `${r?.qtLigados ?? 0} ligado(s). ${r?.qtSemFase ?? 0} continuam sem fase.` });
+    } catch (e) {
+      setAviso({ ok: false, texto: mensagem(e, "Não foi possível ligar os apartamentos.") });
+    } finally {
+      setLigando(false);
+    }
+  };
+
+  return (
+    <div className="border-t border-slate-100 p-3">
+      <button type="button" onClick={() => void ligar()} disabled={ligando}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60">
+        {ligando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />} Ligar apartamentos pela sigla
+      </button>
+      <p className="mt-1 text-[11px] text-slate-400">Usa o começo do código do apartamento (ex.: N1-…) para achar a fase.</p>
+      {aviso && <p role={aviso.ok ? "status" : "alert"} className={`mt-2 text-xs ${aviso.ok ? "text-emerald-700" : "text-red-700"}`}>{aviso.texto}</p>}
+    </div>
   );
 }

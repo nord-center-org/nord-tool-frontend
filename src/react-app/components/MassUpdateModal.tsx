@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, ClipboardPaste } from "lucide-react";
+import { useObra } from "@/react-app/hooks/useObra";
 
 interface MassUpdateModalProps {
   onClose: () => void;
@@ -12,7 +13,8 @@ interface MassUpdateModalProps {
 
 export default function MassUpdateModal({ onClose, onProcess }: MassUpdateModalProps) {
   const [textoSales, setTextoSales] = useState("");
-  const [prefixo, setPrefixo] = useState("N1");
+  const { fases } = useObra();
+  const [prefixo, setPrefixo] = useState(() => fases[0]?.sigla ?? "N1");
 
   const processarTexto = () => {
     const linhas = textoSales.split("\n");
@@ -79,9 +81,7 @@ export default function MassUpdateModal({ onClose, onProcess }: MassUpdateModalP
               onChange={(e) => setPrefixo(e.target.value)}
               className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none shadow-sm"
             >
-              <option value="N1">Nord 1 (N1)</option>
-              <option value="N2">Nord 2 (N2)</option>
-              <option value="EN">Energy (EN)</option>
+              {fases.map(f => <option key={f.sigla} value={f.sigla}>{f.nome} ({f.sigla})</option>)}
             </select>
           </div>
 

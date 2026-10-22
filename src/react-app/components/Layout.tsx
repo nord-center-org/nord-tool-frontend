@@ -3,6 +3,7 @@ import { Outlet, NavLink, useLocation } from "react-router";
 import ErrorBoundary from "@/react-app/components/ErrorBoundary";
 import { ExigeModuloDaRota } from "@/react-app/components/RotaProtegida";
 import { useAuth } from "@/react-app/hooks/useAuth";
+import { useObra } from "@/react-app/hooks/useObra";
 import { podeAbrirRota } from "@/react-app/utils/sessao";
 import { 
   Database, BarChart3, Package, Settings, Menu, ChevronLeft, 
@@ -16,6 +17,7 @@ export default function Layout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { usuario, sair } = useAuth();
+  const { obras, idObra, obra, trocarObra } = useObra();
 
   const menuGroups = [
     {
@@ -92,6 +94,32 @@ export default function Layout() {
               <ChevronLeft className="w-5 h-5" />
             </button>
           </div>
+
+          {usuario && (
+            <div className="border-b border-slate-100 px-6 py-4" aria-label="Usuário e obra">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-black text-white" aria-hidden="true">
+                  {usuario.nome.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join("")}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-slate-800">{usuario.nome}</p>
+                  {obras.length > 1 ? (
+                    <select aria-label="Obra" value={idObra ?? ""} onChange={e => trocarObra(Number(e.target.value))}
+                      className="mt-0.5 w-full max-w-[12rem] truncate rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-600">
+                      {obras.map(o => <option key={o.id} value={o.id}>{o.nmObra}</option>)}
+                    </select>
+                  ) : (
+                    <p className="truncate text-xs font-semibold text-blue-600">{obra?.nmObra ?? "Sem obra definida"}</p>
+                  )}
+                </div>
+              </div>
+              {obra && obra.fases.length > 0 && (
+                <p className="mt-2 truncate text-[11px] text-slate-400" title={obra.fases.map(f => f.nmFase).join(", ")}>
+                  Fases: {obra.fases.map(f => f.cdFase ?? f.nmFase).join(" · ")}
+                </p>
+              )}
+            </div>
+          )}
 
           <nav className="px-4 py-6 flex-1 overflow-y-auto space-y-8 no-scrollbar">
             {menuGroups
@@ -191,7 +219,10 @@ export default function Layout() {
           <div className={`transition-all duration-300 h-full ${!sidebarOpen ? "pl-20 pt-6" : "p-8"}`}>
             <ErrorBoundary resetKey={location.pathname}>
               <ExigeModuloDaRota>
-                <Outlet context={{ sidebarOpen }} />
+                {/* Trocar de obra recarrega a tela com os dados da nova obra. */}
+                <div key={idObra ?? "sem-obra"} className="h-full">
+                  <Outlet context={{ sidebarOpen }} />
+                </div>
               </ExigeModuloDaRota>
             </ErrorBoundary>
           </div>

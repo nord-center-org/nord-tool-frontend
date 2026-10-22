@@ -17,6 +17,7 @@ import ObrasModal from "../components/administracao/ObrasModal";
 import EquipeModal from "../components/administracao/EquipeModal";
 import { useAuth } from "../hooks/useAuth";
 import { podeAcessar } from "../utils/sessao";
+import { useObra } from "../hooks/useObra";
 
 type AbaCadastro = "empresas" | "cargos" | "permissoes" | "ferramentas";
 
@@ -33,6 +34,7 @@ export default function SettingsPage() {
   const { usuario } = useAuth();
   const ehAdmin = podeAcessar(usuario?.permissoes, "ADMINISTRACAO", "ADMIN");
   const [acessosAberto, setAcessosAberto] = useState(false);
+  const { fases: fasesDaObra } = useObra();
   const [obrasAberto, setObrasAberto] = useState(false);
   const [equipeAberto, setEquipeAberto] = useState(false);
   const [apartmentList, setApartmentList] = useState("");
@@ -392,9 +394,7 @@ export default function SettingsPage() {
                         className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 outline-none shadow-sm"
                       >
                         <option value="">Nenhum (Mostrar Todos)</option>
-                        <option value="Nord 1">Nord 1</option>
-                        <option value="Nord 2">Nord 2</option>
-                        <option value="Energy">Energy</option>
+                        {fasesDaObra.map(f => <option key={f.sigla} value={f.sigla}>{f.nome}</option>)}
                       </select>
                     </div>
                     <div className="space-y-3">
@@ -420,9 +420,7 @@ export default function SettingsPage() {
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Obra/Condomínio Padrão</label>
                         <select value={defaultDbCondo} onChange={(e) => setDefaultDbCondo(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none shadow-sm">
                           <option value="">Nenhum (Todos)</option>
-                          <option value="N1">Nord 1</option>
-                          <option value="N2">Nord 2</option>
-                          <option value="EN">Energy</option>
+                          {fasesDaObra.map(f => <option key={f.sigla} value={f.sigla}>{f.nome}</option>)}
                         </select>
                       </div>
                     </div>

@@ -8,6 +8,8 @@ import type { ApartamentoVistoriaDto, ApartamentoVistoriaForm } from "@/shared/t
 import { apartamentoVistoriaService } from "@/react-app/services/ApartamentoVistoriaService";
 import ApartmentCard from "@/react-app/components/ApartmentCard";
 import ApartmentModal from "@/react-app/components/ApartmentModal";
+import { useObra } from "@/react-app/hooks/useObra";
+import { FASES_LEGADAS, codigoDaFase } from "@/react-app/utils/contextoObra";
 
 export default function DeliveriesPage() {
   // Correção: Acessa o contexto de forma segura para evitar crash (tela branca)
@@ -16,7 +18,9 @@ export default function DeliveriesPage() {
   const sidebarOpen = outletContext?.sidebarOpen ?? false;
   
   const [activeTab, setActiveTab] = useState<"current" | "next" | "all">("current");
-  const [filterNord, setFilterNord] = useState<"Nord 1" | "Nord 2" | "Energy" | null>(null);
+  // Filtro de fase (sigla da fase, ex.: N1).
+  const [filterNord, setFilterNord] = useState<string | null>(null);
+  const { fases } = useObra();
   const [apartamentos, setApartamentos] = useState<ApartamentoVistoriaDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -29,9 +33,10 @@ export default function DeliveriesPage() {
       const savedCondo = localStorage.getItem("@NordTool:filter_del_condo");
       const savedTime = localStorage.getItem("@NordTool:filter_del_time");
 
-      if (savedCondo === "Nord 1" || savedCondo === "Nord 2" || savedCondo === "Energy") {
-        setFilterNord(savedCondo as "Nord 1" | "Nord 2" | "Energy");
-      }
+      // Aceita o valor salvo como nome ("Nord 1") ou sigla ("N1").
+      const salva = FASES_LEGADAS.find(f => f.nome === savedCondo || f.sigla === savedCondo);
+      if (salva) setFilterNord(salva.sigla);
+      else if (savedCondo) setFilterNord(savedCondo);
       if (savedTime === "current" || savedTime === "next" || savedTime === "all") {
         setActiveTab(savedTime as "current" | "next" | "all");
       }
@@ -164,9 +169,7 @@ export default function DeliveriesPage() {
     // Filtro de Nord e Energy (comum a todas as abas)
     const nomeApt = apt.nmApartamentoVistoria?.toUpperCase() || "";
     if (filterNord) {
-      if (filterNord === 'Nord 1' && !nomeApt.startsWith('N1')) return false;
-      if (filterNord === 'Nord 2' && !nomeApt.startsWith('N2')) return false;
-      if (filterNord === 'Energy' && !nomeApt.startsWith('EN')) return false;
+      if (!codigoDaFase(nomeApt, filterNord)) return false;
     }
     
     const isoDate = getNormalizedDate(apt);
@@ -240,15 +243,15 @@ export default function DeliveriesPage() {
           </div>
 
           <div className="flex p-1 bg-slate-200/50 rounded-lg border border-slate-200 shadow-sm">
-            {(["Nord 1", "Nord 2", "Energy"] as const).map((nord) => (
-              <button 
-                key={nord}
-                onClick={() => setFilterNord(filterNord === nord ? null : nord)}
-                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${filterNord === nord ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}
-    >
-      {nord}
-    </button>
-  ))}
+            {fases.map((f) => (
+              <button
+                key={f.sigla}
+                onClick={() => setFilterNord(filterNord === f.sigla ? null : f.sigla)}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${filterNord === f.sigla ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}
+              >
+                {f.nome}
+              </button>
+            ))}
 </div>
         </div>
 
