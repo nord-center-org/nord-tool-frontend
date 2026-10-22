@@ -16,10 +16,10 @@
 
   /* Toda janela modal surge com o mesmo movimento e o fundo escurece suave. */
   [role="dialog"][aria-modal="true"] {
-    animation: nt-surgir 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation: nt-surgir 200ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
   }
   .fixed.inset-0:has(> [role="dialog"][aria-modal="true"]) {
-    animation: nt-aparecer 200ms ease-out both;
+    animation: nt-aparecer 200ms ease-out backwards;
   }
 }
 

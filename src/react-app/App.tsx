@@ -19,6 +19,7 @@ import FinanceiroPage from "@/react-app/pages/Financeiro";
 import ConcretagemInProgress from "@/react-app/components/Placeholder";
 import RelatorioFotograficoPage from "@/react-app/pages/RelatorioFotografico";
 import MapeamentosPage from "@/react-app/pages/Mapeamentos";
+import TreinosPage from "@/react-app/pages/Treinos";
 import LoginPage from "@/react-app/pages/Login";
 import AlterarSenhaPage from "@/react-app/pages/AlterarSenha";
 import RotaProtegida from "@/react-app/components/RotaProtegida";
@@ -60,7 +61,7 @@ export default function App() {
   
             {/* Gestão Individual */}
             <Route path="gestao/financeiro" element={<FinanceiroPage />} />
-            <Route path="gestao/treinos" element={<ConcretagemInProgress />} />
+            <Route path="gestao/treinos" element={<TreinosPage />} />
             <Route path="gestao/repertorio" element={<ConcretagemInProgress />} />
             <Route path="gestao/academico" element={<ConcretagemInProgress />} />
             <Route path="gestao/casamento" element={<CasamentoPage />} />
