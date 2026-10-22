@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 
-import type { FinanceiroCategoria, FinanceiroLancamento, FinanceiroPessoa } from "@/shared/types";
+import type { FinanceiroCategoria, FinanceiroLancamento, FinanceiroPessoa, TipoFluxo } from "@/shared/types";
 import Campo, { classeInput } from "@/react-app/components/casamento/Campo";
 import ModalBase from "@/react-app/components/casamento/ModalBase";
 import type { LancamentoFinanceiroForm } from "@/react-app/services/FinanceiroService";
@@ -26,10 +26,14 @@ interface LancamentoFinanceiroModalProps {
   onSalvar: (form: LancamentoFinanceiroForm) => Promise<string | null>;
   onGerenciarCadastros: () => void;
   onFechar: () => void;
+  /** Lançamento rápido: já abre em "Gasto" ou "Entrada" (só mostra as categorias desse tipo). */
+  tipoInicial?: TipoFluxo;
+  /** Lançamento rápido já nasce como recebido/pago. */
+  realizadoInicial?: boolean;
 }
 
 export default function LancamentoFinanceiroModal({
-  lancamento, modelo, pessoas, categorias, idPessoaPadrao, categoriaPadrao, onSalvar, onGerenciarCadastros, onFechar,
+  lancamento, modelo, pessoas, categorias, idPessoaPadrao, categoriaPadrao, onSalvar, onGerenciarCadastros, onFechar, tipoInicial, realizadoInicial,
 }: LancamentoFinanceiroModalProps) {
   const origem = lancamento ?? modelo;
   // Um UUID por abertura: se o envio for repetido (duplo clique, rede), o servidor não duplica.
@@ -40,16 +44,20 @@ export default function LancamentoFinanceiroModal({
   const [idCategoria, setIdCategoria] = useState<number | "">(origem?.idCategoria ?? categoriaPadrao ?? "");
   const [idPessoa, setIdPessoa] = useState<number | "">(origem?.idPessoa ?? idPessoaPadrao ?? "");
   const [descricao, setDescricao] = useState(origem?.dsLancamento ?? "");
-  const [realizado, setRealizado] = useState(lancamento?.inRealizado ?? false);
+  const [realizado, setRealizado] = useState(lancamento?.inRealizado ?? realizadoInicial ?? false);
+  // Gasto/Entrada só filtra as categorias de um lançamento novo; na edição vale a categoria escolhida.
+  const [tipo, setTipo] = useState<TipoFluxo | null>(lancamento ? null : tipoInicial ?? null);
   const [parcelas, setParcelas] = useState("1");
+  // Parcelas e competência são raros: ficam recolhidos, a não ser que o lançamento já use outro mês.
+  const [maisOpcoes, setMaisOpcoes] = useState(Boolean(lancamento && lancamento.competencia !== competenciaDaData(dataBrParaIso(lancamento.dtLancamento) ?? "")));
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   // Sem escolha manual, a competência acompanha o mês da data.
   const competenciaEfetiva = competencia || competenciaDaData(data);
   const opcoesCategoria = useMemo(() => categoriasParaLancamento(categorias, lancamento?.idCategoria), [categorias, lancamento]);
-  const entradas = opcoesCategoria.filter(c => c.cdTipo === "ENTRADA");
-  const saidas = opcoesCategoria.filter(c => c.cdTipo === "SAIDA");
+  const entradas = tipo === "SAIDA" ? [] : opcoesCategoria.filter(c => c.cdTipo === "ENTRADA");
+  const saidas = tipo === "ENTRADA" ? [] : opcoesCategoria.filter(c => c.cdTipo === "SAIDA");
   const opcoesPessoa = pessoas.filter(p => p.inAtivo || p.idPessoa === lancamento?.idPessoa);
   const numeroParcelas = Math.min(MAX_PARCELAS, Math.max(1, Math.floor(Number(parcelas)) || 1));
   const numero = lerValor(valor);
@@ -88,6 +96,17 @@ export default function LancamentoFinanceiroModal({
         {lancamento && rotuloParcela(lancamento) && (
           <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">Parcela {rotuloParcela(lancamento)}: a edição vale só para este lançamento.</p>
         )}
+        {tipo !== null && (
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo">
+            {(["SAIDA", "ENTRADA"] as const).map(t => (
+              <button key={t} type="button" role="radio" aria-checked={tipo === t}
+                onClick={() => { setTipo(t); if (idCategoria !== "" && categorias.find(c => c.idCategoria === idCategoria)?.cdTipo !== t) setIdCategoria(""); }}
+                className={`rounded-xl border px-3 py-2 text-sm font-bold ${tipo === t ? (t === "SAIDA" ? "border-red-500 bg-red-50 text-red-700" : "border-emerald-500 bg-emerald-50 text-emerald-700") : "border-slate-200 text-slate-500"}`}>
+                {t === "SAIDA" ? "Gasto" : "Entrada"}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Campo rotulo="Data">
             <input type="date" value={data} onChange={e => setData(e.target.value)} className={classeInput} />
@@ -120,7 +139,11 @@ export default function LancamentoFinanceiroModal({
         <Campo rotulo="Descrição (opcional)">
           <textarea rows={2} maxLength={500} value={descricao} onChange={e => setDescricao(e.target.value)} className={classeInput} />
         </Campo>
-        <div className="grid grid-cols-2 gap-3">
+        <button type="button" onClick={() => setMaisOpcoes(v => !v)} aria-expanded={maisOpcoes} className="text-xs font-bold text-slate-500 hover:text-slate-700">
+          {maisOpcoes ? "− Menos opções" : "+ Mais opções (parcelas, mês de competência)"}
+        </button>
+        {maisOpcoes && (
+        <div className="grid grid-cols-2 gap-3 animate-entrada">
           <Campo rotulo="Mês de competência" dica="Muda só se o lançamento pertence a outro mês que não o da data.">
             <input type="month" value={competenciaEfetiva} onChange={e => setCompetencia(e.target.value === competenciaDaData(data) ? "" : e.target.value)} className={classeInput} />
           </Campo>
@@ -130,6 +153,7 @@ export default function LancamentoFinanceiroModal({
             </Campo>
           )}
         </div>
+        )}
         <label className="inline-flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" checked={realizado && (lancamento !== undefined || numeroParcelas === 1)} disabled={!lancamento && numeroParcelas > 1}
             onChange={e => setRealizado(e.target.checked)} className="h-4 w-4 accent-green-600" />

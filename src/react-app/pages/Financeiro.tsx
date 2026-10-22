@@ -7,13 +7,15 @@ import CadastrosFinanceiroModal from "@/react-app/components/financeiro/Cadastro
 import DashboardTab from "@/react-app/components/financeiro/DashboardTab";
 import ExtratoTab from "@/react-app/components/financeiro/ExtratoTab";
 import InvestimentosTab from "@/react-app/components/financeiro/InvestimentosTab";
+import ResumoTab from "@/react-app/components/financeiro/ResumoTab";
 import { ApiError } from "@/react-app/services/apiClient";
 import { financeiroService } from "@/react-app/services/FinanceiroService";
 
-type Aba = "dashboard" | "extrato" | "investimentos";
+type Aba = "resumo" | "dashboard" | "extrato" | "investimentos";
 
 const ABAS: { id: Aba; rotulo: string }[] = [
-  { id: "dashboard", rotulo: "Dashboard" },
+  { id: "resumo", rotulo: "Resumo" },
+  { id: "dashboard", rotulo: "Fechamento" },
   { id: "extrato", rotulo: "Extrato" },
   { id: "investimentos", rotulo: "Investimentos" },
 ];
@@ -34,7 +36,7 @@ function gravarFiltroPessoa(id: number) {
 
 export default function FinanceiroPage() {
   const [params, setParams] = useSearchParams();
-  const aba: Aba = ABAS.some(a => a.id === params.get("aba")) ? (params.get("aba") as Aba) : "dashboard";
+  const aba: Aba = ABAS.some(a => a.id === params.get("aba")) ? (params.get("aba") as Aba) : "resumo";
 
   const [pessoas, setPessoas] = useState<FinanceiroPessoa[]>([]);
   const [categorias, setCategorias] = useState<FinanceiroCategoria[]>([]);
@@ -67,7 +69,7 @@ export default function FinanceiroPage() {
   const idPessoaEfetivo = pessoaValida ? idPessoa : 0;
 
   const escolherPessoa = (id: number) => { setIdPessoa(id); gravarFiltroPessoa(id); };
-  const escolherAba = (nova: Aba) => setParams(nova === "dashboard" ? {} : { aba: nova }, { replace: true });
+  const escolherAba = (nova: Aba) => setParams(nova === "resumo" ? {} : { aba: nova }, { replace: true });
 
   const classeChip = (ativo: boolean) =>
     `rounded-full px-4 py-1.5 text-sm font-bold transition-colors ${ativo ? "bg-blue-600 text-white shadow" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"}`;
@@ -80,7 +82,7 @@ export default function FinanceiroPage() {
             <Wallet className="h-6 w-6 text-blue-400" />
             <div>
               <h1 className="text-2xl font-black tracking-tight text-blue-400">Financeiro</h1>
-              <p className="text-sm text-slate-400">Fechamento do mês, extrato e investimentos</p>
+              <p className="text-sm text-slate-400">Quanto sobra no mês, extrato e investimentos</p>
             </div>
           </div>
           <div role="tablist" aria-label="Seções do Financeiro" className="flex w-full gap-1 rounded-xl bg-slate-800 p-1 sm:inline-flex sm:w-auto">
@@ -120,6 +122,10 @@ export default function FinanceiroPage() {
           </div>
         ) : (
           <>
+            {aba === "resumo" && (
+              <ResumoTab pessoas={pessoas} categorias={categorias} idPessoa={idPessoaEfetivo}
+                onGerenciarCadastros={() => setCadastros(true)} onVerExtrato={() => escolherAba("extrato")} />
+            )}
             {aba === "extrato" && (
               <ExtratoTab pessoas={pessoas} categorias={categorias} idPessoa={idPessoaEfetivo} onGerenciarCadastros={() => setCadastros(true)} />
             )}
