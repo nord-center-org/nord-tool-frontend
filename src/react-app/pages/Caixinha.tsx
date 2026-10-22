@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Check, Download, Loader2, Paperclip, Pencil, PiggyBank, Plus, Trash2, Users, X } from "lucide-react";
+import { AlertCircle, Check, Download, FileStack, Loader2, Paperclip, Pencil, PiggyBank, Plus, Trash2, Users, X } from "lucide-react";
 import * as XLSX from "xlsx";
 
 import type { CaixinhaLancamento, CaixinhaResponsavel, CaixinhaResumo, SituacaoCaixinha } from "@/shared/types";
@@ -10,6 +10,8 @@ import ResponsaveisModal from "@/react-app/components/caixinha/ResponsaveisModal
 import { useFiltrosColuna } from "@/react-app/hooks/useFiltrosColuna";
 import { useSincronizacao } from "@/react-app/hooks/useSincronizacao";
 import { ApiError } from "@/react-app/services/apiClient";
+import { useAuth } from "@/react-app/hooks/useAuth";
+import { pdfUnicoCaixinha } from "@/react-app/utils/pdfCaixinha";
 import { caixinhaService, type FiltroCaixinha, type LancamentoForm } from "@/react-app/services/CaixinhaService";
 import {
   COLUNAS_PLANILHA, ROTULO_SITUACAO, filtrarPorBusca, hojeSaoPaulo, linhasPlanilha, periodoDoMes, totaisCaixinha,
@@ -50,6 +52,8 @@ export default function CaixinhaPage() {
   const [idComprovantes, setIdComprovantes] = useState<number | null>(null);
   // Linhas com salvamento em andamento ficam travadas: a próxima marcação usaria uma versão velha (409).
   const [ocupados, setOcupados] = useState<number[]>([]);
+  const { usuario } = useAuth();
+  const [gerandoPdf, setGerandoPdf] = useState<string | null>(null);
 
   const { filtros, ordenacao, aplicarFiltro, ordenar, limpar } = useFiltrosColuna<Coluna>({}, { coluna: "data", direcao: "desc" });
   const requisicao = useRef(0);
@@ -176,6 +180,47 @@ export default function CaixinhaPage() {
     XLSX.writeFile(livro, "NordTool_Caixinha.xlsx");
   };
 
+  /** Um PDF só: capa com o resumo dos lançamentos visíveis e, em seguida, todos os comprovantes deles. */
+  const gerarPdfUnico = async () => {
+    setGerandoPdf("Preparando…");
+    setAviso(null);
+    try {
+      const lista = [];
+      for (const [i, l] of visiveis.entries()) {
+        const comprovantes: Uint8Array[] = [];
+        if (l.qtComprovantes > 0) {
+          setGerandoPdf(`Baixando comprovantes ${i + 1}/${visiveis.length}…`);
+          for (const c of await caixinhaService.listarComprovantes(l.idLancamento)) {
+            comprovantes.push(new Uint8Array(await (await caixinhaService.baixarComprovante(c.idComprovante)).arrayBuffer()));
+          }
+        }
+        lista.push({
+          numero: i + 1, data: l.dtLancamento, responsavel: l.nmResponsavel, insumo: l.txInsumo, valor: formatarMoeda(l.vlValor),
+          situacao: l.inPago ? "Pago" : "A pagar", comprovantes,
+        });
+      }
+      const total = visiveis.reduce((s, l) => s + l.vlValor, 0);
+      const pago = visiveis.filter(l => l.inPago).reduce((s, l) => s + l.vlValor, 0);
+      setGerandoPdf("Montando o PDF…");
+      const periodo = de || ate ? `Período: ${de ? de.split("-").reverse().join("/") : "início"} a ${ate ? ate.split("-").reverse().join("/") : "hoje"}` : "Todos os lançamentos da lista";
+      const r = await pdfUnicoCaixinha({
+        titulo: `Caixinha${usuario?.nome ? ` — ${usuario.nome}` : ""}`, periodo,
+        total: formatarMoeda(total), pago: formatarMoeda(pago), aPagar: formatarMoeda(Math.round((total - pago) * 100) / 100),
+      }, lista);
+      const url = URL.createObjectURL(new Blob([r.bytes as BlobPart], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `NordTool_Caixinha_${hojeSaoPaulo()}.pdf`;
+      a.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      if (r.falhas) setAviso(`${r.falhas} comprovante(s) não puderam entrar no PDF único (arquivo inválido).`);
+    } catch (e) {
+      setAviso(e instanceof Error && e.message ? `Não foi possível gerar o PDF: ${e.message}` : "Não foi possível gerar o PDF.");
+    } finally {
+      setGerandoPdf(null);
+    }
+  };
+
   const esteMes = () => { const p = periodoDoMes(hojeSaoPaulo()); setDe(p.de); setAte(p.ate); };
 
   const lancamentoComprovantes = lancamentos.find(l => l.idLancamento === idComprovantes) ?? null;
@@ -213,6 +258,10 @@ export default function CaixinhaPage() {
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => setGerenciando(true)} className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700"><Users className="h-4 w-4" /> Responsáveis</button>
             <button type="button" onClick={exportar} disabled={visiveis.length === 0} className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-40"><Download className="h-4 w-4" /> Exportar</button>
+            <button type="button" onClick={() => void gerarPdfUnico()} disabled={visiveis.length === 0 || gerandoPdf !== null} title="Resumo + todos os comprovantes dos lançamentos da lista"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-40">
+              {gerandoPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileStack className="h-4 w-4" />} {gerandoPdf ?? "PDF único"}
+            </button>
             <button type="button" onClick={() => setModal({})} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700"><Plus className="h-4 w-4" /> Novo lançamento</button>
           </div>
         </div>
