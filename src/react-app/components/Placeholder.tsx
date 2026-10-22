@@ -1,6 +1,6 @@
 export default function ConcretagemInProgress() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center animate-in zoom-in-95 duration-500">
+    <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center animate-surgir">
       <div className="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
         <span className="text-4xl">🏗️</span>
       </div>

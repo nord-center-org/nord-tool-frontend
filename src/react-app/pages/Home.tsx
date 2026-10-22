@@ -45,7 +45,7 @@ export default function HomePage() {
   const semAcesso = !!usuario && Object.values(subMenu).every(l => l.every(o => o.path === "/configuracoes"));
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[85vh] w-full animate-in fade-in duration-700">
+    <div className="flex flex-col items-center justify-center min-h-[85vh] w-full animate-aparecer">
       {semAcesso && (
         <div role="status" className="mb-8 max-w-md rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-center text-sm text-amber-800">
           <strong className="block text-base">Bem-vindo, {usuario?.nome?.split(" ")[0]}!</strong>
