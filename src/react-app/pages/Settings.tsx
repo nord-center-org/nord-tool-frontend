@@ -4,8 +4,9 @@ import { listarStatusVistoria } from "@/react-app/services/EndpointsDominioServi
 import { CHAVE_PRE_CARREGAMENTO, lerPreCarregamento, type PreCarregamento } from "@/react-app/utils/preCarregamentoApartamentos";
 import {
   Settings as SettingsIcon, Save, ChevronDown, ChevronUp,
-  Loader2, Building2, Clock, Filter, Database, LayoutDashboard, FolderCog, Wrench, ShieldCheck, Network
+  Loader2, Building2, Clock, Filter, Database, LayoutDashboard, FolderCog, Wrench, ShieldCheck, Network, KeyRound, LogOut
 } from "lucide-react";
+import { Link } from "react-router";
 import { ControleChavesService, type ObraControleChaves } from "../services/ControleChavesService";
 import { OpcoesColaboradorService, type Empresa, type Cargo, type Permissao } from "../services/OpcoesColaboradorService";
 import { FerramentaService, type Ferramenta } from "../services/FerramentaService";
@@ -18,6 +19,7 @@ import EquipeModal from "../components/administracao/EquipeModal";
 import { useAuth } from "../hooks/useAuth";
 import { podeAcessar } from "../utils/sessao";
 import { useObra } from "../hooks/useObra";
+import { iniciais } from "../utils/menuLateral";
 
 type AbaCadastro = "empresas" | "cargos" | "permissoes" | "ferramentas";
 
@@ -31,10 +33,10 @@ const normalizarIdObraControleChaves = (id: unknown): string =>
   typeof id === "string" && Object.prototype.hasOwnProperty.call(ROTULOS_OBRAS_CONTROLE_CHAVES, id) ? id : "";
 
 export default function SettingsPage() {
-  const { usuario } = useAuth();
+  const { usuario, sair } = useAuth();
   const ehAdmin = podeAcessar(usuario?.permissoes, "ADMINISTRACAO", "ADMIN");
   const [acessosAberto, setAcessosAberto] = useState(false);
-  const { fases: fasesDaObra } = useObra();
+  const { fases: fasesDaObra, obra: obraAtual } = useObra();
   const [obrasAberto, setObrasAberto] = useState(false);
   const [equipeAberto, setEquipeAberto] = useState(false);
   const [apartmentList, setApartmentList] = useState("");
@@ -188,6 +190,26 @@ export default function SettingsPage() {
 
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200/60 p-2 overflow-hidden">
         <div className="p-6 md:p-8 space-y-6">
+
+          {usuario && (
+            <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 p-5 shadow-sm" aria-labelledby="config-conta">
+              <div className="flex min-w-0 items-center gap-4">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-base font-black text-white" aria-hidden="true">{iniciais(usuario.nome)}</span>
+                <div className="min-w-0">
+                  <h3 id="config-conta" className="truncate text-lg font-bold text-slate-800">{usuario.nome}</h3>
+                  <p className="truncate text-xs font-medium text-slate-500">{usuario.email}{obraAtual ? ` · ${obraAtual.nmObra}` : ""}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link to="/conta/senha" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+                  <KeyRound className="h-4 w-4" /> Alterar senha
+                </Link>
+                <button type="button" onClick={sair} className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50">
+                  <LogOut className="h-4 w-4" /> Sair
+                </button>
+              </div>
+            </section>
+          )}
 
           {ehAdmin && (
             <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-blue-200 bg-blue-50/40 p-5 shadow-sm" aria-labelledby="config-administracao">

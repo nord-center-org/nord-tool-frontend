@@ -1,22 +1,25 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, NavLink, useLocation } from "react-router";
 import ErrorBoundary from "@/react-app/components/ErrorBoundary";
 import { ExigeModuloDaRota } from "@/react-app/components/RotaProtegida";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { useObra } from "@/react-app/hooks/useObra";
 import { podeAbrirRota } from "@/react-app/utils/sessao";
+import { alternarGrupo, grupoDaRota, iniciais, lerGruposAbertos, salvarGruposAbertos } from "@/react-app/utils/menuLateral";
 import { 
   Database, BarChart3, Package, Settings, Menu, ChevronLeft, 
   Home as HomeIcon, Briefcase, GraduationCap,
   ClipboardCheck, AlertTriangle, Camera, FileText, BookOpen, 
   TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Cat, Heart, PiggyBank,
-  KeyRound, LogOut, Ruler
+  Ruler, ChevronDown
 } from "lucide-react";
+
+const armazenamento = () => (typeof window === "undefined" ? undefined : window.localStorage);
 
 export default function Layout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { usuario, sair } = useAuth();
+  const { usuario } = useAuth();
   const { obras, idObra, obra, trocarObra } = useObra();
 
   const menuGroups = [
@@ -71,6 +74,32 @@ export default function Layout() {
     },
   ];
 
+  const gruposVisiveis = menuGroups
+    .map(group => ({ ...group, items: group.items.filter(item => podeAbrirRota(usuario?.permissoes, item.path)) }))
+    .filter(group => group.items.length > 0);
+  const grupoAtual = grupoDaRota(gruposVisiveis, location.pathname);
+
+  // Grupos começam recolhidos; o menu lembra o que cada pessoa deixou aberto.
+  const [abertos, setAbertos] = useState<string[]>([]);
+  useEffect(() => {
+    if (usuario) setAbertos(lerGruposAbertos(armazenamento(), usuario.id));
+  }, [usuario]);
+  // Ao entrar numa tela, o grupo dela abre (e pode ser fechado depois).
+  useEffect(() => {
+    if (!grupoAtual || !usuario) return;
+    setAbertos(atual => {
+      if (atual.includes(grupoAtual)) return atual;
+      const novo = [...atual, grupoAtual];
+      salvarGruposAbertos(armazenamento(), usuario.id, novo);
+      return novo;
+    });
+  }, [grupoAtual, usuario]);
+  const alternar = (titulo: string) => setAbertos(atual => {
+    const novo = alternarGrupo(atual, titulo);
+    if (usuario) salvarGruposAbertos(armazenamento(), usuario.id, novo);
+    return novo;
+  });
+
   return (
     <div className="flex h-screen w-full bg-slate-50 overflow-hidden relative font-sans">
       
@@ -99,7 +128,7 @@ export default function Layout() {
             <div className="border-b border-slate-100 px-6 py-4" aria-label="Usuário e obra">
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-black text-white" aria-hidden="true">
-                  {usuario.nome.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join("")}
+                  {iniciais(usuario.nome)}
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-slate-800">{usuario.nome}</p>
@@ -121,47 +150,50 @@ export default function Layout() {
             </div>
           )}
 
-          <nav className="px-4 py-6 flex-1 overflow-y-auto space-y-8 no-scrollbar">
-            {menuGroups
-              .map(group => ({ ...group, items: group.items.filter(item => podeAbrirRota(usuario?.permissoes, item.path)) }))
-              .filter(group => group.items.length > 0)
-              .map((group, idx) => (
-              <div key={idx}>
-                <h3 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 ml-3">
-                  {group.title}
-                </h3>
-                <div className="space-y-1">
-                  {group.items.map((item) => (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      end={item.path === "/"}
-                      onClick={() => setSidebarOpen(false)}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${
-                          isActive
-                            ? "bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold"
-                            : "text-slate-600 hover:bg-slate-50 hover:text-blue-600 font-medium"
-                        }`
-                      }
-                    >
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.label}</span>
-                    </NavLink>
-                  ))}
+          <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-4 no-scrollbar" aria-label="Módulos">
+            {gruposVisiveis.map(group => {
+              // A Visão Geral (só Início) fica sempre à mostra.
+              const fixo = group.items.length === 1 && group.items[0].path === "/";
+              const aberto = fixo || abertos.includes(group.title);
+              const idLista = `menu-${group.title.replace(/\s+/g, "-").toLowerCase()}`;
+              return (
+                <div key={group.title}>
+                  {!fixo && (
+                    <button type="button" onClick={() => alternar(group.title)} aria-expanded={aberto} aria-controls={idLista}
+                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-[11px] font-extrabold uppercase tracking-widest text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600">
+                      <span>{group.title}</span>
+                      <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${aberto ? "rotate-180" : ""}`} aria-hidden="true" />
+                    </button>
+                  )}
+                  {aberto && (
+                    <div id={idLista} className="space-y-1 pb-2 pt-1">
+                      {group.items.map((item) => (
+                        <NavLink
+                          key={item.path}
+                          to={item.path}
+                          end={item.path === "/"}
+                          onClick={() => setSidebarOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm ${
+                              isActive
+                                ? "bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold"
+                                : "text-slate-600 hover:bg-slate-50 hover:text-blue-600 font-medium"
+                            }`
+                          }
+                        >
+                          <item.icon className="w-4 h-4" />
+                          <span>{item.label}</span>
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </nav>
 
-          {/* Usuário, configurações e saída fixados no rodapé */}
-          <div className="p-4 border-t border-slate-100 bg-white space-y-1">
-            {usuario && (
-              <div className="px-3 pb-2">
-                <p className="text-sm font-bold text-slate-800 truncate">{usuario.nome}</p>
-                <p className="text-xs text-slate-400 truncate">{usuario.email}</p>
-              </div>
-            )}
+          {/* No rodapé só Configurações; conta, senha e sair ficam lá dentro. */}
+          <div className="p-4 border-t border-slate-100 bg-white">
             <NavLink
               to="/configuracoes"
               onClick={() => setSidebarOpen(false)}
@@ -176,28 +208,6 @@ export default function Layout() {
               <Settings className="w-4 h-4" />
               <span>Configurações</span>
             </NavLink>
-            <NavLink
-              to="/conta/senha"
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 text-sm ${
-                  isActive
-                    ? "bg-slate-800 text-white shadow-md font-bold"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium"
-                }`
-              }
-            >
-              <KeyRound className="w-4 h-4" />
-              <span>Alterar senha</span>
-            </NavLink>
-            <button
-              type="button"
-              onClick={sair}
-              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 text-sm text-slate-600 hover:bg-red-50 hover:text-red-600 font-medium"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Sair</span>
-            </button>
           </div>
 
         </div>
