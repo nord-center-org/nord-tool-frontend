@@ -1,14 +1,49 @@
-import { useState } from "react";
-import { Package, Map, Briefcase, UserCircle, Sparkles, LayoutDashboard, Database, BookOpen, Settings, ChevronDown, Key, Heart, PiggyBank, Ruler, CalendarDays, Wallet, Camera, Dumbbell, type LucideIcon } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { Package, Map, Briefcase, UserCircle, LayoutDashboard, Database, BookOpen, Settings, ChevronDown, Key, Heart, PiggyBank, Ruler, CalendarDays, Wallet, Camera, Dumbbell, type LucideIcon } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { podeAbrirRota } from "@/react-app/utils/sessao";
+import CenaObra from "@/react-app/components/home/CenaObra";
+import EquipeNaObra from "@/react-app/components/home/EquipeNaObra";
+import { useMeuAvatar } from "@/react-app/hooks/useMeuAvatar";
+import { useObra } from "@/react-app/hooks/useObra";
+import { avatarService, type AvatarUsuario } from "@/react-app/services/AvatarService";
+import { DATAS, dataComemorativa, type DataComemorativa } from "@/react-app/utils/avatar";
+import { hojeSaoPaulo } from "@/react-app/utils/caixinha";
+import { horaSaoPaulo, mensagemDaData, periodoDoDia, saudacao, type Periodo } from "@/react-app/utils/cena";
 
 export default function HomePage() {
   const navigate = useNavigate();
   const { usuario } = useAuth();
   const [activeModule, setActiveModule] = useState<string | null>(null);
+  const { obra } = useObra();
+  const meuAvatar = useMeuAvatar(usuario?.id);
+  const [equipe, setEquipe] = useState<AvatarUsuario[] | null>(null);
+  const [agora, setAgora] = useState(() => new Date());
+
+  useEffect(() => {
+    let vivo = true;
+    avatarService.equipe().then(l => { if (vivo) setEquipe(l); }).catch(() => { if (vivo) setEquipe([]); });
+    const relogio = window.setInterval(() => setAgora(new Date()), 30_000);
+    return () => { vivo = false; window.clearInterval(relogio); };
+  }, []);
+
+  // Só em desenvolvimento: ?cena=natal&periodo=noite mostra a cena de outra época/horário.
+  const [params] = useSearchParams();
+  const cenaForcada = import.meta.env.DEV && Object.keys(DATAS).includes(params.get("cena") ?? "") ? (params.get("cena") as DataComemorativa) : null;
+  const periodoForcado = import.meta.env.DEV && ["manha", "tarde", "noite"].includes(params.get("periodo") ?? "") ? (params.get("periodo") as Periodo) : null;
+
+  const hojeIso = hojeSaoPaulo(agora);
+  const periodo = periodoForcado ?? periodoDoDia(horaSaoPaulo(agora));
+  const tema = cenaForcada ?? dataComemorativa(hojeIso);
+  const recado = mensagemDaData(tema);
+  // Sem a lista da equipe (ou antes dela chegar), pelo menos o próprio usuário aparece na cena.
+  const naCena: AvatarUsuario[] = equipe && equipe.length > 0 ? equipe : usuario ? [{
+    idUsuario: usuario.id, nmNome: usuario.nome, nmCargo: meuAvatar?.nmCargo ?? null, dsConfig: meuAvatar?.dsConfig ?? null, dhAlteracao: null, flProprio: true,
+  }] : [];
+  const extenso = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Sao_Paulo" }).format(agora);
+  const dataPorExtenso = extenso.charAt(0).toUpperCase() + extenso.slice(1);
 
   // Opções internas de cada módulo (filtradas pelas permissões do usuário logo abaixo)
   const todasAsOpcoes: Record<string, { label: string, path: string, icon: LucideIcon }[]> = {
@@ -56,17 +91,20 @@ export default function HomePage() {
           Seu acesso aos módulos ainda não foi liberado. Peça ao administrador da obra para liberar as telas que você vai usar.
         </div>
       )}
-      <div className="text-center mb-16 relative">
-        <div className="absolute -top-6 right-0 text-yellow-400 animate-pulse sm:-right-6">
-          <Sparkles className="w-8 h-8 opacity-70" />
+      <section className="relative mb-10 h-72 w-full max-w-6xl overflow-hidden rounded-3xl border border-slate-200/60 shadow-lg sm:h-80 md:h-[27rem]" aria-label="Canteiro de obras com a equipe">
+        <CenaObra periodo={periodo} tema={tema} />
+        <div className="nt-saudacao absolute left-3 top-3 max-w-[78%] rounded-2xl bg-white/80 px-4 py-3 shadow-md backdrop-blur-sm sm:left-5 sm:top-5 sm:px-5">
+          <p className="text-[11px] font-black uppercase tracking-widest text-blue-600">
+            Nord<span className="text-slate-800">Tool</span>
+          </p>
+          <h1 className="text-xl font-black leading-tight text-slate-900 sm:text-3xl">{saudacao(periodo, usuario?.nome)}</h1>
+          <p className="mt-0.5 text-xs font-semibold text-slate-500 sm:text-sm">
+            {dataPorExtenso}{obra ? ` · ${obra.nmObra}` : ""}
+          </p>
+          {recado && <p className="mt-1 text-xs font-bold text-pink-600 sm:text-sm">{recado}</p>}
         </div>
-        <h1 className="text-6xl sm:text-7xl md:text-8xl font-black text-slate-900 tracking-tighter">
-          Nord<span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Tool</span>
-        </h1>
-        <p className="text-lg text-slate-500 font-medium max-w-xl mx-auto">
-          Sistema Integrado de Gestão de Obras
-        </p>
-      </div>
+        <EquipeNaObra equipe={naCena} tema={tema} />
+      </section>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl px-4">
         {modulos.map((mod, i) => (
