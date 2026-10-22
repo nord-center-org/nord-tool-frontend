@@ -17,6 +17,7 @@ export default function HomePage() {
       { label: "Apartamentos", path: "/apartamentos", icon: Database },
     ],
     "Mapeamentos": [
+      { label: "Contagens e quantitativos", path: "/mapeamentos/conferencias", icon: Ruler },
       { label: "Relatório fotográfico", path: "/mapeamentos/relatorio-fotografico", icon: Camera },
     ],
     "Organizacional": [

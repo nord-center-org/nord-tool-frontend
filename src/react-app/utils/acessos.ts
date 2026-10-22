@@ -18,6 +18,7 @@ export const MODULOS: Record<string, { nome: string; telas: string }> = {
   CONTROLE_CHAVES: { nome: "Controle de chaves", telas: "Chaves e ferramentas" },
   CRONOGRAMA: { nome: "Cronograma semanal", telas: "Rotina, Kanban e Lista" },
   MEDICOES: { nome: "Medições", telas: "Boletins de medição" },
+  MAPEAMENTOS: { nome: "Mapeamentos", telas: "Contagens de campo e quantitativos" },
   RELATORIO_FOTOGRAFICO: { nome: "Relatório fotográfico", telas: "Relatórios com fotos (Admin mantém os modelos)" },
   CAIXINHA: { nome: "Caixinha", telas: "Despesas e comprovantes" },
   FINANCEIRO: { nome: "Gestão financeira", telas: "Controle financeiro e investimentos" },

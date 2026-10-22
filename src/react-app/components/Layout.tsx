@@ -40,7 +40,7 @@ export default function Layout() {
     {
       title: "Mapeamentos",
       items: [
-        { path: "/mapeamentos/conferencias", label: "Conferências", icon: ClipboardCheck },
+        { path: "/mapeamentos/conferencias", label: "Contagens e quantitativos", icon: ClipboardCheck },
         { path: "/mapeamentos/pendencias", label: "Mapeamento de pendências", icon: AlertTriangle },
         { path: "/mapeamentos/relatorio-fotografico", label: "Relatório fotográfico", icon: Camera },
       ]
