@@ -1,0 +1,16 @@
+/* Avatar "vivo": respira de leve e pisca de tempos em tempos. */
+.nt-avatar-vivo { animation: nt-avatar-respira 3.2s ease-in-out infinite; transform-origin: 50% 100%; }
+.nt-avatar-piscada { opacity: 0; animation: nt-avatar-pisca 4.6s steps(1, end) infinite; }
+
+@keyframes nt-avatar-respira {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(-1.5%) scaleY(1.012); }
+}
+@keyframes nt-avatar-pisca {
+  0%, 93% { opacity: 0; }
+  94%, 97% { opacity: 1; }
+  98%, 100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nt-avatar-vivo, .nt-avatar-piscada { animation: none; }
+}

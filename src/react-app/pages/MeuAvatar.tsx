@@ -64,7 +64,7 @@ export default function MeuAvatarPage() {
   const opcao = (chave: string, ativo: boolean, parcial: Partial<AvatarConfig>, rotulo: string, miniatura = true) => (
     <button key={chave} type="button" aria-pressed={ativo} onClick={() => mudar(parcial)} title={rotulo}
       className={`flex flex-col items-center gap-1 rounded-2xl border-2 p-1.5 text-[11px] font-bold transition-colors ${ativo ? "border-blue-500 bg-blue-50 text-blue-700" : "border-transparent bg-white text-slate-500 hover:border-slate-200"}`}>
-      {miniatura && <Avatar config={{ ...config, ...parcial }} tema={tema} tamanho={52} />}
+      {miniatura && <Avatar config={{ ...config, ...parcial }} tema={tema} tamanho={48} />}
       <span className="max-w-[5.5rem] truncate">{rotulo}</span>
     </button>
   );
@@ -83,7 +83,7 @@ export default function MeuAvatarPage() {
       <div className="grid gap-4 lg:grid-cols-[20rem_1fr]">
         <section className="space-y-4 lg:sticky lg:top-4 lg:self-start" aria-label="Prévia">
           <div className="flex flex-col items-center rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <Avatar config={config} tema={tema} tamanho={200} rotulo={`Avatar de ${usuario.nome}`} className="animate-surgir drop-shadow-md" />
+            <Avatar config={config} tema={tema} tamanho={192} rotulo={`Avatar de ${usuario.nome}`} animado />
             <p className="mt-3 text-lg font-black text-slate-800">{usuario.nome}</p>
             <p className="text-xs font-semibold text-slate-500">{FUNCOES[config.funcao].rotulo}{tema ? ` · ${DATAS[tema]}` : ""}</p>
             <div className="mt-4 flex w-full gap-2">
