@@ -53,10 +53,10 @@ export default function HomePage() {
         </div>
       )}
       <div className="text-center mb-16 relative">
-        <div className="absolute -top-6 -right-6 text-yellow-400 animate-pulse">
+        <div className="absolute -top-6 right-0 text-yellow-400 animate-pulse sm:-right-6">
           <Sparkles className="w-8 h-8 opacity-70" />
         </div>
-        <h1 className="text-7xl md:text-8xl font-black text-slate-900 tracking-tighter">
+        <h1 className="text-6xl sm:text-7xl md:text-8xl font-black text-slate-900 tracking-tighter">
           Nord<span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Tool</span>
         </h1>
         <p className="text-lg text-slate-500 font-medium max-w-xl mx-auto">

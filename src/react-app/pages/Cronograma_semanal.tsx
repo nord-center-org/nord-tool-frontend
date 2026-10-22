@@ -323,8 +323,8 @@ export default function NordToolDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="mx-auto max-w-[1400px] rounded-[2rem] border border-slate-200 bg-[#111827] p-8 text-slate-200 shadow-2xl">
+    <div className="min-h-screen bg-slate-50 p-0 sm:p-6">
+      <div className="mx-auto max-w-[1400px] rounded-3xl sm:rounded-[2rem] border border-slate-200 bg-[#111827] p-4 sm:p-8 text-slate-200 shadow-2xl">
         <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="relative rounded-2xl bg-violet-600 p-3 shadow-lg">
@@ -336,14 +336,14 @@ export default function NordToolDashboard() {
             </div>
           </div>
 
-          <div className="flex rounded-xl bg-slate-900 p-1.5 border border-slate-700">
-            <button onClick={() => setPage("kanban")} className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all ${page === "kanban" ? "bg-violet-600 text-white" : "text-slate-400"}`}>
+          <div className="grid grid-cols-3 rounded-xl bg-slate-900 p-1.5 border border-slate-700 sm:flex">
+            <button onClick={() => setPage("kanban")} className={`flex items-center justify-center gap-2 rounded-lg px-2 sm:px-4 py-2 text-sm font-bold transition-all ${page === "kanban" ? "bg-violet-600 text-white" : "text-slate-400"}`}>
               <LayoutGrid size={16} /> Kanban
             </button>
-            <button onClick={() => setPage("lista")} className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all ${page === "lista" ? "bg-violet-600 text-white" : "text-slate-400"}`}>
+            <button onClick={() => setPage("lista")} className={`flex items-center justify-center gap-2 rounded-lg px-2 sm:px-4 py-2 text-sm font-bold transition-all ${page === "lista" ? "bg-violet-600 text-white" : "text-slate-400"}`}>
               <List size={16} /> Lista
             </button>
-            <button onClick={() => setPage("rotina")} className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all ${page === "rotina" ? "bg-violet-600 text-white" : "text-slate-400"}`}>
+            <button onClick={() => setPage("rotina")} className={`flex items-center justify-center gap-2 rounded-lg px-2 sm:px-4 py-2 text-sm font-bold transition-all ${page === "rotina" ? "bg-violet-600 text-white" : "text-slate-400"}`}>
               <CalendarClock size={16} /> Rotina
             </button>
           </div>
