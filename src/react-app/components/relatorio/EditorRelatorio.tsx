@@ -4,12 +4,17 @@ import {
 } from "lucide-react";
 
 import ImagemAutenticada from "@/react-app/components/ImagemAutenticada";
+import CapturaFoto from "@/react-app/components/relatorio/CapturaFoto";
+import EditorFoto from "@/react-app/components/relatorio/EditorFoto";
+import SeletorLayout from "@/react-app/components/relatorio/SeletorLayout";
 import { ApiError } from "@/react-app/services/apiClient";
-import { relatorioFotograficoService as servico, type RelatorioFotografico } from "@/react-app/services/RelatorioFotograficoService";
-import { prepararFoto } from "@/react-app/utils/imagem";
-import { gerarPdfRelatorio } from "@/react-app/utils/pdfRelatorioFotografico";
 import {
-  LAYOUTS, ROTULO_STATUS, nomeArquivoPdf, progresso, type FotoRelatorio, type FotosPorPagina, type ItemRelatorio,
+  relatorioFotograficoService as servico, type ModeloRelatorio, type RelatorioFotografico,
+} from "@/react-app/services/RelatorioFotograficoService";
+import { prepararFoto } from "@/react-app/utils/imagem";
+import { gerarPdfRelatorio, type AparenciaPdf } from "@/react-app/utils/pdfRelatorioFotografico";
+import {
+  ROTULO_STATUS, nomeArquivoPdf, progresso, type FotoRelatorio, type ItemRelatorio, type StatusRelatorio,
 } from "@/react-app/utils/relatorioFotografico";
 
 const classeInput = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-50 disabled:text-slate-500";
@@ -25,32 +30,48 @@ const paraLocal = (itens: ItemRelatorio[] = []): ItemLocal[] =>
 interface Props {
   id: number;
   podeEditar: boolean;
+  /** Modelos (para a aparência do PDF: fonte, cabeçalho, fundo e ícone). */
+  modelos: ModeloRelatorio[];
+  /** Quem gera o PDF: vai no rodapé "Feito no NordTool por …". */
+  nomeUsuario: string | null;
   onVoltar: () => void;
   onAlterado: (r: RelatorioFotografico) => void;
   onExcluido: (id: number) => void;
 }
 
 /** Preenchimento do relatório: cabeçalho, itens (observação + fotos), concluir, PDF e exclusão. */
-export default function EditorRelatorio({ id, podeEditar, onVoltar, onAlterado, onExcluido }: Props) {
+export default function EditorRelatorio({ id, podeEditar, modelos, nomeUsuario, onVoltar, onAlterado, onExcluido }: Props) {
   const [rel, setRel] = useState<RelatorioFotografico | null>(null);
   const [titulo, setTitulo] = useState("");
   const [local, setLocal] = useState("");
   const [data, setData] = useState("");
-  const [layout, setLayout] = useState<FotosPorPagina>(2);
+  const [layout, setLayout] = useState("R2");
   const [itens, setItens] = useState<ItemLocal[]>([]);
   const [sujo, setSujo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [enviando, setEnviando] = useState<Record<string, number>>({});
+  const [fotoAberta, setFotoAberta] = useState<{ chaveItem: string; foto: FotoRelatorio } | null>(null);
+  const [captura, setCaptura] = useState<{ chaveItem: string; arquivo: File } | null>(null);
   const novos = useRef(0);
+  // A captura e o novo item rodam depois de awaits: leem a lista mais recente por aqui.
+  const itensRef = useRef<ItemLocal[]>([]);
+  useEffect(() => { itensRef.current = itens; }, [itens]);
+
+  // Avisos somem sozinhos; erros ficam até a próxima ação.
+  useEffect(() => {
+    if (!aviso) return;
+    const t = window.setTimeout(() => setAviso(null), 3500);
+    return () => window.clearTimeout(t);
+  }, [aviso]);
 
   const aplicar = useCallback((r: RelatorioFotografico) => {
     setRel(r);
     setTitulo(r.nmTitulo);
     setLocal(r.nmLocal ?? "");
     setData(r.dtRelatorio);
-    setLayout(r.nrFotosPagina);
+    setLayout(r.cdLayout ?? `R${r.nrFotosPagina}`);
     setItens(paraLocal(r.itens));
     setSujo(false);
   }, []);
@@ -97,40 +118,50 @@ export default function EditorRelatorio({ id, podeEditar, onVoltar, onAlterado, 
     return false;
   };
 
-  const salvar = async (): Promise<boolean> => {
-    if (!titulo.trim()) { setErro("Informe o título."); return false; }
-    if (itens.some(i => !i.nmItem.trim())) { setErro("Todo item precisa de um nome."); return false; }
+  const salvar = async (lista: ItemLocal[] = itens): Promise<RelatorioFotografico | null> => {
+    if (!titulo.trim()) { setErro("Informe o título."); return null; }
+    if (lista.some(i => !i.nmItem.trim())) { setErro("Todo item precisa de um nome."); return null; }
     setOcupado("salvar");
     setErro(null);
     setAviso(null);
     try {
       const r = await servico.alterar(id, {
-        nmTitulo: titulo.trim(), nmLocal: local.trim() || null, dtRelatorio: data, nrFotosPagina: layout, nrVersao: rel.nrVersao,
-        itens: itens.map(i => ({ id: i.id, nmItem: i.nmItem.trim(), txOrientacao: i.txOrientacao, txResposta: i.txResposta.trim() || null })),
+        nmTitulo: titulo.trim(), nmLocal: local.trim() || null, dtRelatorio: data, cdLayout: layout, nrVersao: rel.nrVersao,
+        itens: lista.map(i => ({ id: i.id, nmItem: i.nmItem.trim(), txOrientacao: i.txOrientacao, txResposta: i.txResposta.trim() || null })),
       });
       aplicar(r);
       onAlterado(r);
       setAviso("Relatório salvo.");
-      return true;
+      return r;
     } catch (e) {
       if (!(await tratar409(e))) setErro(mensagem(e, "Não foi possível salvar."));
-      return false;
+      return null;
     } finally {
       setOcupado(null);
     }
   };
 
+  /** Concluir/Reabrir: a tela muda na hora; se o servidor recusar, volta ao que era e avisa. */
   const trocarStatus = async () => {
-    if (sujo && !(await salvar())) return;
+    const novo: StatusRelatorio = concluido ? "RASCUNHO" : "CONCLUIDO";
+    const antes = rel;
     setOcupado("status");
     setErro(null);
+    let base = rel;
+    if (sujo) {
+      const salvo = await salvar();
+      if (!salvo) { setOcupado(null); return; }
+      base = salvo;
+    }
+    setRel({ ...base, cdStatus: novo });
+    onAlterado({ ...base, cdStatus: novo });
     try {
-      const atual = await servico.detalhar(id);
-      const r = await servico.alterarStatus(id, concluido ? "RASCUNHO" : "CONCLUIDO", atual.nrVersao);
-      aplicar(r);
-      onAlterado(r);
-      setAviso(concluido ? "Relatório reaberto para edição." : "Relatório concluído.");
+      const r = await servico.alterarStatus(id, novo, base.nrVersao);
+      if (r) { aplicar(r); onAlterado(r); }
+      setAviso(novo === "CONCLUIDO" ? "Relatório concluído." : "Relatório reaberto para edição.");
     } catch (e) {
+      setRel(antes);
+      onAlterado(antes);
       if (!(await tratar409(e))) setErro(mensagem(e, "Não foi possível alterar o status."));
     } finally {
       setOcupado(null);
@@ -169,6 +200,42 @@ export default function EditorRelatorio({ id, podeEditar, onVoltar, onAlterado, 
     if (falhas.length) setErro(`Algumas fotos não foram enviadas. ${falhas.join(" · ")}`);
   };
 
+  /** Uma foto da câmera (fluxo de captura) para o item; devolve o erro ou null. */
+  const enviarDaCamera = async (chaveItem: string, arquivo: File, legenda: string | null): Promise<string | null> => {
+    const item = itensRef.current.find(i => i.chave === chaveItem);
+    if (!item?.id) return "Salve o relatório antes de fotografar este item.";
+    try {
+      const foto = await prepararFoto(arquivo);
+      const salva = await servico.adicionarFoto(item.id, foto.imagem, foto.nome, legenda);
+      setItens(l => l.map(i => (i.chave === chaveItem ? { ...i, fotos: [...i.fotos, salva] } : i)));
+      return null;
+    } catch (e) {
+      return mensagem(e, "Não foi possível enviar a foto.");
+    }
+  };
+
+  /** Novo item criado durante a captura: salva o relatório com ele e passa a fotografar nele. */
+  const novoItemDaCamera = async (): Promise<string | null> => {
+    const nome = `Item ${itensRef.current.length + 1}`;
+    const r = await salvar([...itensRef.current, { chave: `n${++novos.current}`, nmItem: nome, txOrientacao: null, txResposta: "", fotos: [] }]);
+    const ultimo = r?.itens ? [...r.itens].sort((a, b) => a.nrOrdem - b.nrOrdem).at(-1) : undefined;
+    if (!ultimo) return null;
+    setCaptura(c => (c ? { ...c, chaveItem: `i${ultimo.id}` } : c));
+    return ultimo.nmItem;
+  };
+
+  const trocarImagem = async (chaveItem: string, foto: FotoRelatorio, imagem: Blob): Promise<string | null> => {
+    try {
+      const salva = await servico.trocarImagem(foto.id, imagem);
+      setItens(l => l.map(i => (i.chave === chaveItem ? { ...i, fotos: i.fotos.map(f => (f.id === foto.id ? salva : f)) } : i)));
+      setFotoAberta(null);
+      setAviso("Foto atualizada.");
+      return null;
+    } catch (e) {
+      return mensagem(e, "Não foi possível salvar a foto.");
+    }
+  };
+
   const salvarLegenda = async (item: ItemLocal, foto: FotoRelatorio, texto: string) => {
     const nova = texto.trim() || null;
     if (nova === (foto.txLegenda ?? null)) return;
@@ -199,11 +266,22 @@ export default function EditorRelatorio({ id, podeEditar, onVoltar, onAlterado, 
     setOcupado("pdf");
     setErro(null);
     try {
+      const modelo = modelos.find(m => m.id === rel.idModelo) ?? null;
+      const bytesDe = async (b: Blob) => new Uint8Array(await b.arrayBuffer());
+      const aparencia: AparenciaPdf = {
+        fonte: modelo?.cdFonte ?? "HELVETICA",
+        cabecalho: modelo?.inCabecalho ?? true,
+        opacidadeFundo: modelo?.nrOpacidadeFundo ?? 12,
+        fundo: modelo?.inFundo ? await bytesDe(await servico.imagemModelo(modelo.id, "fundo")) : null,
+        icone: modelo?.inIcone ? await bytesDe(await servico.imagemModelo(modelo.id, "icone")) : null,
+        feitoPor: nomeUsuario ?? rel.nmAutor,
+      };
       const bytes = await gerarPdfRelatorio(
         { titulo: titulo.trim() || rel.nmTitulo, local: local.trim() || null, data: dataBr(data), fase: rel.nmFase, autor: rel.nmAutor, modelo: rel.nmModelo },
         itens.map((i, n) => ({ id: i.id ?? -(n + 1), nrOrdem: n + 1, nmItem: i.nmItem, txOrientacao: i.txOrientacao, txResposta: i.txResposta, fotos: i.fotos })),
         layout,
         async idFoto => new Uint8Array(await (await servico.imagem(idFoto)).arrayBuffer()),
+        aparencia,
       );
       const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
       const a = document.createElement("a");
@@ -220,7 +298,7 @@ export default function EditorRelatorio({ id, podeEditar, onVoltar, onAlterado, 
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="sticky top-0 z-20 -mx-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/70 bg-slate-50/90 py-2 pl-16 pr-3 backdrop-blur sm:-mx-4 sm:pr-4 md:pl-4">
         <button type="button" onClick={() => { if (!sujo || window.confirm("Sair sem salvar as alterações?")) onVoltar(); }}
           className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800">
           <ArrowLeft className="h-4 w-4" /> Relatórios
@@ -245,10 +323,18 @@ export default function EditorRelatorio({ id, podeEditar, onVoltar, onAlterado, 
         </div>
       </div>
 
-      {erro && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
-      {aviso && <p role="status" className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{aviso}</p>}
+      {/* Avisos flutuando embaixo: aparecem mesmo com a página rolada. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[70] flex flex-col items-center gap-2 px-4">
+        {erro && (
+          <p role="alert" className="pointer-events-auto flex max-w-md items-start gap-2 rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-xl animate-entrada">
+            <span className="flex-1">{erro}</span>
+            <button type="button" onClick={() => setErro(null)} aria-label="Fechar aviso" className="-mr-1 rounded-lg p-0.5 hover:bg-white/20"><X className="h-4 w-4" /></button>
+          </p>
+        )}
+        {aviso && <p role="status" className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-xl animate-entrada">{aviso}</p>}
+      </div>
       {concluido && (
-        <p className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600"><Lock className="h-4 w-4" /> Concluído: reabra para editar.</p>
+        <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 animate-surgir"><Lock className="h-4 w-4" /> Concluído: reabra para editar.</p>
       )}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Dados do relatório">
@@ -272,16 +358,9 @@ export default function EditorRelatorio({ id, podeEditar, onVoltar, onAlterado, 
             <input type="date" value={data} disabled={!editavel} onChange={e => mexer(() => setData(e.target.value))} className={`mt-1 ${classeInput}`} />
           </label>
         </div>
-        <div className="mt-3">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Fotos por página no PDF</span>
-          <div className="mt-1 flex gap-2" role="radiogroup" aria-label="Fotos por página">
-            {LAYOUTS.map(n => (
-              <button key={n} type="button" role="radio" aria-checked={layout === n} disabled={!editavel} onClick={() => mexer(() => setLayout(n))}
-                className={`h-9 w-12 rounded-xl border text-sm font-bold ${layout === n ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"} disabled:opacity-60`}>
-                {n}
-              </button>
-            ))}
-          </div>
+        <div className="mt-4">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Modelo da página no PDF</span>
+          <SeletorLayout valor={layout} desabilitado={!editavel} onMudar={c => mexer(() => setLayout(c))} />
         </div>
       </section>
 
@@ -310,7 +389,10 @@ export default function EditorRelatorio({ id, podeEditar, onVoltar, onAlterado, 
               {item.fotos.map(foto => (
                 <figure key={foto.id} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                   <div className="relative">
-                    <ImagemAutenticada chave={`relfoto:${foto.id}`} carregar={() => servico.imagem(foto.id)} alt={foto.txLegenda ?? item.nmItem} className="aspect-[4/3] w-full object-cover" />
+                    <button type="button" onClick={() => setFotoAberta({ chaveItem: item.chave, foto })} aria-label={`Abrir foto ${foto.txLegenda ?? item.nmItem}`} className="block w-full">
+                      <ImagemAutenticada chave={`relfoto:${foto.id}:${foto.idImagem ?? 0}`} carregar={() => servico.imagem(foto.id)} alt={foto.txLegenda ?? item.nmItem}
+                        className="aspect-[4/3] w-full cursor-zoom-in object-cover transition-transform duration-300 hover:scale-[1.03]" />
+                    </button>
                     {editavel && (
                       <button type="button" aria-label="Excluir foto" onClick={() => void excluirFoto(item, foto)}
                         className="absolute right-1 top-1 rounded-lg bg-white/90 p-1 text-red-500 shadow-sm hover:bg-white"><X className="h-4 w-4" /></button>
@@ -326,7 +408,8 @@ export default function EditorRelatorio({ id, podeEditar, onVoltar, onAlterado, 
                 <div className="flex aspect-[4/3] flex-col items-stretch justify-center gap-2 rounded-xl border border-dashed border-slate-300 p-2">
                   <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-2 py-2 text-xs font-bold text-white hover:bg-blue-700">
                     <Camera className="h-4 w-4" /> Câmera
-                    <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={e => { void enviarFotos(item, e.target.files); e.target.value = ""; }} />
+                    <input type="file" accept="image/*" capture="environment" className="sr-only"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) setCaptura({ chaveItem: item.chave, arquivo: f }); e.target.value = ""; }} />
                   </label>
                   <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">
                     <ImagePlus className="h-4 w-4" /> Galeria
@@ -349,6 +432,20 @@ export default function EditorRelatorio({ id, podeEditar, onVoltar, onAlterado, 
           className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-white">
           <Plus className="h-4 w-4" /> Adicionar item
         </button>
+      )}
+
+      {fotoAberta && (() => {
+        const item = itens.find(i => i.chave === fotoAberta.chaveItem);
+        const foto = item?.fotos.find(f => f.id === fotoAberta.foto.id) ?? fotoAberta.foto;
+        return (
+          <EditorFoto key={`${foto.id}:${foto.idImagem ?? 0}`} carregar={() => servico.imagem(foto.id)} titulo={foto.txLegenda || item?.nmItem || "Foto"}
+            editavel={editavel} onSalvar={img => trocarImagem(fotoAberta.chaveItem, foto, img)} onFechar={() => setFotoAberta(null)} />
+        );
+      })()}
+      {captura && (
+        <CapturaFoto arquivoInicial={captura.arquivo} nomeItem={itens.find(i => i.chave === captura.chaveItem)?.nmItem ?? "Fotos"}
+          onEnviar={(arquivo, legenda) => enviarDaCamera(captura.chaveItem, arquivo, legenda)} onNovoItem={novoItemDaCamera}
+          onFechar={() => setCaptura(null)} />
       )}
 
       {podeEditar && (
