@@ -4,7 +4,7 @@ import { listarStatusVistoria } from "@/react-app/services/EndpointsDominioServi
 import { CHAVE_PRE_CARREGAMENTO, lerPreCarregamento, type PreCarregamento } from "@/react-app/utils/preCarregamentoApartamentos";
 import {
   Settings as SettingsIcon, Save, ChevronDown, ChevronUp,
-  Loader2, Building2, Clock, Filter, Database, LayoutDashboard, FolderCog, Wrench, ShieldCheck, Network, KeyRound, LogOut
+  Loader2, Building2, Clock, Filter, Database, LayoutDashboard, FolderCog, Wrench, ShieldCheck, Network, KeyRound, LogOut, Smile
 } from "lucide-react";
 import { Link } from "react-router";
 import { ControleChavesService, type ObraControleChaves } from "../services/ControleChavesService";
@@ -19,7 +19,7 @@ import EquipeModal from "../components/administracao/EquipeModal";
 import { useAuth } from "../hooks/useAuth";
 import { podeAcessar } from "../utils/sessao";
 import { useObra } from "../hooks/useObra";
-import { iniciais } from "../utils/menuLateral";
+import MeuAvatarMini from "../components/avatar/MeuAvatarMini";
 import CabecalhoPagina from "../components/ui/CabecalhoPagina";
 
 type AbaCadastro = "empresas" | "cargos" | "permissoes" | "ferramentas";
@@ -183,13 +183,16 @@ export default function SettingsPage() {
           {usuario && (
             <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 p-5 shadow-sm" aria-labelledby="config-conta">
               <div className="flex min-w-0 items-center gap-4">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-base font-black text-white" aria-hidden="true">{iniciais(usuario.nome)}</span>
+                <Link to="/conta/avatar" title="Editar meu avatar" className="shrink-0 rounded-full transition-transform hover:scale-105"><MeuAvatarMini idUsuario={usuario.id} tamanho={48} /></Link>
                 <div className="min-w-0">
                   <h3 id="config-conta" className="truncate text-lg font-bold text-slate-800">{usuario.nome}</h3>
                   <p className="truncate text-xs font-medium text-slate-500">{usuario.email}{obraAtual ? ` · ${obraAtual.nmObra}` : ""}</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
+                <Link to="/conta/avatar" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+                  <Smile className="h-4 w-4" /> Meu avatar
+                </Link>
                 <Link to="/conta/senha" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
                   <KeyRound className="h-4 w-4" /> Alterar senha
                 </Link>

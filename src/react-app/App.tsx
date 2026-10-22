@@ -22,6 +22,7 @@ import MapeamentosPage from "@/react-app/pages/Mapeamentos";
 import TreinosPage from "@/react-app/pages/Treinos";
 import LoginPage from "@/react-app/pages/Login";
 import AlterarSenhaPage from "@/react-app/pages/AlterarSenha";
+import MeuAvatarPage from "@/react-app/pages/MeuAvatar";
 import RotaProtegida from "@/react-app/components/RotaProtegida";
 import AuthProvider from "@/react-app/components/AuthProvider";
 
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
             <Route path="conta/senha" element={<AlterarSenhaPage />} />
+            <Route path="conta/avatar" element={<MeuAvatarPage />} />
   
             {/* Mapeamentos */}
             <Route path="mapeamentos/conferencias" element={<MapeamentosPage />} />
