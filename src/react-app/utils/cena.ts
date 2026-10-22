@@ -3,6 +3,13 @@ import type { DataComemorativa } from "./avatar.ts";
 
 export type Periodo = "manha" | "tarde" | "noite";
 
+/** Cores do céu (topo e horizonte) de cada período. */
+export const CEU: Record<Periodo, [string, string]> = {
+  manha: ["#60a5fa", "#e0f2fe"],
+  tarde: ["#f97316", "#fde68a"],
+  noite: ["#0b1026", "#3b2f7a"],
+};
+
 /** Hora (0-23) no fuso de São Paulo. */
 export function horaSaoPaulo(agora: Date = new Date()): number {
   const h = new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hourCycle: "h23", timeZone: "America/Sao_Paulo" }).format(agora);

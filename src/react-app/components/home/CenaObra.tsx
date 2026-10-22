@@ -1,19 +1,13 @@
 import { useId, type CSSProperties, type ReactNode } from "react";
 
 import type { DataComemorativa } from "@/react-app/utils/avatar";
-import type { Periodo } from "@/react-app/utils/cena";
+import { CEU, type Periodo } from "@/react-app/utils/cena";
 import "./CenaObra.css";
 
 interface CenaObraProps {
   periodo: Periodo;
   tema: DataComemorativa | null;
 }
-
-const CEU: Record<Periodo, [string, string]> = {
-  manha: ["#60a5fa", "#e0f2fe"],
-  tarde: ["#f97316", "#fde68a"],
-  noite: ["#0b1026", "#3b2f7a"],
-};
 
 /** Gerador pseudoaleatório fixo: a cena é sempre igual (sem "pular" a cada render). */
 function sorteador(semente: number) {

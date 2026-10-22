@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router";
-import { Loader2, LogIn } from "lucide-react";
+import { Eye, EyeOff, Loader2, LogIn } from "lucide-react";
+import TelaPublica, { classeBotaoPublico, classeCampoPublico, classeRotuloPublico } from "@/react-app/components/auth/TelaPublica";
+import type { Humor } from "@/react-app/components/auth/Mascote";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { destinoSeguro } from "@/react-app/utils/sessao";
 import { ApiError } from "@/react-app/services/apiClient";
@@ -13,9 +15,14 @@ export default function LoginPage() {
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [focoSenha, setFocoSenha] = useState(false);
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [reacao, setReacao] = useState<"triste" | "feliz" | null>(null);
+  const [tremor, setTremor] = useState(0);
   const destino = destinoSeguro(params.get("voltar"));
 
-  if (autenticado) return <Navigate to={destino} replace />;
+  // Logo depois de entrar, a tela fica um instante para o mascote comemorar.
+  if (autenticado && reacao !== "feliz") return <Navigate to={destino} replace />;
 
   const enviar = async (evento: FormEvent) => {
     evento.preventDefault();
@@ -24,8 +31,14 @@ export default function LoginPage() {
     setEnviando(true);
     try {
       await entrar(email.trim(), senha);
-      navigate(destino, { replace: true });
+      // O mascote comemora um instante antes de abrir o sistema (sem espera para quem pediu menos movimento).
+      setReacao("feliz");
+      const calmo = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      window.setTimeout(() => navigate(destino, { replace: true }), calmo ? 0 : 650);
     } catch (e) {
+      setReacao("triste");
+      setTremor(t => t + 1);
+      window.setTimeout(() => setReacao(r => (r === "triste" ? null : r)), 1400);
       // Erro da API traz a mensagem do backend; falha de rede (TypeError do fetch) vira um aviso legível.
       setErro(e instanceof ApiError ? e.message : "Não foi possível conectar ao servidor. Tente novamente.");
       setSenha("");
@@ -34,17 +47,11 @@ export default function LoginPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 p-6 font-sans">
-      <form onSubmit={enviar} className="w-full max-w-sm bg-white border border-slate-200 rounded-3xl shadow-xl p-8 space-y-6" noValidate>
-        <div className="text-center">
-          <h1 className="text-3xl font-black tracking-tight">
-            <span className="text-slate-800">Nord</span>
-            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Tool</span>
-          </h1>
-          <p className="text-sm text-slate-500 mt-2">Entre com seu e-mail e senha</p>
-        </div>
+  const humor: Humor = reacao ?? (focoSenha ? (mostrarSenha ? "espiando" : "tapando") : "normal");
 
+  return (
+    <TelaPublica subtitulo="Entre com seu e-mail e senha" humor={humor} tremor={tremor}>
+      <form onSubmit={enviar} className="space-y-6" noValidate>
         {sessaoEncerrada && !erro && (
           <p role="status" className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
             Sua sessão terminou. Entre novamente para continuar.
@@ -56,27 +63,32 @@ export default function LoginPage() {
 
         <div className="space-y-4">
           <label className="block">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">E-mail</span>
+            <span className={classeRotuloPublico}>E-mail</span>
             <input
               type="email" autoComplete="username" required autoFocus maxLength={150}
               value={email} onChange={e => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={classeCampoPublico}
             />
           </label>
           <label className="block">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Senha</span>
-            <input
-              type="password" autoComplete="current-password" required maxLength={200}
-              value={senha} onChange={e => setSenha(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <span className={classeRotuloPublico}>Senha</span>
+            <span className="relative block">
+              <input
+                type={mostrarSenha ? "text" : "password"} autoComplete="current-password" required maxLength={200}
+                value={senha} onChange={e => setSenha(e.target.value)}
+                onFocus={() => setFocoSenha(true)} onBlur={() => setFocoSenha(false)}
+                className={`${classeCampoPublico} pr-11`}
+              />
+              <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setMostrarSenha(v => !v)}
+                aria-label={mostrarSenha ? "Esconder senha" : "Mostrar senha"} aria-pressed={mostrarSenha}
+                className="absolute inset-y-0 right-0 mt-1 flex w-11 items-center justify-center rounded-r-xl text-slate-400 hover:text-blue-600">
+                {mostrarSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </span>
           </label>
         </div>
 
-        <button
-          type="submit" disabled={enviando || !email.trim() || !senha}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 text-white font-bold py-3 text-sm shadow-md shadow-blue-500/20 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
+        <button type="submit" disabled={enviando || !email.trim() || !senha} className={classeBotaoPublico}>
           {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
           Entrar
         </button>
@@ -86,6 +98,6 @@ export default function LoginPage() {
           <Link to="/cadastro" className="font-semibold text-blue-600 hover:underline">Criar conta</Link>
         </div>
       </form>
-    </div>
+    </TelaPublica>
   );
 }

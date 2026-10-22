@@ -16,18 +16,20 @@ interface AvatarProps {
   animado?: boolean;
   /** Atraso da animação (s), para uma equipe não piscar toda junta. */
   atraso?: number;
+  /** Sem o quadro de fundo (o boneco "solto", como o mascote do login). */
+  semFundo?: boolean;
 }
 
 /** Avatar em pixel art 32×32 desenhado em SVG (nítido em qualquer tamanho). */
-export default function Avatar({ config, tema = null, tamanho = 64, rotulo, className, animado = false, atraso = 0 }: AvatarProps) {
+export default function Avatar({ config, tema = null, tamanho = 64, rotulo, className, animado = false, atraso = 0, semFundo = false }: AvatarProps) {
   const id = useId().replace(/:/g, "");
   const { corpo, piscada } = useMemo(() => {
-    const aberto = montarGrade(config, tema);
+    const aberto = montarGrade(config, tema, false, semFundo);
     return {
       corpo: emRetangulos(aberto),
-      piscada: animado ? emRetangulos(diferenca(aberto, montarGrade(config, tema, true))) : [],
+      piscada: animado ? emRetangulos(diferenca(aberto, montarGrade(config, tema, true, semFundo))) : [],
     };
-  }, [config, tema, animado]);
+  }, [config, tema, animado, semFundo]);
 
   return (
     <svg viewBox={`0 0 ${LADO} ${LADO}`} width={tamanho} height={tamanho} shapeRendering="crispEdges"
