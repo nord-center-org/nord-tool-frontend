@@ -64,7 +64,7 @@ export default function Layout() {
       title: "Gestão Individual",
       items: [
         { path: "/gestao/financeiro", label: "Gestão financeira", icon: Wallet },
-        { path: "/gestao/treinos", label: "Organograma de treinos", icon: Dumbbell },
+        { path: "/gestao/treinos", label: "Treinos", icon: Dumbbell },
         { path: "/gestao/repertorio", label: "Repertório", icon: Music },
         { path: "/gestao/academico", label: "Desenvolvimento acadêmico", icon: Book },
         { path: "/gestao/casamento", label: "Casamento", icon: Heart },
