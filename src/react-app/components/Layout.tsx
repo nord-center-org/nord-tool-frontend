@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { Outlet, NavLink, useLocation } from "react-router";
 import ErrorBoundary from "@/react-app/components/ErrorBoundary";
 import GatinhoSecreto from "@/react-app/components/davi/GatinhoSecreto";
+import MeuAvatarMini from "@/react-app/components/avatar/MeuAvatarMini";
 import { ExigeModuloDaRota } from "@/react-app/components/RotaProtegida";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { useObra } from "@/react-app/hooks/useObra";
 import { podeAbrirRota } from "@/react-app/utils/sessao";
 import { EVENTO_DAVI, criarContadorToques } from "@/react-app/utils/segredo";
-import { alternarGrupo, grupoDaRota, iniciais, lerGruposAbertos, salvarGruposAbertos } from "@/react-app/utils/menuLateral";
+import { alternarGrupo, grupoDaRota, lerGruposAbertos, salvarGruposAbertos } from "@/react-app/utils/menuLateral";
 import { 
   Database, BarChart3, Package, Settings, Menu, ChevronLeft, 
   Home as HomeIcon, Briefcase, GraduationCap,
@@ -134,9 +135,9 @@ export default function Layout() {
           {usuario && (
             <div className="border-b border-slate-100 px-6 py-4" aria-label="Usuário e obra">
               <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-black text-white" aria-hidden="true">
-                  {iniciais(usuario.nome)}
-                </span>
+                <NavLink to="/conta/avatar" onClick={() => setSidebarOpen(false)} title="Editar meu avatar" className="shrink-0 rounded-full transition-transform hover:scale-105">
+                  <MeuAvatarMini idUsuario={usuario.id} tamanho={40} />
+                </NavLink>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-slate-800">{usuario.nome}</p>
                   {obras.length > 1 ? (
