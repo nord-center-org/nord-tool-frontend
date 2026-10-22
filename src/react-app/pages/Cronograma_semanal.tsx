@@ -1,6 +1,6 @@
 import { DragEvent, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarDays, LayoutGrid, List, CalendarClock, Search, PlusCircle, X } from "lucide-react";
+import { CalendarDays, LayoutGrid, List, CalendarClock, Search, PlusCircle, X, Lock, Share2 } from "lucide-react";
 import {
   CronogramaSemanalService,
   type CronogramaSemanalItem,
@@ -8,6 +8,8 @@ import {
   type Categoria,
 } from "../services/CronogramaSemanalService";
 import { HistoricoColumnFilter, type DirecaoOrdenacao } from "../components/HistoricoColumnFilter";
+import CompartilharItem from "../components/cronograma/CompartilharItem";
+import { ehMeu, passaFiltroDono, type FiltroDono } from "../utils/compartilhamento";
 
 type Page = "kanban" | "lista" | "rotina";
 type ColunaLista = "status" | "dtPrazo" | "nmCronogramaSemanal" | "nmCategoria" | "nmTag";
@@ -96,6 +98,7 @@ export default function NordToolDashboard() {
   const [erro, setErro] = useState<string | null>(null);
   const [categoria, setCategoria] = useState<Categoria | "Todas">("Todas");
   const [busca, setBusca] = useState("");
+  const [filtroDono, setFiltroDono] = useState<FiltroDono>("TODOS");
   const [dragging, setDragging] = useState<number | null>(null);
   const [editando, setEditando] = useState<CronogramaSemanalItem | null>(null);
   const [criando, setCriando] = useState(false);
@@ -150,10 +153,11 @@ export default function NordToolDashboard() {
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");
     return items.filter(item =>
+      passaFiltroDono(item, filtroDono) &&
       (categoria === "Todas" || item.nmCategoria === categoria) &&
       (!termo || [item.nmCronogramaSemanal, item.txObservacao ?? "", item.nmTag ?? ""].join(" ").toLocaleLowerCase("pt-BR").includes(termo))
     );
-  }, [items, categoria, busca]);
+  }, [items, categoria, busca, filtroDono]);
 
   const valorColuna = (item: CronogramaSemanalItem, coluna: ColunaLista): string => {
     if (coluna === "status") return statuses.find(s => s.id === item.nmStatusCronograma)?.label ?? item.nmStatusCronograma;
@@ -369,6 +373,16 @@ export default function NordToolDashboard() {
                 <option value="Todas">Todas as categorias</option>
                 {categorias.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
+              <select
+                aria-label="De quem"
+                value={filtroDono}
+                onChange={e => setFiltroDono(e.target.value as FiltroDono)}
+                className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:ring-2 focus:ring-violet-600"
+              >
+                <option value="TODOS">Meus e compartilhados</option>
+                <option value="MEUS">Só os meus</option>
+                <option value="COMIGO">Compartilhados comigo</option>
+              </select>
               <button onClick={() => abrirNovo()} className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
                 <PlusCircle size={16} /> Nova demanda
               </button>
@@ -409,7 +423,7 @@ export default function NordToolDashboard() {
                           {itensDaColuna.map(item => (
                             <div
                               key={item.id}
-                              draggable
+                              draggable={ehMeu(item)}
                               onDragStart={e => { e.dataTransfer.setData("text/item-id", String(item.id)); setDragging(item.id ?? null); }}
                               onDragEnd={() => setDragging(null)}
                               onClick={() => abrirEdicao(item)}
@@ -421,6 +435,8 @@ export default function NordToolDashboard() {
                               </div>
                               <p className="text-sm font-semibold leading-snug">{item.nmCronogramaSemanal}</p>
                               {item.txObservacao && <p className="mt-1 text-xs text-slate-500 line-clamp-2">{item.txObservacao}</p>}
+                              {!ehMeu(item) && <p className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-sky-400"><Lock size={10} /> de {item.nmDono ?? "outra pessoa"}</p>}
+                              {ehMeu(item) && (item.idsCompartilhados?.length ?? 0) > 0 && <p className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold text-violet-300"><Share2 size={10} /> compartilhado ({item.idsCompartilhados?.length})</p>}
                               {item.dtPrazo && <p className="mt-2 text-[10px] font-bold text-emerald-500">Prazo {formatarData(item.dtPrazo)}</p>}
                             </div>
                           ))}
@@ -616,7 +632,7 @@ export default function NordToolDashboard() {
                                 <div className="flex items-center gap-1 text-[9px] font-bold">{rotuloNoDia(item, ymd(data))}</div>
                                 <p className={`pr-5 text-xs font-semibold leading-snug text-slate-100 ${ignorado ? "line-through" : ""}`}>{item.nmCronogramaSemanal}</p>
                               </button>
-                              {item.flFixo && (
+                              {item.flFixo && ehMeu(item) && (
                                 <button
                                   onClick={() => void alternarIgnorado(item, ymd(data))}
                                   title={ignorado ? "Reativar só neste dia" : "Desmarcar só neste dia"}
@@ -670,6 +686,21 @@ export default function NordToolDashboard() {
             </div>
 
             {erroModal && <div className="mb-3 rounded-xl border border-red-800 bg-red-950/40 px-3 py-2 text-sm text-red-300">{erroModal}</div>}
+
+            {editando && !ehMeu(editando) && (
+              <p className="mb-3 flex items-center gap-2 rounded-xl border border-sky-900 bg-sky-950/40 px-3 py-2 text-xs text-sky-300">
+                <Lock size={14} /> Compartilhado por {editando.nmDono ?? "outra pessoa"}: só quem criou pode alterar.
+              </p>
+            )}
+            {editando?.id != null && ehMeu(editando) && (
+              <CompartilharItem idItem={editando.id} idsAtuais={editando.idsCompartilhados ?? []}
+                onCompartilhado={ids => {
+                  setEditando(e => (e ? { ...e, idsCompartilhados: ids } : e));
+                  setItems(l => l.map(x => (x.id === editando.id ? { ...x, idsCompartilhados: ids } : x)));
+                }} />
+            )}
+
+            <fieldset disabled={!!editando && !ehMeu(editando)} className="min-w-0">
 
             <label className="mb-3 block text-xs font-semibold text-slate-400">
               Título
@@ -780,6 +811,9 @@ export default function NordToolDashboard() {
               </label>
             )}
 
+            </fieldset>
+
+            {(!editando || ehMeu(editando)) && (
             <div className="mt-4 flex items-center gap-3">
               <button
                 onClick={() => void salvar()}
@@ -794,6 +828,7 @@ export default function NordToolDashboard() {
                 </button>
               )}
             </div>
+            )}
           </div>
         </div>
       )}
