@@ -20,6 +20,16 @@ export interface AcessoUsuario {
   nmObraSolicitada?: string | null;
   /** Nível efetivo por módulo; módulo ausente = sem acesso. */
   acessos: Record<string, NivelAcesso>;
+  /** Superior direto (hierarquia). */
+  idSuperior?: number | null;
+  /** O que perfil + cargo dão, sem as exceções do usuário. */
+  acessosPadrao?: Record<string, NivelAcesso> | null;
+}
+
+export interface AcessoCargo {
+  idCargo: number;
+  nmCargo: string;
+  acessos: Record<string, NivelAcesso>;
 }
 
 export interface AcessoPerfil {
@@ -32,6 +42,7 @@ export interface Acessos {
   usuarios: AcessoUsuario[];
   perfis: AcessoPerfil[];
   modulos: string[];
+  cargos?: AcessoCargo[];
 }
 
 export interface AcessoUsuarioForm {
@@ -59,10 +70,14 @@ const BASE = "/administracao/acessos";
 export const acessoService = {
   listar: async (): Promise<Acessos> => {
     const r = await apiFetch<Acessos>(BASE);
-    return { usuarios: r?.usuarios ?? [], perfis: r?.perfis ?? [], modulos: r?.modulos ?? [] };
+    return { usuarios: r?.usuarios ?? [], perfis: r?.perfis ?? [], modulos: r?.modulos ?? [], cargos: r?.cargos ?? [] };
   },
   decidirCadastro: (id: number, aprovar: boolean, idsFases: number[]) =>
     apiFetch<AcessoUsuario>(`${BASE}/${id}/cadastro`, { method: "PUT", body: JSON.stringify({ aprovar, idsFases }) }),
+  salvarCargo: (idCargo: number, acessos: Record<string, NivelAcesso>) =>
+    apiFetch<AcessoCargo>(`${BASE}/cargos/${idCargo}`, { method: "PUT", body: JSON.stringify({ acessos }) }),
+  definirSuperior: (id: number, idSuperior: number | null) =>
+    apiFetch<AcessoUsuario>(`${BASE}/${id}/superior`, { method: "PUT", body: JSON.stringify({ idSuperior }) }),
   salvarDados: (id: number, form: DadosUsuarioForm) =>
     apiFetch<AcessoUsuario>(`${BASE}/${id}/dados`, { method: "PUT", body: JSON.stringify(form) }),
   listarLegados: async () => (await apiFetch<ColaboradorLegado[]>(`${BASE}/colaboradores-legados`)) ?? [],

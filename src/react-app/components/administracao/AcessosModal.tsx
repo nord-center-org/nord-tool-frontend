@@ -8,7 +8,7 @@ import { useAuth } from "@/react-app/hooks/useAuth";
 import { OpcoesColaboradorService } from "@/react-app/services/OpcoesColaboradorService";
 import { acessoService, type Acessos, type AcessoUsuario } from "@/react-app/services/AcessoService";
 import {
-  MODULOS, NIVEIS, ROTULO_NIVEL, alterado, completar, filtrarUsuarios, nomeModulo, personalizados, qtModulosLiberados,
+  MODULOS, NIVEIS, ROTULO_NIVEL, alterado, completar, filtrarUsuarios, nomeModulo, padraoDe, personalizados, qtModulosLiberados,
   type Nivel, type Rascunho,
 } from "@/react-app/utils/acessos";
 
@@ -60,7 +60,9 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
   const original = selecionado ? rascunhoDe(selecionado, modulos) : null;
   const sujo = !!(rascunho && original && alterado(rascunho, original));
   const perfilDoRascunho = dados?.perfis.find(p => p.cdPerfil === rascunho?.cdPerfil);
-  const fogem = rascunho ? personalizados(rascunho.acessos, perfilDoRascunho?.acessos) : [];
+  const cargoDoUsuario = dados?.cargos?.find(c => c.idCargo === selecionado?.idCargo);
+  // "Personalizado" = foge do padrão (perfil + cargo) da pessoa.
+  const fogem = rascunho ? personalizados(rascunho.acessos, padraoDe(perfilDoRascunho?.acessos, cargoDoUsuario?.acessos)) : [];
   const ehEuMesmo = selecionado?.id === logado?.id;
   const visiveis = useMemo(() => filtrarUsuarios(dados?.usuarios ?? [], busca), [dados, busca]);
 
@@ -76,7 +78,7 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
   const trocarPerfil = (cdPerfil: string) => {
     if (!rascunho) return;
     const perfil = dados?.perfis.find(p => p.cdPerfil === cdPerfil);
-    setRascunho({ ...rascunho, cdPerfil, acessos: completar(modulos, perfil?.acessos) });
+    setRascunho({ ...rascunho, cdPerfil, acessos: completar(modulos, padraoDe(perfil?.acessos, cargoDoUsuario?.acessos)) });
   };
 
   const definir = (modulo: string, nivel: Nivel) =>

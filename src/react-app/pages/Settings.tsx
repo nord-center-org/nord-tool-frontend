@@ -4,7 +4,7 @@ import { listarStatusVistoria } from "@/react-app/services/EndpointsDominioServi
 import { CHAVE_PRE_CARREGAMENTO, lerPreCarregamento, type PreCarregamento } from "@/react-app/utils/preCarregamentoApartamentos";
 import {
   Settings as SettingsIcon, Save, ChevronDown, ChevronUp,
-  Loader2, Building2, Clock, Filter, Database, LayoutDashboard, FolderCog, Wrench, ShieldCheck
+  Loader2, Building2, Clock, Filter, Database, LayoutDashboard, FolderCog, Wrench, ShieldCheck, Network
 } from "lucide-react";
 import { ControleChavesService, type ObraControleChaves } from "../services/ControleChavesService";
 import { OpcoesColaboradorService, type Empresa, type Cargo, type Permissao } from "../services/OpcoesColaboradorService";
@@ -14,6 +14,7 @@ import CadastroSimples from "../components/CadastroSimples";
 import CadastroFerramentas from "../components/CadastroFerramentas";
 import AcessosModal from "../components/administracao/AcessosModal";
 import ObrasModal from "../components/administracao/ObrasModal";
+import EquipeModal from "../components/administracao/EquipeModal";
 import { useAuth } from "../hooks/useAuth";
 import { podeAcessar } from "../utils/sessao";
 
@@ -33,6 +34,7 @@ export default function SettingsPage() {
   const ehAdmin = podeAcessar(usuario?.permissoes, "ADMINISTRACAO", "ADMIN");
   const [acessosAberto, setAcessosAberto] = useState(false);
   const [obrasAberto, setObrasAberto] = useState(false);
+  const [equipeAberto, setEquipeAberto] = useState(false);
   const [apartmentList, setApartmentList] = useState("");
   const [timeSlotsList, setTimeSlotsList] = useState("");
 
@@ -197,6 +199,9 @@ export default function SettingsPage() {
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => setObrasAberto(true)} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50">
                   <Building2 className="h-4 w-4" /> Obras e fases
+                </button>
+                <button type="button" onClick={() => setEquipeAberto(true)} className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50">
+                  <Network className="h-4 w-4" /> Equipe e cargos
                 </button>
                 <button type="button" onClick={() => setAcessosAberto(true)} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">
                   <ShieldCheck className="h-4 w-4" /> Acessos
@@ -502,6 +507,7 @@ export default function SettingsPage() {
       </div>
       {acessosAberto && <AcessosModal onFechar={() => setAcessosAberto(false)} />}
       {obrasAberto && <ObrasModal onFechar={() => setObrasAberto(false)} />}
+      {equipeAberto && <EquipeModal onFechar={() => setEquipeAberto(false)} />}
     </div>
   );
 }

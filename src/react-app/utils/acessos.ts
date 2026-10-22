@@ -70,3 +70,50 @@ export function filtrarUsuarios<T extends { nmNome: string; nmEmail: string }>(l
   if (!termo) return lista;
   return lista.filter(u => semAcento(`${u.nmNome} ${u.nmEmail}`).includes(termo));
 }
+
+/** Padrão de um usuário: o cargo prevalece sobre o perfil no mesmo módulo. */
+export function padraoDe(doPerfil: Record<string, string> | undefined, doCargo: Record<string, string> | undefined): Record<string, string> {
+  return { ...(doPerfil ?? {}), ...Object.fromEntries(Object.entries(doCargo ?? {}).filter(([, v]) => v && v !== "NENHUM")) };
+}
+
+export interface LinhaArvore<T> { item: T; nivel: number }
+
+/**
+ * Hierarquia em árvore: cada pessoa logo abaixo do seu superior. Quem não tem superior (ou cujo superior não está
+ * na lista) fica no topo. Ciclos não travam: cada pessoa aparece uma vez só.
+ */
+export function arvoreHierarquia<T extends { id: number; nmNome: string; idSuperior?: number | null }>(itens: T[]): LinhaArvore<T>[] {
+  const ids = new Set(itens.map(i => i.id));
+  const filhos = new Map<number | null, T[]>();
+  for (const i of itens) {
+    const pai = i.idSuperior != null && ids.has(i.idSuperior) && i.idSuperior !== i.id ? i.idSuperior : null;
+    filhos.set(pai, [...(filhos.get(pai) ?? []), i]);
+  }
+  for (const l of filhos.values()) l.sort((a, b) => a.nmNome.localeCompare(b.nmNome, "pt-BR"));
+  const saida: LinhaArvore<T>[] = [];
+  const vistos = new Set<number>();
+  const visitar = (pai: number | null, nivel: number) => {
+    for (const f of filhos.get(pai) ?? []) {
+      if (vistos.has(f.id)) continue;
+      vistos.add(f.id);
+      saida.push({ item: f, nivel });
+      visitar(f.id, nivel + 1);
+    }
+  };
+  visitar(null, 0);
+  // Sobra de ciclo (A→B→A sem topo): entra no fim, no nível 0.
+  for (const i of itens) if (!vistos.has(i.id)) { vistos.add(i.id); saida.push({ item: i, nivel: 0 }); visitar(i.id, 1); }
+  return saida;
+}
+
+/** Ids abaixo de alguém (para não oferecer como superior quem está abaixo da pessoa). */
+export function abaixoDe<T extends { id: number; idSuperior?: number | null }>(itens: T[], id: number): Set<number> {
+  const resultado = new Set<number>();
+  let fronteira = [id];
+  while (fronteira.length) {
+    const proximos = itens.filter(i => i.idSuperior != null && fronteira.includes(i.idSuperior) && !resultado.has(i.id) && i.id !== id).map(i => i.id);
+    proximos.forEach(x => resultado.add(x));
+    fronteira = proximos;
+  }
+  return resultado;
+}

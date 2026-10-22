@@ -31,3 +31,25 @@ test("qtModulosLiberados, nomeModulo e busca", () => {
   assert.equal(filtrarUsuarios(lista, "OBRA.com").length, 2);
   assert.equal(filtrarUsuarios(lista, "").length, 2);
 });
+
+test("padraoDe: cargo prevalece sobre o perfil", async () => {
+  const { padraoDe } = await import("./acessos.ts");
+  assert.deepEqual(padraoDe({ A: "LEITURA", B: "ADMIN" }, { A: "ESCRITA", C: "NENHUM" }), { A: "ESCRITA", B: "ADMIN" });
+});
+
+test("arvoreHierarquia e abaixoDe", async () => {
+  const { arvoreHierarquia, abaixoDe } = await import("./acessos.ts");
+  const lista = [
+    { id: 1, nmNome: "Engenheiro", idSuperior: null },
+    { id: 2, nmNome: "Mestre", idSuperior: 1 },
+    { id: 3, nmNome: "Encarregado", idSuperior: 2 },
+    { id: 4, nmNome: "Ana", idSuperior: 1 },
+    { id: 5, nmNome: "Solto", idSuperior: 99 },
+  ];
+  assert.deepEqual(arvoreHierarquia(lista).map(l => `${l.nivel}:${l.item.nmNome}`),
+    ["0:Engenheiro", "1:Ana", "1:Mestre", "2:Encarregado", "0:Solto"]);
+  assert.deepEqual([...abaixoDe(lista, 1)].sort(), [2, 3, 4]);
+  assert.deepEqual([...abaixoDe(lista, 3)], []);
+  const ciclo = [{ id: 1, nmNome: "A", idSuperior: 2 }, { id: 2, nmNome: "B", idSuperior: 1 }];
+  assert.equal(arvoreHierarquia(ciclo).length, 2);
+});
