@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, History, Loader2, Search, ShieldCheck, UserX, X } from "lucide-react";
 
+import AprovacaoCadastro from "@/react-app/components/administracao/AprovacaoCadastro";
 import ColaboradoresLegados from "@/react-app/components/administracao/ColaboradoresLegados";
 import DadosUsuario from "@/react-app/components/administracao/DadosUsuario";
 import { useAuth } from "@/react-app/hooks/useAuth";
@@ -152,7 +153,9 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
                         </span>
                         <span className="mt-0.5 flex items-center justify-between gap-2 text-xs text-slate-400">
                           <span className="truncate">{u.nmEmail}</span>
-                          {qt === 0 ? <span className="shrink-0 font-bold text-amber-600">Sem acesso</span> : <span className="shrink-0">{qt} módulo(s)</span>}
+                          {u.cdSituacaoCadastro === "PENDENTE" ? <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-700">Aguardando</span>
+                            : u.cdSituacaoCadastro === "RECUSADO" ? <span className="shrink-0 font-bold text-red-500">Recusado</span>
+                            : qt === 0 ? <span className="shrink-0 font-bold text-amber-600">Sem acesso</span> : <span className="shrink-0">{qt} módulo(s)</span>}
                         </span>
                       </button>
                     </li>
@@ -183,6 +186,11 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
                       Ativo
                     </label>
                   </div>
+
+                  {selecionado.cdSituacaoCadastro === "PENDENTE" && (
+                    <AprovacaoCadastro key={`aprov-${selecionado.id}`} usuario={selecionado}
+                      onDecidido={u => { setDados(d => d && { ...d, usuarios: d.usuarios.map(x => (x.id === u.id ? u : x)) }); setRascunho(rascunhoDe(u, modulos)); }} />
+                  )}
 
                   <DadosUsuario key={selecionado.id} usuario={selecionado} empresas={empresas} cargos={cargos}
                     onSalvo={u => setDados(d => d && { ...d, usuarios: d.usuarios.map(x => (x.id === u.id ? u : x)) })} />

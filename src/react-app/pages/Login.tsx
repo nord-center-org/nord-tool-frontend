@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router";
 import { Loader2, LogIn } from "lucide-react";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { destinoSeguro } from "@/react-app/utils/sessao";
@@ -80,6 +80,11 @@ export default function LoginPage() {
           {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
           Entrar
         </button>
+
+        <div className="flex items-center justify-between text-sm">
+          <Link to="/esqueci-senha" className="font-semibold text-slate-500 hover:text-blue-600">Esqueci a senha</Link>
+          <Link to="/cadastro" className="font-semibold text-blue-600 hover:underline">Criar conta</Link>
+        </div>
       </form>
     </div>
   );
