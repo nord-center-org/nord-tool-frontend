@@ -15,6 +15,20 @@ export const authService = {
     return apiFetch<UsuarioSessao>("/auth/me");
   },
 
+  /** Cria a conta (fica aguardando a aprovação do admin, sem nenhum acesso). */
+  cadastrar(form: { nmNome: string; nmEmail: string; nrCelular: string; cdObra: string; senha: string }): Promise<{ txMensagem: string }> {
+    return apiFetch<{ txMensagem: string }>("/auth/cadastro", { method: "POST", body: JSON.stringify(form) });
+  },
+
+  /** Pede o link de nova senha por e-mail (a resposta é a mesma exista ou não o e-mail). */
+  esqueciSenha(nmEmail: string): Promise<{ txMensagem: string }> {
+    return apiFetch<{ txMensagem: string }>("/auth/esqueci-senha", { method: "POST", body: JSON.stringify({ nmEmail }) });
+  },
+
+  redefinirSenha(token: string, novaSenha: string): Promise<{ txMensagem: string }> {
+    return apiFetch<{ txMensagem: string }>("/auth/redefinir-senha", { method: "POST", body: JSON.stringify({ token, novaSenha }) });
+  },
+
   /** Troca a senha; o backend encerra as outras sessões e devolve um token novo para esta. */
   alterarSenha(senhaAtual: string, novaSenha: string): Promise<Sessao> {
     return apiFetch<Sessao>("/auth/alterar-senha", { method: "POST", body: JSON.stringify({ senhaAtual, novaSenha }) });

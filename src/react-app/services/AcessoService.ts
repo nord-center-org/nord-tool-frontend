@@ -14,6 +14,10 @@ export interface AcessoUsuario {
   nmEmpresa?: string | null;
   idCargo?: number | null;
   nmCargo?: string | null;
+  /** PENDENTE (aguardando aprovação), APROVADO ou RECUSADO. */
+  cdSituacaoCadastro?: "PENDENTE" | "APROVADO" | "RECUSADO";
+  idObraSolicitada?: number | null;
+  nmObraSolicitada?: string | null;
   /** Nível efetivo por módulo; módulo ausente = sem acesso. */
   acessos: Record<string, NivelAcesso>;
 }
@@ -57,6 +61,8 @@ export const acessoService = {
     const r = await apiFetch<Acessos>(BASE);
     return { usuarios: r?.usuarios ?? [], perfis: r?.perfis ?? [], modulos: r?.modulos ?? [] };
   },
+  decidirCadastro: (id: number, aprovar: boolean, idsFases: number[]) =>
+    apiFetch<AcessoUsuario>(`${BASE}/${id}/cadastro`, { method: "PUT", body: JSON.stringify({ aprovar, idsFases }) }),
   salvarDados: (id: number, form: DadosUsuarioForm) =>
     apiFetch<AcessoUsuario>(`${BASE}/${id}/dados`, { method: "PUT", body: JSON.stringify(form) }),
   listarLegados: async () => (await apiFetch<ColaboradorLegado[]>(`${BASE}/colaboradores-legados`)) ?? [],

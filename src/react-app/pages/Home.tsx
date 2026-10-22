@@ -42,8 +42,16 @@ export default function HomePage() {
     { nome: "Gestão Individual", icon: UserCircle, cor: "from-orange-500 to-red-500", desc: "Finanças, treinos, repertório e casamento" }
   ];
 
+  const semAcesso = !!usuario && Object.values(subMenu).every(l => l.every(o => o.path === "/configuracoes"));
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[85vh] w-full animate-in fade-in duration-700">
+      {semAcesso && (
+        <div role="status" className="mb-8 max-w-md rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-center text-sm text-amber-800">
+          <strong className="block text-base">Bem-vindo, {usuario?.nome?.split(" ")[0]}!</strong>
+          Seu acesso aos módulos ainda não foi liberado. Peça ao administrador da obra para liberar as telas que você vai usar.
+        </div>
+      )}
       <div className="text-center mb-16 relative">
         <div className="absolute -top-6 -right-6 text-yellow-400 animate-pulse">
           <Sparkles className="w-8 h-8 opacity-70" />
