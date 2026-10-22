@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 import { Outlet, NavLink, useLocation } from "react-router";
 import ErrorBoundary from "@/react-app/components/ErrorBoundary";
+import GatinhoSecreto from "@/react-app/components/davi/GatinhoSecreto";
 import { ExigeModuloDaRota } from "@/react-app/components/RotaProtegida";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { useObra } from "@/react-app/hooks/useObra";
 import { podeAbrirRota } from "@/react-app/utils/sessao";
+import { EVENTO_DAVI, criarContadorToques } from "@/react-app/utils/segredo";
 import { alternarGrupo, grupoDaRota, iniciais, lerGruposAbertos, salvarGruposAbertos } from "@/react-app/utils/menuLateral";
 import { 
   Database, BarChart3, Package, Settings, Menu, ChevronLeft, 
   Home as HomeIcon, Briefcase, GraduationCap,
   ClipboardCheck, AlertTriangle, Camera, FileText, BookOpen, 
-  TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Cat, Heart, PiggyBank,
+  TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Heart, PiggyBank,
   Ruler, ChevronDown
 } from "lucide-react";
 
@@ -18,6 +20,7 @@ const armazenamento = () => (typeof window === "undefined" ? undefined : window.
 
 export default function Layout() {
   const location = useLocation();
+  const [toqueNoLogo] = useState(() => criarContadorToques(5, 3000));
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { usuario } = useAuth();
   const { obras, idObra, obra, trocarObra } = useObra();
@@ -69,7 +72,6 @@ export default function Layout() {
         { path: "/gestao/academico", label: "Desenvolvimento acadêmico", icon: Book },
         { path: "/gestao/casamento", label: "Casamento", icon: Heart },
         { path: "/gestao/caixinha", label: "Caixinha", icon: PiggyBank },
-        { path: "/gestao/davi-job", label: "Davi Job", icon: Cat },
       ]
     },
   ];
@@ -115,7 +117,7 @@ export default function Layout() {
         <div className="w-[85vw] max-w-80 md:w-80 flex flex-col h-full">
           <div className="p-6 flex items-center justify-between border-b border-slate-100 bg-white sticky top-0 z-10">
             <div>
-              <h1 className="text-2xl font-black tracking-tight">
+              <h1 className="text-2xl font-black tracking-tight select-none" onClick={() => { if (toqueNoLogo(Date.now())) window.dispatchEvent(new Event(EVENTO_DAVI)); }}>
                 <span className="text-slate-800">Nord</span>
                 <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Tool</span>
               </h1>
@@ -245,6 +247,7 @@ export default function Layout() {
           </div>
         </div>
       </main>
+      <GatinhoSecreto />
     </div>
   );
 }
