@@ -28,6 +28,8 @@ import DownloadTermosModal from "@/react-app/components/termo/DownloadTermosModa
 import { separarConcluidos } from "@/react-app/utils/termosConcluidos";
 import { lerPreCarregamento, resolverPreCarregamento, type ColunaPreCarregamento } from "@/react-app/utils/preCarregamentoApartamentos";
 import { ClipboardPaste } from "lucide-react";
+import { useObra } from "@/react-app/hooks/useObra";
+import { codigoDaFase } from "@/react-app/utils/contextoObra";
 import {
   classeSituacao, descricaoDoTermo, ordemFotos, progressoPaginas, situacaoDoTermo, valorFotos,
 } from "@/react-app/utils/termoLista";
@@ -82,7 +84,9 @@ export default function ApartamentosPage() {
   // Preferências de pré-carregamento (Configurações): filtros, ordenação e "mostrar todos" iniciais.
   const preRef = useRef(lerPreCarregamento(localStorage));
   const [mostrarTodos, setMostrarTodos] = useState(() => localStorage.getItem("@NordTool:filter_db_showall") === "true");
-  const [nordSelecionado, setNordSelecionado] = useState<"N1" | "N2" | "EN" | null>(null);
+  const [nordSelecionado, setNordSelecionado] = useState<string | null>(null);
+  // Fases da obra atual (sigla = começo do código do apartamento).
+  const { fases } = useObra();
   const [showExcelMenu, setShowExcelMenu] = useState(false);
   const [expandedObsId, setExpandedObsId] = useState<number | null>(null);
   const { filtros, ordenacao, aplicarFiltro, ordenar, limpar } = useFiltrosColuna<ColunaApartamento>(
@@ -107,7 +111,7 @@ export default function ApartamentosPage() {
       preRef.current = lerPreCarregamento(localStorage);
 
       // 3. Aplica a obra
-      setNordSelecionado(savedCondo as "N1" | "N2" | "EN" | null);
+      setNordSelecionado(savedCondo || null);
     };
 
     syncSettings();
@@ -259,7 +263,7 @@ export default function ApartamentosPage() {
       if (!mostrarTodos && statusApt.includes(hiddenStatus)) return false;
       if (nordSelecionado) {
         const nome = apt.nmApartamentoVistoria?.toUpperCase() || "";
-        if (!nome.startsWith(nordSelecionado)) return false;
+        if (!codigoDaFase(nome, nordSelecionado)) return false;
       }
 
       if (searchTerm) {
@@ -327,9 +331,9 @@ export default function ApartamentosPage() {
         <div className={`flex items-center gap-4 shrink-0 transition-all duration-300 ${!sidebarOpen ? 'pl-16' : 'pl-0'}`}>
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Apartamentos</h2>
           <div className="flex p-1 bg-slate-200/50 rounded-lg border border-slate-200">
-            <button onClick={() => setNordSelecionado(nordSelecionado === "N1" ? null : "N1")} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${nordSelecionado === "N1" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}>Nord 1</button>
-            <button onClick={() => setNordSelecionado(nordSelecionado === "N2" ? null : "N2")} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${nordSelecionado === "N2" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}>Nord 2</button>
-            <button onClick={() => setNordSelecionado(nordSelecionado === "EN" ? null : "EN")} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${nordSelecionado === "EN" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}>Energy</button>
+            {fases.map(f => (
+              <button key={f.sigla} onClick={() => setNordSelecionado(nordSelecionado === f.sigla ? null : f.sigla)} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${nordSelecionado === f.sigla ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}>{f.nome}</button>
+            ))}
           </div>
         </div>
 

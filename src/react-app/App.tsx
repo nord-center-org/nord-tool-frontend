@@ -11,6 +11,7 @@ import DaviJobPage from "@/react-app/pages/DaviJob";
 import CasamentoPage from "@/react-app/pages/Casamento";
 import CaixinhaPage from "@/react-app/pages/Caixinha";
 import MedicoesPage from "@/react-app/pages/Medicoes";
+import { ObraProvider } from "@/react-app/hooks/useObra";
 import CadastroPage from "@/react-app/pages/Cadastro";
 import EsqueciSenhaPage from "@/react-app/pages/EsqueciSenha";
 import RedefinirSenhaPage from "@/react-app/pages/RedefinirSenha";
@@ -30,7 +31,7 @@ export default function App() {
           <Route path="/cadastro" element={<CadastroPage />} />
           <Route path="/esqueci-senha" element={<EsqueciSenhaPage />} />
           <Route path="/redefinir-senha" element={<RedefinirSenhaPage />} />
-          <Route path="/" element={<RotaProtegida><Layout /></RotaProtegida>}>
+          <Route path="/" element={<RotaProtegida><ObraProvider><Layout /></ObraProvider></RotaProtegida>}>
             <Route index element={<HomePage />} />
             <Route path="entregas" element={<DeliveriesPage />} />
             <Route path="apartamentos" element={<ApartamentosPage />} />

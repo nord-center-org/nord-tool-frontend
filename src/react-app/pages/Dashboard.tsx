@@ -6,6 +6,7 @@ import { calcularDashboard } from "@/react-app/utils/dashboardStats";
 import { termoReprovaService } from "@/react-app/services/TermoReprovaService";
 import type { ResumoTermos } from "@/react-app/utils/termoLista";
 import CardFinalizacaoDat from "@/react-app/components/CardFinalizacaoDat";
+import { useObra } from "@/react-app/hooks/useObra";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -13,7 +14,8 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [selectedCondo, setSelectedCondo] = useState<string>(""); 
+  const [selectedCondo, setSelectedCondo] = useState<string>("");
+  const { fases } = useObra();
   const [resumoDat, setResumoDat] = useState<ResumoTermos | null>(null);
   const [carregandoDat, setCarregandoDat] = useState(true);
   const [erroDat, setErroDat] = useState<string | null>(null);
@@ -122,18 +124,15 @@ export default function DashboardPage() {
       <div className="flex items-center gap-6 mb-8">
         <h2 className="text-3xl font-bold text-slate-800">Dashboard</h2>
         <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
-          <button 
-            onClick={() => toggleCondoFilter("N1")} 
-            className={`px-6 py-1.5 rounded-md text-sm font-bold transition-all ${selectedCondo === "N1" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-          >
-            Nord 1
-          </button>
-          <button 
-            onClick={() => toggleCondoFilter("N2")} 
-            className={`px-6 py-1.5 rounded-md text-sm font-bold transition-all ${selectedCondo === "N2" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-          >
-            Nord 2
-          </button>
+          {fases.map(f => (
+            <button
+              key={f.sigla}
+              onClick={() => toggleCondoFilter(f.sigla)}
+              className={`px-6 py-1.5 rounded-md text-sm font-bold transition-all ${selectedCondo === f.sigla ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              {f.nome}
+            </button>
+          ))}
         </div>
       </div>
       

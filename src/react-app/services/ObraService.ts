@@ -21,6 +21,9 @@ export interface Obra {
   fases: Fase[];
 }
 
+/** Resultado de ligar os apartamentos antigos às fases pela sigla do código. */
+export interface VinculoFase { qtLigados: number; qtSemFase: number }
+
 export interface ObraForm { nmObra: string; cdAcesso: string; inAtivo: boolean; nrVersao?: number }
 export interface FaseForm { nmFase: string; cdFase: string; nrOrdem: number; inAtivo: boolean; nrVersao?: number }
 
@@ -35,4 +38,5 @@ export const obraService = {
   alterarFase: (id: number, f: FaseForm) => apiFetch<Fase>(`${BASE}/fases/${id}`, { method: "PUT", body: json(f) }),
   definirUsuarios: (idFase: number, idsUsuarios: number[]) =>
     apiFetch<Fase>(`${BASE}/fases/${idFase}/usuarios`, { method: "PUT", body: json({ idsUsuarios }) }),
+  vincularApartamentos: () => apiFetch<VinculoFase>(`${BASE}/obras/vincular-apartamentos`, { method: "POST" }),
 };

@@ -5,6 +5,7 @@ import type { Medicao, MedicaoStatus } from "@/shared/types";
 import Campo, { classeInput } from "@/react-app/components/casamento/Campo";
 import BotaoCopiar from "@/react-app/components/medicoes/BotaoCopiar";
 import ModalBase from "@/react-app/components/casamento/ModalBase";
+import { useObra } from "@/react-app/hooks/useObra";
 import type { MedicaoForm } from "@/react-app/services/MedicaoService";
 import { hojeSaoPaulo, lerValor } from "@/react-app/utils/caixinha";
 import {
@@ -18,7 +19,7 @@ interface MedicaoModalProps {
   medicoes: Medicao[];
   status: MedicaoStatus[];
   /** Devolve a mensagem de erro (o modal continua aberto) ou null se salvou. */
-  onSalvar: (form: MedicaoForm) => Promise<string | null>;
+  onSalvar: (form: MedicaoForm, idFase?: number | null) => Promise<string | null>;
   onFechar: () => void;
 }
 
@@ -33,6 +34,10 @@ export default function MedicaoModal({ medicao, medicoes, status, onSalvar, onFe
   const [cdStatus, setCdStatus] = useState(medicao?.cdStatus ?? STATUS_PENDENTE);
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  // Fase só é escolhida na criação e quando a pessoa participa de mais de uma.
+  const fasesComId = useObra().fases.filter(f => f.id !== null);
+  const escolherFase = !medicao && fasesComId.length > 1;
+  const [idFase, setIdFase] = useState<number | null>(null);
 
   const contratos = useMemo(() => contratosConhecidos(medicoes), [medicoes]);
   // Ativos + o status atual da medição (mesmo que já esteja inativo).
@@ -70,6 +75,7 @@ export default function MedicaoModal({ medicao, medicoes, status, onSalvar, onFe
     if (!razao.trim()) return setErro("Informe a razão social.");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return setErro("Informe a data da medição.");
     if (valorLido === null) return setErro("Informe um valor maior que zero.");
+    if (escolherFase && !idFase) return setErro("Escolha a fase da medição.");
     setSalvando(true);
     setErro(null);
     const mensagem = await onSalvar({
@@ -82,7 +88,7 @@ export default function MedicaoModal({ medicao, medicoes, status, onSalvar, onFe
       txMemorial: memorial.trim(),
       cdStatus,
       nrVersao: medicao?.nrVersao,
-    });
+    }, escolherFase ? idFase : null);
     setSalvando(false);
     if (mensagem) setErro(mensagem);
   };
@@ -91,6 +97,14 @@ export default function MedicaoModal({ medicao, medicoes, status, onSalvar, onFe
     <ModalBase titulo={medicao ? "Editar medição" : "Nova medição"} onFechar={onFechar} largura="max-w-xl">
       <form onSubmit={e => void enviar(e)} className="space-y-4">
         {erro && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+        {escolherFase && (
+          <Campo rotulo="Fase">
+            <select value={idFase ?? ""} onChange={e => setIdFase(e.target.value ? Number(e.target.value) : null)} className={classeInput}>
+              <option value="">Escolha a fase</option>
+              {fasesComId.map(f => <option key={f.id} value={f.id ?? ""}>{f.nome}</option>)}
+            </select>
+          </Campo>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Campo rotulo="Nº do contrato">
             <input autoFocus list="medicao-contratos" value={nrContrato} onChange={e => aoMudarContrato(e.target.value)} placeholder="CT/4916-209" maxLength={40} className={classeInput} />

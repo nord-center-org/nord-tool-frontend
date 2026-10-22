@@ -25,7 +25,9 @@ export const medicaoService = {
     const lista = await apiFetch<MedicaoLista>(BASE);
     return { medicoes: lista?.medicoes ?? [], status: lista?.status ?? [] };
   },
-  criar: (form: MedicaoForm) => apiFetch<Medicao>(BASE, { method: "POST", body: json(form) }),
+  /** idFase vai no cabeçalho X-Fase: só é preciso quando a pessoa participa de mais de uma fase. */
+  criar: (form: MedicaoForm, idFase?: number | null) =>
+    apiFetch<Medicao>(BASE, { method: "POST", body: json(form), headers: idFase ? { "X-Fase": String(idFase) } : undefined }),
   alterar: (id: number, form: MedicaoForm) => apiFetch<Medicao>(`${BASE}/${id}`, { method: "PUT", body: json(form) }),
   alterarStatus: (id: number, cdStatus: string, nrVersao: number) =>
     apiFetch<Medicao>(`${BASE}/${id}/status`, { method: "PUT", body: json({ cdStatus, nrVersao }) }),

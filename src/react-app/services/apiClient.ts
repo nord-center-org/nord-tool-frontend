@@ -43,6 +43,14 @@ function montarUrl(path: string): string {
   return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+function obraAtual(): string | null {
+  try {
+    return typeof window !== "undefined" ? window.localStorage.getItem("@NordTool:obra_atual") : null;
+  } catch {
+    return null;
+  }
+}
+
 function idRequisicao(): string | null {
   try {
     return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : null;
@@ -59,6 +67,11 @@ function montarHeaders(init?: RequestInit, json = false): Headers {
   }
   if (json && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
+  }
+  // Obra escolhida no app: o backend só devolve dados das fases desta obra em que o usuário está.
+  const obra = obraAtual();
+  if (obra && !headers.has("X-Obra")) {
+    headers.set("X-Obra", obra);
   }
   const id = idRequisicao();
   if (id && !headers.has("X-Request-Id")) {

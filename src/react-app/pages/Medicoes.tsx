@@ -78,10 +78,10 @@ export default function MedicoesPage() {
   };
 
   /** Devolve a mensagem de erro para o modal (ou null se salvou). Em 409 fecha o modal, avisa e recarrega. */
-  const salvar = async (form: MedicaoForm, atual?: Medicao): Promise<string | null> => {
+  const salvar = async (form: MedicaoForm, atual?: Medicao, idFase?: number | null): Promise<string | null> => {
     try {
       if (atual) await medicaoService.alterar(atual.id, form);
-      else await medicaoService.criar(form);
+      else await medicaoService.criar(form, idFase);
       setModal(null);
       await recarregar(true);
       return null;
@@ -267,7 +267,7 @@ export default function MedicoesPage() {
           medicao={modal.medicao}
           medicoes={medicoes}
           status={status}
-          onSalvar={form => salvar(form, modal.medicao)}
+          onSalvar={(form, idFase) => salvar(form, modal.medicao, idFase)}
           onFechar={() => setModal(null)}
         />
       )}
