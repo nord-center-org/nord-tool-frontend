@@ -268,7 +268,7 @@ const MASCARA = espelho([
 
 // ---------- Montagem ----------
 
-export function montarGrade(c: AvatarConfig, tema: DataComemorativa | null, olhosFechados = false): Grade {
+export function montarGrade(c: AvatarConfig, tema: DataComemorativa | null, olhosFechados = false, semFundo = false): Grade {
   const g: Grade = Array.from({ length: LADO }, () => Array<string | null>(LADO).fill(null));
   const pele = PELES[c.pele];
   const cabelo = CORES_CABELO[c.corCabelo];
@@ -289,10 +289,12 @@ export function montarGrade(c: AvatarConfig, tema: DataComemorativa | null, olho
 
   const fundoDe = (y: number) => (y > 25 ? tom(fundo, -0.06) : fundo);
   // Fundo com um brilho suave no alto e o chão mais escuro.
-  for (let y = 0; y < LADO; y++) for (let x = 0; x < LADO; x++) g[y][x] = fundoDe(y);
-  px(g, [[3, 3], [4, 3], [3, 4], [27, 6], [28, 5], [26, 20], [5, 18]], tom(fundo, 0.55));
-  if (tema === "junina") bandeirinhas(g);
-  if (tema === "anoNovo" || tema === "carnaval") confete(g);
+  if (!semFundo) {
+    for (let y = 0; y < LADO; y++) for (let x = 0; x < LADO; x++) g[y][x] = fundoDe(y);
+    px(g, [[3, 3], [4, 3], [3, 4], [27, 6], [28, 5], [26, 20], [5, 18]], tom(fundo, 0.55));
+    if (tema === "junina") bandeirinhas(g);
+    if (tema === "anoNovo" || tema === "carnaval") confete(g);
+  }
   const soFundo = g.map(l => [...l]);
 
   pintar(g, CORPO, 23, cores);

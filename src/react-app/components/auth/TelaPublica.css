@@ -1,0 +1,33 @@
+/* Telas públicas: cartão que chega, logo saltitante, mascote expressivo. */
+.nt-cartao { animation: nt-cartao 700ms cubic-bezier(0.2, 0.9, 0.25, 1.1) 120ms backwards; }
+@keyframes nt-cartao { from { transform: translateY(40px) scale(0.96); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.nt-tremor { animation: nt-tremor 480ms cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+@keyframes nt-tremor {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-7px); }
+  40%, 60% { transform: translateX(7px); }
+}
+
+.nt-letra { display: inline-block; animation: nt-letra 620ms cubic-bezier(0.3, 1.6, 0.5, 1) backwards; }
+@keyframes nt-letra { from { transform: translateY(-18px) scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
+.nt-logo:hover .nt-letra { animation: nt-onda 600ms ease-in-out; }
+@keyframes nt-onda { 0%, 100% { transform: none; } 40% { transform: translateY(-5px); } }
+
+.nt-mascote { animation: nt-espia 900ms cubic-bezier(0.2, 0.9, 0.3, 1.2) 500ms backwards; }
+@keyframes nt-espia { from { transform: translate(-50%, 60px); } to { transform: translate(-50%, 0); } }
+.nt-mao { transition: transform 280ms cubic-bezier(0.3, 1.3, 0.5, 1); }
+.nt-comemora { animation: nt-comemora 600ms cubic-bezier(0.3, 0.7, 0.4, 1) 2; }
+@keyframes nt-comemora {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  40% { transform: translateY(-22px) rotate(-6deg); }
+  70% { transform: translateY(0) rotate(4deg); }
+}
+.nt-nega { animation: nt-nega 500ms ease-in-out; }
+@keyframes nt-nega { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .nt-cartao, .nt-tremor, .nt-letra, .nt-mascote, .nt-comemora, .nt-nega { animation: none !important; }
+  .nt-mao { transition: none; }
+}
