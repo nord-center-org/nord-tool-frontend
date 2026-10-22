@@ -17,21 +17,38 @@ const cabecalho = { titulo: "Vistoria de fachada — Bloco A", local: "Bloco A",
 
 test("capa + páginas de fotos conforme o layout", async () => {
   const pedidas: number[] = [];
-  const bytes = await gerarPdfRelatorio(cabecalho, itens, 2, async id => { pedidas.push(id); return JPEG; });
+  const bytes = await gerarPdfRelatorio(cabecalho, itens, "R2", async id => { pedidas.push(id); return JPEG; });
   const doc = await PDFDocument.load(bytes);
   assert.equal(doc.getPageCount(), 1 + 2, "capa + 3 fotos em páginas de 2");
   assert.deepEqual(pedidas, [10, 11, 12]);
 });
 
 test("6 por página cabe tudo numa página e relatório sem foto só tem a capa", async () => {
-  const seis = await PDFDocument.load(await gerarPdfRelatorio(cabecalho, itens, 6, async () => JPEG));
+  const seis = await PDFDocument.load(await gerarPdfRelatorio(cabecalho, itens, "R6", async () => JPEG));
   assert.equal(seis.getPageCount(), 2);
-  const vazio = await PDFDocument.load(await gerarPdfRelatorio(cabecalho, [{ ...itens[1], fotos: [] }], 4, async () => JPEG));
+  const vazio = await PDFDocument.load(await gerarPdfRelatorio(cabecalho, [{ ...itens[1], fotos: [] }], "R4", async () => JPEG));
   assert.equal(vazio.getPageCount(), 1);
 });
 
 test("muitos itens quebram a capa em mais páginas", async () => {
   const muitos: ItemRelatorio[] = Array.from({ length: 60 }, (_, i) => ({ id: i + 1, nrOrdem: i + 1, nmItem: `Item ${i + 1}`, txOrientacao: null, txResposta: "Observação longa ".repeat(8), fotos: [] }));
-  const doc = await PDFDocument.load(await gerarPdfRelatorio(cabecalho, muitos, 4, async () => JPEG));
+  const doc = await PDFDocument.load(await gerarPdfRelatorio(cabecalho, muitos, "R4", async () => JPEG));
   assert.ok(doc.getPageCount() >= 3);
+});
+
+test("layout paisagem com texto ao lado, fundo, ícone e fontes", async () => {
+  for (const fonte of ["HELVETICA", "TIMES", "COURIER"] as const) {
+    const bytes = await gerarPdfRelatorio(cabecalho, itens, "P1L", async () => JPEG,
+      { fonte, cabecalho: true, fundo: JPEG, opacidadeFundo: 15, icone: JPEG, feitoPor: "Ana Souza" });
+    const doc = await PDFDocument.load(bytes);
+    assert.equal(doc.getPageCount(), 1 + 3, "capa + 1 foto por página");
+    const [w, h] = [doc.getPage(1).getWidth(), doc.getPage(1).getHeight()];
+    assert.ok(w > h, "páginas de fotos em paisagem");
+    assert.ok(doc.getPage(0).getHeight() > doc.getPage(0).getWidth(), "capa em retrato");
+  }
+});
+
+test("sem cabeçalho também gera e layout com 3 por página agrupa", async () => {
+  const doc = await PDFDocument.load(await gerarPdfRelatorio(cabecalho, itens, "R3L", async () => JPEG, { cabecalho: false }));
+  assert.equal(doc.getPageCount(), 2);
 });

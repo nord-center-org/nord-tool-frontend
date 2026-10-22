@@ -63,7 +63,7 @@ export default function RelatorioFotograficoPage() {
   if (aberto !== null) {
     return (
       <div className="mx-auto max-w-5xl">
-        <EditorRelatorio id={aberto} podeEditar={podeEditar} onVoltar={() => { setAberto(null); void carregar(); }}
+        <EditorRelatorio id={aberto} podeEditar={podeEditar} modelos={modelos} nomeUsuario={usuario?.nome ?? null} onVoltar={() => { setAberto(null); void carregar(); }}
           onAlterado={atualizarResumo} onExcluido={id => { setRelatorios(l => (l ?? []).filter(x => x.id !== id)); setAberto(null); }} />
       </div>
     );

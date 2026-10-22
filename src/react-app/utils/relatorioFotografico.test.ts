@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { celulas, combinaBusca, grade, legendaImpressa, nomeArquivoPdf, paginarFotos, progresso, type ItemRelatorio } from "./relatorioFotografico.ts";
+import {
+  LAYOUTS, celulas, combinaBusca, fotosDoLayout, layoutPorCodigo, legendaImpressa, nomeArquivoPdf, paginarFotos, progresso, type ItemRelatorio,
+} from "./relatorioFotografico.ts";
 
 const foto = (id: number, idItem: number, nrOrdem: number, txLegenda: string | null = null) => ({ id, idItem, nrOrdem, txLegenda });
 const itens: ItemRelatorio[] = [
@@ -10,24 +12,31 @@ const itens: ItemRelatorio[] = [
   { id: 3, nrOrdem: 3, nmItem: "Cobertura", txOrientacao: null, txResposta: "Sem patologias", fotos: [] },
 ];
 
-test("grade por layout", () => {
-  assert.deepEqual(grade(1), { colunas: 1, linhas: 1 });
-  assert.deepEqual(grade(2), { colunas: 1, linhas: 2 });
-  assert.deepEqual(grade(4), { colunas: 2, linhas: 2 });
-  assert.deepEqual(grade(6), { colunas: 2, linhas: 3 });
+test("catálogo de layouts: códigos únicos, células dentro da página e sem sobreposição", () => {
+  assert.equal(new Set(LAYOUTS.map(l => l.codigo)).size, LAYOUTS.length);
+  for (const l of LAYOUTS) {
+    for (const c of l.celulas) assert.ok(c.x >= 0 && c.y >= 0 && c.x + c.w <= 1 + 1e-9 && c.y + c.h <= 1 + 1e-9, l.codigo);
+    const area = l.celulas.reduce((s, c) => s + c.w * c.h, 0);
+    assert.ok(Math.abs(area - 1) < 1e-9, `${l.codigo} cobre a página`);
+  }
+  assert.equal(fotosDoLayout("R3L"), 3);
+  assert.equal(fotosDoLayout("P6"), 6);
+  assert.equal(layoutPorCodigo("xyz").codigo, "R2");
+  assert.equal(layoutPorCodigo("P2").orientacao, "paisagem");
 });
 
-test("células cobrem a área sem sair dela, da esquerda para a direita e de cima para baixo", () => {
+test("células absolutas cobrem a área sem sair dela, de cima para baixo", () => {
   const area = { x: 40, y: 40, w: 500, h: 700 };
-  const cs = celulas(4, area, 10);
+  const cs = celulas(layoutPorCodigo("R4"), area, 10);
   assert.equal(cs.length, 4);
   assert.equal(cs[0].w, 245);
   assert.ok(cs[0].y > cs[2].y, "primeira linha fica em cima");
   assert.ok(cs[1].x > cs[0].x, "segunda coluna à direita");
-  for (const c of cs) {
-    assert.ok(c.x >= area.x && c.x + c.w <= area.x + area.w + 1e-9);
+  for (const l of LAYOUTS) for (const c of celulas(l, area, 10)) {
+    assert.ok(c.x >= area.x - 1e-9 && c.x + c.w <= area.x + area.w + 1e-9);
     assert.ok(c.y >= area.y - 1e-9 && c.y + c.h <= area.y + area.h + 1e-9);
   }
+  assert.equal(celulas(layoutPorCodigo("R3L"), area)[0].texto, "direita");
 });
 
 test("fotos seguem a ordem dos itens e das fotos e quebram em páginas", () => {

@@ -6,7 +6,7 @@ import ModalBase from "@/react-app/components/casamento/ModalBase";
 import { useObra } from "@/react-app/hooks/useObra";
 import type { ModeloRelatorio, RelatorioForm } from "@/react-app/services/RelatorioFotograficoService";
 import { hojeSaoPaulo } from "@/react-app/utils/caixinha";
-import { LAYOUTS, type FotosPorPagina } from "@/react-app/utils/relatorioFotografico";
+import SeletorLayout from "@/react-app/components/relatorio/SeletorLayout";
 
 interface Props {
   modelos: ModeloRelatorio[];
@@ -21,14 +21,14 @@ export default function NovoRelatorioModal({ modelos, onCriar, onFechar }: Props
   const [local, setLocal] = useState("");
   const [data, setData] = useState(hojeSaoPaulo());
   const [idModelo, setIdModelo] = useState<number | null>(ativos[0]?.id ?? null);
-  const [layout, setLayout] = useState<FotosPorPagina | null>(null);
+  const [layout, setLayout] = useState<string | null>(null);
   const fases = useObra().fases.filter(f => f.id !== null);
   const [idFase, setIdFase] = useState<number | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   const modelo = ativos.find(m => m.id === idModelo) ?? null;
-  const layoutEfetivo = layout ?? modelo?.nrFotosPagina ?? 2;
+  const layoutEfetivo = layout ?? modelo?.cdLayout ?? "R2";
 
   const enviar = async (e: FormEvent) => {
     e.preventDefault();
@@ -39,7 +39,7 @@ export default function NovoRelatorioModal({ modelos, onCriar, onFechar }: Props
     setSalvando(true);
     setErro(null);
     const mensagem = await onCriar({
-      nmTitulo: titulo.trim(), nmLocal: local.trim() || null, dtRelatorio: data, idModelo, nrFotosPagina: layoutEfetivo,
+      nmTitulo: titulo.trim(), nmLocal: local.trim() || null, dtRelatorio: data, idModelo, cdLayout: layoutEfetivo,
       itens: modelo ? undefined : [{ nmItem: "Fotos", txOrientacao: null, txResposta: null }],
     }, fases.length > 1 ? idFase : null);
     setSalvando(false);
@@ -77,15 +77,8 @@ export default function NovoRelatorioModal({ modelos, onCriar, onFechar }: Props
         </Campo>
         {/* Fora do <label> do Campo: um label com botões dentro "clica" no primeiro botão. */}
         <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Fotos por página no PDF</span>
-          <div className="mt-1 grid grid-cols-4 gap-2" role="radiogroup" aria-label="Fotos por página">
-            {LAYOUTS.map(n => (
-              <button key={n} type="button" role="radio" aria-checked={layoutEfetivo === n} onClick={() => setLayout(n)}
-                className={`rounded-xl border px-3 py-2 text-sm font-bold ${layoutEfetivo === n ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600"}`}>
-                {n}
-              </button>
-            ))}
-          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Modelo da página no PDF</span>
+          <SeletorLayout valor={layoutEfetivo} onMudar={setLayout} />
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onFechar} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600">Cancelar</button>
