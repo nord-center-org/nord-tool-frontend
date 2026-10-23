@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as EventoPonteiro } from "react";
-import { CircleHelp, Gamepad2 } from "lucide-react";
+import { CircleHelp, Gamepad2, Minus, Plus } from "lucide-react";
 
 import Joystick from "./Joystick";
 import Tour, { type PassoTour } from "./Tour";
@@ -9,7 +9,7 @@ import {
   desenharRato, passoParticulas, type Particula,
 } from "@/react-app/utils/daviJob/desenho";
 import { FALAS, FALAS_INTERACAO, sortear } from "@/react-app/utils/daviJob/falas";
-import { decidirGato, decidirRato, type EstadoIA, type EstadoRato, type Interesse } from "@/react-app/utils/daviJob/ia";
+import { decidirGato, decidirRato, separarGatos, type EstadoIA, type EstadoRato, type Interesse } from "@/react-app/utils/daviJob/ia";
 import {
   distancia, novoCorpo, passoBola, passoCorda, passoCorpo, pontaDaCorda, velocidadeBola, type Bola, type Corda, type Corpo,
 } from "@/react-app/utils/daviJob/motor";
@@ -32,6 +32,8 @@ interface Estado {
   segurada: { i: number; hist: { x: number; y: number; t: number }[] } | null;
 }
 
+const CORES_BOLA = ["#3b82f6", "#a855f7", "#22c55e", "#f97316", "#ef4444", "#eab308", "#ec4899", "#14b8a6"];
+const MAX_BOLAS = 20;
 const PARAM_RATO = { velocidade: 86, pulo: 300, gravidade: 820, largura: LARGURA, altura: ALTURA };
 /** No celular a tela mostra uma janela do puleiro (mais alta e maior) e a câmera segue o gatinho. */
 const VISTA_CELULAR = 216;
@@ -204,6 +206,10 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
         }
       });
 
+      // Gatos do computador não ficam um em cima do outro (só o do jogador pode).
+      const separados = separarGatos(e.gatos.map(g => g.corpo), plats, e.controlado);
+      e.gatos.forEach((g, i) => { g.corpo = separados[i]; });
+
       // Ratos fogem pulando pelos puleiros (pique-pega); depois de pegos, voltam em outro lugar.
       for (const r of e.ratos) {
         if (r.voltaEm !== null) {
@@ -305,6 +311,27 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
     }
   };
 
+  const bolinhas = estado.current.bolas.filter(b => b.quica).length;
+  const maisBola = () => {
+    const e = estado.current;
+    if (bolinhas >= MAX_BOLAS) return;
+    const lugar = HUB.nascer[Math.floor(Math.random() * HUB.nascer.length)];
+    const cor = CORES_BOLA[bolinhas % CORES_BOLA.length];
+    e.bolas.push({ x: lugar.x, y: Math.max(10, lugar.y - 40), vx: (Math.random() - 0.5) * 120, vy: -80, r: 4, segurada: false, cor, quica: true, chuteAte: 0 });
+    emitir(lugar.x, Math.max(10, lugar.y - 40), 6, cor);
+    setTick(q => q + 1);
+  };
+  const menosBola = () => {
+    const e = estado.current;
+    let i = -1;
+    e.bolas.forEach((b, k) => { if (b.quica && !b.segurada) i = k; });
+    if (i < 0 || bolinhas <= 1) return;
+    emitir(e.bolas[i].x, e.bolas[i].y, 6, e.bolas[i].cor);
+    e.bolas.splice(i, 1);
+    if (e.segurada && e.segurada.i > i) e.segurada.i--;
+    setTick(q => q + 1);
+  };
+
   // Fecha o balão sozinho depois de um tempo.
   useEffect(() => {
     if (!selecionado) return;
@@ -325,7 +352,7 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
     return [
       { titulo: "Este é você!", texto: toque ? "A setinha amarela marca o seu gatinho. Use o joystick para andar e o botão rosa para pular. Joystick para baixo desce do puleiro." : "A setinha amarela marca o seu gatinho. A e D andam, W ou espaço pulam e S desce do puleiro.", alvo: () => { const g = s.gatos[s.controlado].corpo; return { x: g.x, y: g.y - 8 }; } },
       { titulo: "Fale com os gatinhos", texto: "Clique num gatinho para ele falar com você. No balão, toque em Controlar para trocar de gatinho.", alvo: () => { const g = outro().corpo; return { x: g.x, y: g.y - 8 }; } },
-      { titulo: "Bolinhas", texto: "Pegue uma bolinha com o mouse (ou o dedo), arraste e solte para arremessar. Os gatinhos correm atrás!", alvo: () => { const b = s.bolas.find(x => x.quica)!; return { x: b.x, y: b.y }; }, raio: 5 },
+      { titulo: "Bolinhas", texto: "Pegue uma bolinha com o mouse (ou o dedo), arraste e solte para arremessar. Os gatinhos correm atrás! Os botões + e − no canto colocam e tiram bolinhas.", alvo: () => { const b = s.bolas.find(x => x.quica)!; return { x: b.x, y: b.y }; }, raio: 5 },
       { titulo: "Arranhador", texto: "Pare do lado do postinho para afiar as garras. Ele até balança!", alvo: () => ({ x: HUB.arranhadores[0].x, y: (HUB.arranhadores[0].topo + HUB.arranhadores[0].base) / 2 }), raio: 6 },
       { titulo: "Cordinhas", texto: "Chegue perto da pontinha para dar patadas e ver ela balançar.", alvo: () => pontaDaCorda(s.cordas[0]), raio: 5 },
       { titulo: "Ratinhos de brinquedo", texto: "Esbarre neles para empurrar pelas prateleiras.", alvo: () => { const b = s.bolas.find(x => !x.quica)!; return { x: b.x, y: b.y }; }, raio: 5 },
@@ -366,6 +393,16 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
             <Gamepad2 className="mr-1 inline h-4 w-4 -translate-y-px" />Jogar
           </button>
         )}
+
+        <div className="absolute left-2 top-2 z-20 flex items-center gap-1 rounded-xl border-2 border-slate-900 bg-white/90 p-0.5 shadow-[2px_2px_0_#0f172a]" role="group" aria-label="Bolinhas">
+          <button type="button" onClick={menosBola} disabled={bolinhas <= 1} aria-label="Menos bolinhas" title="Menos bolinhas"
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-pink-200 text-slate-900 hover:bg-pink-300 disabled:opacity-40"><Minus className="h-4 w-4" /></button>
+          <span className="flex items-center gap-1 px-1 font-['Press_Start_2P'] text-[9px] text-slate-800" aria-live="polite" aria-label={`${bolinhas} bolinhas`}>
+            <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-sky-300 to-blue-600 ring-1 ring-slate-900" aria-hidden="true" />{bolinhas}
+          </span>
+          <button type="button" onClick={maisBola} disabled={bolinhas >= MAX_BOLAS} aria-label="Mais bolinhas" title="Mais bolinhas"
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-200 text-slate-900 hover:bg-emerald-300 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
+        </div>
 
         <button type="button" onClick={() => setTour(true)} aria-label="Como brincar"
           className="absolute right-2 top-2 z-20 flex h-9 w-9 items-center justify-center rounded-xl border-2 border-slate-900 bg-yellow-300 text-slate-900 shadow-[2px_2px_0_#0f172a] transition-transform hover:-translate-y-0.5 hover:bg-yellow-200">

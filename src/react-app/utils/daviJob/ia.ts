@@ -143,3 +143,43 @@ export function decidirRato(r: Corpo, estado: EstadoRato, gatos: { x: number; y:
   const dx = (estado.alvoX ?? r.x) - r.x;
   return { entrada: { dir: Math.abs(dx) < 3 ? 0 : (dx > 0 ? 0.5 : -0.5), pular: false, descer: false }, estado };
 }
+
+/** Distância mínima entre dois gatos lado a lado no mesmo puleiro. */
+export const ESPACO_GATO = 16;
+
+/**
+ * Afasta gatos que estão um em cima do outro no mesmo puleiro (cada um vai metade para o seu lado).
+ * O gato do jogador (`livre`) não é empurrado nem empurra: só ele pode ficar sobreposto.
+ * Não tira ninguém do puleiro: se um lado bate na beirada, o outro anda o resto.
+ */
+export function separarGatos<T extends { x: number; y: number; noChao: boolean; plataforma: string | null }>(
+  corpos: T[], plats: Plataforma[], livre: number, espaco = ESPACO_GATO,
+): T[] {
+  const novos = corpos.map(c => ({ ...c }));
+  for (let volta = 0; volta < 3; volta++) {
+    for (let i = 0; i < novos.length; i++) for (let j = i + 1; j < novos.length; j++) {
+      if (i === livre || j === livre) continue;
+      const a = novos[i], b = novos[j];
+      // Degraus de uma escada e tábuas de uma ponte contam como o mesmo puleiro.
+      const grupo = (id: string | null) => (id ?? "").split("-")[0];
+      if (!a.noChao || !b.noChao || grupo(a.plataforma) !== grupo(b.plataforma) || Math.abs(a.y - b.y) > 12) continue;
+      const dx = b.x - a.x;
+      if (Math.abs(dx) >= espaco) continue;
+      const partes = plats.filter(pl => grupo(pl.id) === grupo(a.plataforma));
+      const min = partes.length ? Math.min(...partes.map(pl => pl.x)) + 2 : 0;
+      const max = partes.length ? Math.max(...partes.map(pl => pl.x + pl.w)) - 2 : Infinity;
+      const dir = dx === 0 ? (i % 2 ? 1 : -1) : Math.sign(dx);
+      const falta = espaco - Math.abs(dx);
+      const prender = (v: number) => Math.max(min, Math.min(max, v));
+      let ax = prender(a.x - dir * falta / 2), bx = prender(b.x + dir * falta / 2);
+      // Quem bateu na beirada fica; o outro anda o resto.
+      if ((bx - ax) * dir < espaco) {
+        if (ax !== a.x - dir * falta / 2) bx = prender(ax + dir * espaco);
+        else ax = prender(bx - dir * espaco);
+      }
+      a.x = ax;
+      b.x = bx;
+    }
+  }
+  return novos;
+}
