@@ -1,150 +1,37 @@
-import { useState } from "react";
-import "./DaviJob.css";
-import KawaiiCatSvg from "@/react-app/components/davi/KawaiiCatSvg";
+import { useCallback, useState } from "react";
 
-const tarefasDaSemana = [
-  { dia: "Segunda-feira", tarefa: "Revisar prioridades" },
-  { dia: "Terça-feira", tarefa: "Acompanhar demandas" },
-  { dia: "Quarta-feira", tarefa: "Atualizar pendências" },
-  { dia: "Quinta-feira", tarefa: "Organizar entregas" },
-  { dia: "Sexta-feira", tarefa: "Concluir atividades" },
-  { dia: "Sábado", tarefa: "Planejar a semana" },
-  { dia: "Domingo", tarefa: "Descanso" },
-];
+import CacaAoRato from "@/react-app/components/davi/CacaAoRato";
+import GatoPixel from "@/react-app/components/davi/GatoPixel";
+import ParkourGatos from "@/react-app/components/davi/ParkourGatos";
+import TituloPixel from "@/react-app/components/davi/TituloPixel";
+import { PELAGENS } from "@/react-app/utils/daviJob/sprites";
 
-interface KawaiiCatProps {
-  variant: "calico" | "grey" | "ginger";
-  onClick?: () => void;
-  activeAction?: "jump" | "flip" | "wiggle" | null;
-  bubbleText?: string | null;
-  name: string;
-}
-
-function KawaiiCat({ variant, onClick, activeAction, bubbleText, name }: KawaiiCatProps) {
-  let positionClass = "kawaii-cat-corner--right";
-  if (variant === "grey") positionClass = "kawaii-cat-corner--left";
-  if (variant === "ginger") positionClass = "kawaii-cat-corner--center";
-
-  let actionClass = "";
-  if (activeAction === "jump") actionClass = "cat-action-jump";
-  if (activeAction === "flip") actionClass = "cat-action-flip";
-  if (activeAction === "wiggle") actionClass = "cat-action-wiggle";
-
-  return (
-    <div
-      className={`kawaii-cat-container ${positionClass} ${actionClass}`}
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      title={`Clique no ${name}!`}
-    >
-      {/* Speech / Sound Bubble */}
-      {bubbleText && (
-        <div className="cat-speech-bubble">
-          <span>{bubbleText}</span>
-        </div>
-      )}
-
-      {/* Floating Particles */}
-      {activeAction && (
-        <div className="cat-particles" aria-hidden="true">
-          <span className="particle p1">{variant === "grey" ? "✨" : variant === "ginger" ? "🐾" : "💕"}</span>
-          <span className="particle p2">{variant === "grey" ? "🌟" : variant === "ginger" ? "⭐" : "💖"}</span>
-          <span className="particle p3">{variant === "grey" ? "✨" : variant === "ginger" ? "🐾" : "💗"}</span>
-        </div>
-      )}
-
-      <KawaiiCatSvg variant={variant} />
-    </div>
-  );
-}
-
+/** Davi Job: tela de amostragem (easter egg) com o parkour de gatinhos e o minigame Caça ao rato. */
 export default function DaviJobPage() {
-  const [activeCat, setActiveCat] = useState<{
-    id: string;
-    action: "jump" | "flip" | "wiggle";
-    bubble: string;
-  } | null>(null);
-  const [ballSide, setBallSide] = useState<"left" | "right">("left");
-  const [isBallFlying, setIsBallFlying] = useState(false);
-
-  const handleCatClick = (id: string, action: "jump" | "flip" | "wiggle", bubble: string) => {
-    setActiveCat({ id, action, bubble });
-    setTimeout(() => {
-      setActiveCat((prev) => (prev?.id === id ? null : prev));
-    }, 1800);
-  };
-
-  const spawnFlyingBall = () => {
-    if (isBallFlying) return;
-    setIsBallFlying(true);
-  };
-
-  const finishBallFlight = () => {
-    setBallSide((currentSide) => (currentSide === "left" ? "right" : "left"));
-    setIsBallFlying(false);
-  };
+  const [jogando, setJogando] = useState<string | null>(null);
+  const [ultimoGato, setUltimoGato] = useState<string | undefined>(undefined);
+  const jogar = useCallback((p: string) => { setUltimoGato(p); setJogando(p); }, []);
 
   return (
-    <div onClick={spawnFlyingBall}>
-      <h1 className="mb-8 text-3xl font-bold text-slate-800">Davi Job</h1>
-
-      <span
-        className={`flying-yarn-ball yarn-ball--${ballSide}${
-          isBallFlying ? ` yarn-ball--flying-${ballSide === "left" ? "right" : "left"}` : ""
-        }`}
-        onAnimationEnd={finishBallFlight}
-        aria-hidden="true"
-      />
-
-      <div className="davi-job-table-stage">
-        <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-lg">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase text-slate-500">
-                    Dia da semana
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase text-slate-500">
-                    Tarefas
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {tarefasDaSemana.map(({ dia, tarefa }) => (
-                  <tr key={dia} className="transition-colors hover:bg-slate-50/50">
-                    <td className="px-6 py-4 text-sm font-semibold text-slate-800">{dia}</td>
-                    <td className="px-6 py-4 text-sm text-slate-600">{tarefa}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+    <div className="mx-auto max-w-6xl space-y-5 pb-10">
+      <header className="relative overflow-hidden rounded-3xl border-4 border-slate-900 bg-gradient-to-b from-indigo-100 to-pink-50 px-4 py-6 text-center shadow-[6px_6px_0_#0f172a] sm:py-8">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-2 opacity-90" aria-hidden="true">
+          {PELAGENS.slice(0, 4).map((p, i) => <GatoPixel key={p.id} pelagem={p.id} quadro={{ pose: "parado", cauda: (i % 2) as 0 | 1 }} tamanho={34} className="nt-pula-pixel hidden sm:block" />)}
+          <span className="flex-1" />
+          {PELAGENS.slice(4).map((p, i) => <GatoPixel key={p.id} pelagem={p.id} virado={-1} quadro={{ pose: "parado", cauda: (i % 2) as 0 | 1 }} tamanho={34} className="nt-pula-pixel hidden sm:block" />)}
         </div>
-      </div>
+        <TituloPixel texto="Tela de amostragem pro Davi Job" />
+        <div className="mt-4 flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
+          <h2 className="rounded-xl border-2 border-slate-900 bg-yellow-300 px-3 py-1.5 font-['Press_Start_2P'] text-[10px] text-slate-900 shadow-[3px_3px_0_#0f172a] sm:text-xs">Parkour de gatinhos</h2>
+          <p className="max-w-xl text-sm font-semibold text-slate-600">Isso foi feito pra mostrar que <b className="text-pink-600">LITERALMENTE</b> qualquer coisa pode ser criada no NordTool kkk</p>
+        </div>
+      </header>
 
-      <KawaiiCat
-        name="Gatinho Calico"
-        variant="calico"
-        onClick={() => handleCatClick("cat1", "jump", "Miau! 💕")}
-        activeAction={activeCat?.id === "cat1" ? activeCat.action : null}
-        bubbleText={activeCat?.id === "cat1" ? activeCat.bubble : null}
-      />
-      <KawaiiCat
-        name="Gatinho Cinza de Coleira"
-        variant="grey"
-        onClick={() => handleCatClick("cat2", "flip", "Purr~ 🌟")}
-        activeAction={activeCat?.id === "cat2" ? activeCat.action : null}
-        bubbleText={activeCat?.id === "cat2" ? activeCat.bubble : null}
-      />
-      <KawaiiCat
-        name="Gatinho Laranja"
-        variant="ginger"
-        onClick={() => handleCatClick("cat3", "wiggle", "Nyaa! 🐾")}
-        activeAction={activeCat?.id === "cat3" ? activeCat.action : null}
-        bubbleText={activeCat?.id === "cat3" ? activeCat.bubble : null}
-      />
+      {jogando ? (
+        <CacaAoRato key={jogando} pelagem={jogando} onSair={() => setJogando(null)} />
+      ) : (
+        <ParkourGatos onJogar={jogar} pelagemInicial={ultimoGato} />
+      )}
     </div>
   );
 }
