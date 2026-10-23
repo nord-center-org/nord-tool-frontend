@@ -14,11 +14,14 @@ interface Props {
 export default function AprovacaoCadastro({ usuario, onDecidido }: Props) {
   const [obras, setObras] = useState<Obra[]>([]);
   const [fases, setFases] = useState<number[]>([]);
+  // Sem obra no cadastro (o código é opcional), o admin escolhe aqui; com obra, já vem escolhida.
+  const [idObra, setIdObra] = useState<number | null>(usuario.idObraSolicitada ?? null);
   const [salvando, setSalvando] = useState<"aprovar" | "recusar" | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => { obraService.listar().then(setObras).catch(() => setObras([])); }, []);
-  const obra = obras.find(o => o.id === usuario.idObraSolicitada) ?? null;
+  const ativas = obras.filter(o => o.inAtivo);
+  const obra = obras.find(o => o.id === idObra) ?? null;
 
   const decidir = async (aprovar: boolean) => {
     if (!aprovar && !window.confirm(`Recusar o cadastro de ${usuario.nmNome}? A pessoa não conseguirá entrar.`)) return;
@@ -36,9 +39,19 @@ export default function AprovacaoCadastro({ usuario, onDecidido }: Props) {
     <section aria-label="Aprovação do cadastro" className="mx-4 mt-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
       <p className="text-sm font-bold text-amber-800">Cadastro aguardando aprovação</p>
       <p className="mt-1 text-sm text-amber-900/80">
-        {usuario.nmNome} pediu entrada na obra <strong>{usuario.nmObraSolicitada ?? "—"}</strong>.
+        {usuario.nmObraSolicitada ? <>{usuario.nmNome} pediu entrada na obra <strong>{usuario.nmObraSolicitada}</strong>.</> : <>{usuario.nmNome} se cadastrou sem informar a obra.</>}
         {usuario.nrCelular && <> Celular: {usuario.nrCelular}.</>}
       </p>
+      {ativas.length > 0 && (
+        <label className="mt-3 block">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Obra</span>
+          <select value={idObra ?? ""} onChange={e => { setIdObra(e.target.value ? Number(e.target.value) : null); setFases([]); }}
+            className="mt-1 block w-full max-w-xs rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-slate-700">
+            <option value="">Escolha a obra…</option>
+            {ativas.map(o => <option key={o.id} value={o.id}>{o.nmObra}</option>)}
+          </select>
+        </label>
+      )}
       {obra && obra.fases.length > 0 && (
         <div className="mt-3">
           <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Incluir nas fases</p>

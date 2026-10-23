@@ -16,7 +16,7 @@ export const authService = {
   },
 
   /** Cria a conta (fica aguardando a aprovação do admin, sem nenhum acesso). */
-  cadastrar(form: { nmNome: string; nmEmail: string; nrCelular: string; cdObra: string; senha: string }): Promise<{ txMensagem: string }> {
+  cadastrar(form: { nmNome: string; nmEmail: string; nrCelular: string; cdObra?: string; senha: string }): Promise<{ txMensagem: string }> {
     return apiFetch<{ txMensagem: string }>("/auth/cadastro", { method: "POST", body: JSON.stringify(form) });
   },
 
