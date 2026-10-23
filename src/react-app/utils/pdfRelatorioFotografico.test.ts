@@ -23,9 +23,9 @@ test("capa + páginas de fotos conforme o layout", async () => {
   assert.deepEqual(pedidas, [10, 11, 12]);
 });
 
-test("6 por página cabe tudo numa página e relatório sem foto só tem a capa", async () => {
+test("cada item começa numa página nova e relatório sem foto só tem a capa", async () => {
   const seis = await PDFDocument.load(await gerarPdfRelatorio(cabecalho, itens, "R6", async () => JPEG));
-  assert.equal(seis.getPageCount(), 2);
+  assert.equal(seis.getPageCount(), 3, "capa + página do item 1 + página do item 2");
   const vazio = await PDFDocument.load(await gerarPdfRelatorio(cabecalho, [{ ...itens[1], fotos: [] }], "R4", async () => JPEG));
   assert.equal(vazio.getPageCount(), 1);
 });
@@ -50,5 +50,5 @@ test("layout paisagem com texto ao lado, fundo, ícone e fontes", async () => {
 
 test("sem cabeçalho também gera e layout com 3 por página agrupa", async () => {
   const doc = await PDFDocument.load(await gerarPdfRelatorio(cabecalho, itens, "R3L", async () => JPEG, { cabecalho: false }));
-  assert.equal(doc.getPageCount(), 2);
+  assert.equal(doc.getPageCount(), 3, "capa + item 1 (2 fotos) + item 2 (1 foto)");
 });

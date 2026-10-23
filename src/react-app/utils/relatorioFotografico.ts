@@ -75,15 +75,18 @@ export function celulas(layout: LayoutPagina, area: Celula, espaco = 12): (Celul
 
 export interface FotoNaPagina { foto: FotoRelatorio; item: ItemRelatorio; numero: number }
 
-/** Fotos na ordem dos itens e, dentro do item, na ordem das fotos; numeradas e divididas em páginas. */
+/**
+ * Fotos na ordem dos itens e, dentro do item, na ordem das fotos; numeradas e divididas em páginas.
+ * Cada item começa numa página nova (um item nunca divide página com outro).
+ */
 export function paginarFotos(itens: ItemRelatorio[], n: number): FotoNaPagina[][] {
-  const todas: FotoNaPagina[] = [];
-  [...itens].sort((a, b) => a.nrOrdem - b.nrOrdem || a.id - b.id).forEach(item => {
-    [...item.fotos].sort((a, b) => a.nrOrdem - b.nrOrdem || a.id - b.id)
-      .forEach(foto => todas.push({ foto, item, numero: todas.length + 1 }));
-  });
   const paginas: FotoNaPagina[][] = [];
-  for (let i = 0; i < todas.length; i += n) paginas.push(todas.slice(i, i + n));
+  let numero = 0;
+  [...itens].sort((a, b) => a.nrOrdem - b.nrOrdem || a.id - b.id).forEach(item => {
+    const fotos = [...item.fotos].sort((a, b) => a.nrOrdem - b.nrOrdem || a.id - b.id)
+      .map(foto => ({ foto, item, numero: ++numero }));
+    for (let i = 0; i < fotos.length; i += n) paginas.push(fotos.slice(i, i + n));
+  });
   return paginas;
 }
 
