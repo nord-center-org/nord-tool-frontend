@@ -13,7 +13,6 @@ export default function CadastroPage() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [celular, setCelular] = useState("");
-  const [obra, setObra] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmacao, setConfirmacao] = useState("");
   const [erro, setErro] = useState<string | null>(null);
@@ -26,13 +25,12 @@ export default function CadastroPage() {
     if (enviando) return;
     if (!nome.trim()) return setErro("Informe o seu nome.");
     if (!emailValido(email)) return setErro("Informe um e-mail válido.");
-    if (!obra.trim()) return setErro("Informe o código da obra (peça ao responsável da obra).");
     const problema = problemaNaSenha(senha, confirmacao);
     if (problema) return setErro(problema);
     setErro(null);
     setEnviando(true);
     try {
-      const r = await authService.cadastrar({ nmNome: nome.trim(), nmEmail: email.trim(), nrCelular: celular.trim(), cdObra: obra.trim(), senha });
+      const r = await authService.cadastrar({ nmNome: nome.trim(), nmEmail: email.trim(), nrCelular: celular.trim(), senha });
       setFeito(r?.txMensagem ?? "Cadastro enviado.");
     } catch (err) {
       setErro(err instanceof ApiError ? err.message : "Não foi possível conectar ao servidor. Tente novamente.");
@@ -66,9 +64,6 @@ export default function CadastroPage() {
         </label>
         <label className="block"><span className={classeRotuloPublico}>Celular (opcional)</span>
           <input type="tel" autoComplete="tel" maxLength={20} placeholder="(11) 99999-9999" value={celular} onChange={e => setCelular(e.target.value)} className={classeCampoPublico} />
-        </label>
-        <label className="block"><span className={classeRotuloPublico}>Código da obra</span>
-          <input autoCapitalize="characters" maxLength={20} placeholder="Peça ao responsável da obra" value={obra} onChange={e => setObra(e.target.value.toUpperCase())} className={classeCampoPublico} />
         </label>
         <div>
         <label className="block"><span className={classeRotuloPublico}>Senha</span>
