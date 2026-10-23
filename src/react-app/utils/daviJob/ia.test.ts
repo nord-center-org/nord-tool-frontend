@@ -64,3 +64,21 @@ test("rato foge do gato: abre distância e pula de puleiro quando encurralado", 
   assert.ok(Math.hypot(r.x - gato.x, r.y - gato.y) > 30, "ficou longe do gato");
   assert.ok(mudou, "pulou para outro puleiro");
 });
+
+test("gatos do computador não ficam um em cima do outro; o do jogador pode", async () => {
+  const { separarGatos } = await import("./ia.ts");
+  const plats: Plataforma[] = [{ id: "p", x: 100, y: 200, w: 80, tipo: "prateleira" }];
+  const c = (x: number) => ({ ...novoCorpo(x, 200), noChao: true, plataforma: "p" });
+  const [a, b] = separarGatos([c(140), c(144), c(142)], plats, 2);
+  assert.ok(Math.abs(b.x - a.x) >= 15.99, `afastados: ${a.x} e ${b.x}`);
+  const comJogador = separarGatos([c(140), c(141)], plats, 0);
+  assert.equal(comJogador[0].x, 140);
+  assert.equal(comJogador[1].x, 141, "jogador sobreposto não empurra ninguém");
+  const naBeirada = separarGatos([c(102), c(104)], plats, -1);
+  assert.ok(naBeirada[0].x >= 102 && naBeirada[1].x - naBeirada[0].x >= 15.99, "não cai da prateleira");
+  const degraus: Plataforma[] = [{ id: "e1-0", x: 200, y: 250, w: 10, tipo: "degrau" }, { id: "e1-1", x: 209, y: 244, w: 10, tipo: "degrau" }, { id: "e1-2", x: 218, y: 238, w: 10, tipo: "degrau" }];
+  const naEscada = separarGatos([{ ...c(205), y: 250, plataforma: "e1-0" }, { ...c(212), y: 244, plataforma: "e1-1" }], degraus, -1);
+  assert.ok(Math.abs(naEscada[1].x - naEscada[0].x) >= 15.99, "na escada também se afastam");
+  const emAndaresDiferentes = separarGatos([c(140), { ...c(140), y: 160, plataforma: "q" }], plats, -1);
+  assert.equal(emAndaresDiferentes[1].x, 140);
+});

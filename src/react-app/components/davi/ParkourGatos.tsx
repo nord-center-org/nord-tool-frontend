@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as EventoPonteiro } from "react";
-import { CircleHelp, Gamepad2 } from "lucide-react";
+import { CircleHelp, Gamepad2, Minus, Plus } from "lucide-react";
 
 import Joystick from "./Joystick";
 import Tour, { type PassoTour } from "./Tour";
@@ -9,7 +9,7 @@ import {
   desenharRato, passoParticulas, type Particula,
 } from "@/react-app/utils/daviJob/desenho";
 import { FALAS, FALAS_INTERACAO, sortear } from "@/react-app/utils/daviJob/falas";
-import { decidirGato, decidirRato, type EstadoIA, type EstadoRato, type Interesse } from "@/react-app/utils/daviJob/ia";
+import { decidirGato, decidirRato, separarGatos, type EstadoIA, type EstadoRato, type Interesse } from "@/react-app/utils/daviJob/ia";
 import {
   distancia, novoCorpo, passoBola, passoCorda, passoCorpo, pontaDaCorda, velocidadeBola, type Bola, type Corda, type Corpo,
 } from "@/react-app/utils/daviJob/motor";
@@ -22,7 +22,10 @@ interface Rato { corpo: Corpo; estado: EstadoRato; voltaEm: number | null }
 interface Estado {
   t: number;
   gatos: Gato[];
+  /** Gato do jogador (-1 = nenhum: todos andam sozinhos). */
   controlado: number;
+  /** Último comando do jogador (sem comandos por TEMPO_SOLTA, o gato volta a andar sozinho). */
+  ultimoComando: number;
   bolas: (Bola & { chuteAte: number })[];
   cordas: (Corda & { patadaAte: number })[];
   ratos: Rato[];
@@ -32,6 +35,10 @@ interface Estado {
   segurada: { i: number; hist: { x: number; y: number; t: number }[] } | null;
 }
 
+const CORES_BOLA = ["#3b82f6", "#a855f7", "#22c55e", "#f97316", "#ef4444", "#eab308", "#ec4899", "#14b8a6"];
+const MAX_BOLAS = 20;
+/** Segundos sem comandos até o gatinho voltar a andar sozinho. */
+const TEMPO_SOLTA = 10;
 const PARAM_RATO = { velocidade: 86, pulo: 300, gravidade: 820, largura: LARGURA, altura: ALTURA };
 /** No celular a tela mostra uma janela do puleiro (mais alta e maior) e a câmera segue o gatinho. */
 const VISTA_CELULAR = 216;
@@ -46,6 +53,7 @@ function criarEstado(): Estado {
       ia: { modo: "parar", ate: r() * 2 }, anim: "nada", animAte: 0, paradoDesde: 0, piscaAte: 0, proxPisca: 1 + r() * 4,
     })),
     controlado: 0,
+    ultimoComando: 0,
     bolas: [...HUB.bolas.map(b => ({ ...b, vx: 0, vy: 0, r: 4, segurada: false, quica: true, chuteAte: 0 })),
       ...HUB.brinquedos.map(b => ({ ...b, vx: 0, vy: 0, r: 3, segurada: false, quica: false, chuteAte: 0 }))],
     cordas: HUB.cordas.map(c => ({ ...c, angulo: 0, vel: 0, patadaAte: 0 })),
@@ -99,7 +107,7 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
 
   useEffect(() => {
     const i = PELAGENS.findIndex(p => p.id === pelagemInicial);
-    if (i >= 0) estado.current.controlado = i;
+    if (i >= 0) { estado.current.controlado = i; estado.current.ultimoComando = estado.current.t; }
   }, [pelagemInicial]);
 
   const emitir = useCallback((x: number, y: number, n: number, cor: string, tipo: Particula["tipo"] = "ponto") => {
@@ -143,7 +151,7 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
         let entrada;
         if (jogador) {
           entrada = lerEntrada(controles.current);
-          if (Math.abs(entrada.dir) > 0.1 || entrada.pular) { g.anim = "nada"; g.paradoDesde = t; }
+          if (Math.abs(entrada.dir) > 0.1 || entrada.pular || entrada.descer) { g.anim = "nada"; g.paradoDesde = t; e.ultimoComando = t; }
         } else {
           const rato = e.ratos.find(r => r.voltaEm === null && distancia(r.corpo, g.corpo) < 110);
           const presa = bolaViva ? { x: bolaViva.x, y: bolaViva.y + bolaViva.r } : rato ? { x: rato.corpo.x, y: rato.corpo.y } : null;
@@ -204,6 +212,10 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
         }
       });
 
+      // Gatos do computador não ficam um em cima do outro (só o do jogador pode).
+      const separados = separarGatos(e.gatos.map(g => g.corpo), plats, e.controlado);
+      e.gatos.forEach((g, i) => { g.corpo = separados[i]; });
+
       // Ratos fogem pulando pelos puleiros (pique-pega); depois de pegos, voltam em outro lugar.
       for (const r of e.ratos) {
         if (r.voltaEm !== null) {
@@ -223,13 +235,21 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
       e.cordas = e.cordas.map(c => ({ ...passoCorda(c, dt), patadaAte: c.patadaAte }));
       e.balanco = e.balanco.map(v => Math.max(0, v - dt * 1.2));
       e.particulas = passoParticulas(e.particulas, dt);
-      const jogador = e.gatos[e.controlado];
-      const naPorta = HUB.porta && Math.abs(jogador.corpo.x - (HUB.porta.x + HUB.porta.w / 2)) < 26 && Math.abs(jogador.corpo.y - (HUB.porta.y + HUB.porta.h)) < 4;
+      // Parado por 10 s: o gatinho volta a se mexer sozinho e é preciso escolher um de novo.
+      if (e.controlado >= 0 && t - e.ultimoComando > TEMPO_SOLTA) {
+        const solto = e.gatos[e.controlado];
+        solto.ia = { modo: "parar", ate: t + 0.8 };
+        solto.anim = "nada";
+        texto(solto.corpo.x, solto.corpo.y - 22, "Tchau!", "#ffffff");
+        e.controlado = -1;
+      }
+      const jogador = e.controlado >= 0 ? e.gatos[e.controlado] : null;
+      const naPorta = jogador && HUB.porta && Math.abs(jogador.corpo.x - (HUB.porta.x + HUB.porta.w / 2)) < 26 && Math.abs(jogador.corpo.y - (HUB.porta.y + HUB.porta.h)) < 4;
       e.porta += ((naPorta ? 1 : 0) - e.porta) * Math.min(1, dt * 6);
-      const focoX = focoTour.current?.x ?? jogador.corpo.x;
+      const focoX = focoTour.current?.x ?? jogador?.corpo.x ?? camera.current + vista / 2;
       const alvoCam = Math.max(0, Math.min(LARGURA - vista, focoX - vista / 2));
       camera.current += (alvoCam - camera.current) * Math.min(1, dt * 5);
-      if (naPorta && controles.current.interagir !== interagirVisto) onJogar(jogador.pelagem);
+      if (jogador && naPorta && controles.current.interagir !== interagirVisto) onJogar(jogador.pelagem);
       interagirVisto = controles.current.interagir;
 
       // ---------- desenho ----------
@@ -244,7 +264,8 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
       [...e.gatos.map((g, i) => ({ g, i }))].sort((a, b) => a.g.corpo.y - b.g.corpo.y).forEach(({ g }) => {
         desenharGato(ctx, g.pelagem, poseDe(g, t), g.corpo.x, g.corpo.y, g.corpo.virado);
       });
-      desenharMarcador(ctx, jogador.corpo.x, jogador.corpo.y, t);
+      // Nos últimos 3 s antes de soltar, a setinha pisca.
+      if (jogador && (t - e.ultimoComando < TEMPO_SOLTA - 3 || Math.floor(t * 6) % 2 === 0)) desenharMarcador(ctx, jogador.corpo.x, jogador.corpo.y, t);
       desenharParticulas(ctx, e.particulas);
       ctx.restore();
 
@@ -305,6 +326,27 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
     }
   };
 
+  const bolinhas = estado.current.bolas.filter(b => b.quica).length;
+  const maisBola = () => {
+    const e = estado.current;
+    if (bolinhas >= MAX_BOLAS) return;
+    const lugar = HUB.nascer[Math.floor(Math.random() * HUB.nascer.length)];
+    const cor = CORES_BOLA[bolinhas % CORES_BOLA.length];
+    e.bolas.push({ x: lugar.x, y: Math.max(10, lugar.y - 40), vx: (Math.random() - 0.5) * 120, vy: -80, r: 4, segurada: false, cor, quica: true, chuteAte: 0 });
+    emitir(lugar.x, Math.max(10, lugar.y - 40), 6, cor);
+    setTick(q => q + 1);
+  };
+  const menosBola = () => {
+    const e = estado.current;
+    let i = -1;
+    e.bolas.forEach((b, k) => { if (b.quica && !b.segurada) i = k; });
+    if (i < 0 || bolinhas <= 1) return;
+    emitir(e.bolas[i].x, e.bolas[i].y, 6, e.bolas[i].cor);
+    e.bolas.splice(i, 1);
+    if (e.segurada && e.segurada.i > i) e.segurada.i--;
+    setTick(q => q + 1);
+  };
+
   // Fecha o balão sozinho depois de um tempo.
   useEffect(() => {
     if (!selecionado) return;
@@ -313,8 +355,8 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
   }, [selecionado]);
 
   const e = estado.current;
-  const jogador = e.gatos[e.controlado];
-  const naPorta = e.porta > 0.6;
+  const jogador = e.controlado >= 0 ? e.gatos[e.controlado] : null;
+  const naPorta = !!jogador && e.porta > 0.6;
   const gSel = selecionado ? e.gatos[selecionado.i] : null;
   const posSel = gSel ? pct(gSel.corpo.x, gSel.corpo.y - GATO_H - 4) : null;
   const porta = HUB.porta!;
@@ -323,9 +365,9 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
     const s = estado.current;
     const outro = () => s.gatos.find((_, i) => i !== s.controlado)!;
     return [
-      { titulo: "Este é você!", texto: toque ? "A setinha amarela marca o seu gatinho. Use o joystick para andar e o botão rosa para pular. Joystick para baixo desce do puleiro." : "A setinha amarela marca o seu gatinho. A e D andam, W ou espaço pulam e S desce do puleiro.", alvo: () => { const g = s.gatos[s.controlado].corpo; return { x: g.x, y: g.y - 8 }; } },
+      { titulo: "Este é você!", texto: (toque ? "A setinha amarela marca o seu gatinho. Use o joystick para andar e o botão rosa para pular. Joystick para baixo desce do puleiro." : "A setinha amarela marca o seu gatinho. A e D andam, W ou espaço pulam e S desce do puleiro.") + " Se ficar 10 s sem mexer, ele volta a andar sozinho: escolha um gatinho de novo.", alvo: () => { const g = s.gatos[Math.max(0, s.controlado)].corpo; return { x: g.x, y: g.y - 8 }; } },
       { titulo: "Fale com os gatinhos", texto: "Clique num gatinho para ele falar com você. No balão, toque em Controlar para trocar de gatinho.", alvo: () => { const g = outro().corpo; return { x: g.x, y: g.y - 8 }; } },
-      { titulo: "Bolinhas", texto: "Pegue uma bolinha com o mouse (ou o dedo), arraste e solte para arremessar. Os gatinhos correm atrás!", alvo: () => { const b = s.bolas.find(x => x.quica)!; return { x: b.x, y: b.y }; }, raio: 5 },
+      { titulo: "Bolinhas", texto: "Pegue uma bolinha com o mouse (ou o dedo), arraste e solte para arremessar. Os gatinhos correm atrás! Os botões + e − no canto colocam e tiram bolinhas.", alvo: () => { const b = s.bolas.find(x => x.quica)!; return { x: b.x, y: b.y }; }, raio: 5 },
       { titulo: "Arranhador", texto: "Pare do lado do postinho para afiar as garras. Ele até balança!", alvo: () => ({ x: HUB.arranhadores[0].x, y: (HUB.arranhadores[0].topo + HUB.arranhadores[0].base) / 2 }), raio: 6 },
       { titulo: "Cordinhas", texto: "Chegue perto da pontinha para dar patadas e ver ela balançar.", alvo: () => pontaDaCorda(s.cordas[0]), raio: 5 },
       { titulo: "Ratinhos de brinquedo", texto: "Esbarre neles para empurrar pelas prateleiras.", alvo: () => { const b = s.bolas.find(x => !x.quica)!; return { x: b.x, y: b.y }; }, raio: 5 },
@@ -347,7 +389,7 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
           <div className="pointer-events-none absolute z-10 flex -translate-x-1/2 -translate-y-full flex-col items-center gap-1 transition-[left,top] duration-200 ease-linear" style={{ left: `${posSel.x}%`, top: `${posSel.y}%` }}>
             {selecionado!.i !== e.controlado && (
               <button type="button" className="pointer-events-auto animate-surgir rounded-lg border-2 border-slate-900 bg-yellow-300 px-2 py-0.5 font-['Press_Start_2P'] text-[8px] text-slate-900 shadow-[2px_2px_0_#0f172a] hover:bg-yellow-200 sm:text-[9px]"
-                onClick={() => { estado.current.controlado = selecionado!.i; setSelecionado(null); }}>
+                onClick={() => { estado.current.controlado = selecionado!.i; estado.current.ultimoComando = estado.current.t; setSelecionado(null); }}>
                 Controlar
               </button>
             )}
@@ -359,13 +401,29 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
           </div>
         )}
 
-        {naPorta && (
+        {!jogador && !tour && !gSel && (
+          <p className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 animate-entrada whitespace-nowrap rounded-xl border-2 border-slate-900 bg-yellow-300 px-3 py-1.5 font-['Press_Start_2P'] text-[8px] text-slate-900 shadow-[2px_2px_0_#0f172a] sm:text-[10px]">
+            Clique num gatinho e toque em Controlar
+          </p>
+        )}
+
+        {naPorta && jogador && (
           <button type="button" onClick={() => onJogar(jogador.pelagem)}
             className="absolute z-10 -translate-x-1/2 -translate-y-full animate-bounce rounded-xl border-4 border-slate-900 bg-emerald-400 px-3 py-1.5 font-['Press_Start_2P'] text-[10px] text-slate-900 shadow-[3px_3px_0_#0f172a] hover:bg-emerald-300"
             style={{ left: `${pct(porta.x + porta.w / 2, 0).x}%`, top: `${pct(0, porta.y - 4).y}%` }}>
             <Gamepad2 className="mr-1 inline h-4 w-4 -translate-y-px" />Jogar
           </button>
         )}
+
+        <div className="absolute left-2 top-2 z-20 flex items-center gap-1 rounded-xl border-2 border-slate-900 bg-white/90 p-0.5 shadow-[2px_2px_0_#0f172a]" role="group" aria-label="Bolinhas">
+          <button type="button" onClick={menosBola} disabled={bolinhas <= 1} aria-label="Menos bolinhas" title="Menos bolinhas"
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-pink-200 text-slate-900 hover:bg-pink-300 disabled:opacity-40"><Minus className="h-4 w-4" /></button>
+          <span className="flex items-center gap-1 px-1 font-['Press_Start_2P'] text-[9px] text-slate-800" aria-live="polite" aria-label={`${bolinhas} bolinhas`}>
+            <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-sky-300 to-blue-600 ring-1 ring-slate-900" aria-hidden="true" />{bolinhas}
+          </span>
+          <button type="button" onClick={maisBola} disabled={bolinhas >= MAX_BOLAS} aria-label="Mais bolinhas" title="Mais bolinhas"
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-200 text-slate-900 hover:bg-emerald-300 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
+        </div>
 
         <button type="button" onClick={() => setTour(true)} aria-label="Como brincar"
           className="absolute right-2 top-2 z-20 flex h-9 w-9 items-center justify-center rounded-xl border-2 border-slate-900 bg-yellow-300 text-slate-900 shadow-[2px_2px_0_#0f172a] transition-transform hover:-translate-y-0.5 hover:bg-yellow-200">
