@@ -39,18 +39,23 @@ test("células absolutas cobrem a área sem sair dela, de cima para baixo", () =
   assert.equal(celulas(layoutPorCodigo("R3L"), area)[0].texto, "direita");
 });
 
-test("fotos seguem a ordem dos itens e das fotos e quebram em páginas", () => {
+test("fotos seguem a ordem dos itens e das fotos e cada item começa numa página nova", () => {
   const paginas = paginarFotos(itens, 2);
   assert.equal(paginas.length, 2);
   assert.deepEqual(paginas[0].map(p => p.foto.id), [10, 11]);
   assert.deepEqual(paginas[1].map(p => [p.foto.id, p.numero]), [[12, 3]]);
+  const seis = paginarFotos(itens, 6);
+  assert.equal(seis.length, 2, "mesmo cabendo tudo numa página, o item 2 vai para outra");
+  assert.deepEqual(seis.map(pg => pg.map(p => p.item.id)), [[1, 1], [2]]);
+  const tres = paginarFotos([{ ...itens[1], fotos: [1, 2, 3, 4].map(i => ({ id: i, idItem: 1, nrOrdem: i, txLegenda: null })) }], 3);
+  assert.deepEqual(tres.map(pg => pg.length), [3, 1], "item com mais fotos que a página continua na seguinte");
   assert.deepEqual(paginarFotos([], 4), []);
 });
 
 test("legenda impressa numera e junta item e legenda", () => {
-  const [p] = paginarFotos(itens, 6);
+  const [p, q] = paginarFotos(itens, 6);
   assert.equal(legendaImpressa(p[0]), "1. Fachada norte — geral");
-  assert.equal(legendaImpressa(p[2]), "3. Fachada sul");
+  assert.equal(legendaImpressa(q[0]), "3. Fachada sul", "a numeração continua na página do item seguinte");
 });
 
 test("progresso conta itens com foto ou observação", () => {
