@@ -27,6 +27,14 @@
 @keyframes nt-aparecer { from { opacity: 0; } to { opacity: 1; } }
 @keyframes nt-surgir { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
 
+/* Tutorial: o destaque respira, o capacete balança e a lista entra em cascata. */
+.nt-tutorial-foco { animation: nt-tutorial-respira 1.8s ease-in-out infinite; }
+.nt-tutorial-mascote { animation: nt-tutorial-balanca 2.4s ease-in-out infinite; transform-origin: 50% 80%; }
+.nt-tutorial-item { animation: nt-tutorial-entra 320ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+@keyframes nt-tutorial-respira { 0%, 100% { outline: 0 solid rgba(96, 165, 250, 0.45); } 50% { outline: 8px solid rgba(96, 165, 250, 0); } }
+@keyframes nt-tutorial-balanca { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg) translateY(-1px); } }
+@keyframes nt-tutorial-entra { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+
 /* Quem pediu menos movimento no sistema não vê animações. */
 @media (prefers-reduced-motion: reduce) {
   *,
