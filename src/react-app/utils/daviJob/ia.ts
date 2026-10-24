@@ -138,10 +138,27 @@ export function decidirRato(r: Corpo, estado: EstadoRato, gatos: { x: number; y:
     return { entrada: { dir: fugir, pular: false, descer: false }, estado };
   }
   if (agora >= estado.ate || estado.alvoX === undefined) {
+    // De vez em quando muda de puleiro (para cima ou para baixo) mesmo sem gato por perto.
+    if (r.noChao && sorteio() < 0.35) {
+      const opcoes = alcancaveis(r, plats, alcance, 44);
+      if (opcoes.length) {
+        const escolha = opcoes[Math.floor(sorteio() * opcoes.length)];
+        return { entrada: irPara(r, escolha), estado: { ate: agora + 3, alvoPlat: escolha.id } };
+      }
+    }
     estado = { ate: agora + 1 + sorteio() * 2, alvoX: atual ? atual.x + 4 + sorteio() * Math.max(1, atual.w - 8) : r.x };
   }
   const dx = (estado.alvoX ?? r.x) - r.x;
   return { entrada: { dir: Math.abs(dx) < 3 ? 0 : (dx > 0 ? 0.5 : -0.5), pular: false, descer: false }, estado };
+}
+
+/** Onde um rato novo (ou que voltou) aparece: um lugar sorteado longe dos gatos, em qualquer andar. */
+export function lugarParaRato<T extends { x: number; y: number }>(lugares: T[], gatos: { x: number; y: number }[], sorteio: () => number, longe = 80): T {
+  const folga = (l: T) => Math.min(Infinity, ...gatos.map(g => Math.hypot(g.x - l.x, g.y - l.y)));
+  const livres = lugares.filter(l => folga(l) >= longe);
+  // Sem lugar livre (gatos espalhados por tudo): sorteia entre os mais afastados.
+  const opcoes = livres.length ? livres : [...lugares].sort((a, b) => folga(b) - folga(a)).slice(0, Math.min(4, lugares.length));
+  return opcoes[Math.min(opcoes.length - 1, Math.floor(sorteio() * opcoes.length))];
 }
 
 /** Distância mínima entre dois gatos lado a lado no mesmo puleiro. */

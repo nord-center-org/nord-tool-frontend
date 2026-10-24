@@ -9,7 +9,7 @@ import {
   desenharRato, passoParticulas, type Particula,
 } from "@/react-app/utils/daviJob/desenho";
 import { FALAS, FALAS_INTERACAO, sortear } from "@/react-app/utils/daviJob/falas";
-import { decidirGato, decidirRato, separarGatos, type EstadoIA, type EstadoRato, type Interesse } from "@/react-app/utils/daviJob/ia";
+import { decidirGato, decidirRato, lugarParaRato, separarGatos, type EstadoIA, type EstadoRato, type Interesse } from "@/react-app/utils/daviJob/ia";
 import {
   distancia, novoCorpo, passoBola, passoCorda, passoCorpo, pontaDaCorda, velocidadeBola, type Bola, type Corda, type Corpo,
 } from "@/react-app/utils/daviJob/motor";
@@ -221,7 +221,7 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
       for (const r of e.ratos) {
         if (r.voltaEm !== null) {
           if (t >= r.voltaEm) {
-            const longe = [...HUB.nascer].sort((a, b) => Math.min(...e.gatos.map(g => distancia(g.corpo, b))) - Math.min(...e.gatos.map(g => distancia(g.corpo, a))))[0];
+            const longe = lugarParaRato(HUB.nascer, e.gatos.map(g => g.corpo), Math.random);
             r.corpo = novoCorpo(longe.x, longe.y - 2, 10);
             r.voltaEm = null;
           }
@@ -352,8 +352,8 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
   const maisRato = () => {
     const e = estado.current;
     if (e.ratos.length >= MAX_RATOS) return;
-    // Nasce no lugar mais longe dos gatos, para dar tempo de fugir.
-    const longe = [...HUB.nascer].sort((a, b) => Math.min(...e.gatos.map(g => distancia(g.corpo, b))) - Math.min(...e.gatos.map(g => distancia(g.corpo, a))))[0];
+    // Nasce num lugar sorteado longe dos gatos, para dar tempo de fugir.
+    const longe = lugarParaRato(HUB.nascer, e.gatos.map(g => g.corpo), Math.random);
     e.ratos.push({ corpo: novoCorpo(longe.x, longe.y - 2, 10), estado: { ate: 0 }, voltaEm: null });
     emitir(longe.x, longe.y - 6, 6, "#9ca3af");
     setTick(q => q + 1);

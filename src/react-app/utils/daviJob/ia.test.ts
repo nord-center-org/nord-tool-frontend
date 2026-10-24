@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { alcancaveis, decidirGato, decidirRato, type EstadoIA } from "./ia.ts";
+import { alcancaveis, decidirGato, decidirRato, lugarParaRato, type EstadoIA } from "./ia.ts";
 import { novoCorpo, passoCorpo, type Plataforma } from "./motor.ts";
 import { ARENA, HUB } from "./mundo.ts";
 
@@ -81,4 +81,39 @@ test("gatos do computador não ficam um em cima do outro; o do jogador pode", as
   assert.ok(Math.abs(naEscada[1].x - naEscada[0].x) >= 15.99, "na escada também se afastam");
   const emAndaresDiferentes = separarGatos([c(140), { ...c(140), y: 160, plataforma: "q" }], plats, -1);
   assert.equal(emAndaresDiferentes[1].x, 140);
+});
+
+test("rato novo nasce em lugares sorteados, em vários andares, longe dos gatos", () => {
+  const s = sorteador(11);
+  const gatos = [{ x: 60, y: 222 }, { x: 250, y: 186 }];
+  const andares = new Set<number>();
+  for (let i = 0; i < 200; i++) {
+    const l = lugarParaRato(HUB.nascer, gatos, s);
+    andares.add(l.y);
+    assert.ok(gatos.every(g => Math.hypot(g.x - l.x, g.y - l.y) >= 80));
+  }
+  assert.ok(andares.size >= 4, `andares: ${[...andares].join(",")}`);
+  const cercado = lugarParaRato([{ x: 0, y: 0 }, { x: 50, y: 0 }], [{ x: 10, y: 0 }], () => 0);
+  assert.deepEqual(cercado, { x: 50, y: 0 }, "sem lugar livre, vai para o mais afastado");
+});
+
+test("rato sem gato por perto passeia por andares diferentes (sobe e desce)", () => {
+  const s = sorteador(5);
+  let r = assentar(90, 114, HUB.plataformas);
+  let estado = { ate: 0 };
+  const alturas = new Set<number>();
+  let anterior: number | null = null, subiu = false, desceu = false;
+  for (let i = 0; i < 60 * 90; i++) {
+    const d = decidirRato(r, estado, [{ x: 2000, y: 2000 }], HUB.plataformas, i / 60, s);
+    estado = d.estado;
+    r = passoCorpo(r, HUB.plataformas, 1 / 60, d.entrada, i / 60, { velocidade: 86, pulo: 300, gravidade: 820, largura: 480, altura: 270 });
+    if (r.noChao) {
+      const y = Math.round(r.y);
+      if (anterior !== null && y < anterior - 20) subiu = true;
+      if (anterior !== null && y > anterior + 20) desceu = true;
+      anterior = y;
+      alturas.add(y);
+    }
+  }
+  assert.ok(alturas.size >= 4 && subiu && desceu, `alturas: ${[...alturas].sort().join(",")}`);
 });
