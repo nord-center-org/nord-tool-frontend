@@ -106,7 +106,7 @@ export default function HomePage() {
         <EquipeNaObra equipe={naCena} tema={tema} />
       </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl px-4">
+      <div data-tutorial="modulos" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl px-4">
         {modulos.map((mod, i) => (
           <div key={i} className="relative">
             <button 

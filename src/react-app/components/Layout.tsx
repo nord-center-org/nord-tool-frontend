@@ -1,20 +1,22 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, NavLink, useLocation } from "react-router";
 import ErrorBoundary from "@/react-app/components/ErrorBoundary";
 import GatinhoSecreto from "@/react-app/components/davi/GatinhoSecreto";
 import MeuAvatarMini from "@/react-app/components/avatar/MeuAvatarMini";
+import Tutorial from "@/react-app/components/tutorial/Tutorial";
 import { ExigeModuloDaRota } from "@/react-app/components/RotaProtegida";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { useObra } from "@/react-app/hooks/useObra";
 import { podeAbrirRota } from "@/react-app/utils/sessao";
 import { EVENTO_DAVI, criarContadorToques } from "@/react-app/utils/segredo";
 import { alternarGrupo, grupoDaRota, lerGruposAbertos, salvarGruposAbertos } from "@/react-app/utils/menuLateral";
+import { idGrupoMenu, jaViuTutorial, marcarTutorialVisto, tutorialDaTela, tutorialGeral, type PassoTutorial, type Tutorial as DadosTutorial } from "@/react-app/utils/tutorial";
 import { 
   Database, BarChart3, Package, Settings, Menu, ChevronLeft, 
   Home as HomeIcon, Briefcase, GraduationCap,
   ClipboardCheck, AlertTriangle, Camera, FileText, BookOpen, 
   TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Heart, PiggyBank,
-  Ruler, ChevronDown
+  Ruler, ChevronDown, HelpCircle
 } from "lucide-react";
 
 const armazenamento = () => (typeof window === "undefined" ? undefined : window.localStorage);
@@ -97,6 +99,44 @@ export default function Layout() {
       return novo;
     });
   }, [grupoAtual, usuario]);
+  // Tutorial: no início é o tour da ferramenta toda; nas outras telas, o passo a passo da tela.
+  const [tutorial, setTutorial] = useState<DadosTutorial | null>(null);
+  const antesDoTutorial = useRef<{ menu: boolean; grupos: string[] } | null>(null);
+  const refTela = useRef<HTMLDivElement>(null);
+  const montarTutorial = useRef<() => DadosTutorial>(() => ({ titulo: "", passos: [] }));
+  montarTutorial.current = () => {
+    if (location.pathname === "/") return tutorialGeral({ nome: usuario?.nome, grupos: gruposVisiveis, variasObras: obras.length > 1 });
+    return tutorialDaTela(location.pathname) ?? {
+      titulo: "Ajuda",
+      passos: [{ titulo: "Ainda sem passo a passo", texto: "Esta tela ainda não tem um tutorial. No início, o ? mostra o tour da ferramenta toda." }],
+    };
+  };
+  const abrirTutorial = useCallback(() => {
+    antesDoTutorial.current = { menu: sidebarOpen, grupos: abertos };
+    setTutorial(montarTutorial.current());
+  }, [sidebarOpen, abertos]);
+  const fecharTutorial = useCallback(() => {
+    setTutorial(null);
+    if (usuario) marcarTutorialVisto(armazenamento(), usuario.id);
+    const antes = antesDoTutorial.current;
+    if (antes) { setSidebarOpen(antes.menu); setAbertos(antes.grupos); }
+  }, [usuario]);
+  const prepararPasso = useCallback((passo: PassoTutorial) => {
+    if (passo.menu) setSidebarOpen(passo.menu === "abrir");
+    const grupo = passo.grupo;
+    if (grupo) setAbertos(atual => (atual.includes(grupo) ? atual : [...atual, grupo]));
+  }, []);
+  const raizDoTutorial = useCallback(() => refTela.current, []);
+  // Primeira vez no início: o tour abre sozinho (depois que a cena termina de entrar).
+  useEffect(() => {
+    if (!usuario || location.pathname !== "/" || jaViuTutorial(armazenamento(), usuario.id)) return;
+    const t = window.setTimeout(() => {
+      antesDoTutorial.current = { menu: false, grupos: lerGruposAbertos(armazenamento(), usuario.id) };
+      setTutorial(montarTutorial.current());
+    }, 1400);
+    return () => window.clearTimeout(t);
+  }, [usuario, location.pathname]);
+
   const alternar = (titulo: string) => setAbertos(atual => {
     const novo = alternarGrupo(atual, titulo);
     if (usuario) salvarGruposAbertos(armazenamento(), usuario.id, novo);
@@ -163,7 +203,7 @@ export default function Layout() {
               // A Visão Geral (só Início) fica sempre à mostra.
               const fixo = group.items.length === 1 && group.items[0].path === "/";
               const aberto = fixo || abertos.includes(group.title);
-              const idLista = `menu-${group.title.replace(/\s+/g, "-").toLowerCase()}`;
+              const idLista = idGrupoMenu(group.title);
               return (
                 <div key={group.title}>
                   {!fixo && (
@@ -234,13 +274,19 @@ export default function Layout() {
           </div>
         )}
 
+        <button type="button" onClick={abrirTutorial} data-tutorial="ajuda"
+          aria-label={location.pathname === "/" ? "Tour do NordTool" : "Tutorial desta tela"} title={location.pathname === "/" ? "Tour do NordTool" : "Como usar esta tela"}
+          className="group absolute right-3 top-3 z-30 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/60 bg-white/60 text-slate-600 shadow-sm backdrop-blur-md transition-all hover:bg-white hover:text-blue-600 active:scale-95 md:right-6 md:top-6">
+          <HelpCircle className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12" />
+        </button>
+
         <div className="flex-1 overflow-auto h-full">
-          <div className={`transition-all duration-300 h-full px-3 pb-6 pt-16 sm:px-4 ${!sidebarOpen ? "md:pl-20 md:pr-6 md:pt-6" : "md:p-8"}`}>
+          <div className={`transition-all duration-300 h-full px-3 pb-6 pt-16 sm:px-4 ${!sidebarOpen ? "md:pl-20 md:pr-20 md:pt-6" : "md:p-8 md:pr-20"}`}>
             <ErrorBoundary resetKey={location.pathname}>
               <ExigeModuloDaRota>
                 {/* Trocar de obra recarrega a tela com os dados da nova obra. */}
                 {/* Cada tela entra com o mesmo movimento curto. */}
-                <div key={`${idObra ?? "sem-obra"}:${location.pathname}`} className="h-full animate-entrada">
+                <div key={`${idObra ?? "sem-obra"}:${location.pathname}`} ref={refTela} data-tutorial-tela className="h-full animate-entrada">
                   <Outlet context={{ sidebarOpen }} />
                 </div>
               </ExigeModuloDaRota>
@@ -249,6 +295,7 @@ export default function Layout() {
         </div>
       </main>
       <GatinhoSecreto />
+      {tutorial && <Tutorial key={location.pathname} tutorial={tutorial} raiz={raizDoTutorial} onPasso={prepararPasso} onFechar={fecharTutorial} />}
     </div>
   );
 }
