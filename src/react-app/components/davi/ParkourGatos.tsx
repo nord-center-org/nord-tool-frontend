@@ -37,6 +37,7 @@ interface Estado {
 
 const CORES_BOLA = ["#3b82f6", "#a855f7", "#22c55e", "#f97316", "#ef4444", "#eab308", "#ec4899", "#14b8a6"];
 const MAX_BOLAS = 20;
+const MAX_RATOS = 12;
 /** Segundos sem comandos até o gatinho voltar a andar sozinho. */
 const TEMPO_SOLTA = 10;
 const PARAM_RATO = { velocidade: 86, pulo: 300, gravidade: 820, largura: LARGURA, altura: ALTURA };
@@ -340,10 +341,30 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
     const e = estado.current;
     let i = -1;
     e.bolas.forEach((b, k) => { if (b.quica && !b.segurada) i = k; });
-    if (i < 0 || bolinhas <= 1) return;
+    if (i < 0) return;
     emitir(e.bolas[i].x, e.bolas[i].y, 6, e.bolas[i].cor);
     e.bolas.splice(i, 1);
     if (e.segurada && e.segurada.i > i) e.segurada.i--;
+    setTick(q => q + 1);
+  };
+
+  const ratos = estado.current.ratos.length;
+  const maisRato = () => {
+    const e = estado.current;
+    if (e.ratos.length >= MAX_RATOS) return;
+    // Nasce no lugar mais longe dos gatos, para dar tempo de fugir.
+    const longe = [...HUB.nascer].sort((a, b) => Math.min(...e.gatos.map(g => distancia(g.corpo, b))) - Math.min(...e.gatos.map(g => distancia(g.corpo, a))))[0];
+    e.ratos.push({ corpo: novoCorpo(longe.x, longe.y - 2, 10), estado: { ate: 0 }, voltaEm: null });
+    emitir(longe.x, longe.y - 6, 6, "#9ca3af");
+    setTick(q => q + 1);
+  };
+  const menosRato = () => {
+    const e = estado.current;
+    if (e.ratos.length === 0) return;
+    // Tira primeiro um rato que já foi pego (está escondido); senão, o último.
+    const pego = e.ratos.findIndex(r => r.voltaEm !== null);
+    const [r] = e.ratos.splice(pego >= 0 ? pego : e.ratos.length - 1, 1);
+    if (r.voltaEm === null) emitir(r.corpo.x, r.corpo.y - 4, 6, "#9ca3af");
     setTick(q => q + 1);
   };
 
@@ -367,11 +388,11 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
     return [
       { titulo: "Este é você!", texto: (toque ? "A setinha amarela marca o seu gatinho. Use o joystick para andar e o botão rosa para pular. Joystick para baixo desce do puleiro." : "A setinha amarela marca o seu gatinho. A e D andam, W ou espaço pulam e S desce do puleiro.") + " Se ficar 10 s sem mexer, ele volta a andar sozinho: escolha um gatinho de novo.", alvo: () => { const g = s.gatos[Math.max(0, s.controlado)].corpo; return { x: g.x, y: g.y - 8 }; } },
       { titulo: "Fale com os gatinhos", texto: "Clique num gatinho para ele falar com você. No balão, toque em Controlar para trocar de gatinho.", alvo: () => { const g = outro().corpo; return { x: g.x, y: g.y - 8 }; } },
-      { titulo: "Bolinhas", texto: "Pegue uma bolinha com o mouse (ou o dedo), arraste e solte para arremessar. Os gatinhos correm atrás! Os botões + e − no canto colocam e tiram bolinhas.", alvo: () => { const b = s.bolas.find(x => x.quica)!; return { x: b.x, y: b.y }; }, raio: 5 },
+      { titulo: "Bolinhas", texto: "Pegue uma bolinha com o mouse (ou o dedo), arraste e solte para arremessar. Os gatinhos correm atrás! Os botões + e − no canto colocam e tiram bolinhas (pode deixar em 0).", alvo: () => { const b = s.bolas.find(x => x.quica); return b ? { x: b.x, y: b.y } : null; }, raio: 5 },
       { titulo: "Arranhador", texto: "Pare do lado do postinho para afiar as garras. Ele até balança!", alvo: () => ({ x: HUB.arranhadores[0].x, y: (HUB.arranhadores[0].topo + HUB.arranhadores[0].base) / 2 }), raio: 6 },
       { titulo: "Cordinhas", texto: "Chegue perto da pontinha para dar patadas e ver ela balançar.", alvo: () => pontaDaCorda(s.cordas[0]), raio: 5 },
       { titulo: "Ratinhos de brinquedo", texto: "Esbarre neles para empurrar pelas prateleiras.", alvo: () => { const b = s.bolas.find(x => !x.quica)!; return { x: b.x, y: b.y }; }, raio: 5 },
-      { titulo: "Ratos de verdade!", texto: "Eles fogem pulando entre os puleiros, que nem pique-pega. Encoste neles para pegar!", alvo: () => { const r = s.ratos.find(x => x.voltaEm === null) ?? s.ratos[0]; return { x: r.corpo.x, y: r.corpo.y - 3 }; }, raio: 6 },
+      { titulo: "Ratos de verdade!", texto: "Eles fogem pulando entre os puleiros, que nem pique-pega. Encoste neles para pegar! Os botões + e − do ratinho, lá no canto, colocam e tiram ratos (pode deixar em 0).", alvo: () => { const r = s.ratos.find(x => x.voltaEm === null) ?? s.ratos[0]; return r ? { x: r.corpo.x, y: r.corpo.y - 3 } : null; }, raio: 6 },
       { titulo: "Potinhos", texto: "Pare perto do potinho para comer. Nhac nhac!", alvo: () => ({ x: HUB.potes[0].x, y: HUB.potes[0].y - 4 }), raio: 5 },
       { titulo: "Caixinhas", texto: "Os gatinhos gostam de tirar uma soneca aqui. Clique num gato dormindo para acordá-lo.", alvo: () => { const c = HUB.caixas[0]; return { x: c.x + Math.min(c.w / 2, 22), y: c.y + c.h * 0.55 }; }, raio: 7 },
       { titulo: "A portinha", texto: "Chegue perto e toque em Jogar (ou aperte E) para o minigame Caça ao rato. Tem ranking!", alvo: () => ({ x: porta.x + porta.w / 2, y: porta.y + porta.h / 2 }), raio: 7 },
@@ -415,14 +436,25 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
           </button>
         )}
 
-        <div className="absolute left-2 top-2 z-20 flex items-center gap-1 rounded-xl border-2 border-slate-900 bg-white/90 p-0.5 shadow-[2px_2px_0_#0f172a]" role="group" aria-label="Bolinhas">
-          <button type="button" onClick={menosBola} disabled={bolinhas <= 1} aria-label="Menos bolinhas" title="Menos bolinhas"
+        <div className="absolute left-2 top-2 z-20 flex max-w-[calc(100%-3.5rem)] flex-wrap gap-1">
+        <div className="flex items-center gap-1 rounded-xl border-2 border-slate-900 bg-white/90 p-0.5 shadow-[2px_2px_0_#0f172a]" role="group" aria-label="Bolinhas">
+          <button type="button" onClick={menosBola} disabled={bolinhas <= 0} aria-label="Menos bolinhas" title="Menos bolinhas"
             className="flex h-7 w-7 items-center justify-center rounded-lg bg-pink-200 text-slate-900 hover:bg-pink-300 disabled:opacity-40"><Minus className="h-4 w-4" /></button>
           <span className="flex items-center gap-1 px-1 font-['Press_Start_2P'] text-[9px] text-slate-800" aria-live="polite" aria-label={`${bolinhas} bolinhas`}>
             <span className="h-2.5 w-2.5 rounded-full bg-gradient-to-br from-sky-300 to-blue-600 ring-1 ring-slate-900" aria-hidden="true" />{bolinhas}
           </span>
           <button type="button" onClick={maisBola} disabled={bolinhas >= MAX_BOLAS} aria-label="Mais bolinhas" title="Mais bolinhas"
             className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-200 text-slate-900 hover:bg-emerald-300 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
+        </div>
+        <div className="flex items-center gap-1 rounded-xl border-2 border-slate-900 bg-white/90 p-0.5 shadow-[2px_2px_0_#0f172a]" role="group" aria-label="Ratos">
+          <button type="button" onClick={menosRato} disabled={ratos <= 0} aria-label="Menos ratos" title="Menos ratos"
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-pink-200 text-slate-900 hover:bg-pink-300 disabled:opacity-40"><Minus className="h-4 w-4" /></button>
+          <span className="flex items-center gap-1 px-1 font-['Press_Start_2P'] text-[9px] text-slate-800" aria-live="polite" aria-label={`${ratos} ratos`}>
+            <RatoPixel />{ratos}
+          </span>
+          <button type="button" onClick={maisRato} disabled={ratos >= MAX_RATOS} aria-label="Mais ratos" title="Mais ratos"
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-200 text-slate-900 hover:bg-emerald-300 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
+        </div>
         </div>
 
         <button type="button" onClick={() => setTour(true)} aria-label="Como brincar"
@@ -451,4 +483,16 @@ export default function ParkourGatos({ onJogar, pelagemInicial }: ParkourProps) 
       )}
     </div>
   );
+}
+
+/** Ratinho em pixel para o contador (mesmo desenho do jogo, em miniatura). */
+function RatoPixel() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const ctx = ref.current?.getContext("2d");
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+    desenharRato(ctx, 0, 9, 8, 1, "#6b7280");
+  }, []);
+  return <canvas ref={ref} width={18} height={9} className="h-[9px] w-[18px] [image-rendering:pixelated]" aria-hidden="true" />;
 }
