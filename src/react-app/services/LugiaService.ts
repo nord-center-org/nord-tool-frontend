@@ -1,6 +1,6 @@
 import { LUGIA_BASE } from "../config/api";
 import { apiFetch, ApiError, getAuthToken } from "./apiClient";
-import { criarLeitorSse, urlLugia, type MensagemTela, type ModeloIa } from "../utils/lugia";
+import { criarLeitorSse, urlLugia, type InfoLugia, type MensagemTela } from "../utils/lugia";
 
 export interface ConversaResumo {
   id: number;
@@ -17,13 +17,15 @@ export interface AnexoEnvio {
 export interface CallbacksChat {
   onConversa?: (id: number) => void;
   onTexto: (delta: string) => void;
+  /** Passo do agente (ferramenta usada), no modo Executar. */
+  onFerramenta?: (descricao: string) => void;
   onFim?: (motivo: string) => void;
   onErro: (mensagem: string) => void;
 }
 
 const url = (caminho: string) => urlLugia(LUGIA_BASE, caminho, typeof window === "undefined" ? "" : window.location.origin);
 
-/** A Lugia só aparece quando há URL configurada no build (ou o proxy do Vite em dev). */
+/** A Lugia fica no backend; só não aparece se não houver URL da API. */
 export const lugiaDisponivel = () => LUGIA_BASE !== "";
 
 /** Lê um arquivo como base64 puro (sem o prefixo data:). */
@@ -37,16 +39,16 @@ export function lerArquivoBase64(arquivo: File): Promise<string> {
 }
 
 export const lugiaService = {
-  modelos: () => apiFetch<{ modelos: ModeloIa[]; nivel: string }>(url("/modelos")),
-  conversas: async () => (await apiFetch<{ conversas: ConversaResumo[] }>(url("/conversas"))).conversas,
-  mensagens: async (id: number) => (await apiFetch<{ mensagens: MensagemTela[] }>(url(`/conversas/${id}`))).mensagens,
+  modelos: () => apiFetch<InfoLugia>(url("/modelos")),
+  conversas: async () => (await apiFetch<ConversaResumo[]>(url("/conversas"))) ?? [],
+  mensagens: async (id: number) => (await apiFetch<MensagemTela[]>(url(`/conversas/${id}`))) ?? [],
   renomear: (id: number, titulo: string) =>
     apiFetch<void>(url(`/conversas/${id}`), { method: "PATCH", body: JSON.stringify({ titulo }) }),
   excluir: (id: number) => apiFetch<void>(url(`/conversas/${id}`), { method: "DELETE" }),
 
   /** Envia a mensagem e lê a resposta em tempo real (SSE sobre POST, por isso fetch e não EventSource). */
   async conversar(
-    pedido: { idConversa?: number; modelo: string; texto: string; anexos: AnexoEnvio[] },
+    pedido: { idConversa?: number; modelo?: string; modo?: "chat" | "agente"; texto: string; anexos: AnexoEnvio[] },
     callbacks: CallbacksChat,
     sinal?: AbortSignal,
   ): Promise<void> {
@@ -70,6 +72,7 @@ export const lugiaService = {
         const json = JSON.parse(dados) as Record<string, unknown>;
         if (evento === "conversa") callbacks.onConversa?.(Number(json.id));
         else if (evento === "texto") callbacks.onTexto(String(json.delta ?? ""));
+        else if (evento === "ferramenta") callbacks.onFerramenta?.(String(json.descricao ?? ""));
         else if (evento === "fim") callbacks.onFim?.(String(json.motivo ?? ""));
         else if (evento === "erro") callbacks.onErro(String(json.mensagem ?? "Falha ao responder."));
       }

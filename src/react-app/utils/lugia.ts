@@ -1,6 +1,7 @@
 /** Regras puras da tela da Lugia (chat multi-IA): leitura do SSE, anexos e URL do serviço. */
 
-export type ProvedorIa = "claude" | "openai" | "gemini";
+/** "agente" é o agente Claude que executa pedidos no NordTool (modo Executar). */
+export type ProvedorIa = "claude" | "openai" | "gemini" | "agente";
 
 export interface ModeloIa {
   provedor: ProvedorIa;
@@ -17,6 +18,15 @@ export interface MensagemTela {
   papel: "usuario" | "assistente";
   provedor?: ProvedorIa;
   partes: ParteTela[];
+  /** Passos do agente (ferramentas usadas), só durante a resposta. */
+  passos?: string[];
+}
+
+/** Resposta de /lugia/modelos. */
+export interface InfoLugia {
+  modelos: ModeloIa[];
+  nivel: string;
+  agenteDisponivel: boolean;
 }
 
 export interface EventoSse {
@@ -24,7 +34,7 @@ export interface EventoSse {
   dados: string;
 }
 
-export const ROTULO_PROVEDOR: Record<ProvedorIa, string> = { claude: "Claude", openai: "ChatGPT", gemini: "Gemini" };
+export const ROTULO_PROVEDOR: Record<ProvedorIa, string> = { claude: "Claude", openai: "ChatGPT", gemini: "Gemini", agente: "Agente Claude" };
 
 export const MIMES_ACEITOS = ["image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf"];
 export const MAX_ANEXOS = 5;

@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-25-lugia-executar",
+    data: "2026-10-25",
+    titulo: "Lugia no ar: converse e peça mudanças no app",
+    texto: "O chat agora roda direto no NordTool. Quem é Admin da Lugia ganha o modo \"Executar no NordTool\": descreva a mudança (com print, se quiser) e o agente Claude altera o código, abre o PR e faz o merge quando o CI passar.",
+    onde: { rotulo: "Lugia (IA) → Executar no NordTool", caminho: "/lugia" },
+  },
+  {
     id: "2026-10-25-lugia-print",
     data: "2026-10-25",
     titulo: "Mostre para a Lugia: print de qualquer tela",
