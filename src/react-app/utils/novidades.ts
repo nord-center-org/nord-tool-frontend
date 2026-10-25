@@ -17,6 +17,20 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-25-lugia-print",
+    data: "2026-10-25",
+    titulo: "Mostre para a Lugia: print de qualquer tela",
+    texto: "No chat, toque em \"Print do app\", vá até a tela, marque a área e o recorte volta como anexo, com a conversa do jeito que estava. Em qualquer tela também há o botão de recorte no topo.",
+    onde: { rotulo: "Lugia (IA) → Print do app", caminho: "/lugia" },
+  },
+  {
+    id: "2026-10-25-lugia-atalho",
+    data: "2026-10-25",
+    titulo: "Atalho para a Lugia no menu",
+    texto: "Ao lado de Configurações, no rodapé do menu, o ícone de brilho abre o chat com a Lugia.",
+    onde: { rotulo: "Menu → ícone ao lado de Configurações", caminho: "/lugia" },
+  },
+  {
     id: "2026-10-25-lugia-chat",
     data: "2026-10-25",
     titulo: "Chegou a Lugia: Claude, ChatGPT e Gemini no NordTool",

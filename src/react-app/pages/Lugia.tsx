@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import {
-  Bot, Check, Copy, FileText, Image as ImageIcon, Loader2, MessageSquarePlus, PanelLeft, Paperclip, Pencil, Send, Sparkles, Square, Trash2, X,
+  Bot, Check, Copy, Crop, FileText, Image as ImageIcon, Loader2, MessageSquarePlus, PanelLeft, Paperclip, Pencil, Send, Sparkles, Square, Trash2, X,
 } from "lucide-react";
 
 import CabecalhoPagina from "@/react-app/components/ui/CabecalhoPagina";
+import { useCapturaLugia } from "@/react-app/hooks/useCapturaLugia";
 import { lerArquivoBase64, lugiaDisponivel, lugiaService as servico, type AnexoEnvio, type ConversaResumo } from "@/react-app/services/LugiaService";
 import {
-  agruparModelos, lerModeloPreferido, modeloInicial, ROTULO_PROVEDOR, salvarModeloPreferido, textoDaMensagem, validarArquivo,
+  agruparModelos, lerModeloPreferido, MAX_ANEXOS, modeloInicial, ROTULO_PROVEDOR, salvarModeloPreferido, textoDaMensagem, validarArquivo,
   type MensagemTela, type ModeloIa,
 } from "@/react-app/utils/lugia";
 
@@ -19,12 +20,15 @@ interface AnexoLocal extends AnexoEnvio {
 
 /** Lugia: chat com Claude, ChatGPT e Gemini num lugar só, com histórico e anexos. */
 export default function LugiaPage() {
+  // Conversa e rascunho ficam guardados enquanto a pessoa vai a outra tela tirar um print.
+  const captura = useCapturaLugia();
+  const { atualizarSessao, consumirPrints, prints } = captura;
   const [modelos, setModelos] = useState<ModeloIa[] | null>(null);
   const [modelo, setModelo] = useState<string | null>(null);
   const [conversas, setConversas] = useState<ConversaResumo[]>([]);
-  const [idConversa, setIdConversa] = useState<number | null>(null);
+  const [idConversa, setIdConversa] = useState<number | null>(captura.sessao.idConversa);
   const [mensagens, setMensagens] = useState<MensagemTela[]>([]);
-  const [texto, setTexto] = useState("");
+  const [texto, setTexto] = useState(captura.sessao.rascunho);
   const [anexos, setAnexos] = useState<AnexoLocal[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [carregandoConversa, setCarregandoConversa] = useState(false);
@@ -50,6 +54,35 @@ export default function LugiaPage() {
     })();
     return () => cancelar.current?.abort();
   }, []);
+
+  // Voltando de um print: reabre a conversa que estava aberta.
+  useEffect(() => {
+    const id = captura.sessao.idConversa;
+    if (!id || !lugiaDisponivel()) return;
+    setCarregandoConversa(true);
+    servico.mensagens(id)
+      .then(setMensagens)
+      .catch(e => setErro(mensagem(e, "Não foi possível abrir a conversa.")))
+      .finally(() => setCarregandoConversa(false));
+    // Só na montagem: depois disso a própria tela controla a conversa.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => { atualizarSessao({ rascunho: texto }); }, [texto, atualizarSessao]);
+  useEffect(() => { atualizarSessao({ idConversa }); }, [idConversa, atualizarSessao]);
+
+  // Prints marcados em outras telas entram como anexos da próxima mensagem.
+  useEffect(() => {
+    if (prints.length === 0) return;
+    const novos = consumirPrints();
+    setAnexos(atuais => {
+      const cabem = Math.max(0, MAX_ANEXOS - atuais.length);
+      if (novos.length > cabem) setErro(`No máximo ${MAX_ANEXOS} anexos por mensagem.`);
+      return [...atuais, ...novos.slice(0, cabem).map(p => ({ chave: `${p.nome}-${Math.random()}`, nome: p.nome, mime: p.mime, base64: p.base64 }))];
+    });
+    const tela = novos[novos.length - 1]?.tela;
+    if (tela) setTexto(atual => (atual.trim() ? atual : `Na tela ${tela}: `));
+  }, [prints, consumirPrints]);
 
   useEffect(() => {
     fim.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -280,7 +313,9 @@ export default function LugiaPage() {
               <ul className="mb-2 flex flex-wrap gap-2">
                 {anexos.map(a => (
                   <li key={a.chave} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 py-1 pl-2 pr-1 text-xs text-slate-700">
-                    {a.mime === "application/pdf" ? <FileText className="h-3.5 w-3.5 text-red-600" /> : <ImageIcon className="h-3.5 w-3.5 text-blue-600" />}
+                    {a.mime === "application/pdf"
+                      ? <FileText className="h-3.5 w-3.5 text-red-600" />
+                      : <img src={`data:${a.mime};base64,${a.base64}`} alt="" className="h-7 w-10 rounded object-cover object-left-top ring-1 ring-slate-200" />}
                     <span className="max-w-[10rem] truncate">{a.nome}</span>
                     <button type="button" aria-label={`Remover ${a.nome}`} onClick={() => setAnexos(l => l.filter(x => x.chave !== a.chave))} className="rounded p-0.5 hover:bg-slate-200">
                       <X className="h-3.5 w-3.5" />
@@ -307,6 +342,11 @@ export default function LugiaPage() {
               <button type="button" onClick={() => entradaArquivo.current?.click()} disabled={enviando} aria-label="Anexar imagem ou PDF"
                 className="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50 disabled:opacity-50">
                 <Paperclip className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={() => captura.iniciar("escolher")} disabled={enviando || anexos.length >= MAX_ANEXOS}
+                title="Vá até a tela do app, marque a área e o print volta para cá"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+                <Crop className="h-4 w-4" /> Print do app
               </button>
               <div className="ml-auto">
                 {enviando ? (

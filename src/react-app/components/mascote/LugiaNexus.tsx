@@ -82,7 +82,7 @@ export default function LugiaNexus() {
     ));
 
   return (
-    <div className="pointer-events-none fixed bottom-3 right-3 z-30 flex max-w-[calc(100vw-1.5rem)] flex-col items-end sm:bottom-5 sm:right-5">
+    <div data-sem-print className="pointer-events-none fixed bottom-3 right-3 z-30 flex max-w-[calc(100vw-1.5rem)] flex-col items-end sm:bottom-5 sm:right-5">
       {aberto && (
         <section role="status" aria-label="Novidades do NordTool" className="pointer-events-auto relative mb-5 mr-1 w-80 max-w-[calc(100vw-2.5rem)] animate-surgir">
           <div className="nt-nexus-caixa relative px-4 pb-4 pt-6">

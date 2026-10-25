@@ -8,7 +8,8 @@ import { ExigeModuloDaRota } from "@/react-app/components/RotaProtegida";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { useObra } from "@/react-app/hooks/useObra";
 import { podeAbrirRota } from "@/react-app/utils/sessao";
-import { lugiaDisponivel } from "@/react-app/services/LugiaService";
+import CapturaLugiaProvider from "@/react-app/components/lugia/CapturaLugiaProvider";
+import BotaoPrintLugia from "@/react-app/components/lugia/BotaoPrintLugia";
 import { EVENTO_DAVI, criarContadorToques } from "@/react-app/utils/segredo";
 import { alternarGrupo, grupoDaRota, lerGruposAbertos, salvarGruposAbertos } from "@/react-app/utils/menuLateral";
 import { idGrupoMenu, jaViuTutorial, marcarTutorialVisto, tutorialDaTela, tutorialGeral, type PassoTutorial, type Tutorial as DadosTutorial } from "@/react-app/utils/tutorial";
@@ -34,7 +35,7 @@ export default function Layout() {
       title: "Visão Geral",
       items: [
         { path: "/", label: "Início", icon: HomeIcon },
-        ...(lugiaDisponivel() ? [{ path: "/lugia", label: "Lugia (IA)", icon: Sparkles }] : []),
+        { path: "/lugia", label: "Lugia (IA)", icon: Sparkles },
       ]
     },
     {
@@ -146,6 +147,7 @@ export default function Layout() {
   });
 
   return (
+    <CapturaLugiaProvider>
     <div className="flex h-screen w-full bg-slate-50 overflow-hidden relative font-sans">
       
       {/* No celular o menu fica por cima da tela, com fundo escuro que fecha ao tocar. */}
@@ -242,13 +244,13 @@ export default function Layout() {
             })}
           </nav>
 
-          {/* No rodapé só Configurações; conta, senha e sair ficam lá dentro. */}
-          <div className="p-4 border-t border-slate-100 bg-white">
+          {/* No rodapé Configurações (conta, senha e sair ficam lá dentro) e o atalho para o chat da Lugia. */}
+          <div className="p-4 border-t border-slate-100 bg-white flex items-center gap-2">
             <NavLink
               to="/configuracoes"
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 text-sm ${
+                `flex flex-1 items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 text-sm ${
                   isActive
                     ? "bg-slate-800 text-white shadow-md font-bold"
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium"
@@ -257,6 +259,19 @@ export default function Layout() {
             >
               <Settings className="w-4 h-4" />
               <span>Configurações</span>
+            </NavLink>
+            <NavLink
+              to="/lugia"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Chat com a Lugia (IA)"
+              title="Chat com a Lugia (Claude, ChatGPT e Gemini)"
+              className={({ isActive }) =>
+                `flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 ${
+                  isActive ? "bg-blue-600 text-white shadow-md" : "text-blue-600 hover:bg-blue-50"
+                }`
+              }
+            >
+              <Sparkles className="w-5 h-5" />
             </NavLink>
           </div>
 
@@ -276,6 +291,7 @@ export default function Layout() {
           </div>
         )}
 
+        <BotaoPrintLugia className="absolute right-16 top-3 z-30 md:right-[5.5rem] md:top-6" />
         <button type="button" onClick={abrirTutorial} data-tutorial="ajuda"
           aria-label={location.pathname === "/" ? "Tour do NordTool" : "Tutorial desta tela"} title={location.pathname === "/" ? "Tour do NordTool" : "Como usar esta tela"}
           className="group absolute right-3 top-3 z-30 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/60 bg-white/60 text-slate-600 shadow-sm backdrop-blur-md transition-all hover:bg-white hover:text-blue-600 active:scale-95 md:right-6 md:top-6">
@@ -299,5 +315,6 @@ export default function Layout() {
       <GatinhoSecreto />
       {tutorial && <Tutorial key={location.pathname} tutorial={tutorial} raiz={raizDoTutorial} onPasso={prepararPasso} onFechar={fecharTutorial} />}
     </div>
+    </CapturaLugiaProvider>
   );
 }
