@@ -1,0 +1,53 @@
+/* Lugia Nexus: balão em estilo pixel art (caixa de diálogo de RPG). Bordas em degraus feitas com box-shadow, sem arredondado. */
+
+.nt-nexus-caixa {
+  --borda: #1e2963;
+  background: #f4f8ff;
+  box-shadow:
+    0 -4px 0 0 var(--borda),
+    0 4px 0 0 var(--borda),
+    -4px 0 0 0 var(--borda),
+    4px 0 0 0 var(--borda),
+    inset 0 -4px 0 0 #dbe6ff,
+    0 12px 0 0 rgba(30, 41, 99, 0.18);
+}
+
+.nt-nexus-rotulo {
+  background: #2563eb;
+  color: #fff;
+  box-shadow:
+    0 -3px 0 0 #1e2963,
+    0 3px 0 0 #1e2963,
+    -3px 0 0 0 #1e2963,
+    3px 0 0 0 #1e2963;
+}
+
+.nt-nexus-botao {
+  box-shadow:
+    0 -3px 0 0 #1e2963,
+    0 3px 0 0 #1e2963,
+    -3px 0 0 0 #1e2963,
+    3px 0 0 0 #1e2963,
+    inset 0 -4px 0 0 rgba(0, 0, 0, 0.25);
+}
+
+.nt-nexus-botao:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 -3px 0 0 #1e2963,
+    0 3px 0 0 #1e2963,
+    -3px 0 0 0 #1e2963,
+    3px 0 0 0 #1e2963,
+    inset 0 2px 0 0 rgba(0, 0, 0, 0.25);
+}
+
+/* Cursor piscando no fim do texto, como em diálogo de jogo. */
+.nt-nexus-cursor {
+  animation: nt-nexus-piscar 0.8s steps(1) infinite;
+}
+
+@keyframes nt-nexus-piscar {
+  50% {
+    opacity: 0;
+  }
+}

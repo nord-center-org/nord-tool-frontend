@@ -40,6 +40,7 @@ de correlação, o mesmo do log do backend.
 - O build injeta uma Content-Security-Policy (só scripts próprios; `connect-src` com a origem da API).
 
 ### Convenções
+- Toda entrega visível acrescenta uma entrada no topo de `src/react-app/utils/novidades.ts`: o mascote Lugia Nexus anuncia na tela inicial o que mudou e onde ver (regra em `nord-center-infra-agent/policies/novidades.md`).
 - Serviços em `src/react-app/services`, regras puras em `src/react-app/utils` (cada uma com `*.test.ts`, listado no script `test` do `package.json`).
 - Tabelas usam o filtro padrão `ColumnFilter` + `useFiltrosColuna`.
 - Financeiro: `pages/Financeiro.tsx` (abas Dashboard, Extrato e Investimentos em `components/financeiro/`); regras puras em `utils/financeiro*.ts` e `utils/investimentos.ts`. Gráfico da fatura é SVG próprio (sem biblioteca). Atalhos: `N` novo lançamento (Extrato), `←`/`→`/`T` meses (Dashboard). Exige o módulo `FINANCEIRO` no perfil (403 mostra aviso).
