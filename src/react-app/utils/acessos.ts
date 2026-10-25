@@ -23,6 +23,7 @@ export const MODULOS: Record<string, { nome: string; telas: string }> = {
   CAIXINHA: { nome: "Caixinha", telas: "Despesas e comprovantes" },
   FINANCEIRO: { nome: "Gestão financeira", telas: "Controle financeiro e investimentos" },
   CASAMENTO: { nome: "Casamento", telas: "Fornecedores, convidados e marcos" },
+  LUGIA: { nome: "Lugia (IA)", telas: "Chat com Claude, ChatGPT e Gemini (Editar e Admin: para as próximas fases)" },
   CADASTROS: { nome: "Cadastros", telas: "Empresas, cargos e ferramentas" },
   ADMINISTRACAO: { nome: "Administração", telas: "Acessos de usuários (use Admin)" },
 };

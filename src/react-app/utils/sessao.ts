@@ -16,6 +16,7 @@ export type Modulo =
   | "MEDICOES"
   | "RELATORIO_FOTOGRAFICO"
   | "MAPEAMENTOS"
+  | "LUGIA"
   | "CADASTROS"
   | "ADMINISTRACAO";
 
@@ -69,6 +70,7 @@ const MODULO_POR_ROTA: Array<[string, Modulo]> = [
   ["/gestao/financeiro", "FINANCEIRO"],
   ["/gestao/casamento", "CASAMENTO"],
   ["/gestao/caixinha", "CAIXINHA"],
+  ["/lugia", "LUGIA"],
 ];
 
 export function moduloDaRota(caminho: string): Modulo | null {

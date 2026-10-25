@@ -22,6 +22,10 @@ Para desenvolvimento local, crie `.env.local` (não commitado):
 VITE_API_BASE_URL=http://localhost:8081/api/v1/nord-tool
 ```
 
+A Lugia (chat com Claude, ChatGPT e Gemini, serviço `lugia-center`) usa `VITE_LUGIA_BASE_URL` (ex.: `https://<lugia>/api/v1/lugia`),
+**opcional**: sem ela a tela some do menu. Em `npm run dev`, sem a variável, o proxy do Vite manda `/api/v1/lugia` para `localhost:8787`.
+A tela também exige a permissão `LUGIA` (Administração → Acessos).
+
 Todas as chamadas à API passam por `src/react-app/services/apiClient.ts` (`apiFetch` / `apiBlob`), que envia o token JWT e um
 `X-Request-Id`, e lança `ApiError` (com `status` e `cdErro`; ex.: 409 = conflito de versão). Em erro 500 a mensagem traz o código
 de correlação, o mesmo do log do backend.

@@ -20,6 +20,7 @@ import ConcretagemInProgress from "@/react-app/components/Placeholder";
 import RelatorioFotograficoPage from "@/react-app/pages/RelatorioFotografico";
 import MapeamentosPage from "@/react-app/pages/Mapeamentos";
 import TreinosPage from "@/react-app/pages/Treinos";
+import LugiaPage from "@/react-app/pages/Lugia";
 import LoginPage from "@/react-app/pages/Login";
 import AlterarSenhaPage from "@/react-app/pages/AlterarSenha";
 import MeuAvatarPage from "@/react-app/pages/MeuAvatar";
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="configuracoes" element={<SettingsPage />} />
             <Route path="conta/senha" element={<AlterarSenhaPage />} />
             <Route path="conta/avatar" element={<MeuAvatarPage />} />
+            <Route path="lugia" element={<LugiaPage />} />
   
             {/* Mapeamentos */}
             <Route path="mapeamentos/conferencias" element={<MapeamentosPage />} />
