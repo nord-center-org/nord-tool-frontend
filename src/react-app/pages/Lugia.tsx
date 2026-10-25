@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import {
-  Bot, Check, Copy, Crop, FileText, Hammer, MessagesSquare, Image as ImageIcon, Loader2, MessageSquarePlus, PanelLeft, Paperclip, Pencil, Send, Sparkles, Square, Trash2, X,
+  Bot, Check, Copy, Crop, ExternalLink, FileText, Hammer, MessagesSquare, Image as ImageIcon, Loader2, MessageSquarePlus, PanelLeft, Paperclip, Pencil, Send, Sparkles, Square, Trash2, X,
 } from "lucide-react";
 
 import CabecalhoPagina from "@/react-app/components/ui/CabecalhoPagina";
 import { useCapturaLugia } from "@/react-app/hooks/useCapturaLugia";
 import { lerArquivoBase64, lugiaDisponivel, lugiaService as servico, type AnexoEnvio, type ConversaResumo } from "@/react-app/services/LugiaService";
 import {
-  agruparModelos, lerModeloPreferido, MAX_ANEXOS, modeloInicial, ROTULO_PROVEDOR, salvarModeloPreferido, textoDaMensagem, validarArquivo,
+  agruparModelos, lerModeloPreferido, MAX_ANEXOS, modeloInicial, recursosJanelaLateral, SITES_IA, ROTULO_PROVEDOR, salvarModeloPreferido, textoDaMensagem, validarArquivo,
   type MensagemTela, type ModeloIa,
 } from "@/react-app/utils/lugia";
 
@@ -289,12 +289,23 @@ export default function LugiaPage() {
   return (
     <div className="mx-auto flex h-[calc(100dvh-7rem)] max-w-6xl flex-col">
       <CabecalhoPagina icone={Sparkles} titulo="Lugia" subtitulo="Claude, ChatGPT e Gemini num lugar só"
-        acoes={
+        acoes={<>
+          {/* As próprias contas (assinaturas) não podem ser usadas pela API nem embutidas: abre o site numa janela ao lado. */}
+          <div className="flex flex-wrap items-center gap-1.5" aria-label="Abrir com a sua conta">
+            <span className="hidden text-xs font-semibold text-slate-400 lg:inline">Com a sua conta:</span>
+            {SITES_IA.map(s => (
+              <button key={s.id} type="button" title={`Abrir o ${s.nome} numa janela ao lado, com a sua conta`}
+                onClick={() => window.open(s.url, `lugia-${s.id}`, recursosJanelaLateral(window.screen.availWidth, window.screen.availHeight))}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                {s.nome} <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
+              </button>
+            ))}
+          </div>
           <button type="button" onClick={() => setListaAberta(v => !v)} aria-expanded={listaAberta} aria-controls="lugia-conversas"
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 md:hidden">
             <PanelLeft className="h-4 w-4" /> Conversas
           </button>
-        } />
+        </>} />
 
       <div className="flex min-h-0 flex-1 gap-4">
         <aside id="lugia-conversas" className={`${listaAberta ? "fixed inset-x-4 bottom-4 top-24 z-30 shadow-xl" : "hidden"} rounded-2xl border border-slate-200 bg-white p-3 md:static md:z-auto md:block md:w-64 md:shrink-0 md:shadow-sm`}>

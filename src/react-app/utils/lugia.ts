@@ -1,7 +1,7 @@
 /** Regras puras da tela da Lugia (chat multi-IA): leitura do SSE, anexos e URL do serviço. */
 
 /** "agente" é o agente Claude que executa pedidos no NordTool (modo Executar). */
-export type ProvedorIa = "claude" | "openai" | "gemini" | "agente";
+export type ProvedorIa = "claude" | "openai" | "gemini" | "groq" | "openrouter" | "agente";
 
 export interface ModeloIa {
   provedor: ProvedorIa;
@@ -34,7 +34,23 @@ export interface EventoSse {
   dados: string;
 }
 
-export const ROTULO_PROVEDOR: Record<ProvedorIa, string> = { claude: "Claude", openai: "ChatGPT", gemini: "Gemini", agente: "Agente Claude" };
+export const ROTULO_PROVEDOR: Record<ProvedorIa, string> = {
+  claude: "Claude", openai: "ChatGPT", gemini: "Gemini", groq: "Groq (gratuito)", openrouter: "OpenRouter (gratuito)", agente: "Agente Claude",
+};
+
+/** Sites das IAs para abrir em janela ao lado, já com a conta da pessoa (não dá para embutir: eles bloqueiam iframe). */
+export const SITES_IA = [
+  { id: "claude", nome: "Claude", url: "https://claude.ai/new" },
+  { id: "chatgpt", nome: "ChatGPT", url: "https://chatgpt.com/" },
+  { id: "gemini", nome: "Gemini", url: "https://gemini.google.com/app" },
+] as const;
+
+/** Recursos de window.open para uma janela estreita encostada na direita da tela. */
+export function recursosJanelaLateral(larguraTela: number, alturaTela: number): string {
+  const largura = Math.min(520, Math.max(360, Math.round(larguraTela * 0.35)));
+  const altura = Math.max(480, alturaTela - 80);
+  return `popup=yes,width=${largura},height=${altura},left=${Math.max(0, larguraTela - largura)},top=0`;
+}
 
 export const MIMES_ACEITOS = ["image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf"];
 export const MAX_ANEXOS = 5;

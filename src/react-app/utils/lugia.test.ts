@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agruparModelos, criarLeitorSse, modeloInicial, textoDaMensagem, urlLugia, validarArquivo, type ModeloIa } from "./lugia.ts";
+import { agruparModelos, criarLeitorSse, modeloInicial, recursosJanelaLateral, textoDaMensagem, urlLugia, validarArquivo, type ModeloIa } from "./lugia.ts";
 
 test("urlLugia: base relativa usa a origem; absoluta fica como está", () => {
   assert.equal(urlLugia("/api/v1/lugia", "/chat", "http://localhost:5173"), "http://localhost:5173/api/v1/lugia/chat");
@@ -50,4 +50,9 @@ test("modeloInicial usa o preferido só se ainda existir", () => {
   assert.equal(modeloInicial(modelos, "gemini-flash-latest"), "gemini-flash-latest");
   assert.equal(modeloInicial(modelos, "removido"), "claude-opus-5-5");
   assert.equal(modeloInicial([], null), null);
+});
+
+test("recursosJanelaLateral encosta a janela na direita com largura limitada", () => {
+  assert.equal(recursosJanelaLateral(1920, 1080), "popup=yes,width=520,height=1000,left=1400,top=0");
+  assert.equal(recursosJanelaLateral(800, 500), "popup=yes,width=360,height=480,left=440,top=0");
 });

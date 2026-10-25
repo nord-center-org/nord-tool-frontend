@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-25-lugia-gratuita",
+    data: "2026-10-25",
+    titulo: "Lugia mais rápida e com opções gratuitas",
+    texto: "Novos modelos gratuitos e rápidos (Groq e OpenRouter), o Gemini tenta de novo sozinho quando está sobrecarregado, e os botões no topo abrem Claude, ChatGPT ou Gemini numa janela ao lado, com a sua conta.",
+    onde: { rotulo: "Lugia (IA) → topo da tela e seletor de modelo", caminho: "/lugia" },
+  },
+  {
     id: "2026-10-25-lugia-executar",
     data: "2026-10-25",
     titulo: "Lugia no ar: converse e peça mudanças no app",
