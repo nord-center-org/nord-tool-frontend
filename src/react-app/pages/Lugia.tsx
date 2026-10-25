@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import {
-  Bot, Check, Copy, Crop, FileText, Image as ImageIcon, Loader2, MessageSquarePlus, PanelLeft, Paperclip, Pencil, Send, Sparkles, Square, Trash2, X,
+  Bot, Check, Copy, Crop, FileText, Hammer, MessagesSquare, Image as ImageIcon, Loader2, MessageSquarePlus, PanelLeft, Paperclip, Pencil, Send, Sparkles, Square, Trash2, X,
 } from "lucide-react";
 
 import CabecalhoPagina from "@/react-app/components/ui/CabecalhoPagina";
@@ -24,6 +24,9 @@ export default function LugiaPage() {
   const captura = useCapturaLugia();
   const { atualizarSessao, consumirPrints, prints } = captura;
   const [modelos, setModelos] = useState<ModeloIa[] | null>(null);
+  // Modo Executar: o pedido vai para o agente Claude, que mexe no código do NordTool (só ADMIN do módulo).
+  const [agenteDisponivel, setAgenteDisponivel] = useState(false);
+  const [modo, setModo] = useState<"chat" | "agente">("chat");
   const [modelo, setModelo] = useState<string | null>(null);
   const [conversas, setConversas] = useState<ConversaResumo[]>([]);
   const [idConversa, setIdConversa] = useState<number | null>(captura.sessao.idConversa);
@@ -45,6 +48,7 @@ export default function LugiaPage() {
       try {
         const [m, c] = await Promise.all([servico.modelos(), servico.conversas()]);
         setModelos(m.modelos);
+        setAgenteDisponivel(m.agenteDisponivel);
         setModelo(modeloInicial(m.modelos, lerModeloPreferido(armazenamento())));
         setConversas(c);
       } catch (e) {
@@ -164,8 +168,9 @@ export default function LugiaPage() {
 
   const enviar = async (evento?: FormEvent) => {
     evento?.preventDefault();
-    if (enviando || !modelo || (!texto.trim() && anexos.length === 0)) return;
-    const provedor = modelos?.find(m => m.id === modelo)?.provedor;
+    const executar = modo === "agente" && agenteDisponivel;
+    if (enviando || (!executar && !modelo) || (!texto.trim() && anexos.length === 0)) return;
+    const provedor = executar ? "agente" : modelos?.find(m => m.id === modelo)?.provedor;
     const daVez: MensagemTela = {
       papel: "usuario",
       partes: [
@@ -173,7 +178,12 @@ export default function LugiaPage() {
         ...(texto.trim() ? [{ tipo: "texto" as const, texto }] : []),
       ],
     };
-    const pedido = { idConversa: idConversa ?? undefined, modelo, texto, anexos: anexos.map(({ nome, mime, base64 }) => ({ nome, mime, base64 })) };
+    const pedido = {
+      idConversa: idConversa ?? undefined,
+      ...(executar ? { modo: "agente" as const } : { modelo: modelo ?? undefined, modo: "chat" as const }),
+      texto,
+      anexos: anexos.map(({ nome, mime, base64 }) => ({ nome, mime, base64 })),
+    };
     setMensagens(l => [...l, daVez, { papel: "assistente", provedor, partes: [{ tipo: "texto", texto: "" }] }]);
     setTexto("");
     setAnexos([]);
@@ -189,6 +199,13 @@ export default function LugiaPage() {
         copia[copia.length - 1] = { ...ultima, partes: [{ tipo: "texto", texto: textoDaMensagem(ultima) + delta }] };
         return copia;
       });
+    const registrarPasso = (passo: string) =>
+      setMensagens(l => {
+        const copia = [...l];
+        const ultima = copia[copia.length - 1];
+        copia[copia.length - 1] = { ...ultima, passos: [...(ultima.passos ?? []), passo].slice(-6) };
+        return copia;
+      });
 
     try {
       await servico.conversar(pedido, {
@@ -200,6 +217,7 @@ export default function LugiaPage() {
           }
         },
         onTexto: acrescentar,
+        onFerramenta: registrarPasso,
         onErro: m => setErro(m),
       }, controle.signal);
     } catch (e) {
@@ -207,6 +225,7 @@ export default function LugiaPage() {
     } finally {
       setEnviando(false);
       cancelar.current = null;
+      setMensagens(l => l.map(m => (m.passos ? { ...m, passos: undefined } : m)));
       // Resposta vazia (erro antes do primeiro texto) não fica como balão em branco.
       setMensagens(l => (l.length && l[l.length - 1].papel === "assistente" && !textoDaMensagem(l[l.length - 1]) ? l.slice(0, -1) : l));
     }
@@ -324,12 +343,28 @@ export default function LugiaPage() {
                 ))}
               </ul>
             )}
+            {agenteDisponivel && (
+              <div className="mb-2 flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Modo da Lugia">
+                {([["chat", "Conversar", MessagesSquare], ["agente", "Executar no NordTool", Hammer]] as const).map(([valor, rotulo, Icone]) => (
+                  <button key={valor} type="button" role="radio" aria-checked={modo === valor} onClick={() => setModo(valor)} disabled={enviando}
+                    className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-colors ${
+                      modo === valor ? "bg-slate-800 text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+                    <Icone className="h-3.5 w-3.5" /> {rotulo}
+                  </button>
+                ))}
+                {modo === "agente" && (
+                  <span className="text-xs text-slate-500">O agente Claude muda o código, abre o PR para develop e faz o merge quando o CI passar. Pode levar alguns minutos.</span>
+                )}
+              </div>
+            )}
             <textarea value={texto} onChange={e => setTexto(e.target.value)} onKeyDown={teclaNoTexto} rows={2} maxLength={100_000}
-              placeholder={modelos?.length === 0 ? "Nenhum modelo disponível." : "Escreva sua mensagem (Enter envia, Shift+Enter quebra linha)"}
-              aria-label="Mensagem para a Lugia" disabled={!modelo}
+              placeholder={modo === "agente" && agenteDisponivel
+                ? "Diga o que mudar no NordTool (dica: anexe um print da tela)"
+                : modelos?.length === 0 ? "Nenhum modelo disponível." : "Escreva sua mensagem (Enter envia, Shift+Enter quebra linha)"}
+              aria-label="Mensagem para a Lugia" disabled={!(modo === "agente" && agenteDisponivel) && !modelo}
               className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-blue-400 disabled:bg-slate-50" />
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <select value={modelo ?? ""} onChange={e => escolherModelo(e.target.value)} disabled={!modelos?.length || enviando} aria-label="Modelo de IA"
+              {!(modo === "agente" && agenteDisponivel) && <select value={modelo ?? ""} onChange={e => escolherModelo(e.target.value)} disabled={!modelos?.length || enviando} aria-label="Modelo de IA"
                 className="min-w-0 max-w-full flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 sm:flex-none">
                 {modelos === null && <option value="">Carregando modelos…</option>}
                 {grupos.map(g => (
@@ -337,7 +372,7 @@ export default function LugiaPage() {
                     {g.modelos.map(m => <option key={m.id} value={m.id}>{m.id}</option>)}
                   </optgroup>
                 ))}
-              </select>
+              </select>}
               <input ref={entradaArquivo} type="file" multiple hidden accept="image/png,image/jpeg,image/webp,image/gif,application/pdf" onChange={e => void anexar(e.target.files)} />
               <button type="button" onClick={() => entradaArquivo.current?.click()} disabled={enviando} aria-label="Anexar imagem ou PDF"
                 className="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50 disabled:opacity-50">
@@ -355,7 +390,7 @@ export default function LugiaPage() {
                     <Square className="h-4 w-4" /> Parar
                   </button>
                 ) : (
-                  <button type="submit" disabled={!modelo || (!texto.trim() && anexos.length === 0)}
+                  <button type="submit" disabled={(!(modo === "agente" && agenteDisponivel) && !modelo) || (!texto.trim() && anexos.length === 0)}
                     className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50">
                     <Send className="h-4 w-4" /> Enviar
                   </button>
@@ -395,7 +430,17 @@ function Balao({ mensagem: m, digitando }: { mensagem: MensagemTela; digitando: 
           </p>
         ))}
         {texto && <div className="whitespace-pre-wrap break-words leading-relaxed">{texto}</div>}
-        {digitando && !texto && <Loader2 className="h-4 w-4 animate-spin text-slate-400" aria-label="Pensando" />}
+        {m.passos && m.passos.length > 0 && (
+          <ul className="mt-2 space-y-0.5 border-l-2 border-slate-200 pl-2 font-mono text-[11px] text-slate-500" aria-label="Passos do agente">
+            {m.passos.map((passo, i) => <li key={i} className="truncate">{passo}</li>)}
+          </ul>
+        )}
+        {digitando && !texto && (
+          <p className="flex items-center gap-2 text-xs text-slate-500">
+            <Loader2 className="h-4 w-4 animate-spin text-slate-400" aria-label="Pensando" />
+            {m.provedor === "agente" && "O agente está trabalhando. Se sair da tela, a resposta fica salva na conversa."}
+          </p>
+        )}
         {!doUsuario && texto && !digitando && (
           <button type="button" onClick={() => void copiar()} aria-label="Copiar resposta" className="mt-2 inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-700">
             {copiado ? <><Check className="h-3.5 w-3.5" /> Copiado</> : <><Copy className="h-3.5 w-3.5" /> Copiar</>}

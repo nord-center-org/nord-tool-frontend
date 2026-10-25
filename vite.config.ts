@@ -40,7 +40,7 @@ export default defineConfig(({ command, mode }) => {
       throw new Error('Defina VITE_API_BASE_URL (ex.: https://<backend>/api/v1/nord-tool) para gerar o build.');
     }
     origemApi = /^https?:\/\//.test(apiBase) ? new URL(apiBase).origin : '';
-    // Lugia (chat multi-IA) é opcional: sem a variável, a tela some do menu.
+    // Lugia (chat multi-IA) fica no backend; a variável só aponta para outro servidor, se houver.
     origemLugia = /^https?:\/\//.test(lugiaBase) ? new URL(lugiaBase).origin : '';
   }
 
@@ -55,11 +55,6 @@ export default defineConfig(({ command, mode }) => {
       port: 5173,
       strictPort: true,
       proxy: {
-        '/api/v1/lugia': {
-          target: 'http://localhost:8787',
-          changeOrigin: true,
-          secure: false,
-        },
         '/api': {
           target: 'http://localhost:8081',
           changeOrigin: true,

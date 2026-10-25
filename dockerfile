@@ -17,7 +17,7 @@ COPY . .
 ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
-# URL da Lugia (lugia-center), opcional: sem ela a tela da IA não aparece.
+# URL da Lugia, opcional: por padrão o chat usa o próprio backend (<API>/lugia).
 ARG VITE_LUGIA_BASE_URL
 ENV VITE_LUGIA_BASE_URL=${VITE_LUGIA_BASE_URL}
 
