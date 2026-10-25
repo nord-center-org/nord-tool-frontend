@@ -6,14 +6,14 @@ import path from 'path';
  * CSP do app publicado: só scripts próprios e chamadas para a própria origem e a API. Entra apenas no build
  * (no modo dev bloquearia o HMR do Vite). O token fica em sessionStorage, então limitar scripts é a defesa contra XSS.
  */
-function cspDoBuild(origemApi: string): Plugin {
+function cspDoBuild(origens: string): Plugin {
   const politica = [
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://static.getmocha.com",
     "font-src 'self' data:",
-    `connect-src 'self' ${origemApi}`.trim(),
+    `connect-src 'self' ${origens}`.trim(),
     "worker-src 'self' blob:",
     "frame-src 'self' blob:",
     "object-src 'none'",
@@ -32,16 +32,20 @@ function cspDoBuild(origemApi: string): Plugin {
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
   const apiBase = env.VITE_API_BASE_URL ?? '';
+  const lugiaBase = env.VITE_LUGIA_BASE_URL ?? '';
   let origemApi = '';
+  let origemLugia = '';
   if (command === 'build') {
     if (!apiBase) {
       throw new Error('Defina VITE_API_BASE_URL (ex.: https://<backend>/api/v1/nord-tool) para gerar o build.');
     }
     origemApi = /^https?:\/\//.test(apiBase) ? new URL(apiBase).origin : '';
+    // Lugia (chat multi-IA) é opcional: sem a variável, a tela some do menu.
+    origemLugia = /^https?:\/\//.test(lugiaBase) ? new URL(lugiaBase).origin : '';
   }
 
   return {
-    plugins: [react(), cspDoBuild(origemApi)],
+    plugins: [react(), cspDoBuild([origemApi, origemLugia].filter(Boolean).join(' '))],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
@@ -51,6 +55,11 @@ export default defineConfig(({ command, mode }) => {
       port: 5173,
       strictPort: true,
       proxy: {
+        '/api/v1/lugia': {
+          target: 'http://localhost:8787',
+          changeOrigin: true,
+          secure: false,
+        },
         '/api': {
           target: 'http://localhost:8081',
           changeOrigin: true,

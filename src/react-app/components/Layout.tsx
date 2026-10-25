@@ -8,6 +8,7 @@ import { ExigeModuloDaRota } from "@/react-app/components/RotaProtegida";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { useObra } from "@/react-app/hooks/useObra";
 import { podeAbrirRota } from "@/react-app/utils/sessao";
+import { lugiaDisponivel } from "@/react-app/services/LugiaService";
 import { EVENTO_DAVI, criarContadorToques } from "@/react-app/utils/segredo";
 import { alternarGrupo, grupoDaRota, lerGruposAbertos, salvarGruposAbertos } from "@/react-app/utils/menuLateral";
 import { idGrupoMenu, jaViuTutorial, marcarTutorialVisto, tutorialDaTela, tutorialGeral, type PassoTutorial, type Tutorial as DadosTutorial } from "@/react-app/utils/tutorial";
@@ -16,7 +17,7 @@ import {
   Home as HomeIcon, Briefcase, GraduationCap,
   ClipboardCheck, AlertTriangle, Camera, FileText, BookOpen, 
   TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Heart, PiggyBank,
-  Ruler, ChevronDown, HelpCircle
+  Ruler, ChevronDown, HelpCircle, Sparkles
 } from "lucide-react";
 
 const armazenamento = () => (typeof window === "undefined" ? undefined : window.localStorage);
@@ -33,6 +34,7 @@ export default function Layout() {
       title: "Visão Geral",
       items: [
         { path: "/", label: "Início", icon: HomeIcon },
+        ...(lugiaDisponivel() ? [{ path: "/lugia", label: "Lugia (IA)", icon: Sparkles }] : []),
       ]
     },
     {

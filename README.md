@@ -22,6 +22,10 @@ Para desenvolvimento local, crie `.env.local` (não commitado):
 VITE_API_BASE_URL=http://localhost:8081/api/v1/nord-tool
 ```
 
+A Lugia (chat com Claude, ChatGPT e Gemini, serviço `lugia-center`) usa `VITE_LUGIA_BASE_URL` (ex.: `https://<lugia>/api/v1/lugia`),
+**opcional**: sem ela a tela some do menu. Em `npm run dev`, sem a variável, o proxy do Vite manda `/api/v1/lugia` para `localhost:8787`.
+A tela também exige a permissão `LUGIA` (Administração → Acessos).
+
 Todas as chamadas à API passam por `src/react-app/services/apiClient.ts` (`apiFetch` / `apiBlob`), que envia o token JWT e um
 `X-Request-Id`, e lança `ApiError` (com `status` e `cdErro`; ex.: 409 = conflito de versão). Em erro 500 a mensagem traz o código
 de correlação, o mesmo do log do backend.
@@ -36,6 +40,7 @@ de correlação, o mesmo do log do backend.
 - O build injeta uma Content-Security-Policy (só scripts próprios; `connect-src` com a origem da API).
 
 ### Convenções
+- Toda entrega visível acrescenta uma entrada no topo de `src/react-app/utils/novidades.ts`: o mascote Lugia Nexus anuncia na tela inicial o que mudou e onde ver (regra em `nord-center-infra-agent/policies/novidades.md`).
 - Serviços em `src/react-app/services`, regras puras em `src/react-app/utils` (cada uma com `*.test.ts`, listado no script `test` do `package.json`).
 - Tabelas usam o filtro padrão `ColumnFilter` + `useFiltrosColuna`.
 - Financeiro: `pages/Financeiro.tsx` (abas Dashboard, Extrato e Investimentos em `components/financeiro/`); regras puras em `utils/financeiro*.ts` e `utils/investimentos.ts`. Gráfico da fatura é SVG próprio (sem biblioteca). Atalhos: `N` novo lançamento (Extrato), `←`/`→`/`T` meses (Dashboard). Exige o módulo `FINANCEIRO` no perfil (403 mostra aviso).

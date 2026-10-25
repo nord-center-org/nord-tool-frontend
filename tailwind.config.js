@@ -13,6 +13,7 @@ export default {
         "nt-surgir": { from: { opacity: "0", transform: "scale(0.96)" }, to: { opacity: "1", transform: "none" } },
         "nt-da-esquerda": { from: { opacity: "0", transform: "translateX(-8px)" }, to: { opacity: "1", transform: "none" } },
         "nt-da-direita": { from: { opacity: "0", transform: "translateX(8px)" }, to: { opacity: "1", transform: "none" } },
+        "nt-flutuar": { "0%, 100%": { transform: "translateY(0)" }, "50%": { transform: "translateY(-5px)" } },
       },
       // "backwards": a animação não fica aplicada depois de terminar. Com "both" o elemento seguia criando
       // contexto de empilhamento e prendia os modais das telas debaixo do botão do menu.
@@ -22,6 +23,8 @@ export default {
         surgir: "nt-surgir 200ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards",
         "da-esquerda": "nt-da-esquerda 220ms ease-out backwards",
         "da-direita": "nt-da-direita 220ms ease-out backwards",
+        // Só o mascote Lugia Nexus (tela inicial): flutuação lenta e contínua.
+        flutuar: "nt-flutuar 3.2s ease-in-out infinite",
       },
     },
   },

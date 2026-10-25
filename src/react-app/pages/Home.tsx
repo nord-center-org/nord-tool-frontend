@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { podeAbrirRota } from "@/react-app/utils/sessao";
 import CenaObra from "@/react-app/components/home/CenaObra";
+import LugiaNexus from "@/react-app/components/mascote/LugiaNexus";
 import EquipeNaObra from "@/react-app/components/home/EquipeNaObra";
 import { useMeuAvatar } from "@/react-app/hooks/useMeuAvatar";
 import { useObra } from "@/react-app/hooks/useObra";
@@ -152,6 +153,7 @@ export default function HomePage() {
           </div>
         ))}
       </div>
+      <LugiaNexus />
     </div>
   );
 }

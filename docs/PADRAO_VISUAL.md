@@ -37,6 +37,7 @@ Definidas em `tailwind.config.js` e `src/react-app/index.css`. Curtas (200–260
 | `animate-surgir` | destaque pontual (cartão vazio, confirmação) |
 | `animate-aparecer` | só opacidade |
 | `animate-da-esquerda` / `animate-da-direita` | troca de aba lateral |
+| `animate-flutuar` | só o mascote Lugia Nexus (flutuação lenta e contínua; única exceção à regra de animações curtas) |
 
 - Toda janela com `role="dialog" aria-modal="true"` já surge sozinha (regra global); não repita a animação no modal.
 - Cada troca de tela já entra com `animate-entrada` pelo `Layout`.
