@@ -73,14 +73,14 @@ export default function PainelMes({ mes, destaque, ocupado, onExportar, onFechar
 
   return (
     <article aria-label={rotuloMes(mes.competencia)} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <header className="flex items-center justify-between gap-2 bg-slate-900 px-4 py-3 text-white">
+      <header className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3 text-slate-800">
         <h3 className="text-base font-bold">Fechamento de {rotuloMes(mes.competencia)}</h3>
         <span className="flex items-center gap-2">
           {onExportar && (
             <button type="button" onClick={onExportar} aria-label={`Exportar ${rotuloMes(mes.competencia)} para planilha`} title="Exportar para planilha"
-              className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-700 hover:text-white"><Download className="h-4 w-4" /></button>
+              className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-200 hover:text-slate-800"><Download className="h-4 w-4" /></button>
           )}
-          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${mes.fechado ? "bg-slate-700 text-slate-200" : "bg-blue-500/20 text-blue-200"}`}>
+          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${mes.fechado ? "bg-slate-200 text-slate-700" : "bg-blue-100 text-blue-700"}`}>
             {mes.fechado ? <><Lock className="h-3 w-3" /> Fechado</> : mes.estimado ? "Em projeção" : "A fechar"}
           </span>
         </span>

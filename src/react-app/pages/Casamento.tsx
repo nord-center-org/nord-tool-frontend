@@ -51,9 +51,9 @@ export default function CasamentoPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12 text-slate-900">
-      <header className="mx-auto mb-4 max-w-7xl rounded-2xl bg-slate-900 text-white shadow-xl">
+      <header className="mx-auto mb-4 max-w-7xl rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
-          <h1 className="flex items-center gap-2 text-2xl font-black tracking-tight text-blue-400">
+          <h1 className="flex items-center gap-2 text-2xl font-black tracking-tight text-blue-600">
             <Heart className="h-6 w-6" /> Casamento
           </h1>
           <nav role="tablist" aria-label="Seções do casamento" className="flex flex-wrap gap-2">
@@ -67,7 +67,7 @@ export default function CasamentoPage() {
                 className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
                   aba === item.id
                     ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30"
-                    : "text-slate-300 hover:bg-slate-800"
+                    : "text-slate-500 hover:bg-slate-100"
                 }`}
               >
                 <item.icon size={16} /> {item.label}
@@ -79,7 +79,7 @@ export default function CasamentoPage() {
             onClick={() => void exportarTudo()}
             disabled={exportando}
             title="Baixa uma planilha com fornecedores, convidados e marcos"
-            className="flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             {exportando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Exportar tudo
           </button>

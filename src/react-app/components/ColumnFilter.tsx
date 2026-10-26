@@ -26,7 +26,7 @@ export const ColumnFilter = ({
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
-  const rotulo = (value: string) => value === VALOR_VAZIO && emptyLabel ? emptyLabel : value;
+  const rotulo = (value: string | null | undefined) => (value == null || value === VALOR_VAZIO) && emptyLabel ? emptyLabel : String(value ?? VALOR_VAZIO);
   const filteredValues = values.filter(value => rotulo(value).toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR')));
   const allVisibleSelected = filteredValues.every(value => draft.includes(value));
   const active = selected !== null || sortDirection !== null;

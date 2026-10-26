@@ -303,3 +303,9 @@ html.nt-escuro .hover\:text-rose-800:hover:not([data-tema-fixo] *),
 html.nt-escuro .hover\:text-rose-900:hover:not([data-tema-fixo] *) { color: #fda4af; }
 html.nt-escuro .text-blue-600:not([data-tema-fixo] *) { color: #60a5fa; }
 html.nt-escuro .hover\:text-blue-600:hover:not([data-tema-fixo] *) { color: #60a5fa; }
+html.nt-escuro .bg-fuchsia-50:not([data-tema-fixo] *) { background-color: rgb(217 70 239 / 0.13); }
+html.nt-escuro .bg-fuchsia-100:not([data-tema-fixo] *) { background-color: rgb(217 70 239 / 0.22); }
+html.nt-escuro .border-fuchsia-200:not([data-tema-fixo] *),
+html.nt-escuro .border-fuchsia-300:not([data-tema-fixo] *) { border-color: rgb(217 70 239 / 0.38); }
+html.nt-escuro .text-fuchsia-700:not([data-tema-fixo] *),
+html.nt-escuro .text-fuchsia-800:not([data-tema-fixo] *) { color: #f0abfc; }
