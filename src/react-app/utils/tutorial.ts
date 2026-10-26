@@ -516,12 +516,12 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       cabecalho("Configurações", "Sua conta e os ajustes da ferramenta."),
       {
         titulo: "Sua conta",
-        texto: "Edite seu avatar, troque a senha ou saia da conta.",
+        texto: "Edite seu avatar, troque o e-mail de login ou a senha, ou saia da conta.",
         alvo: { css: '[aria-labelledby="config-conta"]' },
       },
       {
         titulo: "Administração",
-        texto: "Obras e fases cadastra as obras; Equipe e cargos monta a hierarquia; Acessos aprova cadastros novos (escolhendo a obra e as fases) e libera o que cada pessoa pode ver.",
+        texto: "Obras e fases cadastra as obras; Equipe e cargos monta a hierarquia; Acessos aprova cadastros novos (escolhendo a obra e as fases) e libera o que cada pessoa pode ver. Lá você também troca o e-mail de alguém e reseta a senha de quem esqueceu.",
         alvo: { css: '[aria-labelledby="config-administracao"]' },
       },
       {
@@ -553,6 +553,14 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       ajudaNoCanto("Meu avatar"),
     ],
+  },
+  "/conta/email": {
+    titulo: "Alterar e-mail",
+    passos: [{
+      titulo: "Alterar e-mail",
+      texto: "Digite o e-mail novo e a sua senha atual para confirmar. Depois da troca, você entra com o e-mail novo.",
+      alvo: { css: "form" },
+    }],
   },
   "/conta/senha": {
     titulo: "Alterar senha",

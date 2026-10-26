@@ -7,6 +7,8 @@ export interface AuthContexto {
   /** true quando a sessão terminou sozinha (expirou ou foi revogada), para avisar na tela de login. */
   sessaoEncerrada: boolean;
   entrar(email: string, senha: string): Promise<void>;
+  /** Primeiro login depois do reset pelo admin: cria a senha nova e já entra. */
+  definirSenha(email: string, senhaProvisoria: string, novaSenha: string): Promise<void>;
   sair(): void;
   /** Substitui a sessão (ex.: após trocar a senha, o backend devolve um token novo). */
   atualizarSessao(sessao: Sessao): void;

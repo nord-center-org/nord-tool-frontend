@@ -23,6 +23,7 @@ import TreinosPage from "@/react-app/pages/Treinos";
 import LugiaPage from "@/react-app/pages/Lugia";
 import LoginPage from "@/react-app/pages/Login";
 import AlterarSenhaPage from "@/react-app/pages/AlterarSenha";
+import AlterarEmailPage from "@/react-app/pages/AlterarEmail";
 import MeuAvatarPage from "@/react-app/pages/MeuAvatar";
 import RotaProtegida from "@/react-app/components/RotaProtegida";
 import AuthProvider from "@/react-app/components/AuthProvider";
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="configuracoes" element={<SettingsPage />} />
             <Route path="conta/senha" element={<AlterarSenhaPage />} />
+            <Route path="conta/email" element={<AlterarEmailPage />} />
             <Route path="conta/avatar" element={<MeuAvatarPage />} />
             <Route path="lugia" element={<LugiaPage />} />
   
