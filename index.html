@@ -3,6 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Aplica o tema antes de desenhar a página (sem piscar branco no tema escuro). Mesma regra de utils/tema.ts.
+      try {
+        var p = JSON.parse(localStorage.getItem("@NordTool:tema") || "{}");
+        var caminho = location.pathname.length > 1 ? location.pathname.replace(/\/+$/, "") : location.pathname;
+        var t = (p.telas && p.telas[caminho]) || p.geral || "claro";
+        if (t === "sistema") t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "escuro" : "claro";
+        if (t === "escuro") { document.documentElement.classList.add("nt-escuro"); document.documentElement.style.colorScheme = "dark"; }
+      } catch (e) {}
+    </script>
     <meta property="og:title" content="Nord Tool" />
     <meta property="og:description" content="Sistema de gerenciamento de entregas de apartamentos" />
     <meta

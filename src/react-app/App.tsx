@@ -27,11 +27,13 @@ import AlterarEmailPage from "@/react-app/pages/AlterarEmail";
 import MeuAvatarPage from "@/react-app/pages/MeuAvatar";
 import RotaProtegida from "@/react-app/components/RotaProtegida";
 import AuthProvider from "@/react-app/components/AuthProvider";
+import TemaProvider from "@/react-app/components/tema/TemaProvider";
 
 export default function App() {
   return (
     <AuthProvider>
       <Router>
+        <TemaProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/cadastro" element={<CadastroPage />} />
@@ -78,6 +80,7 @@ export default function App() {
           {/* URL inexistente: volta ao início (que leva ao login quando não há sessão) em vez de tela em branco */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </TemaProvider>
       </Router>
     </AuthProvider>
   );

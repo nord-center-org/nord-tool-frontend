@@ -21,6 +21,7 @@ import { podeAcessar } from "../utils/sessao";
 import { useObra } from "../hooks/useObra";
 import MeuAvatarMini from "../components/avatar/MeuAvatarMini";
 import CabecalhoPagina from "../components/ui/CabecalhoPagina";
+import AparenciaConfig from "../components/tema/AparenciaConfig";
 
 type AbaCadastro = "empresas" | "cargos" | "permissoes" | "ferramentas";
 
@@ -205,6 +206,8 @@ export default function SettingsPage() {
               </div>
             </section>
           )}
+
+          <AparenciaConfig />
 
           {ehAdmin && (
             <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-blue-200 bg-blue-50/40 p-5 shadow-sm" aria-labelledby="config-administracao">

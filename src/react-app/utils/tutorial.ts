@@ -165,6 +165,12 @@ export function tutorialGeral({ nome, grupos, variasObras }: OpcoesTourGeral): T
       menu: "abrir",
     },
     {
+      titulo: "Claro ou escuro",
+      texto: "No sol/lua do canto você troca o tema: só desta tela ou de todas. As escolhas ficam em Configurações → Aparência.",
+      alvo: { css: '[aria-label$="Trocar tema"]' },
+      menu: "fechar",
+    },
+    {
       titulo: "Ajuda em cada tela",
       texto: "Em qualquer aba, toque neste ponto de interrogação para ver o passo a passo detalhado dela. Aqui no início ele repete este tour.",
       alvo: { css: '[data-tutorial="ajuda"]' },
@@ -518,6 +524,11 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         titulo: "Sua conta",
         texto: "Edite seu avatar, troque o e-mail de login ou a senha, ou saia da conta.",
         alvo: { css: '[aria-labelledby="config-conta"]' },
+      },
+      {
+        titulo: "Aparência",
+        texto: "Escolha o tema claro, escuro ou igual ao do aparelho para todas as telas, e veja quais telas têm tema próprio.",
+        alvo: { css: '[aria-labelledby="config-aparencia"]' },
       },
       {
         titulo: "Administração",
