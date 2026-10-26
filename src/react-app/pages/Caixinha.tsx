@@ -246,20 +246,20 @@ export default function CaixinhaPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12 text-slate-900">
-      <header className="mx-auto mb-4 max-w-7xl rounded-2xl bg-slate-900 text-white shadow-xl">
+      <header className="mx-auto mb-4 max-w-7xl rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-3">
-            <PiggyBank className="h-6 w-6 text-blue-400" />
+            <PiggyBank className="h-6 w-6 text-blue-600" />
             <div>
-              <h1 className="text-2xl font-black tracking-tight text-blue-400">Caixinha</h1>
-              <p className="text-sm text-slate-400">Controle de despesas</p>
+              <h1 className="text-2xl font-black tracking-tight text-blue-600">Caixinha</h1>
+              <p className="text-sm text-slate-500">Controle de despesas</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => setGerenciando(true)} className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700"><Users className="h-4 w-4" /> Responsáveis</button>
-            <button type="button" onClick={exportar} disabled={visiveis.length === 0} className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-40"><Download className="h-4 w-4" /> Exportar</button>
+            <button type="button" onClick={() => setGerenciando(true)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Users className="h-4 w-4" /> Responsáveis</button>
+            <button type="button" onClick={exportar} disabled={visiveis.length === 0} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><Download className="h-4 w-4" /> Exportar</button>
             <button type="button" onClick={() => void gerarPdfUnico()} disabled={visiveis.length === 0 || gerandoPdf !== null} title="Resumo + todos os comprovantes dos lançamentos da lista"
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-40">
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
               {gerandoPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileStack className="h-4 w-4" />} {gerandoPdf ?? "PDF único"}
             </button>
             <button type="button" onClick={() => setModal({})} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700"><Plus className="h-4 w-4" /> Novo lançamento</button>

@@ -493,9 +493,9 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-12">
-      <header className="bg-slate-900 text-white shadow-xl rounded-2xl max-w-7xl mx-auto mb-8">
+      <header className="border border-slate-200 bg-white text-slate-800 shadow-sm rounded-2xl max-w-7xl mx-auto mb-8">
         <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-2xl font-black flex items-center gap-2 text-emerald-400 tracking-tight">
+          <h1 className="text-2xl font-black flex items-center gap-2 text-emerald-600 tracking-tight">
             <Key className="w-6 h-6" /> Controle de Chaves
           </h1>
           <nav className="flex flex-wrap gap-2">
@@ -509,7 +509,7 @@ const App = () => {
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                   activeTab === tab.id
                     ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
-                    : 'hover:bg-slate-800 text-slate-300'
+                    : 'hover:bg-slate-100 text-slate-500'
                 }`}
               >
                 <tab.icon size={16} /> {tab.label}

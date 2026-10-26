@@ -124,21 +124,21 @@ export default function MedicoesPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12 text-slate-900">
-      <header className="mx-auto mb-4 max-w-5xl rounded-2xl bg-slate-900 text-white shadow-xl">
+      <header className="mx-auto mb-4 max-w-5xl rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-3">
-            <Ruler className="h-6 w-6 text-blue-400" />
+            <Ruler className="h-6 w-6 text-blue-600" />
             <div>
-              <h1 className="text-2xl font-black tracking-tight text-blue-400">Medições</h1>
+              <h1 className="text-2xl font-black tracking-tight text-blue-600">Medições</h1>
               <p className="text-sm text-slate-400">Boletins de medição dos contratos</p>
             </div>
           </div>
           <div className="flex items-center gap-5" aria-label="Resumo">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-300">Pendentes</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600">Pendentes</p>
               <p className="text-lg font-black tabular-nums">
                 {resumo.porStatus[STATUS_PENDENTE]?.quantidade ?? 0}
-                <span className="ml-2 text-sm font-semibold text-slate-300">{formatarMoeda(resumo.porStatus[STATUS_PENDENTE]?.valor ?? 0)}</span>
+                <span className="ml-2 text-sm font-semibold text-slate-500">{formatarMoeda(resumo.porStatus[STATUS_PENDENTE]?.valor ?? 0)}</span>
               </p>
             </div>
             <button type="button" onClick={() => setModal({})} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700"><Plus className="h-4 w-4" /> Nova medição</button>

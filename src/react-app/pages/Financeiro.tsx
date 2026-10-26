@@ -76,19 +76,19 @@ export default function FinanceiroPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12 text-slate-900">
-      <header className="mx-auto mb-4 max-w-7xl rounded-2xl bg-slate-900 text-white shadow-xl">
+      <header className="mx-auto mb-4 max-w-7xl rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-3">
-            <Wallet className="h-6 w-6 text-blue-400" />
+            <Wallet className="h-6 w-6 text-blue-600" />
             <div>
-              <h1 className="text-2xl font-black tracking-tight text-blue-400">Financeiro</h1>
+              <h1 className="text-2xl font-black tracking-tight text-blue-600">Financeiro</h1>
               <p className="text-sm text-slate-400">Quanto sobra no mês, extrato e investimentos</p>
             </div>
           </div>
-          <div role="tablist" aria-label="Seções do Financeiro" className="flex w-full gap-1 rounded-xl bg-slate-800 p-1 sm:inline-flex sm:w-auto">
+          <div role="tablist" aria-label="Seções do Financeiro" className="flex w-full gap-1 rounded-xl bg-slate-100 p-1 sm:inline-flex sm:w-auto">
             {ABAS.map(a => (
               <button key={a.id} type="button" role="tab" aria-selected={aba === a.id} onClick={() => escolherAba(a.id)}
-                className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-bold sm:flex-none sm:px-4 sm:text-sm ${aba === a.id ? "bg-white text-blue-600 shadow-sm" : "text-slate-300 hover:text-white"}`}>
+                className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-bold sm:flex-none sm:px-4 sm:text-sm ${aba === a.id ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>
                 {a.rotulo}
               </button>
             ))}
