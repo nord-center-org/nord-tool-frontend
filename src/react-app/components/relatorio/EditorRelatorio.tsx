@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDown, ArrowLeft, ArrowUp, Camera, CheckCircle2, FileDown, ImagePlus, Loader2, Lock, Plus, RotateCcw, Save, Trash2, X,
+  Eye,
 } from "lucide-react";
 
 import ImagemAutenticada from "@/react-app/components/ImagemAutenticada";
 import CapturaFoto from "@/react-app/components/relatorio/CapturaFoto";
 import EditorFoto from "@/react-app/components/relatorio/EditorFoto";
 import SeletorLayout from "@/react-app/components/relatorio/SeletorLayout";
+import PreviaPdf from "@/react-app/components/ui/PreviaPdf";
 import { ApiError } from "@/react-app/services/apiClient";
 import {
   relatorioFotograficoService as servico, type ModeloRelatorio, type RelatorioFotografico,
@@ -51,6 +53,8 @@ export default function EditorRelatorio({ id, podeEditar, modelos, nomeUsuario, 
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
+  // A prévia mostra o mesmo PDF que seria baixado (com o que está na tela agora).
+  const [previa, setPrevia] = useState<Uint8Array | null>(null);
   const [enviando, setEnviando] = useState<Record<string, number>>({});
   const [fotoAberta, setFotoAberta] = useState<{ chaveItem: string; foto: FotoRelatorio } | null>(null);
   const [captura, setCaptura] = useState<{ chaveItem: string; arquivo: File } | null>(null);
@@ -262,8 +266,19 @@ export default function EditorRelatorio({ id, podeEditar, modelos, nomeUsuario, 
     mexer(() => setItens(l => l.filter(i => i.chave !== item.chave)));
   };
 
-  const gerarPdf = async () => {
-    setOcupado("pdf");
+  const nomePdf = () => nomeArquivoPdf(titulo || rel.nmTitulo, data);
+
+  const baixarBytes = (bytes: Uint8Array) => {
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nomePdf();
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
+
+  const gerarPdf = async (destino: "baixar" | "previa" = "baixar") => {
+    setOcupado(destino === "previa" ? "previa" : "pdf");
     setErro(null);
     try {
       const modelo = modelos.find(m => m.id === rel.idModelo) ?? null;
@@ -283,12 +298,8 @@ export default function EditorRelatorio({ id, podeEditar, modelos, nomeUsuario, 
         async idFoto => new Uint8Array(await (await servico.imagem(idFoto)).arrayBuffer()),
         aparencia,
       );
-      const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = nomeArquivoPdf(titulo || rel.nmTitulo, data);
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      if (destino === "previa") setPrevia(bytes);
+      else baixarBytes(bytes);
     } catch (e) {
       setErro(mensagem(e, "Não foi possível gerar o PDF."));
     } finally {
@@ -304,9 +315,13 @@ export default function EditorRelatorio({ id, podeEditar, modelos, nomeUsuario, 
           <ArrowLeft className="h-4 w-4" /> Relatórios
         </button>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => void gerarPdf()} disabled={ocupado !== null}
+          <button type="button" onClick={() => void gerarPdf("previa")} disabled={ocupado !== null}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-            {ocupado === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} PDF
+            {ocupado === "previa" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />} Ver PDF
+          </button>
+          <button type="button" onClick={() => void gerarPdf()} disabled={ocupado !== null} aria-label="Baixar PDF" title="Baixar PDF"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+            {ocupado === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
           </button>
           {podeEditar && (
             <button type="button" onClick={() => void trocarStatus()} disabled={ocupado !== null}
@@ -455,6 +470,10 @@ export default function EditorRelatorio({ id, podeEditar, modelos, nomeUsuario, 
             <Trash2 className="h-4 w-4" /> Excluir relatório
           </button>
         </div>
+      )}
+      {previa && (
+        <PreviaPdf bytes={previa} titulo={titulo.trim() || rel.nmTitulo}
+          onBaixar={() => baixarBytes(previa)} onFechar={() => setPrevia(null)} />
       )}
     </div>
   );
