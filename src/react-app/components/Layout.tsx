@@ -4,6 +4,7 @@ import ErrorBoundary from "@/react-app/components/ErrorBoundary";
 import GatinhoSecreto from "@/react-app/components/davi/GatinhoSecreto";
 import MeuAvatarMini from "@/react-app/components/avatar/MeuAvatarMini";
 import Tutorial from "@/react-app/components/tutorial/Tutorial";
+import BotaoTema from "@/react-app/components/tema/BotaoTema";
 import { ExigeModuloDaRota } from "@/react-app/components/RotaProtegida";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { useObra } from "@/react-app/hooks/useObra";
@@ -291,7 +292,8 @@ export default function Layout() {
           </div>
         )}
 
-        <BotaoPrintLugia className="absolute right-16 top-3 z-30 md:right-[5.5rem] md:top-6" />
+        <BotaoPrintLugia className="absolute right-16 top-3 z-30 md:right-6 md:top-[8.25rem]" />
+        <BotaoTema className="absolute right-[7.25rem] top-3 z-40 md:right-6 md:top-[4.5rem]" />
         <button type="button" onClick={abrirTutorial} data-tutorial="ajuda"
           aria-label={location.pathname === "/" ? "Tour do NordTool" : "Tutorial desta tela"} title={location.pathname === "/" ? "Tour do NordTool" : "Como usar esta tela"}
           className="group absolute right-3 top-3 z-30 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/60 bg-white/60 text-slate-600 shadow-sm backdrop-blur-md transition-all hover:bg-white hover:text-blue-600 active:scale-95 md:right-6 md:top-6">

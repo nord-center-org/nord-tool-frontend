@@ -13,7 +13,7 @@ export default function DaviJobPage() {
   const jogar = useCallback((p: string) => { setUltimoGato(p); setJogando(p); }, []);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 pb-10">
+    <div data-tema-fixo className="mx-auto max-w-6xl space-y-5 pb-10">
       <header className="relative overflow-hidden rounded-3xl border-4 border-slate-900 bg-gradient-to-b from-indigo-100 to-pink-50 px-4 py-6 text-center shadow-[6px_6px_0_#0f172a] sm:py-8">
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-2 opacity-90" aria-hidden="true">
           {PELAGENS.slice(0, 4).map((p, i) => <GatoPixel key={p.id} pelagem={p.id} quadro={{ pose: "parado", cauda: (i % 2) as 0 | 1 }} tamanho={34} className="nt-pula-pixel hidden sm:block" />)}
