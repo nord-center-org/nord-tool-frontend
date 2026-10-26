@@ -4,6 +4,7 @@ import { ArrowLeft, Check, History, Loader2, Search, ShieldCheck, UserX, X } fro
 import AprovacaoCadastro from "@/react-app/components/administracao/AprovacaoCadastro";
 import ColaboradoresLegados from "@/react-app/components/administracao/ColaboradoresLegados";
 import DadosUsuario from "@/react-app/components/administracao/DadosUsuario";
+import ResetSenhaUsuario from "@/react-app/components/administracao/ResetSenhaUsuario";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { OpcoesColaboradorService } from "@/react-app/services/OpcoesColaboradorService";
 import { acessoService, type Acessos, type AcessoUsuario } from "@/react-app/services/AcessoService";
@@ -194,8 +195,10 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
                       onDecidido={u => { setDados(d => d && { ...d, usuarios: d.usuarios.map(x => (x.id === u.id ? u : x)) }); setRascunho(rascunhoDe(u, modulos)); }} />
                   )}
 
-                  <DadosUsuario key={selecionado.id} usuario={selecionado} empresas={empresas} cargos={cargos}
+                  <DadosUsuario key={selecionado.id} usuario={selecionado} empresas={empresas} cargos={cargos} ehEuMesmo={ehEuMesmo}
                     onSalvo={u => setDados(d => d && { ...d, usuarios: d.usuarios.map(x => (x.id === u.id ? u : x)) })} />
+                  <ResetSenhaUsuario key={`senha-${selecionado.id}`} usuario={selecionado} ehEuMesmo={ehEuMesmo}
+                    onResetado={u => setDados(d => d && { ...d, usuarios: d.usuarios.map(x => (x.id === u.id ? u : x)) })} />
 
                   {!rascunho.inAtivo && (
                     <p className="mx-4 mt-3 flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700"><UserX className="h-4 w-4" /> Usuário inativo não consegue entrar no app.</p>

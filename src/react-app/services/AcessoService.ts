@@ -24,6 +24,15 @@ export interface AcessoUsuario {
   idSuperior?: number | null;
   /** O que perfil + cargo dão, sem as exceções do usuário. */
   acessosPadrao?: Record<string, NivelAcesso> | null;
+  /** Senha resetada pelo admin: aguardando a pessoa criar a nova no próximo login. */
+  inTrocarSenha?: boolean;
+}
+
+/** Resposta do reset: a senha provisória só aparece aqui (no banco fica o hash). */
+export interface SenhaProvisoria {
+  senhaProvisoria: string;
+  dhValidaAte: string;
+  emailEnviado: boolean;
 }
 
 export interface AcessoCargo {
@@ -51,7 +60,7 @@ export interface AcessoUsuarioForm {
   acessos: Record<string, NivelAcesso>;
 }
 
-export interface DadosUsuarioForm { nmNome: string; nrCelular: string; idEmpresa: number | null; idCargo: number | null }
+export interface DadosUsuarioForm { nmNome: string; nmEmail?: string; nrCelular: string; idEmpresa: number | null; idCargo: number | null }
 
 /** Colaborador da base antiga e o usuário a que está vinculado. */
 export interface ColaboradorLegado {
@@ -80,6 +89,7 @@ export const acessoService = {
     apiFetch<AcessoUsuario>(`${BASE}/${id}/superior`, { method: "PUT", body: JSON.stringify({ idSuperior }) }),
   salvarDados: (id: number, form: DadosUsuarioForm) =>
     apiFetch<AcessoUsuario>(`${BASE}/${id}/dados`, { method: "PUT", body: JSON.stringify(form) }),
+  resetarSenha: (id: number) => apiFetch<SenhaProvisoria>(`${BASE}/${id}/resetar-senha`, { method: "POST" }),
   listarLegados: async () => (await apiFetch<ColaboradorLegado[]>(`${BASE}/colaboradores-legados`)) ?? [],
   vincular: (idUser: number, idUsuario: number | null) =>
     apiFetch<ColaboradorLegado>(`${BASE}/colaboradores-legados/${idUser}`, { method: "PUT", body: JSON.stringify({ idUsuario }) }),

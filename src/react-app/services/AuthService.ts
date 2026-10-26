@@ -29,6 +29,16 @@ export const authService = {
     return apiFetch<{ txMensagem: string }>("/auth/redefinir-senha", { method: "POST", body: JSON.stringify({ token, novaSenha }) });
   },
 
+  /** Depois do reset pelo admin: e-mail + senha provisória + senha nova; já devolve a sessão. */
+  definirSenha(email: string, senhaProvisoria: string, novaSenha: string): Promise<Sessao> {
+    return apiFetch<Sessao>("/auth/definir-senha", { method: "POST", body: JSON.stringify({ email, senhaProvisoria, novaSenha }) });
+  },
+
+  /** Troca o próprio e-mail (confirma com a senha atual); devolve um token novo. */
+  alterarEmail(nmEmail: string, senhaAtual: string): Promise<Sessao> {
+    return apiFetch<Sessao>("/auth/alterar-email", { method: "POST", body: JSON.stringify({ nmEmail, senhaAtual }) });
+  },
+
   /** Troca a senha; o backend encerra as outras sessões e devolve um token novo para esta. */
   alterarSenha(senhaAtual: string, novaSenha: string): Promise<Sessao> {
     return apiFetch<Sessao>("/auth/alterar-senha", { method: "POST", body: JSON.stringify({ senhaAtual, novaSenha }) });

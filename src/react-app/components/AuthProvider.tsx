@@ -43,6 +43,13 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     aplicar(nova);
   }, [aplicar]);
 
+  const definirSenha = useCallback(async (email: string, senhaProvisoria: string, novaSenha: string) => {
+    const nova = await authService.definirSenha(email, senhaProvisoria, novaSenha);
+    setSessaoEncerrada(false);
+    ultimaAtividade.current = Date.now();
+    aplicar(nova);
+  }, [aplicar]);
+
   useEffect(() => {
     const encerrar = () => {
       setSessaoEncerrada(true);
@@ -85,10 +92,11 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     autenticado: sessao !== null,
     sessaoEncerrada,
     entrar,
+    definirSenha,
     sair,
     atualizarSessao: aplicar,
     pode: (modulo, acao = "LEITURA") => podeAcessar(sessao?.usuario.permissoes, modulo, acao),
-  }), [sessao, sessaoEncerrada, entrar, sair, aplicar]);
+  }), [sessao, sessaoEncerrada, entrar, definirSenha, sair, aplicar]);
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>;
 }

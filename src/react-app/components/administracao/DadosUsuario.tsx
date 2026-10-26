@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 
 import { acessoService, type AcessoUsuario } from "@/react-app/services/AcessoService";
+import { emailValido } from "@/react-app/utils/cadastro";
 
 interface Opcao { id: number; nome: string }
 
@@ -10,28 +11,34 @@ interface DadosUsuarioProps {
   empresas: Opcao[];
   cargos: Opcao[];
   onSalvo: (u: AcessoUsuario) => void;
+  /** O próprio admin troca o e-mail dele em Configurações (com a senha), não aqui. */
+  ehEuMesmo?: boolean;
 }
 
 const classe = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20";
 
-/** Nome, celular, empresa e cargo do usuário (base única de usuários). */
-export default function DadosUsuario({ usuario, empresas, cargos, onSalvo }: DadosUsuarioProps) {
+/** Nome, e-mail, celular, empresa e cargo do usuário (base única de usuários). */
+export default function DadosUsuario({ usuario, empresas, cargos, onSalvo, ehEuMesmo = false }: DadosUsuarioProps) {
   const [nome, setNome] = useState(usuario.nmNome);
+  const [email, setEmail] = useState(usuario.nmEmail);
   const [celular, setCelular] = useState(usuario.nrCelular ?? "");
   const [idEmpresa, setIdEmpresa] = useState<number | "">(usuario.idEmpresa ?? "");
   const [idCargo, setIdCargo] = useState<number | "">(usuario.idCargo ?? "");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
-  const sujo = nome !== usuario.nmNome || celular !== (usuario.nrCelular ?? "")
+  const trocaEmail = email.trim() !== usuario.nmEmail;
+  const sujo = nome !== usuario.nmNome || trocaEmail || celular !== (usuario.nrCelular ?? "")
     || idEmpresa !== (usuario.idEmpresa ?? "") || idCargo !== (usuario.idCargo ?? "");
 
   const salvar = async () => {
     if (!nome.trim()) return setErro("Informe o nome.");
+    if (!emailValido(email)) return setErro("Informe um e-mail válido.");
+    if (trocaEmail && !window.confirm(`Trocar o e-mail de login de ${usuario.nmNome} para ${email.trim()}? Se a pessoa estiver logada, vai precisar entrar de novo com o e-mail novo.`)) return;
     setSalvando(true); setErro(null); setOk(false);
     try {
       onSalvo(await acessoService.salvarDados(usuario.id, {
-        nmNome: nome.trim(), nrCelular: celular.trim(),
+        nmNome: nome.trim(), nmEmail: email.trim(), nrCelular: celular.trim(),
         idEmpresa: idEmpresa === "" ? null : idEmpresa, idCargo: idCargo === "" ? null : idCargo,
       }));
       setOk(true);
@@ -50,6 +57,10 @@ export default function DadosUsuario({ usuario, empresas, cargos, onSalvo }: Dad
       <div className="grid gap-3 px-4 sm:grid-cols-2">
         <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Nome
           <input value={nome} maxLength={150} onChange={e => setNome(e.target.value)} className={`${classe} mt-1`} />
+        </label>
+        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">E-mail (login)
+          <input type="email" value={email} maxLength={150} disabled={ehEuMesmo} onChange={e => setEmail(e.target.value)} className={`${classe} mt-1 disabled:bg-slate-50 disabled:text-slate-400`} />
+          {ehEuMesmo && <span className="mt-1 block text-[11px] font-medium normal-case tracking-normal text-slate-400">O seu e-mail você troca em Configurações → Alterar e-mail.</span>}
         </label>
         <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Celular
           <input value={celular} maxLength={20} inputMode="tel" placeholder="(11) 99999-9999" onChange={e => setCelular(e.target.value)} className={`${classe} mt-1`} />
