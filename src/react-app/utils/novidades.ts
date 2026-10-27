@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-27-desfile-obra",
+    data: "2026-10-27",
+    titulo: "Máquinas passando pela obra",
+    texto: "Na cena da obra agora passam, uma de cada vez, a betoneira, a retroescavadeira, a Bobcat e o time de engenharia a pé. E o céu da tela de login ocupa a tela inteira, sem a faixa cortada no topo.",
+    onde: { rotulo: "Início → cena da obra", caminho: "/" },
+  },
+  {
     id: "2026-10-25-lugia-gratuita",
     data: "2026-10-25",
     titulo: "Lugia mais rápida e com opções gratuitas",
