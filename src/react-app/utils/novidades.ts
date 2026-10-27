@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-27-escadinha-3d",
+    data: "2026-10-27",
+    titulo: "Escadinha 3D: o prédio a partir da prancha",
+    texto: "Anexe o PDF da planta chave: o NordTool acha o contorno da torre e os pavimentos e monta o prédio em 3D. Gire, use o cubo de vistas e toque num pavimento para ele sair da torre e virar planta 2D, com as atividades do ciclo ao lado.",
+    onde: { rotulo: "Menu → Organizacional → Escadinha", caminho: "/organizacional/escadinha" },
+  },
+  {
     id: "2026-10-27-desfile-obra",
     data: "2026-10-27",
     titulo: "Máquinas passando pela obra",

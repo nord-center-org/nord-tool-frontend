@@ -57,7 +57,7 @@ export const DESCRICAO_DAS_TELAS: Record<string, string> = {
   "/mapeamentos/relatorio-fotografico": "Fotos organizadas por item, com edição e PDF pronto no padrão da obra.",
   "/organizacional/rte": EM_BREVE,
   "/organizacional/diario-obras": EM_BREVE,
-  "/organizacional/escadinha": EM_BREVE,
+  "/organizacional/escadinha": "O prédio 3D da torre montado a partir da prancha: gire, toque num pavimento para ver a planta 2D e acompanhe os ciclos da escadinha.",
   "/organizacional/fluxograma": EM_BREVE,
   "/organizacional/controle-chaves": "Quem retirou cada chave ou ferramenta, o que está em campo e o histórico.",
   "/treinamentos": EM_BREVE,
@@ -210,6 +210,31 @@ const EM_CONSTRUCAO: Tutorial = {
 };
 
 export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
+  "/organizacional/escadinha": {
+    titulo: "Escadinha",
+    passos: [
+      {
+        titulo: "Prédio 3D",
+        texto: "O croqui da torre gira como apresentação. Clique para parar e girar você mesmo; o cubo no canto escolhe a vista (frente, topo, direita…).",
+        alvo: { css: "section", texto: "pavimentos" },
+      },
+      {
+        titulo: "Abrir um pavimento",
+        texto: "Toque no número do pavimento, do lado de fora da torre: ele sai como uma fatia e vira a planta 2D, com as atividades do ciclo ao lado.",
+        alvo: { css: "section", texto: "pavimentos" },
+      },
+      {
+        titulo: "Anexar o projeto",
+        texto: "Envie o PDF da planta chave: o NordTool acha o contorno da torre e quantos pavimentos ela tem. Confira, ajuste térreo, barrilete e a largura real e monte o 3D.",
+        alvo: { css: "button", texto: "Anexar projeto" },
+      },
+      {
+        titulo: "Ciclos e atividades",
+        texto: "A lista mostra a escadinha completa. Toque no status de uma atividade para trocar entre pendente, em andamento e finalizado.",
+        alvo: { css: "aside" },
+      },
+    ],
+  },
   "/entregas": {
     titulo: "Agenda",
     passos: [
