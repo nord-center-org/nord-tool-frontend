@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import Mascote, { type Humor } from "@/react-app/components/auth/Mascote";
-import CenaObra from "@/react-app/components/home/CenaObra";
+import CenaObra, { CeuAberto } from "@/react-app/components/home/CenaObra";
 import { dataComemorativa } from "@/react-app/utils/avatar";
 import { hojeSaoPaulo } from "@/react-app/utils/caixinha";
 import { CEU, horaSaoPaulo, periodoDoDia } from "@/react-app/utils/cena";
@@ -35,9 +35,12 @@ export default function TelaPublica({ subtitulo, children, humor = "normal", tre
   const tema = dataComemorativa(hojeSaoPaulo(agora));
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden font-sans" style={{ background: CEU[periodo][0] }}>
+    <div className="relative min-h-screen w-full overflow-hidden font-sans" style={{ background: CEU[periodo][1] }}>
+      <div className="pointer-events-none absolute inset-0">
+        <CeuAberto periodo={periodo} />
+      </div>
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[58vh] min-h-[300px]">
-        <CenaObra periodo={periodo} tema={tema} />
+        <CenaObra periodo={periodo} tema={tema} semCeu />
       </div>
       <div className="relative z-10 flex min-h-screen w-full items-center justify-center p-4 pt-20 sm:p-6 sm:pt-24">
         <div className={`relative w-full max-w-sm ${tremendo ? "nt-tremor" : ""}`}>

@@ -60,6 +60,19 @@
 .nt-tambor { animation: nt-tambor 1.1s linear infinite; }
 @keyframes nt-tambor { from { transform: translateX(0); } to { transform: translateX(9px); } }
 
+/* Desfile: cada máquina atravessa no seu turno de um ciclo de 75s (3 máquinas de 15s + time a pé em 30s). */
+.nt-desfile { animation: nt-desfile 75s linear infinite backwards; }
+.nt-desfile--andando { animation-name: nt-desfile-a-pe; }
+@keyframes nt-desfile { 0% { transform: translateX(-150px); } 19% { transform: translateX(310px); } 19.01%, 100% { transform: translateX(-150px); visibility: hidden; } }
+@keyframes nt-desfile-a-pe { 0% { transform: translateX(-150px); } 38% { transform: translateX(310px); } 38.01%, 100% { transform: translateX(-150px); visibility: hidden; } }
+.nt-roda { animation: nt-roda 0.5s linear infinite; transform-origin: center; }
+@keyframes nt-roda { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+.nt-anda { animation: nt-anda 0.44s steps(2, end) infinite; }
+@keyframes nt-anda { from { transform: translateY(0); } to { transform: translateY(-1px); } }
+.nt-perna { animation: nt-perna 0.44s steps(2, end) infinite; }
+.nt-perna--outra { animation-direction: reverse; }
+@keyframes nt-perna { from { transform: translateX(-1px); } to { transform: translateX(1px); } }
+
 .nt-balanco { animation: nt-balanco 4s ease-in-out infinite alternate; transform-origin: 50% 0; }
 @keyframes nt-balanco { from { transform: rotate(-0.6deg); } to { transform: rotate(0.6deg); } }
 .nt-chama { animation: nt-chama 0.5s ease-in-out infinite alternate; transform-origin: 50% 100%; }
@@ -97,4 +110,5 @@
 @media (prefers-reduced-motion: reduce) {
   .nt-cena *, .nt-pessoa, .nt-passeio, .nt-pulo, .nt-sombra, .nt-balao, .nt-saudacao { animation: none !important; }
   .nt-fogo { opacity: 1; }
+  .nt-desfile:not(.nt-desfile--fixo) { display: none; }
 }
