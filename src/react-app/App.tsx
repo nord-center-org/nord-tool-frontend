@@ -1,3 +1,5 @@
+import { lazy, Suspense } from "react";
+import { Loader2 } from "lucide-react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
 import Layout from "@/react-app/components/Layout";
 import HomePage from "@/react-app/pages/Home";
@@ -29,6 +31,13 @@ import RotaProtegida from "@/react-app/components/RotaProtegida";
 import AuthProvider from "@/react-app/components/AuthProvider";
 import TemaProvider from "@/react-app/components/tema/TemaProvider";
 
+/** Escadinha 3D carrega three.js: fica num pedaço separado, baixado só quando a tela abre. */
+const Escadinha = lazy(() => import("@/react-app/pages/Escadinha"));
+
+function CarregandoTela() {
+  return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-600" aria-label="Carregando" /></div>;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -59,7 +68,7 @@ export default function App() {
             {/* Organizacional */}
             <Route path="organizacional/rte" element={<ConcretagemInProgress />} />
             <Route path="organizacional/diario-obras" element={<ConcretagemInProgress />} />
-            <Route path="organizacional/escadinha" element={<ConcretagemInProgress />} />
+            <Route path="organizacional/escadinha" element={<Suspense fallback={<CarregandoTela />}><Escadinha /></Suspense>} />
             <Route path="organizacional/fluxograma" element={<ConcretagemInProgress />} />
             <Route path="organizacional/controle-chaves" element={<ControleChavesPage />} />
             <Route path="treinamentos" element={<ConcretagemInProgress />} />
