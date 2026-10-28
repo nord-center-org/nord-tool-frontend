@@ -8,7 +8,7 @@ import { useAuth } from "@/react-app/hooks/useAuth";
 import { definirMeuAvatar, useMeuAvatar } from "@/react-app/hooks/useMeuAvatar";
 import { avatarService } from "@/react-app/services/AvatarService";
 import {
-  ACESSORIOS, BARBAS, BOCAS, CABELOS, CORES_CABELO, CORES_CAPACETE, CORES_OLHOS, DATAS, DETALHES, FUNCOES, FUNDOS, FUNDOS_CENA, OLHOS, PELES, SOBRANCELHAS,
+  ACESSORIOS, BARBAS, BOCAS, CABELOS, CORES_CABELO, CORES_CAPACETE, CORES_OLHOS, DATAS, DETALHES, FORMATOS_OLHOS, FUNCOES, FUNDOS, FUNDOS_CENA, OLHOS, PELES, SOBRANCELHAS,
   avatarAleatorio, lerAvatar, salvarAvatar, temaDoAvatar, type AvatarConfig, type DataComemorativa,
 } from "@/react-app/utils/avatar";
 import { hojeSaoPaulo } from "@/react-app/utils/caixinha";
@@ -16,7 +16,8 @@ import { hojeSaoPaulo } from "@/react-app/utils/caixinha";
 const ROTULOS: Record<string, string> = {
   curto: "Curto", raspado: "Raspado", topete: "Topete", franja: "Franja", ondulado: "Ondulado", cacheado: "Cacheado", afro: "Black power",
   moicano: "Moicano", longo: "Longo", rabo: "Rabo de cavalo", coque: "Coque", trancas: "Tranças", dreads: "Dreads", chanel: "Chanel", careca: "Careca",
-  normal: "Normal", feliz: "Feliz", piscando: "Piscando", sereno: "Sereno", surpreso: "Surpreso",
+  normal: "Normal", feliz: "Feliz", piscando: "Piscando", sereno: "Sereno", surpreso: "Surpreso", bravo: "Bravo",
+  amendoado: "Amendoado", redondo: "Redondo", puxado: "Puxado", caido: "Caído", pequeno: "Pequeno", grande: "Grande", semicerrado: "Semicerrado",
   grossa: "Grossa", fina: "Fina", arqueada: "Arqueada",
   sorriso: "Sorriso", aberta: "Rindo", risada: "Gargalhada", canto: "De lado", seria: "Séria",
   nenhuma: "Sem barba", rala: "Por fazer", bigode: "Bigode", cavanhaque: "Cavanhaque", costeleta: "Costeleta", cheia: "Cheia",
@@ -168,16 +169,20 @@ export default function MeuAvatarPage() {
             </div>
           </Grupo>
           <div className="grid gap-4 md:grid-cols-2">
-            <Grupo titulo="Olhos">
-              <div className="grid grid-cols-5 gap-1">{OLHOS.map(o => opcao(o, config.olhos === o, { olhos: o }, ROTULOS[o]))}</div>
-              <div className="mt-3 flex flex-wrap gap-2">
+            <Grupo titulo="Formato dos olhos">
+              <div className="grid grid-cols-4 gap-1">{FORMATOS_OLHOS.map(o => opcao(`f-${o}`, config.formatoOlhos === o, { formatoOlhos: o }, ROTULOS[o]))}</div>
+              <p className="mt-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">Cor dos olhos</p>
+              <div className="mt-1.5 flex flex-wrap gap-2">
                 {(Object.keys(CORES_OLHOS) as AvatarConfig["corOlhos"][]).map(k => cor(k, config.corOlhos === k, CORES_OLHOS[k], { corOlhos: k }, `Olhos ${k}`))}
               </div>
             </Grupo>
-            <Grupo titulo="Sobrancelhas">
-              <div className="grid grid-cols-4 gap-1">{SOBRANCELHAS.map(o => opcao(o, config.sobrancelha === o, { sobrancelha: o }, ROTULOS[o]))}</div>
+            <Grupo titulo="Expressão do olhar">
+              <div className="grid grid-cols-3 gap-1 sm:grid-cols-6 md:grid-cols-3">{OLHOS.map(o => opcao(o, config.olhos === o, { olhos: o }, ROTULOS[o]))}</div>
             </Grupo>
           </div>
+          <Grupo titulo="Sobrancelhas">
+            <div className="grid grid-cols-4 gap-1 sm:max-w-md">{SOBRANCELHAS.map(o => opcao(o, config.sobrancelha === o, { sobrancelha: o }, ROTULOS[o]))}</div>
+          </Grupo>
           <div className="grid gap-4 md:grid-cols-2">
             <Grupo titulo="Boca">
               <div className="grid grid-cols-5 gap-1">{BOCAS.map(b => opcao(b, config.boca === b, { boca: b }, ROTULOS[b]))}</div>

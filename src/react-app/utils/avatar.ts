@@ -18,7 +18,9 @@ export const CABELOS = [
   "curto", "raspado", "topete", "franja", "ondulado", "cacheado", "afro", "moicano", "longo", "rabo", "coque", "trancas", "dreads", "chanel", "careca",
 ] as const;
 export const SOBRANCELHAS = ["normal", "grossa", "fina", "arqueada"] as const;
-export const OLHOS = ["normal", "feliz", "piscando", "sereno", "surpreso"] as const;
+export const OLHOS = ["normal", "feliz", "piscando", "sereno", "surpreso", "bravo"] as const;
+/** Formato dos olhos (independe da expressão). */
+export const FORMATOS_OLHOS = ["normal", "amendoado", "redondo", "puxado", "caido", "pequeno", "grande", "semicerrado"] as const;
 export const CORES_OLHOS = { castanho: "#5b3a1f", preto: "#1f1b18", mel: "#a16207", verde: "#15803d", azul: "#2563eb", cinza: "#64748b" } as const;
 export const BOCAS = ["sorriso", "aberta", "risada", "canto", "seria"] as const;
 export const BARBAS = ["nenhuma", "rala", "bigode", "cavanhaque", "costeleta", "cheia"] as const;
@@ -59,6 +61,7 @@ export type Fundo = keyof typeof FUNDOS;
 export type Funcao = keyof typeof FUNCOES;
 export type Cabelo = (typeof CABELOS)[number];
 export type Olhos = (typeof OLHOS)[number];
+export type FormatoOlhos = (typeof FORMATOS_OLHOS)[number];
 export type Boca = (typeof BOCAS)[number];
 export type Barba = (typeof BARBAS)[number];
 export type Sobrancelha = (typeof SOBRANCELHAS)[number];
@@ -70,7 +73,7 @@ export type CorCapacete = keyof typeof CORES_CAPACETE;
 export interface AvatarConfig {
   pele: Pele; cabelo: Cabelo; corCabelo: CorCabelo; olhos: Olhos; boca: Boca; barba: Barba;
   funcao: Funcao; capacete: boolean; fundo: Fundo;
-  sobrancelha: Sobrancelha; corOlhos: CorOlhos; acessorio: Acessorio; detalhe: Detalhe;
+  sobrancelha: Sobrancelha; corOlhos: CorOlhos; formatoOlhos: FormatoOlhos; acessorio: Acessorio; detalhe: Detalhe;
   /** "funcao" usa a cor de capacete da função. */
   corCapacete: CorCapacete;
   /** Veste o tema das datas comemorativas (Natal, Páscoa…) quando for a época. */
@@ -127,6 +130,7 @@ export function avatarPadrao(idUsuario: number, cargo?: string | null): AvatarCo
     fundo: escolher(["azul", "verde", "amarelo", "rosa", "roxo", "cinza", "laranja", "ceu"] as const, s, 6),
     sobrancelha: escolher(["normal", "normal", "grossa", "fina"] as const, s, 7),
     corOlhos: escolher(["castanho", "castanho", "preto", "mel", "verde", "azul"] as const, s, 8),
+    formatoOlhos: escolher(["normal", "normal", "amendoado", "redondo", "puxado", "caido"] as const, s, 10),
     acessorio: "nenhum",
     detalhe: escolher(["nenhum", "nenhum", "nenhum", "sardas", "bochechas"] as const, s, 9),
     corCapacete: "funcao",
@@ -139,7 +143,7 @@ export function avatarAleatorio(sorteio: () => number = Math.random): AvatarConf
   return {
     pele: um(chaves(PELES)), cabelo: um(CABELOS), corCabelo: um(chaves(CORES_CABELO)), olhos: um(OLHOS), boca: um(BOCAS),
     barba: um(BARBAS), funcao: um(chaves(FUNCOES)), capacete: sorteio() < 0.8, fundo: um(chaves(FUNDOS)),
-    sobrancelha: um(SOBRANCELHAS), corOlhos: um(chaves(CORES_OLHOS)), acessorio: sorteio() < 0.5 ? "nenhum" : um(ACESSORIOS),
+    sobrancelha: um(SOBRANCELHAS), corOlhos: um(chaves(CORES_OLHOS)), formatoOlhos: um(FORMATOS_OLHOS), acessorio: sorteio() < 0.5 ? "nenhum" : um(ACESSORIOS),
     detalhe: um(DETALHES), corCapacete: sorteio() < 0.6 ? "funcao" : um(chaves(CORES_CAPACETE)), datas: true,
   };
 }
@@ -167,6 +171,7 @@ export function lerAvatar(dsConfig: string | null | undefined, idUsuario: number
     fundo: de(chaves(FUNDOS), bruto.fundo, base.fundo),
     sobrancelha: de(SOBRANCELHAS, bruto.sobrancelha, base.sobrancelha),
     corOlhos: de(chaves(CORES_OLHOS), bruto.corOlhos, base.corOlhos),
+    formatoOlhos: de(FORMATOS_OLHOS, bruto.formatoOlhos, base.formatoOlhos),
     acessorio: oculosAntigo ? "oculos" : de(ACESSORIOS, bruto.acessorio, base.acessorio),
     detalhe: de(DETALHES, bruto.detalhe, base.detalhe),
     corCapacete: de(chaves(CORES_CAPACETE), bruto.corCapacete, base.corCapacete),

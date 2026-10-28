@@ -39,7 +39,8 @@ export default function TelaPublica({ subtitulo, children, humor = "normal", tre
       <div className="pointer-events-none absolute inset-0">
         <CeuAberto periodo={periodo} />
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[58vh] min-h-[300px]">
+      {/* Altura mínima de 37,5vw (= 150/400 da largura): a cena nunca corta o topo (a grua aparece inteira). */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 min-h-[300px]" style={{ height: "max(58vh, 37.5vw)" }}>
         <CenaObra periodo={periodo} tema={tema} semCeu />
       </div>
       <div className="relative z-10 flex min-h-screen w-full items-center justify-center p-4 pt-20 sm:p-6 sm:pt-24">
