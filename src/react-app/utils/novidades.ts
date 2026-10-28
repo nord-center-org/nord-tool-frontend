@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-28-cronograma-equipes",
+    data: "2026-10-28",
+    titulo: "Equipes no cronograma, mover demandas de outras pessoas e filtro por pessoa",
+    texto: "Monte equipes por obra (dá para puxar da hierarquia: o líder e todos abaixo dele): quem está na mesma equipe vê as demandas uns dos outros e pode movê-las na esteira. O administrador vê tudo. E o novo filtro mostra só as suas demandas, as de uma pessoa, de várias ou de uma equipe inteira.",
+    onde: { rotulo: "Organizacional → Cronograma semanal", caminho: "/organizacional/cronograma" },
+  },
+  {
     id: "2026-10-28-avatar-pixel",
     data: "2026-10-28",
     titulo: "O avatar voltou a ser pixel art",

@@ -1,8 +1,9 @@
 import { DragEvent, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarDays, LayoutGrid, List, CalendarClock, Search, PlusCircle, X, Lock, Share2, Bot } from "lucide-react";
+import { CalendarDays, LayoutGrid, List, CalendarClock, Search, PlusCircle, X, Lock, Share2, Bot, Users } from "lucide-react";
 import {
   CronogramaSemanalService,
+  type CronogramaEquipe,
   type CronogramaSemanalItem,
   type Status,
   type Categoria,
@@ -10,7 +11,11 @@ import {
 import { HistoricoColumnFilter, type DirecaoOrdenacao } from "../components/HistoricoColumnFilter";
 import CompartilharItem from "../components/cronograma/CompartilharItem";
 import RelatorioIA from "../components/cronograma/RelatorioIA";
-import { ehMeu, passaFiltroDono, type FiltroDono } from "../utils/compartilhamento";
+import { ehMeu } from "../utils/compartilhamento";
+import { donosDasDemandas, passaFiltroPessoas, type FiltroPessoas as Filtro } from "../utils/filtroPessoas";
+import FiltroPessoas from "../components/cronograma/FiltroPessoas";
+import EquipesModal from "../components/cronograma/EquipesModal";
+import { useObra } from "../hooks/useObra";
 import { alternarDia, planejarDias } from "../utils/rotinaDias";
 import { podeAcessar } from "../utils/sessao";
 import { useAuth } from "../hooks/useAuth";
@@ -105,7 +110,14 @@ export default function NordToolDashboard() {
     compartilhar: podeAcessar(usuario?.permissoes, "CRONOGRAMA_COMPARTILHAR", "ESCRITA"),
     rotina: podeAcessar(usuario?.permissoes, "CRONOGRAMA_ROTINA", "ESCRITA"),
     relatorioIA: podeAcessar(usuario?.permissoes, "CRONOGRAMA_RELATORIO_IA", "LEITURA"),
+    mover: podeAcessar(usuario?.permissoes, "CRONOGRAMA", "ESCRITA"),
+    equipes: podeAcessar(usuario?.permissoes, "CRONOGRAMA", "ADMIN"),
   };
+  const { obra } = useObra();
+  const [equipes, setEquipes] = useState<CronogramaEquipe[]>([]);
+  const [equipesAberto, setEquipesAberto] = useState(false);
+  const carregarEquipes = () => { CronogramaSemanalService.equipes().then(setEquipes).catch(() => setEquipes([])); };
+  useEffect(carregarEquipes, []);
   /** Dias marcados da atividade fixa (vários = uma cópia por dia). */
   const [diasFixos, setDiasFixos] = useState<number[]>([]);
   const [items, setItems] = useState<CronogramaSemanalItem[]>([]);
@@ -113,7 +125,7 @@ export default function NordToolDashboard() {
   const [erro, setErro] = useState<string | null>(null);
   const [categoria, setCategoria] = useState<Categoria | "Todas">("Todas");
   const [busca, setBusca] = useState("");
-  const [filtroDono, setFiltroDono] = useState<FiltroDono>("TODOS");
+  const [filtroPessoas, setFiltroPessoas] = useState<Filtro>({ tipo: "todos" });
   const [dragging, setDragging] = useState<number | null>(null);
   const [editando, setEditando] = useState<CronogramaSemanalItem | null>(null);
   const [criando, setCriando] = useState(false);
@@ -168,11 +180,12 @@ export default function NordToolDashboard() {
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");
     return items.filter(item =>
-      passaFiltroDono(item, filtroDono) &&
+      passaFiltroPessoas(item, filtroPessoas, usuario?.id) &&
       (categoria === "Todas" || item.nmCategoria === categoria) &&
       (!termo || [item.nmCronogramaSemanal, item.txObservacao ?? "", item.nmTag ?? ""].join(" ").toLocaleLowerCase("pt-BR").includes(termo))
     );
-  }, [items, categoria, busca, filtroDono]);
+  }, [items, categoria, busca, filtroPessoas, usuario?.id]);
+  const donos = useMemo(() => donosDasDemandas(items, usuario?.id, "Eu"), [items, usuario?.id]);
 
   const valorColuna = (item: CronogramaSemanalItem, coluna: ColunaLista): string => {
     if (coluna === "status") return statuses.find(s => s.id === item.nmStatusCronograma)?.label ?? item.nmStatusCronograma;
@@ -215,7 +228,7 @@ export default function NordToolDashboard() {
     const idsSelecionados = new Set(selecionados);
     setItems(current => current.map(i => (i.id && idsSelecionados.has(i.id) ? { ...i, nmStatusCronograma: statusEmMassa } : i)));
     try {
-      await CronogramaSemanalService.moverStatus(selecionados, statusEmMassa, anteriores);
+      await CronogramaSemanalService.moverStatus(selecionados, statusEmMassa);
       setSelecionados([]);
     } catch (err) {
       setItems(anteriores);
@@ -338,7 +351,7 @@ export default function NordToolDashboard() {
     const anteriores = items;
     setItems(current => current.map(i => (i.id === item.id ? { ...i, nmStatusCronograma: status } : i)));
     try {
-      await CronogramaSemanalService.alterar({ ...item, nmStatusCronograma: status });
+      await CronogramaSemanalService.mudarStatus(item.id, status);
     } catch (err) {
       setItems(anteriores);
       setErro(err instanceof Error ? err.message : "Falha ao mover a demanda.");
@@ -367,10 +380,16 @@ export default function NordToolDashboard() {
             </div>
           </div>
 
+          <div className="flex flex-wrap gap-2 sm:ml-auto sm:mr-3">
+          {pode.equipes && <button onClick={() => setEquipesAberto(true)} title="Equipes da obra: quem está na mesma equipe vê as demandas uns dos outros"
+            className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+            <Users size={16} /> Equipes
+          </button>}
           {pode.relatorioIA && <button onClick={() => setRelatorioIA(true)} title="Link para o Gemini ou outro assistente ler o seu cronograma"
-            className="flex items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 sm:ml-auto sm:mr-3">
+            className="flex items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100">
             <Bot size={16} /> Relatório para IA
           </button>}
+          </div>
 
           <div className="grid grid-cols-3 rounded-xl bg-white p-1.5 border border-slate-200 sm:flex">
             <button onClick={() => setPage("kanban")} className={`flex items-center justify-center gap-2 rounded-lg px-2 sm:px-4 py-2 text-sm font-bold transition-all ${page === "kanban" ? "bg-violet-600 text-white" : "text-slate-500"}`}>
@@ -405,16 +424,7 @@ export default function NordToolDashboard() {
                 <option value="Todas">Todas as categorias</option>
                 {categorias.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              <select
-                aria-label="De quem"
-                value={filtroDono}
-                onChange={e => setFiltroDono(e.target.value as FiltroDono)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-violet-600"
-              >
-                <option value="TODOS">Meus e compartilhados</option>
-                <option value="MEUS">Só os meus</option>
-                <option value="COMIGO">Compartilhados comigo</option>
-              </select>
+              <FiltroPessoas filtro={filtroPessoas} onMudar={setFiltroPessoas} donos={donos} equipes={equipes} />
               <button onClick={() => abrirNovo()} className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
                 <PlusCircle size={16} /> Nova demanda
               </button>
@@ -455,7 +465,7 @@ export default function NordToolDashboard() {
                           {itensDaColuna.map(item => (
                             <div
                               key={item.id}
-                              draggable={ehMeu(item)}
+                              draggable={pode.mover}
                               onDragStart={e => { e.dataTransfer.setData("text/item-id", String(item.id)); setDragging(item.id ?? null); }}
                               onDragEnd={() => setDragging(null)}
                               onClick={() => abrirEdicao(item)}
@@ -721,8 +731,18 @@ export default function NordToolDashboard() {
 
             {editando && !ehMeu(editando) && (
               <p className="mb-3 flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-700">
-                <Lock size={14} /> Compartilhado por {editando.nmDono ?? "outra pessoa"}: só quem criou pode alterar.
+                <Lock size={14} /> Demanda de {editando.nmDono ?? "outra pessoa"}: só quem criou pode editar o conteúdo.
               </p>
+            )}
+            {editando?.id != null && !ehMeu(editando) && pode.mover && (
+              <label className="mb-3 flex items-center gap-2 text-xs font-semibold text-slate-500">
+                Mover para a fila
+                <select value={draft.nmStatusCronograma} aria-label="Mover para a fila"
+                  onChange={e => { const st = e.target.value as Status; setDraft({ ...draft, nmStatusCronograma: st }); void mudarStatus(editando, st); setEditando({ ...editando, nmStatusCronograma: st }); }}
+                  className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800">
+                  {statuses.map(st => <option key={st.id} value={st.id}>{st.label}</option>)}
+                </select>
+              </label>
             )}
             {editando?.id != null && ehMeu(editando) && pode.compartilhar && (
               <CompartilharItem idItem={editando.id} idsAtuais={editando.idsCompartilhados ?? []}
@@ -885,6 +905,10 @@ export default function NordToolDashboard() {
       )}
 
       {relatorioIA && <RelatorioIA onFechar={() => setRelatorioIA(false)} />}
+      {equipesAberto && usuario && (
+        <EquipesModal meuId={usuario.id} meuNome={usuario.nome} nomeObra={obra?.nmObra}
+          onFechar={() => setEquipesAberto(false)} onSalvo={() => { carregarEquipes(); void carregar(); }} />
+      )}
     </div>
   );
 }
