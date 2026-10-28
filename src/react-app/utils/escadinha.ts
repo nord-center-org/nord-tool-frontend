@@ -28,8 +28,35 @@ export interface Torre {
   origem: "exemplo" | "projeto";
   /** Nome do PDF de onde a torre saiu. */
   arquivo?: string;
-  /** Prancha usada: imagem reduzida, tamanho da análise (px) e o contorno achado nela (px). */
-  planta?: { imagem: string; largura: number; altura: number; contornoPx: Ponto[] };
+  /**
+   * Prancha usada: tamanho da análise (px) e o contorno achado nela (px). A imagem (data URL) vai à parte
+   * para o servidor e só é carregada quando a planta 2D abre.
+   */
+  planta?: { imagem?: string; largura: number; altura: number; contornoPx: Ponto[] };
+  /** Apartamentos da planta do pavimento tipo (em metros, no mesmo sistema do contorno). */
+  apartamentos?: Apartamento[];
+  /** Divisão da torre em lado A e lado B. */
+  lados?: DivisaoLados;
+}
+
+export type Lado = "A" | "B";
+
+export interface Apartamento {
+  id: string;
+  nome: string;
+  contorno: Ponto[];
+  lado: Lado;
+  /** Lado escolhido à mão (não muda quando a divisão é refeita). */
+  ladoManual?: boolean;
+}
+
+/** Linha que separa os lados: o lado A fica à esquerda de a→b quando aEsquerda é true. */
+export interface DivisaoLados {
+  a: Ponto;
+  b: Ponto;
+  aEsquerda: boolean;
+  /** junta = achou a junta de dilatação na prancha; automatica = pelo formato; manual = desenhada pela pessoa. */
+  fonte: "junta" | "automatica" | "manual";
 }
 
 export type StatusAtividade = "pendente" | "andamento" | "finalizado";
@@ -41,7 +68,10 @@ export interface Atividade {
 }
 
 export interface Ciclo {
+  /** Pavimento do ciclo; ciclos avulsos (fundação, cobertura extra…) usam "extra-…". */
   idPavimento: string;
+  /** Nome próprio do ciclo (sem ele, usa o nome do pavimento). */
+  nome?: string;
   /** Início previsto (AAAA-MM-DD). */
   inicio: string;
   atividades: Atividade[];
@@ -75,6 +105,25 @@ export const ATIVIDADES_CICLO = [
 ];
 
 export const DIAS_POR_CICLO = 7;
+
+/** Modelo de ciclos da obra: atividades de um ciclo novo e quantos dias cada ciclo dura. */
+export interface ModeloCiclos {
+  atividades: string[];
+  diasPorCiclo: number;
+}
+
+export const MODELO_PADRAO: ModeloCiclos = { atividades: ATIVIDADES_CICLO, diasPorCiclo: DIAS_POR_CICLO };
+
+/** Lê o modelo vindo do servidor; o que vier faltando ou inválido cai no padrão. */
+export function lerModelo(bruto: unknown): ModeloCiclos {
+  const m = (bruto ?? {}) as Partial<ModeloCiclos>;
+  const atividades = Array.isArray(m.atividades) ? m.atividades.map(a => String(a).trim()).filter(Boolean).slice(0, 40) : [];
+  const dias = Number(m.diasPorCiclo);
+  return {
+    atividades: atividades.length ? atividades : MODELO_PADRAO.atividades,
+    diasPorCiclo: Number.isFinite(dias) && dias >= 1 && dias <= 60 ? Math.round(dias) : DIAS_POR_CICLO,
+  };
+}
 
 // ---------------------------------------------------------------- pavimentos
 
@@ -271,12 +320,18 @@ export function ortogonalizar(pontos: Ponto[]): Ponto[] {
  * com a largura real informada.
  */
 export function contornoEmMetros(contornoPx: Ponto[], larguraM: number): Ponto[] {
+  const paraMetros = transformadorMetros(contornoPx, larguraM);
+  const pts = contornoPx.map(paraMetros);
+  return area(pts) < 0 ? pts.reverse() : pts;
+}
+
+/** Converte qualquer ponto da prancha (px) para o sistema da torre (m), com a mesma escala e centro do contorno. */
+export function transformadorMetros(contornoPx: Ponto[], larguraM: number): (p: Ponto) => Ponto {
   const l = limites(contornoPx);
   const escala = l.largura ? larguraM / l.largura : 1;
   const cx = (l.minX + l.maxX) / 2, cy = (l.minY + l.maxY) / 2;
   const r = (v: number) => Math.round(v * 100) / 100;
-  const pts = contornoPx.map(([x, y]) => [r((x - cx) * escala), r(-(y - cy) * escala)] as Ponto);
-  return area(pts) < 0 ? pts.reverse() : pts;
+  return ([x, y]) => [r((x - cx) * escala), r(-(y - cy) * escala)];
 }
 
 /** Núcleo (caixa de escada/elevadores) para o barrilete: retângulo de ~30% no centro do contorno. */
@@ -313,25 +368,27 @@ export function pilares(contorno: Ponto[], passo = 6): Ponto[] {
 
 // ---------------------------------------------------------------- escadinha
 
-function somarDias(iso: string, dias: number): string {
+export function somarDias(iso: string, dias: number): string {
   const [a, m, d] = iso.split("-").map(Number);
   const data = new Date(Date.UTC(a, m - 1, d + dias));
   return data.toISOString().slice(0, 10);
 }
 
 /**
- * Escadinha inicial: um ciclo por pavimento, começando em `inicio`, um a cada DIAS_POR_CICLO dias.
- * Quando `hoje` é informado, marca o que já passou como finalizado e o ciclo atual como em andamento (para o protótipo ter cara de obra).
+ * Escadinha inicial: um ciclo por pavimento, começando em `inicio`, um a cada `modelo.diasPorCiclo` dias, com as atividades do modelo.
+ * Quando `hoje` é informado, marca o que já passou como finalizado e o ciclo atual como em andamento (para o exemplo ter cara de obra).
  */
-export function gerarEscadinha(pavimentos: Pavimento[], inicio: string, hoje?: string): Ciclo[] {
+export function gerarEscadinha(pavimentos: Pavimento[], inicio: string, hoje?: string, modelo: ModeloCiclos = MODELO_PADRAO): Ciclo[] {
+  const dias = modelo.diasPorCiclo;
+  const lista = modelo.atividades;
   return pavimentos.map((p, i) => {
-    const comeco = somarDias(inicio, i * DIAS_POR_CICLO);
+    const comeco = somarDias(inicio, i * dias);
     const passados = hoje ? Math.floor((Date.parse(hoje) - Date.parse(comeco)) / 86400000) : -1;
-    const feitas = passados < 0 ? 0 : Math.min(ATIVIDADES_CICLO.length, Math.floor((passados / DIAS_POR_CICLO) * ATIVIDADES_CICLO.length * 0.5));
+    const feitas = passados < 0 ? 0 : Math.min(lista.length, Math.floor((passados / dias) * lista.length * 0.5));
     return {
       idPavimento: p.id,
       inicio: comeco,
-      atividades: ATIVIDADES_CICLO.map((nome, k) => ({
+      atividades: lista.map((nome, k) => ({
         id: `${p.id}-${k}`,
         nome,
         status: k < feitas ? "finalizado" : k === feitas && passados >= 0 ? "andamento" : "pendente",
@@ -340,14 +397,30 @@ export function gerarEscadinha(pavimentos: Pavimento[], inicio: string, hoje?: s
   });
 }
 
-/** Mantém o andamento das atividades que já existiam ao refazer a pilha de pavimentos. */
+/**
+ * Refaz a escadinha quando a pilha de pavimentos muda: mantém os ciclos e atividades já editados
+ * dos pavimentos que continuam, cria os novos pelo modelo e preserva os ciclos avulsos.
+ */
 export function reaproveitarCiclos(novos: Ciclo[], antigos: Ciclo[]): Ciclo[] {
-  return novos.map(c => {
-    const velho = antigos.find(a => a.idPavimento === c.idPavimento);
-    if (!velho) return c;
-    return { ...c, atividades: c.atividades.map(a => ({ ...a, status: velho.atividades.find(v => v.nome === a.nome)?.status ?? a.status })) };
-  });
+  const porPavimento = novos.map(c => antigos.find(a => a.idPavimento === c.idPavimento) ?? c);
+  const avulsos = antigos.filter(a => a.idPavimento.startsWith("extra-"));
+  return [...porPavimento, ...avulsos];
 }
+
+/** Aplica o modelo a todos os ciclos: lista de atividades do modelo, mantendo o status das que têm o mesmo nome. */
+export function aplicarModelo(ciclos: Ciclo[], modelo: ModeloCiclos): Ciclo[] {
+  return ciclos.map(c => ({
+    ...c,
+    atividades: modelo.atividades.map((nome, k) => {
+      const igual = c.atividades.find(a => a.nome.trim().toLowerCase() === nome.trim().toLowerCase());
+      return igual ? { ...igual, nome } : { id: `${c.idPavimento}-${Date.now().toString(36)}-${k}`, nome, status: "pendente" as const };
+    }),
+  }));
+}
+
+let sequencia = 0;
+/** Id novo para atividade ou ciclo criado na tela. */
+export const novoId = (prefixo: string) => `${prefixo}-${Date.now().toString(36)}${(sequencia++).toString(36)}`;
 
 /** Andamento do ciclo de 0 a 1 (em andamento conta meia). */
 export function progresso(ciclo: Ciclo): number {
@@ -372,7 +445,7 @@ export function alternarStatus(ciclos: Ciclo[], idAtividade: string): Ciclo[] {
 /** Data curta "27/10" a partir de AAAA-MM-DD. */
 export const dataCurta = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
-// ---------------------------------------------------------------- exemplo e armazenamento
+// ---------------------------------------------------------------- exemplo
 
 /** Torre em L de exemplo (lembra a planta chave de uma torre de 18 finais), para a tela nunca abrir vazia. */
 export const CONTORNO_EXEMPLO: Ponto[] = [[-16, -11], [16, -11], [16, 11], [4, 11], [4, 1], [-16, 1]];
@@ -384,26 +457,4 @@ export function escadinhaExemplo(hoje: string): Escadinha {
     torre: { nome: "Torre exemplo", contorno: CONTORNO_EXEMPLO, pavimentos, origem: "exemplo" },
     ciclos: gerarEscadinha(pavimentos, inicio, hoje),
   };
-}
-
-const PREFIXO = "@NordTool:escadinha:";
-export const chaveEscadinha = (idObra: number | null) => `${PREFIXO}${idObra ?? "sem-obra"}`;
-
-export function lerEscadinha(storage: Pick<Storage, "getItem"> | undefined, idObra: number | null): Escadinha | null {
-  try {
-    const bruto = storage?.getItem(chaveEscadinha(idObra));
-    if (!bruto) return null;
-    const dado = JSON.parse(bruto) as Escadinha;
-    return dado?.torre?.contorno?.length >= 3 && Array.isArray(dado.ciclos) ? dado : null;
-  } catch {
-    return null;
-  }
-}
-
-export function salvarEscadinha(storage: Pick<Storage, "setItem"> | undefined, idObra: number | null, dado: Escadinha): void {
-  try {
-    storage?.setItem(chaveEscadinha(idObra), JSON.stringify(dado));
-  } catch {
-    // Sem armazenamento: o protótipo só não lembra a torre.
-  }
 }

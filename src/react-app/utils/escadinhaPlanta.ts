@@ -181,3 +181,59 @@ export function detectarContorno(lum: ArrayLike<number>, largura: number, altura
     ocupacao: caixas[escolhido].n / (w * h),
   };
 }
+
+/** Pixels dentro do polígono (contorno da torre em px), linha a linha. */
+function dentroDoPoligono(contorno: Ponto[], w: number, h: number): Uint8Array {
+  const m = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const yc = y + 0.5;
+    const cortes: number[] = [];
+    for (let i = 0, j = contorno.length - 1; i < contorno.length; j = i++) {
+      const [xi, yi] = contorno[i];
+      const [xj, yj] = contorno[j];
+      if ((yi > yc) !== (yj > yc)) cortes.push(xi + ((yc - yi) * (xj - xi)) / (yj - yi));
+    }
+    cortes.sort((a, b) => a - b);
+    for (let k = 0; k + 1 < cortes.length; k += 2) {
+      for (let x = Math.max(0, Math.ceil(cortes[k] - 0.5)); x < Math.min(w, Math.floor(cortes[k + 1] - 0.5) + 1); x++) m[y * w + x] = 1;
+    }
+  }
+  return m;
+}
+
+/**
+ * Células fechadas dentro da torre (apartamentos numa planta chave, ou cômodos numa planta baixa): o vazio entre os traços,
+ * dentro do contorno, separado em regiões; cada região grande o bastante vira um polígono reto (px da imagem).
+ */
+export function detectarCelulas(lum: ArrayLike<number>, largura: number, altura: number, contorno: Ponto[], limiar = 170): Ponto[][] {
+  const xs = contorno.map(p => p[0]), ys = contorno.map(p => p[1]);
+  const x0 = Math.max(0, Math.floor(Math.min(...xs)) - 2), y0 = Math.max(0, Math.floor(Math.min(...ys)) - 2);
+  const w = Math.min(largura, Math.ceil(Math.max(...xs)) + 3) - x0, h = Math.min(altura, Math.ceil(Math.max(...ys)) + 3) - y0;
+  if (w < 8 || h < 8) return [];
+  const local = contorno.map(([x, y]) => [x - x0, y - y0] as Ponto);
+  const dentro = dentroDoPoligono(local, w, h);
+  const traco = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) traco[y * w + x] = lum[(y + y0) * largura + x + x0] < limiar ? 1 : 0;
+  const r = Math.max(1, Math.round(Math.min(w, h) / 250));
+  const grosso = dilatar(traco, w, h, r);
+  const livre = new Uint8Array(w * h);
+  for (let i = 0; i < livre.length; i++) livre[i] = dentro[i] && !grosso[i] ? 1 : 0;
+  const { rotulo, caixas } = componentes(livre, w, h);
+  const areaTorre = dentro.reduce((s, v) => s + v, 0);
+  const tolerancia = Math.max(2, Math.hypot(w, h) * 0.008);
+  const saida: Ponto[][] = [];
+  caixas.forEach((c, id) => {
+    if (c.n < areaTorre * 0.01 || c.n > areaTorre * 0.7) return;
+    const mascara = new Uint8Array(w * h);
+    for (let i = 0; i < mascara.length; i++) mascara[i] = rotulo[i] === id ? 1 : 0;
+    // Devolve a espessura do traço que o engrossamento comeu, para a célula encostar nas paredes.
+    const cheia = dilatar(mascara, w, h, r);
+    for (let i = 0; i < cheia.length; i++) cheia[i] = cheia[i] && dentro[i] ? 1 : 0;
+    const borda = tracarBorda(cheia, w, h);
+    if (borda.length < 4) return;
+    let poly = ortogonalizar(simplificar(borda, tolerancia));
+    if (poly.length < 4) poly = borda;
+    saida.push(poly.map(([x, y]) => [Math.round(x + x0), Math.round(y + y0)] as Ponto));
+  });
+  return saida;
+}

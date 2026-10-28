@@ -214,23 +214,28 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
     titulo: "Escadinha",
     passos: [
       {
+        titulo: "Torres da obra",
+        texto: "Cada aba é uma torre. Use + Torre para adicionar outra; o lápis renomeia. Tudo fica salvo para a equipe toda.",
+        alvo: { css: "[role=tablist]" },
+      },
+      {
         titulo: "Prédio 3D",
-        texto: "O croqui da torre gira como apresentação. Clique para parar e girar você mesmo; o cubo no canto escolhe a vista (frente, topo, direita…).",
+        texto: "O croqui da torre gira como apresentação. Clique para girar você mesmo; o cubo no canto escolhe a vista. Toque no número do pavimento para ele sair como fatia e virar planta 2D.",
         alvo: { css: "section", texto: "pavimentos" },
       },
       {
-        titulo: "Abrir um pavimento",
-        texto: "Toque no número do pavimento, do lado de fora da torre: ele sai como uma fatia e vira a planta 2D, com as atividades do ciclo ao lado.",
+        titulo: "Apartamentos e lados A/B",
+        texto: "Na planta 2D, toque num apartamento para ver o nome e trocar o lado. Desenhe apartamentos, a divisão dos lados (o lado A é o da junta) ou inverta A/B.",
         alvo: { css: "section", texto: "pavimentos" },
       },
       {
         titulo: "Anexar o projeto",
-        texto: "Envie o PDF da planta chave: o NordTool acha o contorno da torre e quantos pavimentos ela tem. Confira, ajuste térreo, barrilete e a largura real e monte o 3D.",
+        texto: "Envie o PDF da planta chave: o NordTool acha o contorno da torre, os pavimentos, os apartamentos e a junta.",
         alvo: { css: "button", texto: "Anexar projeto" },
       },
       {
         titulo: "Ciclos e atividades",
-        texto: "A lista mostra a escadinha completa. Toque no status de uma atividade para trocar entre pendente, em andamento e finalizado.",
+        texto: "Toque no status para mudar. No lápis do painel, edite nomes, datas e atividades de cada ciclo; em Modelo, defina as atividades padrão da obra.",
         alvo: { css: "aside" },
       },
     ],
