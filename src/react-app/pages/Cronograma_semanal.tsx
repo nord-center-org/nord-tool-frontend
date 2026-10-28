@@ -1,6 +1,6 @@
 import { DragEvent, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarDays, LayoutGrid, List, CalendarClock, Search, PlusCircle, X, Lock, Share2 } from "lucide-react";
+import { CalendarDays, LayoutGrid, List, CalendarClock, Search, PlusCircle, X, Lock, Share2, Bot } from "lucide-react";
 import {
   CronogramaSemanalService,
   type CronogramaSemanalItem,
@@ -9,6 +9,7 @@ import {
 } from "../services/CronogramaSemanalService";
 import { HistoricoColumnFilter, type DirecaoOrdenacao } from "../components/HistoricoColumnFilter";
 import CompartilharItem from "../components/cronograma/CompartilharItem";
+import RelatorioIA from "../components/cronograma/RelatorioIA";
 import { ehMeu, passaFiltroDono, type FiltroDono } from "../utils/compartilhamento";
 
 type Page = "kanban" | "lista" | "rotina";
@@ -93,6 +94,7 @@ const vazio = (): CronogramaSemanalItem => ({
 
 export default function NordToolDashboard() {
   const [page, setPage] = useState<Page>("kanban");
+  const [relatorioIA, setRelatorioIA] = useState(false);
   const [items, setItems] = useState<CronogramaSemanalItem[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -340,6 +342,11 @@ export default function NordToolDashboard() {
               <p className="text-sm text-slate-500">Gestão de demandas e rotina</p>
             </div>
           </div>
+
+          <button onClick={() => setRelatorioIA(true)} title="Link para o Gemini ou outro assistente ler o seu cronograma"
+            className="flex items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 sm:ml-auto sm:mr-3">
+            <Bot size={16} /> Relatório para IA
+          </button>
 
           <div className="grid grid-cols-3 rounded-xl bg-white p-1.5 border border-slate-200 sm:flex">
             <button onClick={() => setPage("kanban")} className={`flex items-center justify-center gap-2 rounded-lg px-2 sm:px-4 py-2 text-sm font-bold transition-all ${page === "kanban" ? "bg-violet-600 text-white" : "text-slate-500"}`}>
@@ -833,6 +840,8 @@ export default function NordToolDashboard() {
           </div>
         </div>
       )}
+
+      {relatorioIA && <RelatorioIA onFechar={() => setRelatorioIA(false)} />}
     </div>
   );
 }
