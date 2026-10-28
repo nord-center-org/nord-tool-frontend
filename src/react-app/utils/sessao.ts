@@ -9,6 +9,10 @@ export type Modulo =
   | "VISTORIA"
   | "TERMO_REPROVA"
   | "CRONOGRAMA"
+  | "CRONOGRAMA_EXCLUIR"
+  | "CRONOGRAMA_COMPARTILHAR"
+  | "CRONOGRAMA_ROTINA"
+  | "CRONOGRAMA_RELATORIO_IA"
   | "CONTROLE_CHAVES"
   | "CAIXINHA"
   | "FINANCEIRO"
@@ -54,9 +58,23 @@ function nivel(acao: string | undefined): number {
 
 /** O backend já devolve as permissões efetivas por módulo (sem curinga). */
 export function podeAcessar(permissoes: Permissao[] | undefined, modulo: Modulo, acao: Acao = "LEITURA"): boolean {
-  const linha = (permissoes ?? []).find(p => p.cdModulo === modulo);
+  const lista = permissoes ?? [];
+  const linha = lista.find(p => p.cdModulo === modulo);
+  // Token de antes dos subacessos (nenhum subacesso do módulo na lista): herda o módulo pai.
+  const pai = PAI_DO_SUBACESSO[modulo];
+  if (!linha && pai && !lista.some(p => PAI_DO_SUBACESSO[p.cdModulo as Modulo] === pai)) {
+    return nivel(lista.find(p => p.cdModulo === pai)?.cdAcao) >= NIVEL[acao];
+  }
   return nivel(linha?.cdAcao) >= NIVEL[acao];
 }
+
+/** Subacessos e o módulo de que fazem parte. */
+const PAI_DO_SUBACESSO: Partial<Record<Modulo, Modulo>> = {
+  CRONOGRAMA_EXCLUIR: "CRONOGRAMA",
+  CRONOGRAMA_COMPARTILHAR: "CRONOGRAMA",
+  CRONOGRAMA_ROTINA: "CRONOGRAMA",
+  CRONOGRAMA_RELATORIO_IA: "CRONOGRAMA",
+};
 
 /** Módulo exigido por cada área do menu; rotas sem módulo só exigem login. */
 const MODULO_POR_ROTA: Array<[string, Modulo]> = [

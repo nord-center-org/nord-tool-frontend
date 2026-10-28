@@ -73,3 +73,13 @@ test('grava, lê e limpa a sessão tolerando conteúdo inválido', () => {
   assert.equal(lerSessao(armazenamento), null);
   assert.equal(lerSessao(undefined), null);
 });
+
+test("subacesso: vale o que veio no token; token antigo (sem subacessos) herda o módulo", async () => {
+  const { podeAcessar } = await import("./sessao.ts");
+  const novo = [{ cdModulo: "CRONOGRAMA", cdAcao: "ESCRITA" }, { cdModulo: "CRONOGRAMA_ROTINA", cdAcao: "ESCRITA" }];
+  assert.equal(podeAcessar(novo, "CRONOGRAMA_ROTINA", "ESCRITA"), true);
+  assert.equal(podeAcessar(novo, "CRONOGRAMA_EXCLUIR", "ESCRITA"), false);
+  const antigo = [{ cdModulo: "CRONOGRAMA", cdAcao: "ESCRITA" }];
+  assert.equal(podeAcessar(antigo, "CRONOGRAMA_EXCLUIR", "ESCRITA"), true);
+  assert.equal(podeAcessar([{ cdModulo: "CRONOGRAMA", cdAcao: "LEITURA" }], "CRONOGRAMA_EXCLUIR", "ESCRITA"), false);
+});

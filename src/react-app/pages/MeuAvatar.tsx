@@ -163,7 +163,7 @@ export default function MeuAvatarPage() {
             <div className="grid grid-cols-4 gap-1 sm:grid-cols-5 xl:grid-cols-8">
               {CABELOS.map(c => opcao(c, config.cabelo === c, { cabelo: c, capacete: c === "coque" || c === "moicano" ? false : config.capacete }, ROTULOS[c]))}
             </div>
-            <p className="mt-2 text-xs text-slate-400">Com capacete, coque e moicano ficam escondidos: tire o capacete para ver.</p>
+            <p className="mt-2 text-xs text-slate-400">Com capacete, coque, moicano, topete e rabo de cavalo ficam escondidos: tire o capacete para ver.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {(Object.keys(CORES_CABELO) as AvatarConfig["corCabelo"][]).map(c => cor(c, config.corCabelo === c, CORES_CABELO[c], { corCabelo: c }, `Cabelo ${c}`))}
             </div>

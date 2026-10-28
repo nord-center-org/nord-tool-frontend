@@ -53,3 +53,27 @@ test("arvoreHierarquia e abaixoDe", async () => {
   const ciclo = [{ id: 1, nmNome: "A", idSuperior: 2 }, { id: 2, nmNome: "B", idSuperior: 1 }];
   assert.equal(arvoreHierarquia(ciclo).length, 2);
 });
+
+test("subacessos: padrão do cargo bloqueia, rascunho guarda a intenção e personalizado compara liberado/bloqueado", async () => {
+  const { padraoDe, paraEdicao, rascunhoUsuario, personalizados, paiPermite, subacessosDe, qtModulosLiberados } = await import("./acessos.ts");
+  const modulos = ["CRONOGRAMA", "CRONOGRAMA_EXCLUIR", "CRONOGRAMA_RELATORIO_IA", "MEDICOES"];
+  assert.deepEqual(subacessosDe(modulos, "CRONOGRAMA"), ["CRONOGRAMA_EXCLUIR", "CRONOGRAMA_RELATORIO_IA"]);
+  const padrao = padraoDe({ CRONOGRAMA: "ESCRITA" }, { CRONOGRAMA_EXCLUIR: "NENHUM", MEDICOES: "NENHUM" });
+  assert.equal(padrao.CRONOGRAMA_EXCLUIR, "NENHUM");
+  assert.equal(padrao.MEDICOES, undefined, "módulo comum com NENHUM no cargo não conta");
+  assert.deepEqual(paraEdicao(modulos, padrao), { CRONOGRAMA: "ESCRITA", CRONOGRAMA_EXCLUIR: "NENHUM", CRONOGRAMA_RELATORIO_IA: "ESCRITA", MEDICOES: "NENHUM" });
+
+  // Efetivo do backend: o subacesso liberado aparece com o nível do módulo.
+  const r = rascunhoUsuario(modulos, { CRONOGRAMA: "ESCRITA", CRONOGRAMA_RELATORIO_IA: "ESCRITA" }, padrao);
+  assert.equal(r.CRONOGRAMA_EXCLUIR, "NENHUM");
+  assert.equal(r.CRONOGRAMA_RELATORIO_IA, "ESCRITA");
+  assert.deepEqual(personalizados(r, padrao), []);
+  assert.deepEqual(personalizados({ ...r, CRONOGRAMA_EXCLUIR: "ESCRITA" }, padrao), ["CRONOGRAMA_EXCLUIR"]);
+
+  // Módulo abaixo do mínimo: o efetivo não diz nada, vale a intenção do padrão.
+  const baixo = rascunhoUsuario(modulos, { CRONOGRAMA: "LEITURA", CRONOGRAMA_RELATORIO_IA: "LEITURA" }, {});
+  assert.equal(baixo.CRONOGRAMA_EXCLUIR, "ESCRITA");
+  assert.equal(paiPermite(baixo, "CRONOGRAMA_EXCLUIR"), false);
+  assert.equal(paiPermite(baixo, "CRONOGRAMA_RELATORIO_IA"), true);
+  assert.equal(qtModulosLiberados({ CRONOGRAMA: "ESCRITA", CRONOGRAMA_EXCLUIR: "ESCRITA" }), 1);
+});

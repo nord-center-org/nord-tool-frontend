@@ -17,6 +17,10 @@ export const MODULOS: Record<string, { nome: string; telas: string }> = {
   TERMO_REPROVA: { nome: "Termos de reprova", telas: "Termos e PDFs dos apartamentos" },
   CONTROLE_CHAVES: { nome: "Controle de chaves", telas: "Chaves e ferramentas" },
   CRONOGRAMA: { nome: "Cronograma semanal", telas: "Rotina, Kanban e Lista" },
+  CRONOGRAMA_EXCLUIR: { nome: "Excluir demandas", telas: "Apagar demandas do cronograma" },
+  CRONOGRAMA_COMPARTILHAR: { nome: "Compartilhar demandas", telas: "Dividir uma demanda com outras pessoas" },
+  CRONOGRAMA_ROTINA: { nome: "Rotina fixa", telas: "Criar e mudar atividades fixas da semana e desmarcar dias" },
+  CRONOGRAMA_RELATORIO_IA: { nome: "Relatório para IA", telas: "Links para o Gemini ler o cronograma" },
   MEDICOES: { nome: "Medições", telas: "Boletins de medição" },
   MAPEAMENTOS: { nome: "Mapeamentos", telas: "Contagens de campo e quantitativos" },
   ESCADINHA: { nome: "Escadinha", telas: "Prédio 3D, apartamentos, lados A/B e ciclos (Editar: montar torres e mudar ciclos)" },
@@ -28,6 +32,52 @@ export const MODULOS: Record<string, { nome: string; telas: string }> = {
   CADASTROS: { nome: "Cadastros", telas: "Empresas, cargos e ferramentas" },
   ADMINISTRACAO: { nome: "Administração", telas: "Acessos de usuários (use Admin)" },
 };
+
+/**
+ * Subacessos: ficam dentro de um módulo e herdam o nível dele. Só dá para liberar ("Pode") ou bloquear ("Não pode");
+ * e nunca valem se o módulo não chega no nível mínimo.
+ */
+export const SUBACESSOS: Record<string, { pai: string; minimo: Nivel }> = {
+  CRONOGRAMA_EXCLUIR: { pai: "CRONOGRAMA", minimo: "ESCRITA" },
+  CRONOGRAMA_COMPARTILHAR: { pai: "CRONOGRAMA", minimo: "ESCRITA" },
+  CRONOGRAMA_ROTINA: { pai: "CRONOGRAMA", minimo: "ESCRITA" },
+  CRONOGRAMA_RELATORIO_IA: { pai: "CRONOGRAMA", minimo: "LEITURA" },
+};
+
+export const ehSubacesso = (m: string) => m in SUBACESSOS;
+
+/** Subacessos de um módulo, na ordem em que vieram. */
+export const subacessosDe = (modulos: string[], pai: string) => modulos.filter(m => SUBACESSOS[m]?.pai === pai);
+
+const ORDEM_NIVEL: Record<Nivel, number> = { NENHUM: 0, LEITURA: 1, ESCRITA: 2, ADMIN: 3 };
+
+/** O módulo pai chega no mínimo do subacesso? */
+export function paiPermite(acessos: Record<string, string>, sub: string): boolean {
+  const s = SUBACESSOS[sub];
+  return !!s && ORDEM_NIVEL[nivelDe(acessos, s.pai)] >= ORDEM_NIVEL[s.minimo] && nivelDe(acessos, s.pai) !== "NENHUM";
+}
+
+/**
+ * Mapa para editar (cargo ou padrão): módulos com o nível; subacessos como intenção — "NENHUM" só se bloqueado,
+ * senão "ESCRITA" (liberado, herda o módulo).
+ */
+export function paraEdicao(modulos: string[], mapa: Record<string, string> | undefined): Record<string, Nivel> {
+  return Object.fromEntries(modulos.map(m => [m, ehSubacesso(m) ? (mapa?.[m] === "NENHUM" ? "NENHUM" : "ESCRITA") : nivelDe(mapa, m)]));
+}
+
+/**
+ * Rascunho de um usuário a partir dos acessos efetivos: o subacesso aparece se liberado. Se o módulo não alcança o
+ * mínimo, o efetivo não diz nada, então vale a intenção do padrão (perfil + cargo).
+ */
+export function rascunhoUsuario(modulos: string[], efetivos: Record<string, string> | undefined, padrao: Record<string, string> | undefined): Record<string, Nivel> {
+  const base = completar(modulos, efetivos);
+  for (const m of modulos) {
+    if (!ehSubacesso(m)) continue;
+    if (paiPermite(base, m)) base[m] = efetivos?.[m] && efetivos[m] !== "NENHUM" ? "ESCRITA" : "NENHUM";
+    else base[m] = padrao?.[m] === "NENHUM" ? "NENHUM" : "ESCRITA";
+  }
+  return base;
+}
 
 export function nomeModulo(codigo: string): string {
   return MODULOS[codigo]?.nome ?? codigo;
@@ -59,12 +109,14 @@ export function alterado(a: Rascunho, b: Rascunho): boolean {
 
 /** Módulos em que o usuário foge do padrão do perfil. */
 export function personalizados(acessos: Record<string, Nivel>, doPerfil: Record<string, string> | undefined): string[] {
-  return Object.keys(acessos).filter(m => acessos[m] !== nivelDe(doPerfil, m));
+  return Object.keys(acessos).filter(m => ehSubacesso(m)
+    ? (acessos[m] === "NENHUM") !== (doPerfil?.[m] === "NENHUM")
+    : acessos[m] !== nivelDe(doPerfil, m));
 }
 
 /** Quantos módulos o usuário pode abrir. */
 export function qtModulosLiberados(acessos: Record<string, string>): number {
-  return Object.values(acessos).filter(v => v && v !== "NENHUM").length;
+  return Object.entries(acessos).filter(([m, v]) => !ehSubacesso(m) && v && v !== "NENHUM").length;
 }
 
 const semAcento = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleLowerCase("pt-BR");
@@ -75,9 +127,9 @@ export function filtrarUsuarios<T extends { nmNome: string; nmEmail: string }>(l
   return lista.filter(u => semAcento(`${u.nmNome} ${u.nmEmail}`).includes(termo));
 }
 
-/** Padrão de um usuário: o cargo prevalece sobre o perfil no mesmo módulo. */
+/** Padrão de um usuário: o cargo prevalece sobre o perfil no mesmo módulo (e o bloqueio de subacesso do cargo vale). */
 export function padraoDe(doPerfil: Record<string, string> | undefined, doCargo: Record<string, string> | undefined): Record<string, string> {
-  return { ...(doPerfil ?? {}), ...Object.fromEntries(Object.entries(doCargo ?? {}).filter(([, v]) => v && v !== "NENHUM")) };
+  return { ...(doPerfil ?? {}), ...Object.fromEntries(Object.entries(doCargo ?? {}).filter(([m, v]) => v && (v !== "NENHUM" || ehSubacesso(m)))) };
 }
 
 export interface LinhaArvore<T> { item: T; nivel: number }

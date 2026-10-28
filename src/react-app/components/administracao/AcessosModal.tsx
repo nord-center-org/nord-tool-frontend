@@ -9,16 +9,21 @@ import { useAuth } from "@/react-app/hooks/useAuth";
 import { OpcoesColaboradorService } from "@/react-app/services/OpcoesColaboradorService";
 import { acessoService, type Acessos, type AcessoUsuario } from "@/react-app/services/AcessoService";
 import {
-  MODULOS, NIVEIS, ROTULO_NIVEL, alterado, completar, filtrarUsuarios, nomeModulo, padraoDe, personalizados, qtModulosLiberados,
-  type Nivel, type Rascunho,
+  MODULOS, NIVEIS, ROTULO_NIVEL, SUBACESSOS, alterado, ehSubacesso, filtrarUsuarios, nomeModulo, padraoDe, paiPermite, paraEdicao,
+  personalizados, qtModulosLiberados, rascunhoUsuario, subacessosDe, type Nivel, type Rascunho,
 } from "@/react-app/utils/acessos";
+import ChaveSubacesso from "@/react-app/components/administracao/ChaveSubacesso";
 
 interface AcessosModalProps {
   onFechar: () => void;
 }
 
-const rascunhoDe = (u: AcessoUsuario, modulos: string[]): Rascunho =>
-  ({ cdPerfil: u.cdPerfil, inAtivo: u.inAtivo, acessos: completar(modulos, u.acessos) });
+/** Padrão (perfil + cargo) de um usuário, com os bloqueios de subacesso do cargo. */
+const padraoDoUsuario = (dados: Acessos | null, u: AcessoUsuario, cdPerfil = u.cdPerfil) =>
+  padraoDe(dados?.perfis.find(p => p.cdPerfil === cdPerfil)?.acessos, dados?.cargos?.find(c => c.idCargo === u.idCargo)?.acessos);
+
+const rascunhoDe = (u: AcessoUsuario, modulos: string[], dados: Acessos | null): Rascunho =>
+  ({ cdPerfil: u.cdPerfil, inAtivo: u.inAtivo, acessos: rascunhoUsuario(modulos, u.acessos, padraoDoUsuario(dados, u)) });
 
 /** Modal de Acessos: à esquerda os usuários, à direita perfil, situação e o nível de cada módulo. */
 export default function AcessosModal({ onFechar }: AcessosModalProps) {
@@ -58,7 +63,7 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
 
   const modulos = useMemo(() => dados?.modulos ?? [], [dados]);
   const selecionado = dados?.usuarios.find(u => u.id === idSelecionado) ?? null;
-  const original = selecionado ? rascunhoDe(selecionado, modulos) : null;
+  const original = selecionado ? rascunhoDe(selecionado, modulos, dados) : null;
   const sujo = !!(rascunho && original && alterado(rascunho, original));
   const perfilDoRascunho = dados?.perfis.find(p => p.cdPerfil === rascunho?.cdPerfil);
   const cargoDoUsuario = dados?.cargos?.find(c => c.idCargo === selecionado?.idCargo);
@@ -70,7 +75,7 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
   const selecionar = (u: AcessoUsuario) => {
     if (sujo && !window.confirm("Descartar as alterações não salvas?")) return;
     setIdSelecionado(u.id);
-    setRascunho(rascunhoDe(u, modulos));
+    setRascunho(rascunhoDe(u, modulos, dados));
     setErro(null);
     setSalvo(false);
   };
@@ -79,7 +84,7 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
   const trocarPerfil = (cdPerfil: string) => {
     if (!rascunho) return;
     const perfil = dados?.perfis.find(p => p.cdPerfil === cdPerfil);
-    setRascunho({ ...rascunho, cdPerfil, acessos: completar(modulos, padraoDe(perfil?.acessos, cargoDoUsuario?.acessos)) });
+    setRascunho({ ...rascunho, cdPerfil, acessos: paraEdicao(modulos, padraoDe(perfil?.acessos, cargoDoUsuario?.acessos)) });
   };
 
   const definir = (modulo: string, nivel: Nivel) =>
@@ -92,7 +97,7 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
     try {
       const novo = await acessoService.salvar(selecionado.id, rascunho);
       setDados(d => d && { ...d, usuarios: d.usuarios.map(u => (u.id === novo.id ? novo : u)) });
-      setRascunho(rascunhoDe(novo, modulos));
+      setRascunho(rascunhoDe(novo, modulos, dados));
       setSalvo(true);
     } catch (e) {
       setErro(e instanceof Error && e.message ? e.message : "Não foi possível salvar os acessos.");
@@ -192,7 +197,7 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
 
                   {selecionado.cdSituacaoCadastro === "PENDENTE" && (
                     <AprovacaoCadastro key={`aprov-${selecionado.id}`} usuario={selecionado}
-                      onDecidido={u => { setDados(d => d && { ...d, usuarios: d.usuarios.map(x => (x.id === u.id ? u : x)) }); setRascunho(rascunhoDe(u, modulos)); }} />
+                      onDecidido={u => { setDados(d => d && { ...d, usuarios: d.usuarios.map(x => (x.id === u.id ? u : x)) }); setRascunho(rascunhoDe(u, modulos, dados)); }} />
                   )}
 
                   <DadosUsuario key={selecionado.id} usuario={selecionado} empresas={empresas} cargos={cargos} ehEuMesmo={ehEuMesmo}
@@ -205,25 +210,37 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
                   )}
 
                   <ul className="flex-1 divide-y divide-slate-100 overflow-y-auto px-4" aria-label="Módulos">
-                    {modulos.map(m => {
+                    {modulos.filter(m => !ehSubacesso(m)).map(m => {
                       const atual = rascunho.acessos[m] ?? "NENHUM";
                       return (
-                        <li key={m} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-                          <div className="min-w-0 flex-1 basis-48">
-                            <p className="text-sm font-semibold text-slate-700">
-                              {nomeModulo(m)}
-                              {fogem.includes(m) && <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">personalizado</span>}
-                            </p>
-                            {MODULOS[m] && <p className="text-xs text-slate-400">{MODULOS[m].telas}</p>}
+                        <li key={m} className="py-3">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                            <div className="min-w-0 flex-1 basis-48">
+                              <p className="text-sm font-semibold text-slate-700">
+                                {nomeModulo(m)}
+                                {fogem.includes(m) && <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">personalizado</span>}
+                              </p>
+                              {MODULOS[m] && <p className="text-xs text-slate-400">{MODULOS[m].telas}</p>}
+                            </div>
+                            <div role="radiogroup" aria-label={`Nível em ${nomeModulo(m)}`} className="flex rounded-xl bg-slate-100 p-0.5">
+                              {NIVEIS.map(n => (
+                                <button key={n} type="button" role="radio" aria-checked={atual === n} onClick={() => definir(m, n)}
+                                  className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-colors ${atual === n ? (n === "NENHUM" ? "bg-white text-slate-600 shadow-sm" : "bg-blue-600 text-white shadow-sm") : "text-slate-500 hover:text-slate-700"}`}>
+                                  {ROTULO_NIVEL[n]}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                          <div role="radiogroup" aria-label={`Nível em ${nomeModulo(m)}`} className="flex rounded-xl bg-slate-100 p-0.5">
-                            {NIVEIS.map(n => (
-                              <button key={n} type="button" role="radio" aria-checked={atual === n} onClick={() => definir(m, n)}
-                                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-colors ${atual === n ? (n === "NENHUM" ? "bg-white text-slate-600 shadow-sm" : "bg-blue-600 text-white shadow-sm") : "text-slate-500 hover:text-slate-700"}`}>
-                                {ROTULO_NIVEL[n]}
-                              </button>
-                            ))}
-                          </div>
+                          {subacessosDe(modulos, m).length > 0 && (
+                            <ul className="mt-2 space-y-1.5 border-l-2 border-slate-100 pl-3" aria-label={`Subacessos de ${nomeModulo(m)}`}>
+                              {subacessosDe(modulos, m).map(sub => (
+                                <ChaveSubacesso key={sub} codigo={sub} liberado={rascunho.acessos[sub] !== "NENHUM"}
+                                  desativado={!paiPermite(rascunho.acessos, sub)}
+                                  motivo={`Precisa de "${ROTULO_NIVEL[SUBACESSOS[sub].minimo]}" em ${nomeModulo(m)}`}
+                                  personalizado={fogem.includes(sub)} onMudar={v => definir(sub, v ? "ESCRITA" : "NENHUM")} />
+                              ))}
+                            </ul>
+                          )}
                         </li>
                       );
                     })}

@@ -11,6 +11,9 @@ import { HistoricoColumnFilter, type DirecaoOrdenacao } from "../components/Hist
 import CompartilharItem from "../components/cronograma/CompartilharItem";
 import RelatorioIA from "../components/cronograma/RelatorioIA";
 import { ehMeu, passaFiltroDono, type FiltroDono } from "../utils/compartilhamento";
+import { alternarDia, planejarDias } from "../utils/rotinaDias";
+import { podeAcessar } from "../utils/sessao";
+import { useAuth } from "../hooks/useAuth";
 
 type Page = "kanban" | "lista" | "rotina";
 type ColunaLista = "status" | "dtPrazo" | "nmCronogramaSemanal" | "nmCategoria" | "nmTag";
@@ -45,13 +48,14 @@ const corStatus: Record<Status, string> = {
 };
 
 // Dias cadastrados em dia_semana (id 6 = "Sem agendamento", não é um dia real; "Domingo" ainda não existe na tabela).
-const diasSemanaOpcoes: { id: number; label: string }[] = [
-  { id: 1, label: "Segunda-Feira" },
-  { id: 2, label: "Terça-Feira" },
-  { id: 3, label: "Quarta-Feira" },
-  { id: 4, label: "Quinta-Feira" },
-  { id: 5, label: "Sexta-Feira" },
-  { id: 7, label: "Sábado" },
+// Ids da tabela dia_semana (o 6 é "Sem agendamento"; não há domingo).
+const diasSemanaOpcoes: { id: number; label: string; curto: string }[] = [
+  { id: 1, label: "Segunda-Feira", curto: "Seg" },
+  { id: 2, label: "Terça-Feira", curto: "Ter" },
+  { id: 3, label: "Quarta-Feira", curto: "Qua" },
+  { id: 4, label: "Quinta-Feira", curto: "Qui" },
+  { id: 5, label: "Sexta-Feira", curto: "Sex" },
+  { id: 7, label: "Sábado", curto: "Sáb" },
 ];
 
 const diasDaSemanaCalendario = ["Segunda-Feira", "Terça-Feira", "Quarta-Feira", "Quinta-Feira", "Sexta-Feira", "Sábado", "Domingo"];
@@ -95,6 +99,15 @@ const vazio = (): CronogramaSemanalItem => ({
 export default function NordToolDashboard() {
   const [page, setPage] = useState<Page>("kanban");
   const [relatorioIA, setRelatorioIA] = useState(false);
+  const { usuario } = useAuth();
+  const pode = {
+    excluir: podeAcessar(usuario?.permissoes, "CRONOGRAMA_EXCLUIR", "ESCRITA"),
+    compartilhar: podeAcessar(usuario?.permissoes, "CRONOGRAMA_COMPARTILHAR", "ESCRITA"),
+    rotina: podeAcessar(usuario?.permissoes, "CRONOGRAMA_ROTINA", "ESCRITA"),
+    relatorioIA: podeAcessar(usuario?.permissoes, "CRONOGRAMA_RELATORIO_IA", "LEITURA"),
+  };
+  /** Dias marcados da atividade fixa (vários = uma cópia por dia). */
+  const [diasFixos, setDiasFixos] = useState<number[]>([]);
   const [items, setItems] = useState<CronogramaSemanalItem[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -212,6 +225,7 @@ export default function NordToolDashboard() {
 
   const abrirNovo = (dataAgendamento?: Date) => {
     setDraft(dataAgendamento ? { ...vazio(), dtAgendamento: `${ymd(dataAgendamento)}T09:00` } : vazio());
+    setDiasFixos([]);
     setErroModal(null);
     setCriando(true);
   };
@@ -262,6 +276,7 @@ export default function NordToolDashboard() {
   const abrirEdicao = (item: CronogramaSemanalItem) => {
     setEditando(item);
     setDraft({ ...item, dtPrazo: paraIso(item.dtPrazo), dtAgendamento: item.dtAgendamento ? paraDatetimeLocal(item.dtAgendamento) : null });
+    setDiasFixos(item.flFixo && item.idDiaSemana ? [item.idDiaSemana] : []);
     setErroModal(null);
   };
 
@@ -277,13 +292,22 @@ export default function NordToolDashboard() {
       setErroModal("Informe um título para a demanda.");
       return;
     }
+    if (draft.flFixo && diasFixos.length === 0) {
+      setErroModal("Escolha ao menos um dia da semana.");
+      return;
+    }
     setSalvando(true);
     setErroModal(null);
     try {
+      // Fixa em vários dias: o item atual fica num dia e os outros dias viram cópias.
+      const plano = draft.flFixo ? planejarDias(editando?.id ? (editando.flFixo && editando.idDiaSemana ? editando.idDiaSemana : -1) : null, diasFixos) : null;
       if (editando?.id) {
-        await CronogramaSemanalService.alterar({ ...draft, id: editando.id });
-      } else {
+        await CronogramaSemanalService.alterar({ ...draft, id: editando.id, ...(plano ? { idDiaSemana: plano.manter } : {}) });
+      } else if (!plano) {
         await CronogramaSemanalService.criar(draft);
+      }
+      for (const dia of plano?.criar ?? []) {
+        await CronogramaSemanalService.criar({ ...draft, id: undefined, idDiaSemana: dia, idsCompartilhados: undefined });
       }
       await carregar();
       fecharModal();
@@ -343,10 +367,10 @@ export default function NordToolDashboard() {
             </div>
           </div>
 
-          <button onClick={() => setRelatorioIA(true)} title="Link para o Gemini ou outro assistente ler o seu cronograma"
+          {pode.relatorioIA && <button onClick={() => setRelatorioIA(true)} title="Link para o Gemini ou outro assistente ler o seu cronograma"
             className="flex items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100 sm:ml-auto sm:mr-3">
             <Bot size={16} /> Relatório para IA
-          </button>
+          </button>}
 
           <div className="grid grid-cols-3 rounded-xl bg-white p-1.5 border border-slate-200 sm:flex">
             <button onClick={() => setPage("kanban")} className={`flex items-center justify-center gap-2 rounded-lg px-2 sm:px-4 py-2 text-sm font-bold transition-all ${page === "kanban" ? "bg-violet-600 text-white" : "text-slate-500"}`}>
@@ -640,7 +664,7 @@ export default function NordToolDashboard() {
                                 <div className="flex items-center gap-1 text-[9px] font-bold">{rotuloNoDia(item, ymd(data))}</div>
                                 <p className={`pr-5 text-xs font-semibold leading-snug text-slate-900 ${ignorado ? "line-through" : ""}`}>{item.nmCronogramaSemanal}</p>
                               </button>
-                              {item.flFixo && ehMeu(item) && (
+                              {item.flFixo && ehMeu(item) && pode.rotina && (
                                 <button
                                   onClick={() => void alternarIgnorado(item, ymd(data))}
                                   title={ignorado ? "Reativar só neste dia" : "Desmarcar só neste dia"}
@@ -700,7 +724,7 @@ export default function NordToolDashboard() {
                 <Lock size={14} /> Compartilhado por {editando.nmDono ?? "outra pessoa"}: só quem criou pode alterar.
               </p>
             )}
-            {editando?.id != null && ehMeu(editando) && (
+            {editando?.id != null && ehMeu(editando) && pode.compartilhar && (
               <CompartilharItem idItem={editando.id} idsAtuais={editando.idsCompartilhados ?? []}
                 onCompartilhado={ids => {
                   setEditando(e => (e ? { ...e, idsCompartilhados: ids } : e));
@@ -774,29 +798,48 @@ export default function NordToolDashboard() {
               </label>
             </div>
 
+            {(pode.rotina || draft.flFixo) && (
             <label className="mb-3 flex items-center gap-2 text-xs font-semibold text-slate-500">
               <input
                 type="checkbox"
                 checked={!!draft.flFixo}
-                onChange={e => setDraft({ ...draft, flFixo: e.target.checked, idDiaSemana: e.target.checked ? draft.idDiaSemana : null, dtAgendamento: e.target.checked ? null : draft.dtAgendamento })}
+                disabled={!pode.rotina}
+                onChange={e => {
+                  setDraft({ ...draft, flFixo: e.target.checked, idDiaSemana: e.target.checked ? draft.idDiaSemana : null, dtAgendamento: e.target.checked ? null : draft.dtAgendamento });
+                  if (!e.target.checked) setDiasFixos([]);
+                }}
               />
               📌 Atividade fixa (recorrente toda semana)
             </label>
+            )}
 
             {draft.flFixo ? (
-              <div className="mb-3 grid grid-cols-2 gap-3">
-                <label className="block text-xs font-semibold text-slate-500">
-                  Dia da semana
-                  <select
-                    value={draft.idDiaSemana ?? ""}
-                    onChange={e => setDraft({ ...draft, idDiaSemana: e.target.value ? Number(e.target.value) : null })}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-violet-600"
-                  >
-                    <option value="" disabled>Selecione</option>
-                    {diasSemanaOpcoes.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-                  </select>
-                </label>
-                <label className="block text-xs font-semibold text-slate-500">
+              <fieldset disabled={!pode.rotina} className="mb-3 min-w-0">
+                <div className="text-xs font-semibold text-slate-500">
+                  Dias da semana <span className="font-normal text-slate-400">(marque um ou vários)</span>
+                  <div role="group" aria-label="Dias da semana" className="mt-1 grid grid-cols-6 gap-1">
+                    {diasSemanaOpcoes.map(d => {
+                      const marcado = diasFixos.includes(d.id);
+                      return (
+                        <button key={d.id} type="button" aria-pressed={marcado} title={d.label} onClick={() => setDiasFixos(l => alternarDia(l, d.id))}
+                          className={`rounded-lg border py-2 text-xs font-bold transition-colors ${marcado ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-violet-300"}`}>
+                          {d.curto}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-1 flex gap-2 text-[11px] font-semibold">
+                    <button type="button" onClick={() => setDiasFixos([1, 2, 3, 4, 5])} className="text-violet-600 hover:underline">Seg a Sex</button>
+                    <button type="button" onClick={() => setDiasFixos([1, 2, 3, 4, 5, 7])} className="text-violet-600 hover:underline">Seg a Sáb</button>
+                    {diasFixos.length > 0 && <button type="button" onClick={() => setDiasFixos([])} className="text-slate-400 hover:underline">Limpar</button>}
+                  </div>
+                  {diasFixos.length > 1 && (
+                    <span className="mt-1 block font-normal text-slate-500">
+                      {editando ? "Os dias novos viram cópias desta atividade (cada dia fica independente)." : `Serão criadas ${diasFixos.length} atividades, uma por dia.`}
+                    </span>
+                  )}
+                </div>
+                <label className="mt-3 block text-xs font-semibold text-slate-500">
                   Horário
                   <input
                     value={draft.nmHorario ?? ""}
@@ -805,7 +848,7 @@ export default function NordToolDashboard() {
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-violet-600"
                   />
                 </label>
-              </div>
+              </fieldset>
             ) : (
               <label className="mb-3 block text-xs font-semibold text-slate-500">
                 Agendar na Rotina (data e horário)
@@ -830,7 +873,7 @@ export default function NordToolDashboard() {
               >
                 {salvando ? "Salvando..." : "Salvar"}
               </button>
-              {editando && (
+              {editando && pode.excluir && (
                 <button onClick={() => void excluir()} disabled={salvando} className="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 disabled:opacity-50">
                   Excluir
                 </button>

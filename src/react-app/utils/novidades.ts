@@ -17,6 +17,27 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-28-avatar-pixel",
+    data: "2026-10-28",
+    titulo: "O avatar voltou a ser pixel art",
+    texto: "A pedido da equipe, o avatar voltou para o estilo pixelado, agora mais caprichado: contorno colorido, cor dos olhos, brilho no cabelo e todas as opções novas (formatos de olho, cabelos, acessórios, uniformes e fundos com cena).",
+    onde: { rotulo: "Configurações → Meu avatar", caminho: "/conta/avatar" },
+  },
+  {
+    id: "2026-10-28-rotina-varios-dias",
+    data: "2026-10-28",
+    titulo: "Atividade fixa em vários dias de uma vez",
+    texto: "Na demanda fixa, marque quantos dias quiser (ou use “Seg a Sex”): o NordTool cria uma atividade por dia, já com o mesmo horário.",
+    onde: { rotulo: "Organizacional → Cronograma semanal", caminho: "/organizacional/cronograma" },
+  },
+  {
+    id: "2026-10-28-cronograma-subacessos",
+    data: "2026-10-28",
+    titulo: "Subacessos no Cronograma",
+    texto: "Em Acessos (e por cargo, em Equipe e cargos) o Cronograma ganhou subacessos: excluir, compartilhar, rotina fixa e relatório para IA. Dá para tirar só o que quiser; estagiários já vêm sem poder excluir demandas.",
+    onde: { rotulo: "Configurações → Acessos", caminho: "/configuracoes" },
+  },
+  {
     id: "2026-10-28-relatorio-ia",
     data: "2026-10-28",
     titulo: "Relatório do cronograma para o Gemini",
