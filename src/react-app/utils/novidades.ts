@@ -20,7 +20,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-10-28-avatar-desfile",
     data: "2026-10-28",
     titulo: "Avatar novo e a obra cheia de vida",
-    texto: "O avatar ganhou desenho mais caprichado e muitas opções: 16 funções, 15 cabelos, cor dos olhos, sobrancelhas, acessórios (óculos, abafador, rádio, máscara…) e cor do capacete. Na cena da obra, as cenas agora são sorteadas: pedreiro com carrinho, eletricistas com a bobina, encanadores com o tubo, o topógrafo, o cachorro da obra e encontros entre eles.",
+    texto: "O avatar virou ilustração (traço fino, olhos de mangá, cabelo em mechas) e ganhou muitas opções: 16 funções, 15 cabelos, cor dos olhos, sobrancelhas, acessórios (óculos, abafador, rádio, máscara…) e cor do capacete. Na cena da obra, as cenas agora são sorteadas: pedreiro com carrinho, eletricistas com a bobina, encanadores com o tubo, o topógrafo, o cachorro da obra e encontros entre eles.",
     onde: { rotulo: "Configurações → Meu avatar", caminho: "/conta/avatar" },
   },
   {
