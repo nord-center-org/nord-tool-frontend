@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-28-relatorio-ia",
+    data: "2026-10-28",
+    titulo: "Relatório do cronograma para o Gemini",
+    texto: "No Cronograma semanal, toque em “Relatório para IA” e crie um link secreto de leitura. Cole a mensagem pronta no Gemini (ou outro assistente) como ação programada e receba todo dia o resumo do que tem hoje, do que está atrasado e do que vence nos próximos dias. Dá para revogar o link quando quiser.",
+    onde: { rotulo: "Organizacional → Cronograma semanal", caminho: "/organizacional/cronograma" },
+  },
+  {
     id: "2026-10-28-escadinha-torres",
     data: "2026-10-28",
     titulo: "Escadinha: apartamentos, lados A/B, várias torres e ciclos editáveis",
