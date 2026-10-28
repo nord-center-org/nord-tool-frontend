@@ -77,3 +77,8 @@ test("novas funções a partir do cargo e mistura de cores", () => {
   assert.equal(tom("#808080", -0.5), "#404040");
   assert.equal(mistura("#000000", "#ffffff", 0.5), "#808080");
 });
+
+test("formato dos olhos: lido do JSON e com padrão para avatares antigos", () => {
+  assert.equal(lerAvatar(JSON.stringify({ formatoOlhos: "puxado" }), 3).formatoOlhos, "puxado");
+  assert.equal(lerAvatar(JSON.stringify({ formatoOlhos: "xxx" }), 3).formatoOlhos, avatarPadrao(3).formatoOlhos);
+});

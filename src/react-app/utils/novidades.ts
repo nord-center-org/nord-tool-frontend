@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-28-avatar-quadrinho",
+    data: "2026-10-28",
+    titulo: "Avatar com traço de quadrinho e formato dos olhos",
+    texto: "O avatar ganhou traço de quadrinho (contorno forte, sombra com hachura, nariz marcado, camisa de trabalho com bolsos) e agora dá para escolher o formato dos olhos: amendoado, redondo, puxado, caído, pequeno, grande… A grua da tela de login também aparece inteira.",
+    onde: { rotulo: "Configurações → Meu avatar", caminho: "/conta/avatar" },
+  },
+  {
     id: "2026-10-28-avatar-desfile",
     data: "2026-10-28",
     titulo: "Avatar novo e a obra cheia de vida",
