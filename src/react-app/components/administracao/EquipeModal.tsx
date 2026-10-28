@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, Loader2, Network, X } from "lucide-react";
 
 import { acessoService, type AcessoCargo, type Acessos, type NivelAcesso } from "@/react-app/services/AcessoService";
-import { MODULOS, NIVEIS, ROTULO_NIVEL, abaixoDe, arvoreHierarquia, completar, nomeModulo } from "@/react-app/utils/acessos";
+import { MODULOS, NIVEIS, ROTULO_NIVEL, abaixoDe, arvoreHierarquia, ehSubacesso, nomeModulo, paraEdicao, subacessosDe } from "@/react-app/utils/acessos";
+import ChaveSubacesso from "@/react-app/components/administracao/ChaveSubacesso";
 
 interface Props { onFechar: () => void }
 type Aba = "hierarquia" | "cargos";
@@ -104,17 +105,17 @@ function Cargos({ dados, onAtualizar }: { dados: Acessos; onAtualizar: (d: Acess
   const cargos = dados.cargos ?? [];
   const [idCargo, setIdCargo] = useState<number | null>(cargos[0]?.idCargo ?? null);
   const cargo = cargos.find(c => c.idCargo === idCargo) ?? null;
-  const [rascunho, setRascunho] = useState<Record<string, NivelAcesso>>(() => completar(dados.modulos, cargo?.acessos));
+  const [rascunho, setRascunho] = useState<Record<string, NivelAcesso>>(() => paraEdicao(dados.modulos, cargo?.acessos));
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
-  const original = completar(dados.modulos, cargo?.acessos);
+  const original = paraEdicao(dados.modulos, cargo?.acessos);
   const sujo = dados.modulos.some(m => rascunho[m] !== original[m]);
   const qtPessoas = dados.usuarios.filter(u => u.idCargo === idCargo).length;
 
   const escolher = (c: AcessoCargo) => {
     if (sujo && !window.confirm("Descartar as alterações deste cargo?")) return;
-    setIdCargo(c.idCargo); setRascunho(completar(dados.modulos, c.acessos)); setOk(false); setErro(null);
+    setIdCargo(c.idCargo); setRascunho(paraEdicao(dados.modulos, c.acessos)); setOk(false); setErro(null);
   };
 
   const salvar = async () => {
@@ -150,20 +151,31 @@ function Cargos({ dados, onAtualizar }: { dados: Acessos; onAtualizar: (d: Acess
       <section className="flex min-h-0 flex-1 flex-col" aria-label={`Acessos do cargo ${cargo?.nmCargo ?? ""}`}>
         <p className="px-4 pt-3 text-xs text-slate-500">Todo usuário com o cargo <strong>{cargo?.nmCargo}</strong> ({qtPessoas} pessoa(s)) recebe pelo menos estes acessos. Exceções por pessoa ficam em Acessos.</p>
         <ul className="flex-1 divide-y divide-slate-100 overflow-y-auto px-4">
-          {dados.modulos.map(m => (
-            <li key={m} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-              <div className="min-w-0 flex-1 basis-40">
-                <p className="text-sm font-semibold text-slate-700">{nomeModulo(m)}</p>
-                {MODULOS[m] && <p className="text-xs text-slate-400">{MODULOS[m].telas}</p>}
+          {dados.modulos.filter(m => !ehSubacesso(m)).map(m => (
+            <li key={m} className="py-3">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <div className="min-w-0 flex-1 basis-40">
+                  <p className="text-sm font-semibold text-slate-700">{nomeModulo(m)}</p>
+                  {MODULOS[m] && <p className="text-xs text-slate-400">{MODULOS[m].telas}</p>}
+                </div>
+                <div role="radiogroup" aria-label={`Nível do cargo em ${nomeModulo(m)}`} className="flex rounded-xl bg-slate-100 p-0.5">
+                  {NIVEIS.map(n => (
+                    <button key={n} type="button" role="radio" aria-checked={rascunho[m] === n} onClick={() => setRascunho({ ...rascunho, [m]: n })}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-bold ${rascunho[m] === n ? (n === "NENHUM" ? "bg-white text-slate-600 shadow-sm" : "bg-blue-600 text-white shadow-sm") : "text-slate-500"}`}>
+                      {ROTULO_NIVEL[n]}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div role="radiogroup" aria-label={`Nível do cargo em ${nomeModulo(m)}`} className="flex rounded-xl bg-slate-100 p-0.5">
-                {NIVEIS.map(n => (
-                  <button key={n} type="button" role="radio" aria-checked={rascunho[m] === n} onClick={() => setRascunho({ ...rascunho, [m]: n })}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-bold ${rascunho[m] === n ? (n === "NENHUM" ? "bg-white text-slate-600 shadow-sm" : "bg-blue-600 text-white shadow-sm") : "text-slate-500"}`}>
-                    {ROTULO_NIVEL[n]}
-                  </button>
-                ))}
-              </div>
+              {subacessosDe(dados.modulos, m).length > 0 && (
+                <ul className="mt-2 space-y-1.5 border-l-2 border-slate-100 pl-3" aria-label={`Subacessos de ${nomeModulo(m)} no cargo`}>
+                  {subacessosDe(dados.modulos, m).map(sub => (
+                    <ChaveSubacesso key={sub} codigo={sub} liberado={rascunho[sub] !== "NENHUM"}
+                      dica="Não pode = bloqueado para todo o cargo (dá para liberar uma pessoa em Acessos)."
+                      onMudar={v => setRascunho({ ...rascunho, [sub]: v ? "ESCRITA" : "NENHUM" })} />
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
         </ul>
