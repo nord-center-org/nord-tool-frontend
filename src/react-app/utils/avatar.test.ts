@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  avatarAleatorio, avatarPadrao, dataComemorativa, domingoDePascoa, funcaoDoCargo, lerAvatar, salvarAvatar, temaDoAvatar,
+  avatarAleatorio, avatarPadrao, corDoCapacete, dataComemorativa, domingoDePascoa, funcaoDoCargo, lerAvatar, mistura, salvarAvatar, temaDoAvatar, tom,
 } from "./avatar.ts";
 
 test("padrão é estável por pessoa e a função vem do cargo", () => {
@@ -54,4 +54,26 @@ test("tema respeita a preferência e a prévia forçada", () => {
   assert.equal(temaDoAvatar({ ...c, datas: true }, "2026-12-24"), "natal");
   assert.equal(temaDoAvatar(c, "2026-12-24", "pascoa"), "pascoa");
   assert.equal(temaDoAvatar({ ...c, datas: true }, "2026-12-24", "nenhuma"), null);
+});
+
+test("avatares antigos: óculos viram acessório e opções novas ganham padrão", () => {
+  const antigo = lerAvatar(JSON.stringify({ pele: "p2", olhos: "oculos", cabelo: "curto" }), 8);
+  assert.equal(antigo.olhos, "normal");
+  assert.equal(antigo.acessorio, "oculos");
+  assert.equal(antigo.corCapacete, "funcao");
+  const novo = lerAvatar(JSON.stringify({ olhos: "sereno", acessorio: "mascara", corCapacete: "azul", cabelo: "trancas", funcao: "topografo" }), 8);
+  assert.deepEqual([novo.olhos, novo.acessorio, novo.corCapacete, novo.cabelo, novo.funcao], ["sereno", "mascara", "azul", "trancas", "topografo"]);
+  assert.equal(corDoCapacete({ ...novo, corCapacete: "funcao" }), "#f8fafc");
+  assert.equal(corDoCapacete(novo), "#2563eb");
+  assert.ok(salvarAvatar(avatarAleatorio()).length < 2000);
+});
+
+test("novas funções a partir do cargo e mistura de cores", () => {
+  assert.equal(funcaoDoCargo("Arquiteta"), "arquiteto");
+  assert.equal(funcaoDoCargo("Encanador"), "encanador");
+  assert.equal(funcaoDoCargo("Carpinteiro"), "carpinteiro");
+  assert.equal(funcaoDoCargo("Topógrafo"), "topografo");
+  assert.equal(funcaoDoCargo("Técnico de Edificações"), "tecnico");
+  assert.equal(tom("#808080", -0.5), "#404040");
+  assert.equal(mistura("#000000", "#ffffff", 0.5), "#808080");
 });
