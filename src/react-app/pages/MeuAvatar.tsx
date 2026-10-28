@@ -8,17 +8,24 @@ import { useAuth } from "@/react-app/hooks/useAuth";
 import { definirMeuAvatar, useMeuAvatar } from "@/react-app/hooks/useMeuAvatar";
 import { avatarService } from "@/react-app/services/AvatarService";
 import {
-  BARBAS, BOCAS, CABELOS, CORES_CABELO, DATAS, FUNCOES, FUNDOS, OLHOS, PELES,
+  ACESSORIOS, BARBAS, BOCAS, CABELOS, CORES_CABELO, CORES_CAPACETE, CORES_OLHOS, DATAS, DETALHES, FUNCOES, FUNDOS, FUNDOS_CENA, OLHOS, PELES, SOBRANCELHAS,
   avatarAleatorio, lerAvatar, salvarAvatar, temaDoAvatar, type AvatarConfig, type DataComemorativa,
 } from "@/react-app/utils/avatar";
 import { hojeSaoPaulo } from "@/react-app/utils/caixinha";
 
 const ROTULOS: Record<string, string> = {
-  curto: "Curto", raspado: "Raspado", moicano: "Moicano", cacheado: "Cacheado", longo: "Longo", coque: "Coque", careca: "Careca",
-  normal: "Normal", feliz: "Feliz", piscando: "Piscando", oculos: "Óculos",
-  sorriso: "Sorriso", aberta: "Rindo", seria: "Séria",
-  nenhuma: "Sem barba", bigode: "Bigode", cavanhaque: "Cavanhaque", cheia: "Cheia",
+  curto: "Curto", raspado: "Raspado", topete: "Topete", franja: "Franja", ondulado: "Ondulado", cacheado: "Cacheado", afro: "Black power",
+  moicano: "Moicano", longo: "Longo", rabo: "Rabo de cavalo", coque: "Coque", trancas: "Tranças", dreads: "Dreads", chanel: "Chanel", careca: "Careca",
+  normal: "Normal", feliz: "Feliz", piscando: "Piscando", sereno: "Sereno", surpreso: "Surpreso",
+  grossa: "Grossa", fina: "Fina", arqueada: "Arqueada",
+  sorriso: "Sorriso", aberta: "Rindo", risada: "Gargalhada", canto: "De lado", seria: "Séria",
+  nenhuma: "Sem barba", rala: "Por fazer", bigode: "Bigode", cavanhaque: "Cavanhaque", costeleta: "Costeleta", cheia: "Cheia",
+  nenhum: "Nenhum", oculos: "Óculos", oculosSol: "Óculos escuros", oculosSeguranca: "Óculos de proteção", protetorAuricular: "Abafador",
+  radio: "Rádio", lapis: "Lápis na orelha", brinco: "Brinco", mascara: "Máscara PFF2",
+  sardas: "Sardas", pinta: "Pinta", bochechas: "Bochechas",
 };
+const ROTULO_FUNDO: Record<string, string> = { ceu: "Céu", obra: "Canteiro", noite: "Noite" };
+const ROTULO_CAPACETE: Record<string, string> = { funcao: "Da função" };
 
 type Previa = DataComemorativa | "nenhuma" | null;
 
@@ -132,6 +139,19 @@ export default function MeuAvatarPage() {
               <input type="checkbox" checked={config.capacete} onChange={e => mudar({ capacete: e.target.checked })} className="h-4 w-4 accent-blue-600" />
               Usar capacete
             </label>
+            {config.capacete && (
+              <div className="mt-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cor do capacete</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  {(Object.keys(CORES_CAPACETE) as AvatarConfig["corCapacete"][]).map(k => k === "funcao" ? (
+                    <button key={k} type="button" aria-pressed={config.corCapacete === k} onClick={() => mudar({ corCapacete: k })}
+                      className={`rounded-full px-3 py-1.5 text-xs font-bold ${config.corCapacete === k ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                      {ROTULO_CAPACETE[k]}
+                    </button>
+                  ) : cor(k, config.corCapacete === k, CORES_CAPACETE[k], { corCapacete: k }, `Capacete ${k}`))}
+                </div>
+              </div>
+            )}
           </Grupo>
           <Grupo titulo="Pele">
             <div className="flex flex-wrap gap-2">
@@ -139,27 +159,46 @@ export default function MeuAvatarPage() {
             </div>
           </Grupo>
           <Grupo titulo="Cabelo">
-            <div className="grid grid-cols-4 gap-1 sm:grid-cols-7">
+            <div className="grid grid-cols-4 gap-1 sm:grid-cols-5 xl:grid-cols-8">
               {CABELOS.map(c => opcao(c, config.cabelo === c, { cabelo: c, capacete: c === "coque" || c === "moicano" ? false : config.capacete }, ROTULOS[c]))}
             </div>
+            <p className="mt-2 text-xs text-slate-400">Com capacete, coque e moicano ficam escondidos: tire o capacete para ver.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {(Object.keys(CORES_CABELO) as AvatarConfig["corCabelo"][]).map(c => cor(c, config.corCabelo === c, CORES_CABELO[c], { corCabelo: c }, `Cabelo ${c}`))}
             </div>
           </Grupo>
           <div className="grid gap-4 md:grid-cols-2">
             <Grupo titulo="Olhos">
-              <div className="grid grid-cols-4 gap-1">{OLHOS.map(o => opcao(o, config.olhos === o, { olhos: o }, ROTULOS[o]))}</div>
+              <div className="grid grid-cols-5 gap-1">{OLHOS.map(o => opcao(o, config.olhos === o, { olhos: o }, ROTULOS[o]))}</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(Object.keys(CORES_OLHOS) as AvatarConfig["corOlhos"][]).map(k => cor(k, config.corOlhos === k, CORES_OLHOS[k], { corOlhos: k }, `Olhos ${k}`))}
+              </div>
             </Grupo>
-            <Grupo titulo="Boca">
-              <div className="grid grid-cols-3 gap-1">{BOCAS.map(b => opcao(b, config.boca === b, { boca: b }, ROTULOS[b]))}</div>
+            <Grupo titulo="Sobrancelhas">
+              <div className="grid grid-cols-4 gap-1">{SOBRANCELHAS.map(o => opcao(o, config.sobrancelha === o, { sobrancelha: o }, ROTULOS[o]))}</div>
             </Grupo>
           </div>
-          <Grupo titulo="Barba">
-            <div className="grid grid-cols-4 gap-1 sm:max-w-md">{BARBAS.map(b => opcao(b, config.barba === b, { barba: b }, ROTULOS[b]))}</div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Grupo titulo="Boca">
+              <div className="grid grid-cols-5 gap-1">{BOCAS.map(b => opcao(b, config.boca === b, { boca: b }, ROTULOS[b]))}</div>
+            </Grupo>
+            <Grupo titulo="Barba">
+              <div className="grid grid-cols-3 gap-1 sm:grid-cols-6 md:grid-cols-3">{BARBAS.map(b => opcao(b, config.barba === b, { barba: b }, ROTULOS[b]))}</div>
+            </Grupo>
+          </div>
+          <Grupo titulo="Acessórios" dica="Óculos, EPI e outros detalhes.">
+            <div className="grid grid-cols-3 gap-1 sm:grid-cols-5 xl:grid-cols-9">{ACESSORIOS.map(a => opcao(a, config.acessorio === a, { acessorio: a }, ROTULOS[a]))}</div>
+          </Grupo>
+          <Grupo titulo="Detalhes do rosto">
+            <div className="grid grid-cols-4 gap-1 sm:max-w-md">{DETALHES.map(d => opcao(d, config.detalhe === d, { detalhe: d }, ROTULOS[d]))}</div>
           </Grupo>
           <Grupo titulo="Fundo">
-            <div className="flex flex-wrap gap-2">
-              {(Object.keys(FUNDOS) as AvatarConfig["fundo"][]).map(f => cor(f, config.fundo === f, FUNDOS[f], { fundo: f }, `Fundo ${f}`))}
+            <div className="flex flex-wrap items-center gap-2">
+              {(Object.keys(FUNDOS) as AvatarConfig["fundo"][]).filter(f => !(FUNDOS_CENA as readonly string[]).includes(f))
+                .map(f => cor(f, config.fundo === f, FUNDOS[f], { fundo: f }, `Fundo ${f}`))}
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-1 sm:max-w-xs">
+              {FUNDOS_CENA.map(f => opcao(f, config.fundo === f, { fundo: f }, ROTULO_FUNDO[f]))}
             </div>
           </Grupo>
         </div>

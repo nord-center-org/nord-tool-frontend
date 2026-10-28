@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-28-avatar-desfile",
+    data: "2026-10-28",
+    titulo: "Avatar novo e a obra cheia de vida",
+    texto: "O avatar ganhou desenho mais caprichado e muitas opções: 16 funções, 15 cabelos, cor dos olhos, sobrancelhas, acessórios (óculos, abafador, rádio, máscara…) e cor do capacete. Na cena da obra, as cenas agora são sorteadas: pedreiro com carrinho, eletricistas com a bobina, encanadores com o tubo, o topógrafo, o cachorro da obra e encontros entre eles.",
+    onde: { rotulo: "Configurações → Meu avatar", caminho: "/conta/avatar" },
+  },
+  {
     id: "2026-10-27-escadinha-3d",
     data: "2026-10-27",
     titulo: "Escadinha 3D: o prédio a partir da prancha",

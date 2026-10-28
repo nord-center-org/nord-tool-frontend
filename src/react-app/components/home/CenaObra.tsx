@@ -2,6 +2,7 @@ import { useId, type CSSProperties, type ReactNode } from "react";
 
 import type { DataComemorativa } from "@/react-app/utils/avatar";
 import { CEU, type Periodo } from "@/react-app/utils/cena";
+import DesfileObra from "./desfile/DesfileObra";
 import "./CenaObra.css";
 
 interface CenaObraProps {
@@ -44,7 +45,6 @@ export default function CenaObra({ periodo, tema, semCeu = false }: CenaObraProp
       <Predio noite={noite} />
       <Guindaste natal={tema === "natal"} />
       <Chao noite={noite} />
-      <Desfile clip={`tambor-${id}`} />
       <Cone x={104} />
       <Cone x={156} />
       <Cone x={316} />
@@ -53,6 +53,7 @@ export default function CenaObra({ periodo, tema, semCeu = false }: CenaObraProp
       {tema === "pascoa" && <Ovos />}
       {tema === "natal" && <Arvore x={284} />}
       {tema === "carnaval" && <Confete />}
+      <DesfileObra clip={`tambor-${id}`} />
     </svg>
   );
 }
@@ -66,7 +67,7 @@ export function CeuAberto({ periodo }: { periodo: Periodo }) {
   const r = sorteador(11);
   const [topo, base] = CEU[periodo];
   const astro = periodo === "tarde"
-    ? { x: "82%", y: "30%", cor: "#fb923c", halo: "#fdba74" }
+    ? { x: "82%", y: "30%", cor: "#fef3c7", halo: "#fde68a" }
     : { x: "84%", y: "13%", cor: noite ? "#f1f5f9" : "#fde047", halo: noite ? "#e0e7ff" : "#fef08a" };
   return (
     <svg className="nt-cena absolute inset-0 h-full w-full" aria-hidden="true" shapeRendering="crispEdges"
@@ -309,128 +310,6 @@ function Chao({ noite }: { noite: boolean }) {
       {Array.from({ length: 75 }, (_, i) => (
         <rect key={i} x={Math.floor(r() * 400) - 40} y={130 + Math.floor(r() * 18)} width={r() > 0.7 ? 2 : 1} height="1" fill={noite ? "#2f1f0f" : "#713f12"} />
       ))}
-    </g>
-  );
-}
-
-/** Desfile no chão da obra: betoneira, retroescavadeira, Bobcat e o time de engenharia atravessam a tela, um de cada vez. */
-function Desfile({ clip }: { clip: string }) {
-  return (
-    <g>
-      <g className="nt-desfile nt-desfile--fixo" style={atraso(-5)}><Betoneira clip={clip} /></g>
-      <g className="nt-desfile" style={atraso(15)}><g transform="translate(28 0)"><Retroescavadeira /></g></g>
-      <g className="nt-desfile" style={atraso(30)}><g transform="translate(34 0)"><Bobcat /></g></g>
-      <g className="nt-desfile nt-desfile--andando" style={atraso(45)}><g transform="translate(30 0)"><TimeEngenharia /></g></g>
-    </g>
-  );
-}
-
-function Roda({ x, y = 122, r = 5 }: { x: number; y?: number; r?: number }) {
-  return (
-    <g>
-      <circle cx={x} cy={y} r={r} fill="#111827" />
-      <circle cx={x} cy={y} r={Math.max(2, r - 3)} fill="#9ca3af" />
-      <rect className="nt-roda" x={x - r + 1} y={y - 0.5} width={(r - 1) * 2} height="1" fill="#4b5563" shapeRendering="auto" />
-    </g>
-  );
-}
-
-function Betoneira({ clip }: { clip: string }) {
-  return (
-    <g className="nt-motor">
-      <rect x="28" y="116" width="58" height="5" fill="#1f2937" />
-      <rect x="70" y="102" width="16" height="15" fill="#2563eb" />
-      <rect x="70" y="102" width="16" height="2" fill="#60a5fa" />
-      <rect x="77" y="105" width="7" height="6" fill="#bae6fd" />
-      <rect x="85" y="112" width="2" height="2" fill="#fde047" className="nt-alerta" />
-      <rect x="31" y="99" width="36" height="19" rx="8" fill="#ea580c" />
-      <g clipPath={`url(#${clip})`}>
-        <g className="nt-tambor">
-          {Array.from({ length: 8 }, (_, i) => (
-            <path key={i} d={`M${20 + i * 9} 118 L${28 + i * 9} 100 L${32 + i * 9} 100 L${24 + i * 9} 118 Z`} fill="#fff" opacity="0.45" />
-          ))}
-        </g>
-      </g>
-      <rect x="64" y="104" width="6" height="4" fill="#64748b" />
-      {[40, 58, 78].map(x => <Roda key={x} x={x} />)}
-    </g>
-  );
-}
-
-/** Retroescavadeira amarela: braço da retro atrás (esquerda), concha carregadeira na frente. */
-function Retroescavadeira() {
-  return (
-    <g className="nt-motor">
-      <path d="M8 108 L0 92 L3 90 L12 106 Z" fill="#ca8a04" />
-      <path d="M0 92 L-6 106 L-3 107 L3 93 Z" fill="#a16207" />
-      <rect x="-9" y="104" width="7" height="5" fill="#713f12" />
-      <rect x="6" y="106" width="50" height="11" fill="#facc15" />
-      <rect x="6" y="115" width="50" height="2" fill="#a16207" />
-      <rect x="38" y="103" width="18" height="4" fill="#eab308" />
-      <rect x="44" y="96" width="2" height="7" fill="#374151" />
-      <rect x="10" y="88" width="22" height="3" fill="#a16207" />
-      <rect x="12" y="91" width="18" height="16" fill="#eab308" />
-      <rect x="15" y="93" width="12" height="9" fill="#bae6fd" />
-      <rect x="19" y="86" width="3" height="2" fill="#f97316" className="nt-alerta" />
-      <rect x="52" y="108" width="11" height="3" fill="#ca8a04" />
-      <path d="M61 109 L71 109 L71 123 L63 123 Z" fill="#a16207" />
-      <Roda x={17} y={120} r={7} />
-      <Roda x={48} />
-    </g>
-  );
-}
-
-/** Minicarregadeira (Bobcat): cabine gradeada, braços laterais e concha. */
-function Bobcat() {
-  return (
-    <g className="nt-motor">
-      <rect x="2" y="106" width="34" height="12" fill="#f1f5f9" />
-      <rect x="2" y="113" width="34" height="2" fill="#ef4444" />
-      <rect x="10" y="92" width="14" height="14" fill="#bae6fd" opacity="0.7" />
-      <rect x="14" y="96" width="5" height="3" fill="#facc15" />
-      <rect x="15" y="99" width="3" height="3" fill="#f2c79c" />
-      <rect x="7" y="89" width="20" height="3" fill="#1f2937" />
-      <rect x="7" y="89" width="3" height="18" fill="#1f2937" />
-      <rect x="24" y="89" width="3" height="18" fill="#1f2937" />
-      <rect x="4" y="97" width="34" height="3" fill="#374151" />
-      <rect x="36" y="97" width="3" height="14" fill="#374151" />
-      <path d="M37 110 L46 110 L46 124 L38 124 Z" fill="#64748b" />
-      <rect x="37" y="110" width="9" height="2" fill="#94a3b8" />
-      <Roda x={10} />
-      <Roda x={28} />
-    </g>
-  );
-}
-
-const PESSOAS = [
-  { capacete: "#f8fafc", pele: "#f2c79c", colete: "#f97316", calca: "#1e3a8a", item: "planta" },
-  { capacete: "#f8fafc", pele: "#8d5a3b", colete: "#f97316", calca: "#334155", item: "prancheta" },
-  { capacete: "#facc15", pele: "#c68863", colete: "#16a34a", calca: "#1e3a8a", item: null },
-  { capacete: "#3b82f6", pele: "#f5d0b0", colete: "#f97316", calca: "#475569", item: "trena" },
-] as const;
-
-/** O time de engenharia caminhando pela obra, de capacete e colete. */
-function TimeEngenharia() {
-  return (
-    <g>
-      {PESSOAS.map((p, i) => {
-        const x = i * 14;
-        return (
-          <g key={i} className="nt-anda" style={atraso(i * 0.17)}>
-            <rect x={x + 2} y="121" width="2" height="6" fill={p.calca} className="nt-perna" />
-            <rect x={x + 5} y="121" width="2" height="6" fill={p.calca} className="nt-perna nt-perna--outra" />
-            <rect x={x + 1} y="114" width="7" height="8" fill={p.colete} />
-            <rect x={x + 1} y="117" width="7" height="1" fill="#fef08a" />
-            <rect x={x + 2} y="110" width="5" height="4" fill={p.pele} />
-            <rect x={x + 5} y="111" width="1" height="1" fill="#111827" />
-            <rect x={x + 1} y="107" width="7" height="3" fill={p.capacete} />
-            <rect x={x + 1} y="109" width="9" height="1" fill={p.capacete} />
-            {p.item === "planta" && <rect x={x + 7} y="115" width="7" height="2" fill="#60a5fa" />}
-            {p.item === "prancheta" && <rect x={x + 7} y="113" width="4" height="5" fill="#a16207" />}
-            {p.item === "trena" && <rect x={x + 7} y="117" width="3" height="3" fill="#facc15" />}
-          </g>
-        );
-      })}
     </g>
   );
 }
