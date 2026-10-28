@@ -1,7 +1,8 @@
 /** Lê a prancha (PDF) no navegador: texto de todas as páginas e a página escolhida desenhada para achar a torre. */
 import { lerPdf } from "./pdfTermo";
 import { lerPavimentosDoTexto, type PavimentosLidos } from "./escadinha";
-import { detectarContorno, luminancia, type ContornoDetectado } from "./escadinhaPlanta";
+import { detectarCelulas, detectarContorno, luminancia, type ContornoDetectado } from "./escadinhaPlanta";
+import type { Ponto } from "./escadinha";
 
 /** Largura (px) em que a página é desenhada para a detecção. */
 const LARGURA_ANALISE = 1400;
@@ -20,6 +21,10 @@ export interface ProjetoAnalisado {
   /** Luminância da página, para refazer a detecção com recorte sem ler o PDF de novo. */
   lum: Uint8Array;
   deteccao: ContornoDetectado | null;
+  /** Células fechadas dentro da torre (px), candidatas a apartamento. */
+  celulas: Ponto[][];
+  /** Textos da página escolhida com a posição (px), para nomear apartamentos e achar a junta. */
+  textos: { texto: string; p: Ponto }[];
 }
 
 /** Página mais provável da planta da torre: a que fala em planta chave/tipo; senão a primeira. */
@@ -55,6 +60,14 @@ export async function analisarProjeto(arquivo: File, paginaEscolhida?: number): 
     const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const lum = luminancia(data, canvas.width, canvas.height);
     const deteccao = detectarContorno(lum, canvas.width, canvas.height);
+    const celulas = deteccao ? detectarCelulas(lum, canvas.width, canvas.height, deteccao.contorno) : [];
+    const conteudo = await pagina.getTextContent();
+    const pdfjs = await import("pdfjs-dist");
+    const textosPagina = conteudo.items.flatMap(item => {
+      if (!("str" in item) || !item.str.trim()) return [];
+      const m = pdfjs.Util.transform(viewport.transform, item.transform);
+      return [{ texto: item.str.trim(), p: [m[4] + (item.width * viewport.scale) / 2, m[5] - 4] as Ponto }];
+    });
 
     const menor = document.createElement("canvas");
     const fator = Math.min(1, LARGURA_IMAGEM / canvas.width);
@@ -72,6 +85,8 @@ export async function analisarProjeto(arquivo: File, paginaEscolhida?: number): 
       altura: canvas.height,
       lum,
       deteccao,
+      celulas,
+      textos: textosPagina,
     };
   } finally {
     await documento.destroy();

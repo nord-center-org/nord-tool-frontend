@@ -1,9 +1,10 @@
 import { Crop, FileUp, Loader2, ScanSearch, X } from "lucide-react";
 import { useRef, useState, type PointerEvent } from "react";
 
-import { contornoEmMetros, CONTORNO_EXEMPLO, montarPavimentos, type OpcoesPavimentos, type Torre } from "@/react-app/utils/escadinha";
+import { contornoEmMetros, CONTORNO_EXEMPLO, montarPavimentos, transformadorMetros, type OpcoesPavimentos, type Ponto, type Torre } from "@/react-app/utils/escadinha";
+import { apartamentosPadrao, atribuirLados, definirLados, montarApartamentos, pontoDaJunta } from "@/react-app/utils/escadinhaApto";
 import { analisarProjeto, type ProjetoAnalisado } from "@/react-app/utils/escadinhaPdf";
-import { detectarContorno, type Recorte } from "@/react-app/utils/escadinhaPlanta";
+import { detectarCelulas, detectarContorno, type Recorte } from "@/react-app/utils/escadinhaPlanta";
 
 interface AnexarProjetoProps {
   inicial: OpcoesPavimentos;
@@ -63,7 +64,8 @@ export default function AnexarProjeto({ inicial, onFechar, onConfirmar }: Anexar
     setRecortando(false);
     if (recorte.largura < 20 || recorte.altura < 20) return;
     const deteccao = detectarContorno(analise.lum, analise.largura, analise.altura, { recorte });
-    setAnalise({ ...analise, deteccao });
+    const celulas = deteccao ? detectarCelulas(analise.lum, analise.largura, analise.altura, deteccao.contorno) : [];
+    setAnalise({ ...analise, deteccao, celulas });
     if (!deteccao) setErro("Não achamos um contorno fechado nessa área. Tente uma área um pouco maior que a torre.");
     else setErro(null);
   };
@@ -71,6 +73,17 @@ export default function AnexarProjeto({ inicial, onFechar, onConfirmar }: Anexar
   const confirmar = () => {
     const contornoPx = analise?.deteccao?.contorno;
     const contorno = contornoPx ? contornoEmMetros(contornoPx, largura) : CONTORNO_EXEMPLO;
+    // Apartamentos e lados: células fechadas da prancha (com o número escrito dentro) e a junta de dilatação, se aparecer.
+    let apartamentos = apartamentosPadrao(contorno);
+    let junta: Ponto | null = null;
+    if (analise && contornoPx) {
+      const paraMetros = transformadorMetros(contornoPx, largura);
+      const textos = analise.textos.map(t => ({ texto: t.texto, p: paraMetros(t.p) }));
+      const achados = montarApartamentos(contorno, analise.celulas.map(c => c.map(paraMetros)), textos);
+      if (achados.length >= 2) apartamentos = achados;
+      junta = pontoDaJunta(textos);
+    }
+    const lados = definirLados(contorno, junta);
     onConfirmar({
       nome: analise ? analise.arquivo.replace(/\.pdf$/i, "") : "Torre",
       contorno,
@@ -78,6 +91,8 @@ export default function AnexarProjeto({ inicial, onFechar, onConfirmar }: Anexar
       origem: analise ? "projeto" : "exemplo",
       arquivo: analise?.arquivo,
       planta: analise && contornoPx ? { imagem: analise.imagem, largura: analise.largura, altura: analise.altura, contornoPx } : undefined,
+      lados,
+      apartamentos: atribuirLados(apartamentos, lados),
     });
   };
 
@@ -123,6 +138,9 @@ export default function AnexarProjeto({ inicial, onFechar, onConfirmar }: Anexar
                     {analise.deteccao && (
                       <polygon points={analise.deteccao.contorno.map(p => p.join(",")).join(" ")} fill="rgba(251,146,60,0.25)" stroke="#ea580c" strokeWidth={analise.largura / 250} />
                     )}
+                    {analise.celulas.map((c, i) => (
+                      <polygon key={i} points={c.map(p => p.join(",")).join(" ")} fill="rgba(59,130,246,0.12)" stroke="#2563eb" strokeWidth={analise.largura / 600} />
+                    ))}
                     {caixaSel && <rect x={caixaSel.x} y={caixaSel.y} width={caixaSel.w} height={caixaSel.h} fill="rgba(37,99,235,0.08)" stroke="#2563eb" strokeWidth={analise.largura / 400} strokeDasharray="8 6" />}
                   </svg>
                   {lendo && <div className="absolute inset-0 flex items-center justify-center bg-white/60"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>}
@@ -158,6 +176,8 @@ export default function AnexarProjeto({ inicial, onFechar, onConfirmar }: Anexar
                 <p className="flex items-center gap-1.5 font-bold"><ScanSearch className="h-4 w-4" /> O que achamos</p>
                 <p>{analise.deteccao ? `Contorno com ${analise.deteccao.contorno.length} lados.` : "Contorno não encontrado: use \"Delimitar a torre\"."}</p>
                 <p>{lidos?.tipos ? `${lidos.tipos} pavimentos tipo na prancha.` : "A prancha não diz quantos pavimentos: informe abaixo."}</p>
+                <p>{analise.celulas.length >= 2 ? `${analise.celulas.length} áreas fechadas (apartamentos e outros).` : "Apartamentos não separados: você pode desenhá-los na planta 2D."}</p>
+                <p>{pontoDaJunta(analise.textos) ? "Junta de dilatação encontrada: ela define o lado A." : "Junta não escrita na prancha: confira o lado A na planta 2D."}</p>
               </div>
             )}
             <label className="block space-y-1">

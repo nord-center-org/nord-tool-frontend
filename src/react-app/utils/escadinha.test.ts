@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  alternarStatus, area, contornoEmMetros, cotas, escadinhaExemplo, gerarEscadinha, lerEscadinha, lerPavimentosDoTexto,
-  montarPavimentos, opcoesDaTorre, ortogonalizar, pilares, progresso, reaproveitarCiclos, salvarEscadinha, simplificar,
+  alternarStatus, aplicarModelo, area, contornoEmMetros, cotas, escadinhaExemplo, gerarEscadinha, lerModelo, lerPavimentosDoTexto,
+  montarPavimentos, opcoesDaTorre, ortogonalizar, pilares, progresso, reaproveitarCiclos, simplificar,
   statusCiclo, CONTORNO_EXEMPLO, type Ponto,
 } from "./escadinha.ts";
-import { detectarContorno } from "./escadinhaPlanta.ts";
+import {
+  apartamentoRetangulo, atribuirLados, definirLados, divisaoAutomatica, divisaoManual, inverterLados, ladoDoPonto, metades,
+  montarApartamentos, nomeDoTexto, pontoDaJunta, prepararTorre,
+} from "./escadinhaApto.ts";
+import { detectarCelulas, detectarContorno } from "./escadinhaPlanta.ts";
 
 test("lerPavimentosDoTexto: intervalo de pavimentos tipo e pavimentos especiais", () => {
   const lido = lerPavimentosDoTexto("PLANTA CHAVE PAV. TIPO – TORRE 02 (1º AO 20º PAVIMENTO) · TÉRREO · BARRILETE / CASA DE MÁQUINAS");
@@ -79,16 +83,6 @@ test("escadinha: progresso, status e troca de status", () => {
   assert.equal(refeito[4].atividades[0].status, "andamento");
 });
 
-test("armazenamento da escadinha por obra", () => {
-  const dados = new Map<string, string>();
-  const storage = { getItem: (k: string) => dados.get(k) ?? null, setItem: (k: string, v: string) => void dados.set(k, v) };
-  assert.equal(lerEscadinha(storage, 7), null);
-  const e = escadinhaExemplo("2026-10-27");
-  salvarEscadinha(storage, 7, e);
-  assert.equal(lerEscadinha(storage, 7)?.torre.pavimentos.length, e.torre.pavimentos.length);
-  assert.equal(lerEscadinha(storage, 8), null);
-});
-
 /** Desenha uma planta sintética: moldura da prancha, contorno em L com uma falha, texto solto. */
 function plantaSintetica(w: number, h: number) {
   const lum = new Uint8Array(w * h).fill(255);
@@ -121,4 +115,78 @@ test("detectarContorno respeita o recorte e devolve coordenadas da imagem inteir
   assert.ok(r);
   assert.ok(Math.abs(Math.min(...r.contorno.map(p => p[0])) - 100) <= 4);
   assert.equal(detectarContorno(new Uint8Array(w * h).fill(255), w, h), null);
+});
+
+test("divisão automática do L corta no canto de dentro e a junta define o lado A", () => {
+  const d = divisaoAutomatica(CONTORNO_EXEMPLO);
+  const partes = metades(CONTORNO_EXEMPLO, { ...d, aEsquerda: true, fonte: "automatica" });
+  const soma = Math.abs(area(partes.A)) + Math.abs(area(partes.B));
+  assert.ok(Math.abs(soma - Math.abs(area(CONTORNO_EXEMPLO))) < 0.01);
+  const comJunta = definirLados(CONTORNO_EXEMPLO, [12, 6]);
+  assert.equal(comJunta.fonte, "junta");
+  assert.equal(ladoDoPonto([12, 6], comJunta), "A");
+  assert.equal(ladoDoPonto([-12, -6], comJunta), "B");
+  assert.equal(ladoDoPonto([12, 6], inverterLados(comJunta)), "B");
+});
+
+test("retângulo é dividido no meio do lado comprido", () => {
+  const ret: Ponto[] = [[0, 0], [40, 0], [40, 10], [0, 10]];
+  const d = divisaoAutomatica(ret);
+  assert.equal(d.a[0], 20);
+  assert.equal(d.b[0], 20);
+});
+
+test("apartamentos: número escrito na célula vira o nome; pequenos ficam de fora; lados atribuídos", () => {
+  const cel = (x: number, y: number, w: number, h: number): Ponto[] => [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+  const celulas = [cel(-16, -11, 8, 6), cel(-8, -11, 8, 6), cel(-1, -2, 1, 1)];
+  const aps = montarApartamentos(CONTORNO_EXEMPLO, celulas, [{ texto: "07", p: [-4, -8] }, { texto: "SALA", p: [-12, -8] }]);
+  assert.equal(aps.length, 2);
+  assert.deepEqual(aps.map(a => a.nome).sort(), ["Apto 01", "Apto 07"]);
+  const d = definirLados(CONTORNO_EXEMPLO, null);
+  const comLados = atribuirLados([...aps, { ...aps[0], id: "x", ladoManual: true, lado: "B" }], d);
+  assert.equal(comLados[2].lado, "B");
+  assert.equal(nomeDoTexto("AP 7"), "Apto 07");
+  assert.equal(nomeDoTexto("FINAL 12"), "Apto 12");
+  assert.equal(nomeDoTexto("COZINHA"), null);
+  assert.deepEqual(pontoDaJunta([{ texto: "JUNTA DE DILATAÇÃO", p: [1, 2] }]), [1, 2]);
+});
+
+test("torre de exemplo ganha apartamentos e lados; divisão manual endireita e mantém o lado A", () => {
+  const t = prepararTorre(escadinhaExemplo("2026-10-28").torre);
+  assert.ok((t.apartamentos?.length ?? 0) >= 4);
+  assert.ok(t.apartamentos?.some(a => a.lado === "A") && t.apartamentos?.some(a => a.lado === "B"));
+  const manual = divisaoManual(CONTORNO_EXEMPLO, [0, -12], [0.3, 12], t.lados);
+  assert.ok(manual);
+  assert.equal(manual.a[0], manual.b[0]);
+  assert.equal(manual.fonte, "manual");
+  const novo = apartamentoRetangulo([0, 0], [5, 5], t.apartamentos ?? [], t.lados);
+  assert.ok(novo && novo.contorno.length === 4);
+  assert.equal(apartamentoRetangulo([0, 0], [0.2, 5], [], undefined), null);
+});
+
+test("modelo de ciclos: leitura segura, geração e aplicação mantendo status", () => {
+  const m = lerModelo({ atividades: ["Forma", " ", "Concreto"], diasPorCiclo: 5 });
+  assert.deepEqual(m, { atividades: ["Forma", "Concreto"], diasPorCiclo: 5 });
+  assert.equal(lerModelo(null).diasPorCiclo, 7);
+  const p = montarPavimentos({ tipos: 2, subsolos: 0, terreo: false, mezanino: false, cobertura: false, barrilete: false }, CONTORNO_EXEMPLO);
+  const ciclos = gerarEscadinha(p, "2026-10-01", undefined, m);
+  assert.equal(ciclos[1].inicio, "2026-10-06");
+  assert.deepEqual(ciclos[0].atividades.map(a => a.nome), ["Forma", "Concreto"]);
+  const feito = alternarStatus(ciclos, ciclos[0].atividades[0].id);
+  const aplicado = aplicarModelo(feito, { atividades: ["Marcação", "Forma"], diasPorCiclo: 5 });
+  assert.equal(aplicado[0].atividades[1].status, "andamento");
+  assert.equal(aplicado[0].atividades[0].status, "pendente");
+  const avulso = { idPavimento: "extra-1", nome: "Fundação", inicio: "2026-09-01", atividades: [] };
+  assert.equal(reaproveitarCiclos(ciclos, [...ciclos, avulso]).length, 3);
+});
+
+test("detectarCelulas acha as células fechadas dentro do L", () => {
+  const w = 700, h = 500;
+  const lum = plantaSintetica(w, h);
+  const torre = detectarContorno(lum, w, h);
+  assert.ok(torre);
+  const celulas = detectarCelulas(lum, w, h, torre.contorno);
+  // Paredes internas em x=200 e x=300 (entre y 100 e 250) dividem a ala de cima em 3 células; a de baixo é 1.
+  assert.ok(celulas.length >= 3, `achou ${celulas.length}`);
+  assert.ok(celulas.every(c => c.length >= 4));
 });

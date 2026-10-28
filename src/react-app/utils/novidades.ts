@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-28-escadinha-torres",
+    data: "2026-10-28",
+    titulo: "Escadinha: apartamentos, lados A/B, várias torres e ciclos editáveis",
+    texto: "Na planta 2D, toque num apartamento para ver e trocar o lado, desenhe apartamentos e a divisão dos lados (o lado A é o da junta; dá para inverter). Agora a obra pode ter várias torres, os ciclos e atividades são editáveis e tudo fica salvo para a equipe toda.",
+    onde: { rotulo: "Organizacional → Escadinha", caminho: "/organizacional/escadinha" },
+  },
+  {
     id: "2026-10-28-avatar-quadrinho",
     data: "2026-10-28",
     titulo: "Avatar com traço de quadrinho e formato dos olhos",
