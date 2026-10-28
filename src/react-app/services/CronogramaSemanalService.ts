@@ -25,6 +25,23 @@ export interface CronogramaSemanalItem {
   idsCompartilhados?: number[];
 }
 
+/** Equipe do cronograma numa obra: os membros veem as demandas uns dos outros. */
+export interface CronogramaEquipe {
+  id: number;
+  idObra: number;
+  nmObra: string;
+  nmEquipe: string;
+  idLider?: number | null;
+  nmLider?: string | null;
+  idsMembros: number[];
+}
+
+export interface CronogramaEquipeForm {
+  nmEquipe: string;
+  idLider: number | null;
+  idsMembros: number[];
+}
+
 export interface CronogramaSemanalExcecao {
   idCronogramaSemanal: number;
   dtExcecao: string;
@@ -102,12 +119,27 @@ export const CronogramaSemanalService = {
   excluir(id: number) {
     return apiFetch<void>(`${BASE_PATH}/${id}`, { method: 'DELETE' });
   },
-  moverStatus(ids: number[], status: Status, itens: CronogramaSemanalItem[]) {
-    const porId = new Map(itens.map(item => [item.id, item]));
-    return Promise.all(ids.map(id => {
-      const atual = porId.get(id);
-      if (!atual) return Promise.resolve();
-      return CronogramaSemanalService.alterar({ ...atual, nmStatusCronograma: status });
-    }));
+  /** Move na esteira (só o status): vale para quem enxerga o item, não só o dono. */
+  mudarStatus(id: number, status: Status) {
+    return apiFetch<CronogramaSemanalItem>(`${BASE_PATH}/${id}/status`, { method: 'PUT', body: JSON.stringify({ nmStatusCronograma: status }) });
+  },
+  moverStatus(ids: number[], status: Status) {
+    return Promise.all(ids.map(id => CronogramaSemanalService.mudarStatus(id, status)));
+  },
+  // ---------- equipes por obra ----------
+  async equipes() {
+    return (await apiFetch<CronogramaEquipe[]>(`${BASE_PATH}/equipes`)) ?? [];
+  },
+  async equipesDaObra() {
+    return (await apiFetch<CronogramaEquipe[]>(`${BASE_PATH}/equipes/obra`)) ?? [];
+  },
+  salvarEquipe(form: CronogramaEquipeForm, id?: number) {
+    return apiFetch<CronogramaEquipe>(id ? `${BASE_PATH}/equipes/${id}` : `${BASE_PATH}/equipes`, { method: id ? 'PUT' : 'POST', body: JSON.stringify(form) });
+  },
+  excluirEquipe(id: number) {
+    return apiFetch<void>(`${BASE_PATH}/equipes/${id}`, { method: 'DELETE' });
+  },
+  async pelaHierarquia(idLider: number) {
+    return (await apiFetch<number[]>(`${BASE_PATH}/equipes/hierarquia/${idLider}`)) ?? [];
   },
 };
