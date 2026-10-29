@@ -1,6 +1,7 @@
 import { useId, useMemo, useRef, type PointerEvent } from "react";
 
 import { limites, pilares, type Apartamento, type Lado, type Pavimento, type Ponto, type Torre } from "@/react-app/utils/escadinha";
+import CamadaMedicao from "./CamadaMedicao";
 import { centroide, metades, COR_LADO } from "@/react-app/utils/escadinhaApto";
 
 
@@ -15,6 +16,10 @@ interface Planta2DProps {
   imagem?: string | null;
   selecionados?: string[];
   onClicarApto?: (id: string, somar: boolean) => void;
+  /** Duplo clique no apartamento: abre a vista dele. */
+  onAbrirApto?: (id: string) => void;
+  /** Medição em andamento (distância ou área). */
+  medicao?: { pontos: Ponto[]; cursor?: Ponto | null; area: boolean } | null;
   /** Ponteiro na planta, em metros (para desenhar apartamento ou divisão). */
   onPonteiro?: (tipo: "inicio" | "movimento" | "fim", p: Ponto) => void;
   /** Rascunho sendo desenhado: retângulo ou linha. */
@@ -29,7 +34,7 @@ const fmt = (m: number) => m.toFixed(2).replace(".", ",");
  * cotas gerais e, se houver, a prancha do projeto ao fundo. Coordenadas em metros, y para cima (no SVG, -y).
  */
 export default function Planta2D({
-  torre, pavimento, mini = false, comPrancha = true, imagem, selecionados = [], onClicarApto, onPonteiro, rascunho, cursor,
+  torre, pavimento, mini = false, comPrancha = true, imagem, selecionados = [], onClicarApto, onAbrirApto, medicao, onPonteiro, rascunho, cursor,
 }: Planta2DProps) {
   const id = useId().replace(/:/g, "");
   const svg = useRef<SVGSVGElement>(null);
@@ -98,6 +103,7 @@ export default function Planta2D({
         const [cx, cy] = centroide(ap.contorno);
         return (
           <g key={ap.id} onPointerDown={e => { if (!onClicarApto) return; e.stopPropagation(); onClicarApto(ap.id, e.shiftKey || e.ctrlKey || e.metaKey); }}
+            onDoubleClick={e => { if (!onAbrirApto) return; e.stopPropagation(); onAbrirApto(ap.id); }}
             style={{ cursor: onClicarApto ? "pointer" : undefined }}>
             <polygon points={pts(ap.contorno)} fill={COR_LADO[ap.lado]} fillOpacity={sel ? 0.55 : mini ? 0.3 : 0.22}
               stroke={sel ? "#fff" : COR_LADO[ap.lado]} strokeWidth={traco * (sel ? 2.4 : 1)} strokeLinejoin="round" />
@@ -139,6 +145,7 @@ export default function Planta2D({
       {rascunho?.tipo === "linha" && (
         <line x1={rascunho.a[0]} y1={-rascunho.a[1]} x2={rascunho.b[0]} y2={-rascunho.b[1]} stroke="#fff" strokeWidth={traco * 2} strokeDasharray={`${traco * 5} ${traco * 3}`} />
       )}
+      {medicao && <CamadaMedicao pontos={medicao.pontos} cursor={medicao.cursor} area={medicao.area} fonte={fonte * 0.8} traco={traco} />}
       {!mini && (
         <g fill="#cbd5e1" fontSize={fonte} fontWeight="700" textAnchor="middle" style={{ pointerEvents: "none" }}>
           <line x1={lim.minX} x2={lim.maxX} y1={-lim.minY + margem * 0.45} y2={-lim.minY + margem * 0.45} stroke="#94a3b8" strokeWidth={traco} />

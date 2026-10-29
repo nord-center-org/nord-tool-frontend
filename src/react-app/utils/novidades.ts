@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-29-escadinha-cury",
+    data: "2026-10-29",
+    titulo: "Escadinha no padrão Cury, com o 3D construindo junto",
+    texto: "A escadinha agora tem os 13 ciclos e 96 atividades da Cury, com status e cores (executado, em execução, atrasado, cadeado, meta do período) e a grade “A Escadinha” para preencher por pavimento e lado. O prédio 3D cresce com a alvenaria (blocos no lado A e B) e mostra o que foi executado: laje, esquadrias, prumadas, drywall, gesso, cerâmica, louças, portas, fachada… Dá para filtrar uma atividade, ver os pontos de atenção, medir distância e área na planta e abrir o apartamento com a planta da tipologia (dois cliques).",
+    onde: { rotulo: "Organizacional → Escadinha", caminho: "/organizacional/escadinha" },
+  },
+  {
     id: "2026-10-28-cronograma-equipes",
     data: "2026-10-28",
     titulo: "Equipes no cronograma, mover demandas de outras pessoas e filtro por pessoa",
