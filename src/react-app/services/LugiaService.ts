@@ -1,6 +1,6 @@
 import { LUGIA_BASE } from "../config/api";
 import { apiFetch, ApiError, getAuthToken } from "./apiClient";
-import { criarLeitorSse, urlLugia, type InfoLugia, type MensagemTela } from "../utils/lugia";
+import { criarLeitorSse, urlLugia, type InfoLugia, type MensagemTela, type ProvedorIa } from "../utils/lugia";
 
 export interface ConversaResumo {
   id: number;
@@ -19,6 +19,8 @@ export interface CallbacksChat {
   onTexto: (delta: string) => void;
   /** Passo do agente (ferramenta usada), no modo Executar. */
   onFerramenta?: (descricao: string) => void;
+  /** IA que está respondendo (no modo Automático muda quando uma delas atinge o limite). */
+  onProvedor?: (id: ProvedorIa, modelo: string) => void;
   onFim?: (motivo: string) => void;
   onErro: (mensagem: string) => void;
 }
@@ -73,6 +75,7 @@ export const lugiaService = {
         if (evento === "conversa") callbacks.onConversa?.(Number(json.id));
         else if (evento === "texto") callbacks.onTexto(String(json.delta ?? ""));
         else if (evento === "ferramenta") callbacks.onFerramenta?.(String(json.descricao ?? ""));
+        else if (evento === "provedor") callbacks.onProvedor?.(String(json.id ?? "") as ProvedorIa, String(json.modelo ?? ""));
         else if (evento === "fim") callbacks.onFim?.(String(json.motivo ?? ""));
         else if (evento === "erro") callbacks.onErro(String(json.mensagem ?? "Falha ao responder."));
       }

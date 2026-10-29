@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-29-lugia-automatico",
+    data: "2026-10-29",
+    titulo: "Lugia no Automático: IAs gratuitas que se revezam sozinhas",
+    texto: "Escolha “Automático” no seletor de modelos e a Lugia usa as IAs gratuitas (Gemini, Groq, OpenRouter, Mistral, NVIDIA). Quando uma atinge o limite de uso, passa para a próxima sem você fazer nada, e cada resposta mostra qual IA respondeu.",
+    onde: { rotulo: "Lugia (IA) → seletor de modelo", caminho: "/lugia" },
+  },
+  {
     id: "2026-10-29-escadinha-projetos",
     data: "2026-10-29",
     titulo: "Escadinha lê os projetos do Construcode e monta as torres sozinha",
