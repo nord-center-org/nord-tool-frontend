@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 import type { Apartamento, Lado, Ponto } from "@/react-app/utils/escadinha";
 import {
@@ -82,22 +83,31 @@ function geometriaPlaca(poly: Ponto[], espessura: number, escalaUV = 1) {
 
 // ---------------------------------------------------------------- peças
 
+/** Paredes de um lado: uma malha só (as paredes reais do projeto passam de 400 por pavimento). */
 function Paredes({ segmentos, altura, cor, textura, opacidade = 1 }: { segmentos: Segmento[]; altura: number; cor?: string; textura?: THREE.Texture; opacidade?: number }) {
-  const geos = useMemo(() => segmentos.map(s => geometriaParede(s, altura, PAREDE, 0.4, 0.2)), [segmentos, altura]);
+  const geo = useMemo(() => {
+    const partes = segmentos.filter(s => comprimento(s) > 0.01).map(s => {
+      const g = geometriaParede(s, altura, s.esp ?? PAREDE, 0.4, 0.2);
+      g.rotateY(angParede(s));
+      g.translate(...posParede(s, ESPESSURA_LAJE + altura / 2));
+      return g;
+    });
+    const unida = partes.length ? mergeGeometries(partes) : null;
+    partes.forEach(g => g.dispose());
+    return unida;
+  }, [segmentos, altura]);
+  useEffect(() => () => geo?.dispose(), [geo]);
+  if (!geo) return null;
   return (
-    <>
-      {segmentos.map((s, i) => (
-        <mesh key={i} geometry={geos[i]} position={posParede(s, ESPESSURA_LAJE + altura / 2)} rotation={[0, angParede(s), 0]} castShadow>
-          <meshStandardMaterial color={cor ?? "#ffffff"} map={cor ? null : textura ?? null} roughness={0.9} transparent={opacidade < 1} opacity={opacidade} />
-        </mesh>
-      ))}
-    </>
+    <mesh geometry={geo} castShadow>
+      <meshStandardMaterial color={cor ?? "#ffffff"} map={cor ? null : textura ?? null} roughness={0.9} transparent={opacidade < 1} opacity={opacidade} />
+    </mesh>
   );
 }
 
 /** Blocos soltos em cima da parede em execução (a fiada sendo assentada). */
 function BlocosSendoColocados({ segmentos, altura }: { segmentos: Segmento[]; altura: number }) {
-  const lista = useMemo(() => segmentos.flatMap(s => {
+  const lista = useMemo(() => segmentos.slice(0, 60).flatMap(s => {
     const n = Math.max(1, Math.floor(comprimento(s) / 0.4 / 3));
     return Array.from({ length: n }, (_, k) => {
       const t = (k * 3 + 1) / Math.max(1, comprimento(s) / 0.4);
@@ -140,20 +150,22 @@ interface CamadasPavimentoProps {
   filtro: Set<Camada> | null;
   /** Mostra os elevadores neste pavimento (só uma vez por pavimento). */
   comElevador: boolean;
+  /** Paredes reais do projeto por lado (1ª fiada); sem elas, as paredes saem do contorno dos apartamentos. */
+  paredesReais?: Record<Lado, Segmento[]> | null;
 }
 
 /**
  * O que já foi feito num pavimento, lado a lado: a alvenaria sobe em blocos (meia altura enquanto em execução),
  * a laje do teto fecha, entram esquadrias, prumadas, drywall, gesso, cerâmica, louças, portas, pintura e fachada.
  */
-export default function CamadasPavimento({ contorno, metades, apartamentos, altura, nucleoC, estado, filtro, comElevador }: CamadasPavimentoProps) {
+export default function CamadasPavimento({ contorno, metades, apartamentos, altura, nucleoC, estado, filtro, comElevador, paredesReais }: CamadasPavimentoProps) {
   const tex = obterTexturas();
   const util = Math.max(0.5, altura - ESPESSURA_LAJE);
   const mostra = (lado: Lado, c: Camada) => (filtro === null || filtro.has(c)) && estado[lado]?.get(c);
 
   const porLado = useMemo(() => (["A", "B"] as Lado[]).map(lado => {
     const aptos = apartamentos.filter(a => a.lado === lado);
-    const paredes = aptos.length ? (() => {
+    const paredes = paredesReais ? paredesReais[lado] : aptos.length ? (() => {
       const m = new Map<string, Segmento>();
       for (const ap of aptos) for (const s of arestas(ap.contorno)) {
         const k = [s.a, s.b].map(p => p.map(v => v.toFixed(2)).join(",")).sort().join("|");
@@ -166,7 +178,7 @@ export default function CamadasPavimento({ contorno, metades, apartamentos, altu
       fachada: metades[lado].length >= 3 ? fachadaDoLado(contorno, metades[lado]) : [],
       prumadas: prumadasDoLado(apartamentos, lado, contorno, nucleoC),
     };
-  }), [apartamentos, metades, contorno, nucleoC]);
+  }), [apartamentos, metades, contorno, nucleoC, paredesReais]);
 
   return (
     <group>

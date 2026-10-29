@@ -40,7 +40,9 @@ export default function Planta2D({
   const svg = useRef<SVGSVGElement>(null);
   const contorno = pavimento?.contorno ?? torre.contorno;
   const lim = limites(torre.contorno);
-  const colunas = useMemo(() => pilares(contorno), [contorno]);
+  const tipicoComParedes = !pavimento?.contorno && !!torre.paredes?.length;
+  // Alvenaria estrutural não tem pilares: com as paredes do projeto, os pilares de croqui somem.
+  const colunas = useMemo(() => (tipicoComParedes ? [] : pilares(contorno)), [contorno, tipicoComParedes]);
   const margem = mini ? 2 : Math.max(lim.largura, lim.profundidade) * 0.16;
   const vb = `${lim.minX - margem} ${-lim.maxY - margem} ${lim.largura + margem * 2} ${lim.profundidade + margem * 2}`;
   const pts = (c: Ponto[]) => c.map(([x, y]) => `${x},${-y}`).join(" ");
@@ -116,6 +118,13 @@ export default function Planta2D({
           </g>
         );
       })}
+      {tipicoComParedes && (
+        <g style={{ pointerEvents: "none" }} opacity={mini ? 0.7 : 0.95}>
+          {torre.paredes!.map((p, i) => (
+            <line key={i} x1={p.a[0]} y1={-p.a[1]} x2={p.b[0]} y2={-p.b[1]} stroke={p.esp <= 0.09 ? "#facc15" : "#e2e8f0"} strokeWidth={Math.max(p.esp, traco)} />
+          ))}
+        </g>
+      )}
       {colunas.map(([x, y], i) => (
         <rect key={i} x={x - 0.25} y={-y - 0.25} width="0.5" height="0.5" fill="#e2e8f0" style={{ pointerEvents: "none" }} />
       ))}

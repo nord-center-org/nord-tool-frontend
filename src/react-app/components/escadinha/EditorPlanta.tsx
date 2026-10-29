@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Planta2D from "./Planta2D";
 import { area, pilares, type Lado, type Pavimento, type Ponto, type Torre } from "@/react-app/utils/escadinha";
 import { medidas } from "@/react-app/utils/escadinha3d";
-import { fmtM, fmtM2, fmtM3, imantar } from "@/react-app/utils/medicao";
+import { cantosDaParede, fmtM, fmtM2, fmtM3, imantar } from "@/react-app/utils/medicao";
 import type { TipologiaServidor } from "@/react-app/services/EscadinhaService";
 import {
   apartamentoRetangulo, atribuirLados, definirLados, divisaoManual, inverterLados, COR_LADO,
@@ -46,7 +46,11 @@ export default function EditorPlanta({ torre, pavimento, imagem, editavel, onAlt
   const medindo = modo === "medir" || modo === "area";
   const contornoPav = pavimento.contorno ?? torre.contorno;
   // Ímã: vértices do contorno, dos apartamentos e os pilares (para medir de canto a canto).
-  const vertices = useMemo(() => [...contornoPav, ...(tipico ? apartamentos.flatMap(a => a.contorno) : []), ...pilares(contornoPav)], [contornoPav, tipico, apartamentos]);
+  // Ímã da medição: cantos do contorno e dos apartamentos e, com o projeto importado, as faces das paredes reais.
+  const vertices = useMemo(() => {
+    const faces = tipico && torre.paredes?.length ? torre.paredes.flatMap(cantosDaParede) : pilares(contornoPav);
+    return [...contornoPav, ...(tipico ? apartamentos.flatMap(a => a.contorno) : []), ...faces];
+  }, [contornoPav, tipico, apartamentos, torre.paredes]);
   const info = useMemo(() => {
     const pav = medidas(contornoPav);
     const privativa = tipico ? apartamentos.reduce((s, a) => s + Math.abs(area(a.contorno)), 0) : 0;
@@ -169,7 +173,11 @@ export default function EditorPlanta({ torre, pavimento, imagem, editavel, onAlt
                 className="w-14 rounded border border-slate-600 bg-slate-800 px-1 text-[11px] text-white" /> m
             </dt><dd className="font-bold">{fmtM3(info.volume)}</dd>
           </dl>
-          <p className="mt-1 text-[10px] text-slate-500">Medidas do croqui: ficam exatas quando o projeto é lido em escala.</p>
+          <p className="mt-1 text-[10px] text-slate-500">
+            {torre.projeto?.escala
+              ? `Medidas do projeto (escala 1:${torre.projeto.escala}); a área privativa depende dos apartamentos desenhados.`
+              : "Medidas do croqui: ficam exatas quando o projeto é lido em escala."}
+          </p>
         </div>
       )}
       {escolhidos.length > 0 && (

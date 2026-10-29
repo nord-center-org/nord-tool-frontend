@@ -26,3 +26,12 @@ export function imantar(p: Ponto, candidatos: Ponto[], tolerancia: number): Pont
 export const fmtM = (v: number, casas = 2) => `${v.toFixed(casas).replace(".", ",")} m`;
 export const fmtM2 = (v: number) => `${v.toFixed(2).replace(".", ",")} m²`;
 export const fmtM3 = (v: number) => `${v.toFixed(2).replace(".", ",")} m³`;
+
+/** Cantos das faces de uma parede (retângulo com a espessura em volta do eixo), para o ímã da medição. */
+export function cantosDaParede(p: { a: Ponto; b: Ponto; esp: number }): Ponto[] {
+  const dx = p.b[0] - p.a[0], dy = p.b[1] - p.a[1];
+  const l = Math.hypot(dx, dy) || 1;
+  const nx = (-dy / l) * (p.esp / 2), ny = (dx / l) * (p.esp / 2);
+  const r = (v: number) => Math.round(v * 1000) / 1000;
+  return [[p.a[0] + nx, p.a[1] + ny], [p.b[0] + nx, p.b[1] + ny], [p.b[0] - nx, p.b[1] - ny], [p.a[0] - nx, p.a[1] - ny]].map(([x, y]) => [r(x), r(y)] as Ponto);
+}

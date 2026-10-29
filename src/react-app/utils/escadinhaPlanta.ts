@@ -33,7 +33,7 @@ export function luminancia(rgba: ArrayLike<number>, largura: number, altura: num
 }
 
 /** Engrossa a máscara num quadrado de raio r (duas passadas separáveis). */
-function dilatar(m: Uint8Array, w: number, h: number, r: number): Uint8Array {
+export function dilatar(m: Uint8Array, w: number, h: number, r: number): Uint8Array {
   const tmp = new Uint8Array(m.length);
   for (let y = 0; y < h; y++) {
     let ultimo = -Infinity;
@@ -79,7 +79,7 @@ function componentes(m: Uint8Array, w: number, h: number) {
 }
 
 /** Contorno externo de uma máscara pelas arestas dos pixels (polígono em escada, fechado). */
-function tracarBorda(m: Uint8Array, w: number, h: number): Ponto[] {
+export function tracarBorda(m: Uint8Array, w: number, h: number): Ponto[] {
   const saidas = new Map<number, number[]>();
   const chave = (x: number, y: number) => y * (w + 1) + x;
   const ligar = (x1: number, y1: number, x2: number, y2: number) => {

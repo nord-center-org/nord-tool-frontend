@@ -95,3 +95,39 @@ export function criarZip(entradas: EntradaZip[], data: Date = new Date()): Uint8
   visao.setUint32(posicao + 16, inicioDiretorio, true);
   return saida;
 }
+
+/**
+ * Lê um ZIP (como o pacote baixado do Construcode): arquivos "store" e "deflate" pelo diretório central, sem
+ * dependências (deflate pelo DecompressionStream do navegador/node). Pastas e arquivos de sistema ficam de fora.
+ */
+export async function lerZip(bytes: Uint8Array, filtro: (nome: string) => boolean = () => true): Promise<EntradaZip[]> {
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let fim = -1;
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 22 - 0xffff); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { fim = i; break; }
+  }
+  if (fim < 0) throw new Error("Arquivo ZIP inválido ou corrompido.");
+  const total = dv.getUint16(fim + 10, true);
+  let p = dv.getUint32(fim + 16, true);
+  const saida: EntradaZip[] = [];
+  const texto = new TextDecoder();
+  for (let n = 0; n < total; n++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) throw new Error("Arquivo ZIP inválido ou corrompido.");
+    const metodo = dv.getUint16(p + 10, true);
+    const tamanho = dv.getUint32(p + 20, true);
+    const lenNome = dv.getUint16(p + 28, true), lenExtra = dv.getUint16(p + 30, true), lenComent = dv.getUint16(p + 32, true);
+    const local = dv.getUint32(p + 42, true);
+    const nome = texto.decode(bytes.subarray(p + 46, p + 46 + lenNome));
+    p += 46 + lenNome + lenExtra + lenComent;
+    const base = nome.split("/").pop() ?? nome;
+    if (nome.endsWith("/") || nome.startsWith("__MACOSX/") || base.startsWith(".") || !filtro(base)) continue;
+    const inicio = local + 30 + dv.getUint16(local + 26, true) + dv.getUint16(local + 28, true);
+    const dados = bytes.subarray(inicio, inicio + tamanho);
+    if (metodo === 0) saida.push({ nome: base, bytes: dados.slice() });
+    else if (metodo === 8) {
+      const fluxo = new Blob([dados]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      saida.push({ nome: base, bytes: new Uint8Array(await new Response(fluxo).arrayBuffer()) });
+    } else throw new Error(`O arquivo ${base} usa uma compressão que o NordTool não lê.`);
+  }
+  return saida;
+}

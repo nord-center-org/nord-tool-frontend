@@ -6,7 +6,7 @@ import * as THREE from "three";
 import CamadasPavimento from "./CamadasPavimento";
 import { cotas, limites, pilares, type Apartamento, type Lado, type Pavimento, type Ponto, type StatusAtividade, type Torre } from "@/react-app/utils/escadinha";
 import { metades as metadesDaTorre } from "@/react-app/utils/escadinhaApto";
-import { centroNucleo } from "@/react-app/utils/escadinha3d";
+import { centroNucleo, paredesPorLado, type Segmento } from "@/react-app/utils/escadinha3d";
 import type { Camada, EstadoCamada } from "@/react-app/utils/escadinhaCury";
 
 type OrbitControlsImpl = ComponentRef<typeof OrbitControls>;
@@ -44,6 +44,8 @@ interface Torre3DProps {
   onSelecionar: (id: string | null) => void;
   /** Chamado quando a fatia terminou de sair e a câmera chegou em cima dela. */
   onFatiaPronta: () => void;
+  /** Para de desenhar (janela aberta por cima, leitura de projeto): devolve a CPU/GPU para o resto da tela. */
+  pausado?: boolean;
 }
 
 function forma(contorno: Ponto[]) {
@@ -82,6 +84,9 @@ interface PavimentoProps {
     nucleoC: Ponto;
     estado: Record<Lado, Map<Camada, EstadoCamada> | undefined>;
     filtro: Set<Camada> | null;
+    /** Paredes reais do projeto (pavimento tipo); com elas não há pilares de croqui (alvenaria estrutural). */
+    paredes: Record<Lado, Segmento[]> | null;
+    semPilares: boolean;
   };
 }
 
@@ -91,7 +96,7 @@ function PavimentoMesh({ pav, contorno, cota, saidaX, selecionado, algumSelecion
   const lajeMat = useRef<THREE.MeshStandardMaterial>(null);
   const laje = useExtrusao(contorno, ESPESSURA_LAJE);
   const volume = useExtrusao(contorno, Math.max(0.1, pav.altura - ESPESSURA_LAJE));
-  const colunas = useMemo(() => pilares(contorno), [contorno]);
+  const colunas = useMemo(() => (camadas.semPilares ? [] : pilares(contorno)), [contorno, camadas.semPilares]);
   const apagado = algumSelecionado && !selecionado;
 
   useFrame((_, dt) => {
@@ -127,7 +132,7 @@ function PavimentoMesh({ pav, contorno, cota, saidaX, selecionado, algumSelecion
       </mesh>
       {!apagado && !fantasma && (
         <CamadasPavimento contorno={contorno} metades={camadas.metades} apartamentos={camadas.apartamentos} altura={pav.altura}
-          nucleoC={camadas.nucleoC} estado={camadas.estado} filtro={camadas.filtro} comElevador />
+          nucleoC={camadas.nucleoC} estado={camadas.estado} filtro={camadas.filtro} comElevador paredesReais={camadas.paredes} />
       )}
       {!apagado && !fantasma && colunas.map(([x, y], i) => (
         <mesh key={i} position={[x, ESPESSURA_LAJE + (pav.altura - ESPESSURA_LAJE) / 2, -y]}>
@@ -226,10 +231,11 @@ function MovimentoCamera({ alvo, controles, chegou, esperandoFatia, onFatiaPront
 
 /** Prédio 3D do croqui: gira como apresentação até o primeiro toque; cubo de vistas no canto; pavimentos clicáveis. */
 const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
-  { torre, selecionado, statusPorPavimento, camadas, filtroCamadas = null, apresentacao, onInteragir, onSelecionar, onFatiaPronta }, ref,
+  { torre, selecionado, statusPorPavimento, camadas, filtroCamadas = null, apresentacao, onInteragir, onSelecionar, onFatiaPronta, pausado = false }, ref,
 ) {
   const metadesT = useMemo(() => (torre.lados ? metadesDaTorre(torre.contorno, torre.lados) : { A: torre.contorno, B: [] as Ponto[] }), [torre.contorno, torre.lados]);
   const nucleoC = useMemo(() => centroNucleo(torre.contorno), [torre.contorno]);
+  const paredesLados = useMemo(() => (torre.paredes?.length && torre.lados ? paredesPorLado(torre.paredes, torre.lados) : null), [torre.paredes, torre.lados]);
   // A torre cresce com a obra: pavimento sem nada marcado e sem a laje de baixo pronta fica fantasma.
   // Torre sem nenhuma marcação (ou com filtro ligado) mostra o croqui inteiro.
   const fantasmas = useMemo(() => {
@@ -312,6 +318,7 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
     <div className="relative h-full w-full">
     <Canvas
       shadows
+      frameloop={pausado ? "never" : "always"}
       camera={{ position: posInicial.toArray(), fov: 35, near: 0.5, far: 2000 }}
       onPointerDown={() => { apresentandoNoToque.current = apresentacao; onInteragir(); }}
       // Só um clique no vazio do 3D desfaz a seleção (os rótulos HTML também disparam "missed").
@@ -354,6 +361,8 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
             nucleoC,
             estado: { A: camadas?.get(`${p.id}|A`), B: camadas?.get(`${p.id}|B`) },
             filtro: filtroCamadas,
+            paredes: !p.contorno && p.tipo === "tipo" ? paredesLados : null,
+            semPilares: !!paredesLados,
           }}
         />
       ))}

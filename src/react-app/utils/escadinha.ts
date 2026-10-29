@@ -41,6 +41,43 @@ export interface Torre {
   inicioObra?: string | null;
   /** Espessura da laje (m), para o volume de concreto. */
   espessuraLaje?: number;
+  /** Paredes reais do pavimento tipo, lidas da 1ª fiada do projeto (m, mesmo sistema do contorno). */
+  paredes?: ParedeReal[];
+  /** Resumo do pacote de projetos importado (pranchas, quantitativo de blocos e o que falta). */
+  projeto?: ProjetoImportado;
+}
+
+/** Parede reta: eixo de a até b e espessura (m). */
+export interface ParedeReal { a: Ponto; b: Ponto; esp: number }
+
+export interface ItemBlocos {
+  nome: string;
+  /** estrutural, sem_funcao, vedacao, corta_fogo, acustico, canaleta, outro */
+  categoria: string;
+  comp: number;
+  esp: number;
+  /** Blocos na 1ª fiada de um pavimento. */
+  qtd: number;
+}
+
+/** Quantitativo de uma prancha de 1ª fiada: vale para os pavimentos das lajes dela. */
+export interface QuantitativoFaixa {
+  arquivo: string;
+  lajes: [number, number] | null;
+  /** Ids dos pavimentos cobertos. */
+  pavimentos: string[];
+  itens: ItemBlocos[];
+  /** Metros de parede por espessura (cm → m). */
+  metrosPorEspessura: Record<string, number>;
+}
+
+export interface ProjetoImportado {
+  importadoEm: string;
+  torre: number | null;
+  escala: number | null;
+  pranchas: { arquivo: string; tipo: string; titulo: string | null; revisao: string | null }[];
+  quantitativos: QuantitativoFaixa[];
+  checklist: { item: string; ok: boolean; detalhe: string }[];
 }
 
 export type Lado = "A" | "B";
