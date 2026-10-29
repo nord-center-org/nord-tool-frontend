@@ -1,23 +1,28 @@
 import {
-  AlertTriangle, ArrowLeft, Box, Check, CloudOff, ListChecks, Loader2, Maximize, Minus, Pencil, Plus, RotateCcw, Trash2, TrendingUp, Upload,
+  AlertTriangle, ArrowLeft, Box, Check, CloudOff, Grid3x3, ListChecks, Loader2, Maximize, Minus, Pencil, Plus, RotateCcw, Trash2, TrendingUp, Upload,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import AnexarProjeto from "@/react-app/components/escadinha/AnexarProjeto";
 import EditorPlanta from "@/react-app/components/escadinha/EditorPlanta";
-import ModeloCiclos from "@/react-app/components/escadinha/ModeloCiclos";
-import PainelCiclos from "@/react-app/components/escadinha/PainelCiclos";
+import GradeEscadinha from "@/react-app/components/escadinha/GradeEscadinha";
+import ModeloEscadinhaEditor from "@/react-app/components/escadinha/ModeloEscadinhaEditor";
+import PainelEscadinha, { type FiltroTorre } from "@/react-app/components/escadinha/PainelEscadinha";
 import Planta2D from "@/react-app/components/escadinha/Planta2D";
 import Torre3D, { type ControleTorre } from "@/react-app/components/escadinha/Torre3D";
+import VistaApartamento from "@/react-app/components/escadinha/VistaApartamento";
 import CabecalhoPagina from "@/react-app/components/ui/CabecalhoPagina";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { useObra } from "@/react-app/hooks/useObra";
 import { ApiError } from "@/react-app/services/apiClient";
-import { escadinhaService, semImagem, type TorreServidor } from "@/react-app/services/EscadinhaService";
+import { escadinhaService, semImagem, type TipologiaServidor, type TorreServidor } from "@/react-app/services/EscadinhaService";
 import {
-  alternarStatus, aplicarModelo, escadinhaExemplo, gerarEscadinha, lerModelo, opcoesDaTorre, reaproveitarCiclos, statusCiclo,
-  MODELO_PADRAO, type Ciclo, type ModeloCiclos as Modelo, type StatusAtividade, type Torre,
+  escadinhaExemplo, gerarEscadinha, opcoesDaTorre, reaproveitarCiclos, MODELO_PADRAO, type Ciclo, type StatusAtividade, type Torre,
 } from "@/react-app/utils/escadinha";
+import {
+  atividadesEmOrdem, avaliarGrade, chaveCelula, camadasDoFiltro, camadasPorPavimento, lerGrade, lerModeloEscadinha, linhasDaGrade, MODELO_CURY, type Grade,
+  type ModeloEscadinha, type StatusMarcado,
+} from "@/react-app/utils/escadinhaCury";
 import { prepararTorre } from "@/react-app/utils/escadinhaApto";
 import { podeAcessar } from "@/react-app/utils/sessao";
 
@@ -31,6 +36,8 @@ interface EstadoTorre {
   nrVersao: number | null;
   torre: Torre;
   ciclos: Ciclo[];
+  /** Status de cada célula (pavimento|lado|atividade), gravado à parte da torre. */
+  grade: Grade;
   temPlanta: boolean;
   /** undefined = ainda não carregada. */
   imagem?: string | null;
@@ -49,13 +56,14 @@ const doServidor = (t: TorreServidor): EstadoTorre => ({
   nrVersao: t.nrVersao,
   torre: prepararTorre(t.config),
   ciclos: Array.isArray(t.ciclos) ? t.ciclos : [],
+  grade: lerGrade(t.grade),
   temPlanta: t.temPlanta,
   imagem: t.temPlanta ? undefined : null,
 });
 
 function exemplo(nome = "Torre 1"): EstadoTorre {
   const e = escadinhaExemplo(hojeIso());
-  return { chave: "exemplo", idTorre: null, nmTorre: nome, nrVersao: null, torre: prepararTorre(e.torre), ciclos: e.ciclos, temPlanta: false, imagem: null, exemplo: true };
+  return { chave: "exemplo", idTorre: null, nmTorre: nome, nrVersao: null, torre: prepararTorre(e.torre), ciclos: e.ciclos, grade: {}, temPlanta: false, imagem: null, exemplo: true };
 }
 
 /**
@@ -66,9 +74,15 @@ export default function Escadinha() {
   const { idObra, obra } = useObra();
   const { usuario } = useAuth();
   const editavel = podeAcessar(usuario?.permissoes, "ESCADINHA", "ESCRITA");
+  const admin = podeAcessar(usuario?.permissoes, "ESCADINHA", "ADMIN");
+  const [vista, setVista] = useState<"3d" | "grade">("3d");
+  const [filtro, setFiltro] = useState<FiltroTorre>({ tipo: "tudo" });
+  const [cicloGrade, setCicloGrade] = useState<string | null>(null);
+  const [tipologias, setTipologias] = useState<TipologiaServidor[]>([]);
+  const [aptoAberto, setAptoAberto] = useState<string | null>(null);
   const [torres, setTorres] = useState<EstadoTorre[]>([]);
   const [atual, setAtual] = useState<string | null>(null);
-  const [modelo, setModelo] = useState<Modelo>(MODELO_PADRAO);
+  const [modelo, setModelo] = useState<ModeloEscadinha>(MODELO_CURY);
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
   const [salvamento, setSalvamento] = useState<Salvamento>("salvo");
@@ -97,7 +111,7 @@ export default function Escadinha() {
     try {
       const r = await escadinhaService.carregar();
       const lista = r.torres.map(doServidor);
-      setModelo(lerModelo(r.modelo));
+      setModelo(lerModeloEscadinha(r.modelo));
       const comExemplo = lista.length ? lista : [exemplo()];
       setTorres(comExemplo);
       setAtual(a => (comExemplo.some(t => t.chave === a) ? a : comExemplo[0].chave));
@@ -169,16 +183,78 @@ export default function Escadinha() {
     timer.current = window.setTimeout(() => void salvarPendentes(), 900);
   };
 
+  // ---------------------------------------------------------------- células da escadinha
+
+  /** Células marcadas numa torre que ainda não existe no servidor (exemplo): vão assim que ela for criada. */
+  const celulasPendentes = useRef(new Map<string, Map<string, { status: StatusMarcado | ""; data?: string }>>());
+
+  const enviarCelulas = useCallback(async (chaveTorre: string, idTorre: number) => {
+    const fila = celulasPendentes.current.get(chaveTorre);
+    if (!fila?.size) return;
+    celulasPendentes.current.delete(chaveTorre);
+    const alteracoes = [...fila.entries()].map(([chave, v]) => ({ chave, status: v.status, data: v.data }));
+    try {
+      for (let i = 0; i < alteracoes.length; i += 400) {
+        const grade = lerGrade(await escadinhaService.marcarCelulas(idTorre, alteracoes.slice(i, i + 400)));
+        setTorres(lista => lista.map(t => (t.chave === chaveTorre ? { ...t, grade } : t)));
+      }
+      setErroSalvar(null);
+    } catch (e) {
+      setErroSalvar(e instanceof Error ? `A escadinha não foi salva: ${e.message}` : "A escadinha não foi salva.");
+      setSalvamento("erro");
+    }
+  }, []);
+
+  const marcar = (chaves: string[], status: StatusMarcado | "", data?: string) => {
+    if (!editavel || !estadoAtual.current) return;
+    const { chave: chaveTorre, idTorre } = estadoAtual.current;
+    setTorres(lista => lista.map(t => {
+      if (t.chave !== chaveTorre) return t;
+      const grade = { ...t.grade };
+      for (const k of chaves) { if (status) grade[k] = { s: status, d: data }; else delete grade[k]; }
+      return { ...t, grade };
+    }));
+    const fila = celulasPendentes.current.get(chaveTorre) ?? new Map();
+    for (const k of chaves) fila.set(k, { status, data });
+    celulasPendentes.current.set(chaveTorre, fila);
+    if (idTorre) void enviarCelulas(chaveTorre, idTorre);
+    else alterarTorre(chaveTorre, t => t); // cria a torre de exemplo; as células vão em seguida
+  };
+
+  // Torre recém-criada no servidor: manda as células que estavam esperando.
+  useEffect(() => {
+    for (const t of torres) if (t.idTorre && celulasPendentes.current.get(t.chave)?.size) void enviarCelulas(t.chave, t.idTorre);
+  }, [torres, enviarCelulas]);
+
   // ---------------------------------------------------------------- torre atual
 
   const estado = torres.find(t => t.chave === atual) ?? torres[0];
+  const estadoAtual = useRef<EstadoTorre | undefined>(estado);
+  estadoAtual.current = estado;
   const torre = estado?.torre;
-  const ciclos = useMemo(() => estado?.ciclos ?? [], [estado]);
+  const hoje = hojeIso();
+  const linhas = useMemo(() => (torre ? linhasDaGrade(torre) : []), [torre]);
+  const grade = useMemo(() => estado?.grade ?? {}, [estado]);
+  const avaliacao = useMemo(() => avaliarGrade(modelo, linhas, grade, torre?.inicioObra, hoje), [modelo, linhas, grade, torre?.inicioObra, hoje]);
+  const camadas = useMemo(() => camadasPorPavimento(modelo, grade), [modelo, grade]);
+  const filtroCamadas = useMemo(() => camadasDoFiltro(modelo, filtro), [modelo, filtro]);
   const statusPorPavimento = useMemo(() => {
     const m: Record<string, StatusAtividade> = {};
-    ciclos.forEach(c => { m[c.idPavimento] = statusCiclo(c); });
+    for (const l of linhas) {
+      const avs = [...avaliacao.entries()].filter(([k]) => k.startsWith(`${l.pavimento.id}|`)).map(([, a]) => a.status);
+      m[l.pavimento.id] = avs.length && avs.every(s => s === "executado" || s === "na") ? "finalizado"
+        : avs.some(s => s === "executado" || s === "execucao" || s === "atrasadoExec") ? "andamento" : "pendente";
+    }
     return m;
-  }, [ciclos]);
+  }, [linhas, avaliacao]);
+
+  // Tipologias da torre (a imagem só vem quando o apartamento abre).
+  const idTorreAtual = estado?.idTorre ?? null;
+  const carregarTipologias = useCallback(() => {
+    if (!idTorreAtual) { setTipologias([]); return; }
+    escadinhaService.tipologias(idTorreAtual).then(setTipologias).catch(() => setTipologias([]));
+  }, [idTorreAtual]);
+  useEffect(carregarTipologias, [carregarTipologias]);
 
   // Prancha: carrega quando a planta 2D (ou a miniatura) precisa.
   useEffect(() => {
@@ -199,6 +275,7 @@ export default function Escadinha() {
 
   const selecionar = (id: string | null) => {
     setSelecionado(id);
+    setAptoAberto(null);
     setPlanta(false);
     if (id) setPainel(true);
   };
@@ -215,7 +292,7 @@ export default function Escadinha() {
     mudarAtual(e => ({
       ...e,
       torre: prepararTorre(t),
-      ciclos: reaproveitarCiclos(gerarEscadinha(t.pavimentos, inicio, undefined, modelo), e.ciclos),
+      ciclos: reaproveitarCiclos(gerarEscadinha(t.pavimentos, inicio, undefined, MODELO_PADRAO), e.ciclos),
       imagem: t.planta?.imagem ?? null,
       plantaPendente: t.planta?.imagem ?? (e.temPlanta ? "" : undefined),
     }));
@@ -252,10 +329,9 @@ export default function Escadinha() {
     }
   };
 
-  const salvarModelo = async (novo: Modelo, aplicar: boolean) => {
+  const salvarModelo = async (novo: ModeloEscadinha) => {
     const r = await escadinhaService.salvarModelo(novo);
-    setModelo(lerModelo(r.modelo));
-    if (aplicar) mudarAtual(e => ({ ...e, ciclos: aplicarModelo(e.ciclos, novo) }));
+    setModelo(lerModeloEscadinha(r.modelo));
     setEditandoModelo(false);
   };
 
@@ -285,10 +361,22 @@ export default function Escadinha() {
                 <Upload className="h-4 w-4" /> Anexar projeto
               </button>
             )}
-            <button type="button" onClick={() => setPainel(p => !p)} aria-expanded={painel}
-              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
-              <ListChecks className="h-4 w-4" /> Ciclos
-            </button>
+            <div role="tablist" aria-label="Vista" className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+              <button type="button" role="tab" aria-selected={vista === "3d"} onClick={() => setVista("3d")}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${vista === "3d" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
+                <Box className="h-4 w-4" /> Modelo 3D
+              </button>
+              <button type="button" role="tab" aria-selected={vista === "grade"} onClick={() => setVista("grade")}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${vista === "grade" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
+                <Grid3x3 className="h-4 w-4" /> A Escadinha
+              </button>
+            </div>
+            {vista === "3d" && (
+              <button type="button" onClick={() => setPainel(p => !p)} aria-expanded={painel}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+                <ListChecks className="h-4 w-4" /> Painel
+              </button>
+            )}
           </>
         }
       />
@@ -336,6 +424,28 @@ export default function Escadinha() {
         </p>
       )}
 
+      {vista === "grade" ? (
+        <section className="flex h-[calc(100vh-15.5rem)] min-h-[520px] flex-col rounded-3xl border border-slate-800 bg-slate-900 p-4 shadow-lg" aria-label="A Escadinha">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-extrabold text-white">{estado.nmTorre}</h3>
+            <select value={cicloGrade ?? ""} onChange={e => setCicloGrade(e.target.value || null)} aria-label="Ciclo"
+              className="rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-xs font-bold text-slate-100">
+              <option value="">Todos os ciclos</option>
+              {modelo.ciclos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </select>
+            {!torre.inicioObra && <span className="text-xs text-amber-300">Defina o início da obra no painel do 3D para calcular atrasos e metas.</span>}
+            {admin && (
+              <button type="button" onClick={() => setEditandoModelo(true)} className="ml-auto rounded-lg border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-100 hover:bg-slate-700">
+                Ciclos e atividades
+              </button>
+            )}
+          </div>
+          <div className="min-h-0 flex-1">
+            <GradeEscadinha modelo={modelo} linhas={linhas} grade={grade} avaliacao={avaliacao} editavel={editavel} hoje={hoje}
+              nomeTorre={estado.nmTorre} ciclo={cicloGrade} onMarcar={marcar} />
+          </div>
+        </section>
+      ) : (
       <div className="flex flex-col gap-4 lg:h-[calc(100vh-15.5rem)] lg:min-h-[560px] lg:flex-row">
         <section ref={visor} className="relative h-[70vh] min-h-[420px] overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-lg lg:h-auto lg:flex-1" aria-label="Prédio 3D interativo">
           <Torre3D
@@ -344,6 +454,8 @@ export default function Escadinha() {
             torre={torre}
             selecionado={selecionado}
             statusPorPavimento={statusPorPavimento}
+            camadas={camadas}
+            filtroCamadas={filtroCamadas}
             apresentacao={apresentacao}
             onInteragir={() => setApresentacao(false)}
             onSelecionar={selecionar}
@@ -381,6 +493,20 @@ export default function Escadinha() {
             </div>
           )}
 
+          {planta && pavSelecionado && aptoAberto && (() => {
+            const apto = torre.apartamentos?.find(a => a.id === aptoAberto);
+            if (!apto) return null;
+            return (
+              <VistaApartamento apto={apto} pavimento={pavSelecionado} idTorre={estado.idTorre} editavel={editavel} tipologias={tipologias}
+                atividades={atividadesEmOrdem(modelo).map(({ atividade }) => ({
+                  nome: atividade.nome, status: avaliacao.get(chaveCelula(pavSelecionado.id, apto.lado, atividade.id))?.status ?? "bloqueado",
+                }))}
+                onTipologias={carregarTipologias}
+                onEscolherTipologia={idT => mudarAtual(e => ({ ...e, torre: { ...e.torre, apartamentos: (e.torre.apartamentos ?? []).map(a => (a.id === apto.id ? { ...a, idTipologia: idT } : a)) } }))}
+                onVoltar={() => setAptoAberto(null)} />
+            );
+          })()}
+
           {planta && pavSelecionado && (
             <div className="absolute inset-0 z-30 flex flex-col bg-slate-950/95 animate-aparecer">
               <div className="flex items-center justify-between gap-3 p-4 pb-2">
@@ -395,7 +521,7 @@ export default function Escadinha() {
               </div>
               <div className="min-h-0 flex-1 px-4 pb-4 animate-entrada">
                 <EditorPlanta torre={torre} pavimento={pavSelecionado} imagem={estado.imagem ?? null} editavel={editavel}
-                  onAlterar={t => mudarAtual(e => ({ ...e, torre: t }))} />
+                  onAlterar={t => mudarAtual(e => ({ ...e, torre: t }))} tipologias={tipologias} onAbrirApto={setAptoAberto} />
               </div>
             </div>
           )}
@@ -403,25 +529,34 @@ export default function Escadinha() {
 
         {painel && (
           <div className="h-[70vh] lg:h-auto lg:w-[23rem] lg:shrink-0">
-            <PainelCiclos
+            <PainelEscadinha
+              modelo={modelo}
+              linhas={linhas}
+              grade={grade}
+              avaliacao={avaliacao}
               pavimentos={torre.pavimentos}
-              ciclos={ciclos}
               selecionado={selecionado}
+              inicioObra={torre.inicioObra ?? null}
+              hoje={hoje}
               editavel={editavel}
-              onAlterarCiclos={novos => mudarAtual(e => ({ ...e, ciclos: novos }))}
-              onAlternar={id => mudarAtual(e => ({ ...e, ciclos: alternarStatus(e.ciclos, id) }))}
+              admin={admin}
+              filtro={filtro}
+              onFiltro={setFiltro}
+              onInicioObra={iso => mudarAtual(e => ({ ...e, torre: { ...e.torre, inicioObra: iso } }))}
+              onMarcar={marcar}
+              onFocar={id => { setApresentacao(false); setSelecionado(id); setPlanta(false); }}
               onVerTudo={() => selecionar(null)}
               onAnexar={() => setAnexando(true)}
               onModelo={() => setEditandoModelo(true)}
               onFechar={() => setPainel(false)}
-              onFocar={id => { setApresentacao(false); setSelecionado(id); setPlanta(false); }}
             />
           </div>
         )}
       </div>
+      )}
 
       {anexando && <AnexarProjeto inicial={opcoesDaTorre(torre)} onFechar={() => setAnexando(false)} onConfirmar={novaTorreDoProjeto} />}
-      {editandoModelo && <ModeloCiclos modelo={modelo} onFechar={() => setEditandoModelo(false)} onSalvar={salvarModelo} />}
+      {editandoModelo && admin && <ModeloEscadinhaEditor modelo={modelo} onFechar={() => setEditandoModelo(false)} onSalvar={salvarModelo} />}
     </div>
   );
 }

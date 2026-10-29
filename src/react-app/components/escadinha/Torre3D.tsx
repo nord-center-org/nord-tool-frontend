@@ -3,7 +3,11 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, type ComponentRef, useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
 
-import { cotas, limites, pilares, type Pavimento, type Ponto, type StatusAtividade, type Torre } from "@/react-app/utils/escadinha";
+import CamadasPavimento from "./CamadasPavimento";
+import { cotas, limites, pilares, type Apartamento, type Lado, type Pavimento, type Ponto, type StatusAtividade, type Torre } from "@/react-app/utils/escadinha";
+import { metades as metadesDaTorre } from "@/react-app/utils/escadinhaApto";
+import { centroNucleo } from "@/react-app/utils/escadinha3d";
+import type { Camada, EstadoCamada } from "@/react-app/utils/escadinhaCury";
 
 type OrbitControlsImpl = ComponentRef<typeof OrbitControls>;
 
@@ -31,6 +35,10 @@ interface Torre3DProps {
   torre: Torre;
   selecionado: string | null;
   statusPorPavimento: Record<string, StatusAtividade>;
+  /** O que já foi feito em cada pavimento|lado (da escadinha). */
+  camadas?: Map<string, Map<Camada, EstadoCamada>>;
+  /** Filtro do 3D: só estas camadas (null = todas). */
+  filtroCamadas?: Set<Camada> | null;
   apresentacao: boolean;
   onInteragir: () => void;
   onSelecionar: (id: string | null) => void;
@@ -66,9 +74,18 @@ interface PavimentoProps {
   onClicar: (id: string) => void;
   chegou: MutableRefObject<boolean>;
   registrar: (id: string, grupo: THREE.Group | null) => void;
+  /** Ainda não começou (a torre "cresce" com a obra): só o contorno apagado. */
+  fantasma: boolean;
+  camadas: {
+    metades: Record<Lado, Ponto[]>;
+    apartamentos: Apartamento[];
+    nucleoC: Ponto;
+    estado: Record<Lado, Map<Camada, EstadoCamada> | undefined>;
+    filtro: Set<Camada> | null;
+  };
 }
 
-function PavimentoMesh({ pav, contorno, cota, saidaX, selecionado, algumSelecionado, destacado, onPassar, onClicar, chegou, registrar }: PavimentoProps) {
+function PavimentoMesh({ pav, contorno, cota, saidaX, selecionado, algumSelecionado, destacado, onPassar, onClicar, chegou, registrar, fantasma, camadas }: PavimentoProps) {
   const grupo = useRef<THREE.Group>(null);
   const volumeMat = useRef<THREE.MeshStandardMaterial>(null);
   const lajeMat = useRef<THREE.MeshStandardMaterial>(null);
@@ -85,9 +102,10 @@ function PavimentoMesh({ pav, contorno, cota, saidaX, selecionado, algumSelecion
     g.position.x = THREE.MathUtils.damp(g.position.x, alvoX, 5, dt);
     g.position.y = THREE.MathUtils.damp(g.position.y, cota + alvoY, 5, dt);
     if (selecionado && Math.abs(g.position.x - alvoX) < 0.15) chegou.current = true;
-    const opVol = apagado ? 0.02 : destacado || selecionado ? 0.5 : 0.07;
+    const opVol = apagado ? 0.02 : destacado || selecionado ? 0.5 : fantasma ? 0.02 : 0.07;
     if (volumeMat.current) volumeMat.current.opacity = THREE.MathUtils.damp(volumeMat.current.opacity, opVol, 6, dt);
-    if (lajeMat.current) lajeMat.current.opacity = THREE.MathUtils.damp(lajeMat.current.opacity, apagado ? 0.18 : 1, 6, dt);
+    const opLaje = apagado ? 0.18 : fantasma && !destacado && !selecionado ? 0.12 : 1;
+    if (lajeMat.current) lajeMat.current.opacity = THREE.MathUtils.damp(lajeMat.current.opacity, opLaje, 6, dt);
   });
 
   const corVolume = destacado || selecionado ? COR.destaque : COR.volume;
@@ -107,7 +125,11 @@ function PavimentoMesh({ pav, contorno, cota, saidaX, selecionado, algumSelecion
         <meshStandardMaterial ref={volumeMat} color={corVolume} transparent opacity={0.07} depthWrite={false} roughness={0.3} />
         {!apagado && <Edges color="#64748b" />}
       </mesh>
-      {!apagado && colunas.map(([x, y], i) => (
+      {!apagado && !fantasma && (
+        <CamadasPavimento contorno={contorno} metades={camadas.metades} apartamentos={camadas.apartamentos} altura={pav.altura}
+          nucleoC={camadas.nucleoC} estado={camadas.estado} filtro={camadas.filtro} comElevador />
+      )}
+      {!apagado && !fantasma && colunas.map(([x, y], i) => (
         <mesh key={i} position={[x, ESPESSURA_LAJE + (pav.altura - ESPESSURA_LAJE) / 2, -y]}>
           <boxGeometry args={[0.45, pav.altura - ESPESSURA_LAJE, 0.45]} />
           <meshStandardMaterial color={COR.pilar} />
@@ -204,8 +226,26 @@ function MovimentoCamera({ alvo, controles, chegou, esperandoFatia, onFatiaPront
 
 /** Prédio 3D do croqui: gira como apresentação até o primeiro toque; cubo de vistas no canto; pavimentos clicáveis. */
 const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
-  { torre, selecionado, statusPorPavimento, apresentacao, onInteragir, onSelecionar, onFatiaPronta }, ref,
+  { torre, selecionado, statusPorPavimento, camadas, filtroCamadas = null, apresentacao, onInteragir, onSelecionar, onFatiaPronta }, ref,
 ) {
+  const metadesT = useMemo(() => (torre.lados ? metadesDaTorre(torre.contorno, torre.lados) : { A: torre.contorno, B: [] as Ponto[] }), [torre.contorno, torre.lados]);
+  const nucleoC = useMemo(() => centroNucleo(torre.contorno), [torre.contorno]);
+  // A torre cresce com a obra: pavimento sem nada marcado e sem a laje de baixo pronta fica fantasma.
+  // Torre sem nenhuma marcação (ou com filtro ligado) mostra o croqui inteiro.
+  const fantasmas = useMemo(() => {
+    const f = new Set<string>();
+    if (!camadas?.size || filtroCamadas) return f;
+    const naGrade = torre.pavimentos.filter(p => p.tipo !== "subsolo" && p.tipo !== "barrilete");
+    naGrade.forEach((p, i) => {
+      const tem = (id: string) => camadas.has(`${id}|A`) || camadas.has(`${id}|B`);
+      const lajeAbaixo = i > 0 && (["A", "B"] as Lado[]).some(l => camadas.get(`${naGrade[i - 1].id}|${l}`)?.get("laje") === "E");
+      if (i > 0 && !tem(p.id) && !lajeAbaixo) f.add(p.id);
+    });
+    // Barrilete acompanha o último pavimento.
+    const ultimo = naGrade[naGrade.length - 1];
+    if (ultimo && f.has(ultimo.id)) torre.pavimentos.filter(p => p.tipo === "barrilete").forEach(p => f.add(p.id));
+    return f;
+  }, [camadas, filtroCamadas, torre.pavimentos]);
   const [passando, setPassando] = useState<string | null>(null);
   const controles = useRef<OrbitControlsImpl | null>(null);
   const alvo = useRef<{ posicao: THREE.Vector3; foco: THREE.Vector3 } | null>(null);
@@ -307,6 +347,14 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
           onClicar={clicar}
           chegou={chegou}
           registrar={registrar}
+          fantasma={fantasmas.has(p.id)}
+          camadas={{
+            metades: p.contorno ? { A: p.contorno, B: [] } : metadesT,
+            apartamentos: !p.contorno && (p.tipo === "tipo" || p.tipo === "cobertura" || p.tipo === "mezanino") ? torre.apartamentos ?? [] : [],
+            nucleoC,
+            estado: { A: camadas?.get(`${p.id}|A`), B: camadas?.get(`${p.id}|B`) },
+            filtro: filtroCamadas,
+          }}
         />
       ))}
       {!selecionado && <Guindaste x={lim.minX - 4} z={0} altura={topo + 6} />}

@@ -37,6 +37,10 @@ export interface Torre {
   apartamentos?: Apartamento[];
   /** Divisão da torre em lado A e lado B. */
   lados?: DivisaoLados;
+  /** Início da obra (AAAA-MM-DD): base do plano da escadinha (atrasos e metas). */
+  inicioObra?: string | null;
+  /** Espessura da laje (m), para o volume de concreto. */
+  espessuraLaje?: number;
 }
 
 export type Lado = "A" | "B";
@@ -46,6 +50,8 @@ export interface Apartamento {
   nome: string;
   contorno: Ponto[];
   lado: Lado;
+  /** Tipologia (planta do apartamento), por id. */
+  idTipologia?: number | null;
   /** Lado escolhido à mão (não muda quando a divisão é refeita). */
   ladoManual?: boolean;
 }
