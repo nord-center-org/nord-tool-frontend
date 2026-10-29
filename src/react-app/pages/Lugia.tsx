@@ -7,7 +7,7 @@ import CabecalhoPagina from "@/react-app/components/ui/CabecalhoPagina";
 import { useCapturaLugia } from "@/react-app/hooks/useCapturaLugia";
 import { lerArquivoBase64, lugiaDisponivel, lugiaService as servico, type AnexoEnvio, type ConversaResumo } from "@/react-app/services/LugiaService";
 import {
-  agruparModelos, lerModeloPreferido, MAX_ANEXOS, modeloInicial, recursosJanelaLateral, SITES_IA, ROTULO_PROVEDOR, salvarModeloPreferido, textoDaMensagem, validarArquivo,
+  agruparModelos, lerModeloPreferido, MAX_ANEXOS, modeloInicial, recursosJanelaLateral, rotuloModelo, SITES_IA, ROTULO_PROVEDOR, salvarModeloPreferido, textoDaMensagem, validarArquivo,
   type MensagemTela, type ModeloIa,
 } from "@/react-app/utils/lugia";
 
@@ -218,6 +218,12 @@ export default function LugiaPage() {
         },
         onTexto: acrescentar,
         onFerramenta: registrarPasso,
+        onProvedor: id =>
+          setMensagens(l => {
+            const copia = [...l];
+            copia[copia.length - 1] = { ...copia[copia.length - 1], provedor: id };
+            return copia;
+          }),
         onErro: m => setErro(m),
       }, controle.signal);
     } catch (e) {
@@ -324,7 +330,7 @@ export default function LugiaPage() {
               <div className="flex h-full flex-col items-center justify-center gap-3 text-center animate-surgir">
                 <div className="rounded-2xl bg-blue-50 p-4"><Bot className="h-8 w-8 text-blue-600" /></div>
                 <p className="text-lg font-bold text-slate-800">Como posso ajudar?</p>
-                <p className="max-w-md text-sm text-slate-500">Escolha o modelo abaixo e converse. Dá para anexar fotos e PDFs (termos, comprovantes, plantas) e trocar de IA no meio da conversa.</p>
+                <p className="max-w-md text-sm text-slate-500">Escolha o modelo abaixo e converse. No Automático, a Lugia troca sozinha entre as IAs gratuitas quando uma atinge o limite. Dá para anexar fotos e PDFs (termos, comprovantes, plantas) e trocar de IA no meio da conversa.</p>
               </div>
             )}
             {mensagens.map((m, i) => <Balao key={i} mensagem={m} digitando={enviando && i === mensagens.length - 1 && m.papel === "assistente"} />)}
@@ -380,7 +386,7 @@ export default function LugiaPage() {
                 {modelos === null && <option value="">Carregando modelos…</option>}
                 {grupos.map(g => (
                   <optgroup key={g.provedor} label={ROTULO_PROVEDOR[g.provedor]}>
-                    {g.modelos.map(m => <option key={m.id} value={m.id}>{m.id}</option>)}
+                    {g.modelos.map(m => <option key={m.id} value={m.id}>{rotuloModelo(m)}</option>)}
                   </optgroup>
                 ))}
               </select>}
@@ -442,7 +448,7 @@ function Balao({ mensagem: m, digitando }: { mensagem: MensagemTela; digitando: 
         ))}
         {texto && <div className="whitespace-pre-wrap break-words leading-relaxed">{texto}</div>}
         {m.passos && m.passos.length > 0 && (
-          <ul className="mt-2 space-y-0.5 border-l-2 border-slate-200 pl-2 font-mono text-[11px] text-slate-500" aria-label="Passos do agente">
+          <ul className="mt-2 space-y-0.5 border-l-2 border-slate-200 pl-2 font-mono text-[11px] text-slate-500" aria-label="Passos da resposta">
             {m.passos.map((passo, i) => <li key={i} className="truncate">{passo}</li>)}
           </ul>
         )}

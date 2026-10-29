@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { agruparModelos, criarLeitorSse, modeloInicial, recursosJanelaLateral, textoDaMensagem, urlLugia, validarArquivo, type ModeloIa } from "./lugia.ts";
+import { agruparModelos, criarLeitorSse, modeloInicial, recursosJanelaLateral, rotuloModelo, textoDaMensagem, urlLugia, validarArquivo, type ModeloIa } from "./lugia.ts";
 
 test("urlLugia: base relativa usa a origem; absoluta fica como está", () => {
   assert.equal(urlLugia("/api/v1/lugia", "/chat", "http://localhost:5173"), "http://localhost:5173/api/v1/lugia/chat");
@@ -55,4 +55,9 @@ test("modeloInicial usa o preferido só se ainda existir", () => {
 test("recursosJanelaLateral encosta a janela na direita com largura limitada", () => {
   assert.equal(recursosJanelaLateral(1920, 1080), "popup=yes,width=520,height=1000,left=1400,top=0");
   assert.equal(recursosJanelaLateral(800, 500), "popup=yes,width=360,height=480,left=440,top=0");
+});
+
+test("rotuloModelo: Automático explica a troca; os demais mostram o id", () => {
+  assert.equal(rotuloModelo({ provedor: "automatico", id: "automatico", nome: "Automático" }), "Troca sozinho entre as IAs gratuitas");
+  assert.equal(rotuloModelo({ provedor: "groq", id: "openai/gpt-oss-120b", nome: "Groq · openai/gpt-oss-120b" }), "openai/gpt-oss-120b");
 });

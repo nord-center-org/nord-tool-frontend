@@ -1,7 +1,10 @@
 /** Regras puras da tela da Lugia (chat multi-IA): leitura do SSE, anexos e URL do serviço. */
 
-/** "agente" é o agente Claude que executa pedidos no NordTool (modo Executar). */
-export type ProvedorIa = "claude" | "openai" | "gemini" | "groq" | "openrouter" | "agente";
+/**
+ * "agente" é o agente Claude que executa pedidos no NordTool (modo Executar). "automatico" é a opção que troca
+ * sozinha entre as IAs gratuitas; a resposta fica com o provedor que realmente respondeu.
+ */
+export type ProvedorIa = "claude" | "openai" | "gemini" | "groq" | "openrouter" | "mistral" | "nvidia" | "automatico" | "agente";
 
 export interface ModeloIa {
   provedor: ProvedorIa;
@@ -35,8 +38,14 @@ export interface EventoSse {
 }
 
 export const ROTULO_PROVEDOR: Record<ProvedorIa, string> = {
-  claude: "Claude", openai: "ChatGPT", gemini: "Gemini", groq: "Groq (gratuito)", openrouter: "OpenRouter (gratuito)", agente: "Agente Claude",
+  claude: "Claude", openai: "ChatGPT", gemini: "Gemini", groq: "Groq (gratuito)", openrouter: "OpenRouter (gratuito)",
+  mistral: "Mistral (gratuito)", nvidia: "NVIDIA (gratuito)", automatico: "Automático (gratuito)", agente: "Agente Claude",
 };
+
+/** Texto da opção no seletor: o id do modelo, ou uma explicação para o Automático. */
+export function rotuloModelo(m: ModeloIa): string {
+  return m.provedor === "automatico" ? "Troca sozinho entre as IAs gratuitas" : m.id;
+}
 
 /** Sites das IAs para abrir em janela ao lado, já com a conta da pessoa (não dá para embutir: eles bloqueiam iframe). */
 export const SITES_IA = [
