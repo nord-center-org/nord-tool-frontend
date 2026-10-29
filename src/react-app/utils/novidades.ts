@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-29-escadinha-projetos",
+    data: "2026-10-29",
+    titulo: "Escadinha lê os projetos do Construcode e monta as torres sozinha",
+    texto: "Em “Importar projetos”, envie o ZIP baixado do Construcode (ou os PDFs): o NordTool lê as pranchas vetoriais, sem conversão manual. Da 1ª fiada saem as paredes reais bloco a bloco (estrutural, vedação, sem função, corta-fogo, pela legenda); do corte esquemático, os pavimentos com o pé-direito certo; e a junta de dilatação divide os lados A e B. Já monta todas as torres do pacote, mostra o quantitativo de blocos da 1ª fiada com o que a escadinha marcou como assentado e uma lista do que falta pedir de projeto (arquitetura, térreo, instalações…). A medição na planta gruda na face das paredes.",
+    onde: { rotulo: "Organizacional → Escadinha", caminho: "/organizacional/escadinha" },
+  },
+  {
     id: "2026-10-29-escadinha-cury",
     data: "2026-10-29",
     titulo: "Escadinha no padrão Cury, com o 3D construindo junto",

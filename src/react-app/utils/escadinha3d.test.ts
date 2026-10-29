@@ -34,3 +34,12 @@ test("drywall, área molhada, sacada e porta pelo núcleo", () => {
   assert.equal(arestas([[0, 0], [0, 0], [1, 0]]).length, 2);
   assert.deepEqual(medidas(contorno), { area: 200, perimetro: 60 });
 });
+
+test("paredes reais separadas por lado pela divisão da torre", async () => {
+  const { paredesPorLado } = await import("./escadinha3d.ts");
+  const lados = { a: [5, -10] as Ponto, b: [5, 10] as Ponto, aEsquerda: true, fonte: "junta" as const };
+  const r = paredesPorLado([{ a: [0, 0], b: [3, 0], esp: 0.14 }, { a: [7, 0], b: [9, 0], esp: 0.09 }], lados);
+  assert.equal(r.A.length, 1);
+  assert.equal(r.B.length, 1);
+  assert.equal(r.B[0].esp, 0.09);
+});

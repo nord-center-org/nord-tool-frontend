@@ -3,10 +3,11 @@
  * divisórias de drywall, área molhada (cerâmica/louças), sacada, porta de entrada e prumadas. Tudo em metros no plano
  * da planta (x, y); a altura fica com o componente 3D. Sem three.js, para testar.
  */
-import { area, dentro, limites, nucleo, type Apartamento, type Lado, type Ponto } from "./escadinha.ts";
-import { centroide } from "./escadinhaApto.ts";
+import { area, dentro, limites, nucleo, type Apartamento, type DivisaoLados, type Lado, type ParedeReal, type Ponto } from "./escadinha.ts";
+import { centroide, ladoDoPonto } from "./escadinhaApto.ts";
 
-export interface Segmento { a: Ponto; b: Ponto }
+/** Trecho de parede no plano; `esp` (m) quando vem do projeto (sem ela, 14 cm). */
+export interface Segmento { a: Ponto; b: Ponto; esp?: number }
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
 const chaveSeg = (s: Segmento) => {
@@ -114,4 +115,11 @@ export function prumadasDoLado(apartamentos: Apartamento[], lado: Lado, contorno
 /** Área (m²) e perímetro (m) de um polígono. */
 export function medidas(poly: Ponto[]): { area: number; perimetro: number } {
   return { area: Math.abs(area(poly)), perimetro: arestas(poly).reduce((s, x) => s + comprimento(x), 0) };
+}
+
+/** Paredes reais do projeto separadas por lado (pelo meio de cada parede), para a alvenaria subir lado a lado. */
+export function paredesPorLado(paredes: ParedeReal[], lados: DivisaoLados): Record<Lado, Segmento[]> {
+  const r: Record<Lado, Segmento[]> = { A: [], B: [] };
+  for (const p of paredes) r[ladoDoPonto([(p.a[0] + p.b[0]) / 2, (p.a[1] + p.b[1]) / 2], lados)].push({ a: p.a, b: p.b, esp: p.esp });
+  return r;
 }

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AnexarProjeto from "@/react-app/components/escadinha/AnexarProjeto";
 import EditorPlanta from "@/react-app/components/escadinha/EditorPlanta";
 import GradeEscadinha from "@/react-app/components/escadinha/GradeEscadinha";
+import ImportarProjetos from "@/react-app/components/escadinha/ImportarProjetos";
 import ModeloEscadinhaEditor from "@/react-app/components/escadinha/ModeloEscadinhaEditor";
 import PainelEscadinha, { type FiltroTorre } from "@/react-app/components/escadinha/PainelEscadinha";
 import Planta2D from "@/react-app/components/escadinha/Planta2D";
@@ -23,7 +24,8 @@ import {
   atividadesEmOrdem, avaliarGrade, chaveCelula, camadasDoFiltro, camadasPorPavimento, lerGrade, lerModeloEscadinha, linhasDaGrade, MODELO_CURY, type Grade,
   type ModeloEscadinha, type StatusMarcado,
 } from "@/react-app/utils/escadinhaCury";
-import { prepararTorre } from "@/react-app/utils/escadinhaApto";
+import { ladoDoPonto, prepararTorre } from "@/react-app/utils/escadinhaApto";
+import { pesoDosLados, resumoBlocos } from "@/react-app/utils/projetoVetorial";
 import { podeAcessar } from "@/react-app/utils/sessao";
 
 const hojeIso = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
@@ -92,6 +94,7 @@ export default function Escadinha() {
   const [apresentacao, setApresentacao] = useState(true);
   const [painel, setPainel] = useState(true);
   const [anexando, setAnexando] = useState(false);
+  const [importando, setImportando] = useState(false);
   const [editandoModelo, setEditandoModelo] = useState(false);
   const [renomeando, setRenomeando] = useState(false);
   const controle = useRef<ControleTorre>(null);
@@ -237,6 +240,15 @@ export default function Escadinha() {
   const grade = useMemo(() => estado?.grade ?? {}, [estado]);
   const avaliacao = useMemo(() => avaliarGrade(modelo, linhas, grade, torre?.inicioObra, hoje), [modelo, linhas, grade, torre?.inicioObra, hoje]);
   const camadas = useMemo(() => camadasPorPavimento(modelo, grade), [modelo, grade]);
+  // Medição pelo projeto importado: cada lado com alvenaria executada conta pelo peso das paredes dele.
+  const projetoResumo = useMemo(() => {
+    const p = torre?.projeto;
+    if (!p) return null;
+    const lados = torre.lados;
+    const peso = torre.paredes?.length && lados ? pesoDosLados(torre.paredes, pt => ladoDoPonto(pt, lados)) : { A: 0.5, B: 0.5 };
+    const feito = (id: string) => (["A", "B"] as const).reduce((s, l) => s + (camadas.get(`${id}|${l}`)?.get("alvenaria") === "E" ? peso[l] : 0), 0);
+    return { dados: p, resumo: resumoBlocos(p, feito) };
+  }, [torre, camadas]);
   const filtroCamadas = useMemo(() => camadasDoFiltro(modelo, filtro), [modelo, filtro]);
   const statusPorPavimento = useMemo(() => {
     const m: Record<string, StatusAtividade> = {};
@@ -301,6 +313,38 @@ export default function Escadinha() {
     setApresentacao(true);
   };
 
+  /** Torres montadas pelo pacote de projetos: a primeira entra na torre aberta; as outras atualizam a torre de mesmo nome ou viram novas. */
+  const torresDoProjeto = (lista: Torre[]) => {
+    const [primeira, ...resto] = lista;
+    if (!primeira) return;
+    novaTorreDoProjeto(primeira);
+    setImportando(false);
+    const inicio = estado.ciclos[0]?.inicio ?? hojeIso();
+    const novas: EstadoTorre[] = [];
+    for (const t of resto) {
+      const existente = torres.find(x => x.chave !== estado.chave && x.nmTorre.trim().toLowerCase() === t.nome.trim().toLowerCase());
+      if (existente) {
+        alterarTorre(existente.chave, e => ({
+          ...e,
+          torre: prepararTorre({ ...t, inicioObra: e.torre.inicioObra ?? null, espessuraLaje: e.torre.espessuraLaje }),
+          ciclos: reaproveitarCiclos(gerarEscadinha(t.pavimentos, e.ciclos[0]?.inicio ?? inicio, undefined, MODELO_PADRAO), e.ciclos),
+        }));
+      } else {
+        novas.push({
+          chave: `nova-${Date.now()}-${novas.length}`, idTorre: null, nmTorre: t.nome, nrVersao: null, torre: prepararTorre(t),
+          ciclos: gerarEscadinha(t.pavimentos, inicio, undefined, MODELO_PADRAO), grade: {}, temPlanta: false, imagem: null,
+        });
+      }
+    }
+    if (novas.length) {
+      setTorres(l => [...l, ...novas]);
+      novas.forEach(n => sujos.current.add(n.chave));
+      setSalvamento("pendente");
+      window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => void salvarPendentes(), 300);
+    }
+  };
+
   const adicionarTorre = () => {
     const numero = torres.length + 1;
     const base = exemplo(`Torre ${numero}`);
@@ -311,7 +355,7 @@ export default function Escadinha() {
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => void salvarPendentes(), 300);
     trocarTorre(nova.chave);
-    setAnexando(true);
+    setImportando(true);
   };
 
   const excluirTorre = async () => {
@@ -357,8 +401,8 @@ export default function Escadinha() {
         acoes={
           <>
             {editavel && (
-              <button type="button" onClick={() => setAnexando(true)} className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700">
-                <Upload className="h-4 w-4" /> Anexar projeto
+              <button type="button" onClick={() => setImportando(true)} className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700">
+                <Upload className="h-4 w-4" /> Importar projetos
               </button>
             )}
             <div role="tablist" aria-label="Vista" className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
@@ -451,6 +495,7 @@ export default function Escadinha() {
           <Torre3D
             key={estado.chave}
             ref={controle}
+            pausado={importando || anexando}
             torre={torre}
             selecionado={selecionado}
             statusPorPavimento={statusPorPavimento}
@@ -546,15 +591,20 @@ export default function Escadinha() {
               onMarcar={marcar}
               onFocar={id => { setApresentacao(false); setSelecionado(id); setPlanta(false); }}
               onVerTudo={() => selecionar(null)}
-              onAnexar={() => setAnexando(true)}
+              onAnexar={() => setImportando(true)}
               onModelo={() => setEditandoModelo(true)}
               onFechar={() => setPainel(false)}
+              projeto={projetoResumo}
             />
           </div>
         )}
       </div>
       )}
 
+      {importando && (
+        <ImportarProjetos atual={torre} hoje={hoje} onFechar={() => setImportando(false)} onConfirmar={torresDoProjeto}
+          onCroqui={() => { setImportando(false); setAnexando(true); }} />
+      )}
       {anexando && <AnexarProjeto inicial={opcoesDaTorre(torre)} onFechar={() => setAnexando(false)} onConfirmar={novaTorreDoProjeto} />}
       {editandoModelo && admin && <ModeloEscadinhaEditor modelo={modelo} onFechar={() => setEditandoModelo(false)} onSalvar={salvarModelo} />}
     </div>

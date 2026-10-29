@@ -2,7 +2,9 @@ import { AlertTriangle, ChevronDown, Filter, Lightbulb, ListChecks, Settings2, U
 import { useMemo, useState, type MouseEvent } from "react";
 
 import MenuCelula, { type AlvoCelula } from "./MenuCelula";
-import type { Lado, Pavimento } from "@/react-app/utils/escadinha";
+import ResumoProjeto from "./ResumoProjeto";
+import type { Lado, Pavimento, ProjetoImportado } from "@/react-app/utils/escadinha";
+import type { ResumoBlocos } from "@/react-app/utils/projetoVetorial";
 import {
   COR_STATUS, LEGENDA, chaveCelula, gargalos, periodoDe, resumir, type Avaliacao, type Grade, type LinhaGrade, type ModeloEscadinha,
   type StatusMarcado,
@@ -30,6 +32,8 @@ interface PainelEscadinhaProps {
   onAnexar: () => void;
   onModelo: () => void;
   onFechar: () => void;
+  /** Projeto importado da torre (blocos × alvenaria executada e o que falta). */
+  projeto?: { dados: ProjetoImportado; resumo: ResumoBlocos } | null;
 }
 
 const dataCurta = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
@@ -38,7 +42,7 @@ const ROTULO = Object.fromEntries(LEGENDA.map(l => [l.status, l.rotulo])) as Rec
 /** Painel ao lado do 3D: resumo e pontos de atenção da torre ou, com um pavimento aberto, as atividades por lado. */
 export default function PainelEscadinha({
   modelo, linhas, grade, avaliacao, pavimentos, selecionado, inicioObra, hoje, editavel, admin, filtro, onFiltro, onInicioObra, onMarcar,
-  onFocar, onVerTudo, onAnexar, onModelo, onFechar,
+  onFocar, onVerTudo, onAnexar, onModelo, onFechar, projeto,
 }: PainelEscadinhaProps) {
   const [lado, setLado] = useState<Lado>("A");
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
@@ -205,6 +209,7 @@ export default function PainelEscadinha({
                 </li>
               ))}
             </ul>
+            {projeto && <ResumoProjeto projeto={projeto.dados} resumo={projeto.resumo} />}
           </>
         )}
       </div>

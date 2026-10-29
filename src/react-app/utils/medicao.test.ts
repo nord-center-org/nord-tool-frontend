@@ -12,3 +12,8 @@ test("medição: comprimento, área, ímã e formato", () => {
   assert.equal(fmtM(12.345), "12,35 m");
   assert.equal(fmtM2(48.2), "48,20 m²");
 });
+
+test("ímã: cantos das faces de uma parede de 14 cm", async () => {
+  const { cantosDaParede } = await import("./medicao.ts");
+  assert.deepEqual(cantosDaParede({ a: [0, 0], b: [4, 0], esp: 0.14 }), [[0, 0.07], [4, 0.07], [4, -0.07], [0, -0.07]]);
+});
