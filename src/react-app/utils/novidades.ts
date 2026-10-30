@@ -24,6 +24,13 @@ export const NOVIDADES: Novidade[] = [
     onde: { rotulo: "Lugia (IA) → seletor de modelo", caminho: "/lugia" },
   },
   {
+    id: "2026-10-30-escadinha-coracao",
+    data: "2026-10-30",
+    titulo: "Escadinha: status da Cury, pavimento em 3D e plantas com os apartamentos de verdade",
+    texto: "Os status agora são os da escadinha da Cury (executado, em execução, atrasado, atrasada em execução, atraso com anterior pendente, dentro do período do ciclo de 15 dias, não se aplica, vazio e meta do ciclo automática) e todos aparecem no menu da célula. Um toque no pavimento só seleciona (as atividades dele ficam na lateral); o segundo abre a planta. Novo “Ver em 3D”: o pavimento com o que já foi executado ou, no botão “Apartamento modelo”, com tudo pronto, com teto aberto e corte a 1,35 m. A importação ficou mais certeira: usa a 1ª fiada do pavimento tipo, tira cômodos e apartamentos das paredes (com o corredor separado), lê o ZIP completo da obra bem mais rápido e, com vários pacotes, fica a revisão mais nova de cada prancha.",
+    onde: { rotulo: "Organizacional → Escadinha", caminho: "/organizacional/escadinha" },
+  },
+  {
     id: "2026-10-29-escadinha-projetos",
     data: "2026-10-29",
     titulo: "Escadinha lê os projetos do Construcode e monta as torres sozinha",
