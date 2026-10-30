@@ -1,0 +1,179 @@
+name: Pipeline
+
+# Merge em develop (ou manual): pipeline completo com deploy. Etapas:
+#   Lint, Build & Testes ─┬─► Container Image ─┐
+#   Secret Scanning ──────┤                    ├─► Resumo de Alertas ─► CD (Railway)
+#   Vulnerabilidades ─────┴────────────────────┘
+# PR para develop: checagem leve (Lint, Build & Testes e Secret Scanning), sem imagem nem deploy.
+on:
+  pull_request:
+    branches:
+      - develop
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# No PR, um push novo cancela o run anterior; no develop não, porque ele pode estar no meio do deploy.
+concurrency:
+  group: pipeline-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Lint, Build & Testes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        env:
+          # O build exige a URL da API (vite.config.ts); no CI basta uma URL válida.
+          VITE_API_BASE_URL: https://api.exemplo.invalid/api/v1/nord-tool
+        run: npm run build
+
+      - name: Testes
+        run: npm test
+
+  segredos:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # Bloqueante: analisa só os commits novos (do PR ou do push), não o histórico inteiro.
+      - name: Gitleaks
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then RANGE="$HEAD~1..$HEAD"; else RANGE="$BASE..$HEAD"; fi
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo" \
+            zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            detect --source /repo --log-opts="$RANGE" --redact --no-banner
+
+  vulnerabilidades:
+    name: Análise de Vulnerabilidades
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      resultado: ${{ steps.audit.outcome }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      # Só alerta: dependências de produção com vulnerabilidade alta ou crítica.
+      - name: npm audit
+        id: audit
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+
+  imagem:
+    name: Container Image
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      resultado: ${{ steps.trivy.outcome }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build da imagem
+        run: docker build --build-arg VITE_API_BASE_URL=https://api.exemplo.invalid/api/v1/nord-tool -t nord-tool-frontend:ci .
+
+      # Só alerta; mostra vulnerabilidades altas e críticas da imagem.
+      - name: Trivy (imagem)
+        id: trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        continue-on-error: true
+        with:
+          image-ref: nord-tool-frontend:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+
+  alertas:
+    name: Resumo de Alertas
+    if: always()
+    needs: [build, segredos, vulnerabilidades, imagem]
+    runs-on: ubuntu-latest
+    steps:
+      # Falha se uma etapa bloqueante falhou; vulnerabilidades (npm audit/Trivy) só aparecem como alerta.
+      - name: Resumo
+        env:
+          BUILD: ${{ needs.build.result }}
+          SEGREDOS: ${{ needs.segredos.result }}
+          IMAGEM: ${{ needs.imagem.result }}
+          AUDIT: ${{ needs.vulnerabilidades.outputs.resultado }}
+          TRIVY: ${{ needs.imagem.outputs.resultado }}
+          EVENTO: ${{ github.event_name }}
+        run: |
+          icone() { case "$1" in success) echo "✅";; failure) echo "❌";; *) echo "⚪ $1";; esac; }
+          alerta() { case "$1" in success) echo "✅ nenhuma";; failure) echo "⚠️ encontradas (ver log)";; *) echo "⚪ não rodou";; esac; }
+          {
+            echo "## Resumo do pipeline"
+            echo "| Etapa | Resultado | Bloqueia deploy |"
+            echo "|---|---|---|"
+            echo "| Lint, Build & Testes | $(icone "$BUILD") | sim |"
+            echo "| Secret Scanning (Gitleaks) | $(icone "$SEGREDOS") | sim |"
+            echo "| Container Image | $(icone "$IMAGEM") | sim |"
+            echo "| Vulnerabilidades de dependências (npm audit) | $(alerta "$AUDIT") | não |"
+            echo "| Vulnerabilidades da imagem (Trivy) | $(alerta "$TRIVY") | não |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "$AUDIT" = "failure" ] && echo "::warning::npm audit encontrou vulnerabilidades nas dependências de produção."
+          [ "$TRIVY" = "failure" ] && echo "::warning::Trivy encontrou vulnerabilidades altas/críticas na imagem."
+          # No PR a imagem não roda (skipped) e não conta como falha.
+          [ "$EVENTO" = "pull_request" ] && [ "$IMAGEM" = "skipped" ] && IMAGEM=success
+          for r in "$BUILD" "$SEGREDOS" "$IMAGEM"; do
+            if [ "$r" != "success" ]; then echo "::error::Etapa bloqueante falhou; merge/deploy bloqueado."; exit 1; fi
+          done
+
+  # Exige o auto-deploy do GitHub desligado no serviço do Railway, senão ele publica sem esperar o pipeline.
+  # O build no Railway usa as variáveis do serviço (VITE_API_BASE_URL etc.), como antes.
+  cd:
+    name: CD (Railway)
+    needs: alertas
+    if: github.event_name != 'pull_request' && github.ref_name == 'develop'
+    runs-on: ubuntu-latest
+    environment: develop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # RAILWAY_TOKEN é um Project Token do ambiente develop; RAILWAY_SERVICE é o nome do serviço.
+      - name: Deploy no Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ] || [ -z "$RAILWAY_SERVICE" ]; then
+            echo "::error::Configure o secret RAILWAY_TOKEN e a variável RAILWAY_SERVICE no environment develop."
+            exit 1
+          fi
+          npx --yes @railway/cli@5.67.1 up --ci --service "$RAILWAY_SERVICE"
