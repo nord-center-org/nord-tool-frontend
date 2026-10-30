@@ -186,10 +186,15 @@ export function atividadesEmOrdem(modelo: ModeloEscadinha): { atividade: Ativida
 
 // ---------------------------------------------------------------- grade
 
-export type StatusMarcado = "E" | "X" | "N";
+/**
+ * Marcação da célula. E/X/N são o dia a dia; A/O/P/D/V forçam um status da legenda à mão (como na planilha da Cury).
+ * A = atrasado, O = atrasada em execução, P = atraso com anterior pendente, D = dentro do período, V = vazio.
+ */
+export type StatusMarcado = "E" | "X" | "N" | "A" | "O" | "P" | "D" | "V";
+export const MARCADOS: StatusMarcado[] = ["E", "X", "N", "A", "O", "P", "D", "V"];
 
 export interface Celula {
-  /** E = executado, X = em execução, N = não se aplica. */
+  /** E = executado, X = em execução, N = não se aplica; A/O/P/D/V = status escolhido à mão. */
   s: StatusMarcado;
   /** Data da execução (AAAA-MM-DD). */
   d?: string;
@@ -209,7 +214,7 @@ export function lerGrade(bruto: unknown): Grade {
   if (!bruto || typeof bruto !== "object" || Array.isArray(bruto)) return g;
   for (const [k, v] of Object.entries(bruto as Record<string, unknown>)) {
     const c = v as Partial<Celula> | null;
-    if (c && (c.s === "E" || c.s === "X" || c.s === "N")) g[k] = { s: c.s, d: typeof c.d === "string" ? c.d : undefined, u: typeof c.u === "number" ? c.u : undefined, h: typeof c.h === "string" ? c.h : undefined };
+    if (c && MARCADOS.includes(c.s as StatusMarcado)) g[k] = { s: c.s as StatusMarcado, d: typeof c.d === "string" ? c.d : undefined, u: typeof c.u === "number" ? c.u : undefined, h: typeof c.h === "string" ? c.h : undefined };
   }
   return g;
 }
@@ -252,6 +257,13 @@ export interface Avaliacao {
   /** Janela planejada [início, fim) em AAAA-MM-DD (sem início da obra, não há plano). */
   janela?: [string, string];
 }
+
+/** Status escolhidos à mão no menu da célula (ganham do cálculo). */
+const MANUAL = { A: "atrasado", O: "atrasadoExec", P: "atrasoAnterior", D: "periodo", V: "vazio" } as const;
+/** Marcação de cada status da legenda (meta do ciclo é só automática). */
+export const MARCACAO_DO_STATUS: Partial<Record<StatusCelula, StatusMarcado>> = {
+  executado: "E", execucao: "X", atrasado: "A", atrasadoExec: "O", atrasoAnterior: "P", periodo: "D", na: "N", vazio: "V",
+};
 
 const DIA = 86_400_000;
 const paraDia = (iso: string) => Math.floor(Date.parse(`${iso}T00:00:00Z`) / DIA);
@@ -301,7 +313,8 @@ export function avaliarGrade(modelo: ModeloEscadinha, linhas: LinhaGrade[], grad
         // começa no próximo = dentro do período do ciclo.
         const meta = !!periodo && !!janela && !feita(c) && paraDia(janela[1]) > paraDia(periodo.inicio) && paraDia(janela[1]) <= paraDia(periodo.fim);
         const proximo = !!periodo && !!janela && paraDia(janela[0]) >= paraDia(periodo.fim) && paraDia(janela[0]) < paraDia(periodo.fim) + modelo.diasPeriodo;
-        if (c?.s === "E") status = "executado";
+        if (c && c.s in MANUAL) status = MANUAL[c.s as keyof typeof MANUAL];
+        else if (c?.s === "E") status = "executado";
         else if (c?.s === "N") status = "na";
         else if (c?.s === "X") status = vencida ? "atrasadoExec" : "execucao";
         else if (vencida) status = bloqueado ? "atrasoAnterior" : "atrasado";
@@ -394,7 +407,7 @@ export function camadasPorPavimento(modelo: ModeloEscadinha, grade: Grade): Map<
   const camadaDe = new Map(atividadesEmOrdem(modelo).map(x => [x.atividade.id, x.atividade.camada]));
   const saida = new Map<string, Map<Camada, EstadoCamada>>();
   for (const [chave, c] of Object.entries(grade)) {
-    if (c.s === "N") continue;
+    if (c.s !== "E" && c.s !== "X" && c.s !== "O") continue;
     const [pav, lado, idAtividade] = chave.split("|");
     const camada = camadaDe.get(idAtividade);
     if (!camada) continue;

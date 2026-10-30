@@ -90,6 +90,20 @@ test("plano: atrasado, atrasada em execução, atraso com anterior pendente, met
   assert.equal(av2.get(chaveCelula("p2", "A", "alv"))!.status, "vazio");
 });
 
+test("status escolhido à mão no menu ganha do cálculo (meta do ciclo continua automática)", () => {
+  const g: Grade = {
+    [chaveCelula("p3", "A", "alv")]: { s: "A" }, [chaveCelula("terreo", "B", "alv")]: { s: "V" },
+    [chaveCelula("p1", "B", "alv")]: { s: "O" }, [chaveCelula("p2", "B", "alv")]: { s: "P" }, [chaveCelula("p3", "B", "alv")]: { s: "D" },
+  };
+  const av = avaliarGrade(mini, linhas, g, "2026-10-01", "2026-10-25");
+  assert.equal(av.get(chaveCelula("p3", "A", "alv"))!.status, "atrasado");
+  assert.equal(av.get(chaveCelula("terreo", "B", "alv"))!.status, "vazio", "vazio forçado mesmo vencido");
+  assert.equal(av.get(chaveCelula("p1", "B", "alv"))!.status, "atrasadoExec");
+  assert.equal(av.get(chaveCelula("p2", "B", "alv"))!.status, "atrasoAnterior");
+  assert.equal(av.get(chaveCelula("p3", "B", "alv"))!.status, "periodo");
+  assert.deepEqual(lerGrade({ x: { s: "A" }, y: { s: "Z" } }), { x: { s: "A", d: undefined, u: undefined, h: undefined } });
+});
+
 test("resumo e gargalos: quem segura mais atrasos aparece primeiro", () => {
   const g: Grade = {};
   const av = avaliarGrade(mini, linhas, g, "2026-10-01", "2026-11-20");

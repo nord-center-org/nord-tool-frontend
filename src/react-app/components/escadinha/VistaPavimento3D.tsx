@@ -45,6 +45,7 @@ export default function VistaPavimento3D({ torre, pavimento, estado, onFechar }:
   const [modo, setModo] = useState<"atual" | "modelo">("atual");
   const [lado, setLado] = useState<Lado | "AB">("AB");
   const [tetoAberto, setTetoAberto] = useState(true);
+  const [corte, setCorte] = useState(false);
   const contorno = pavimento.contorno ?? torre.contorno;
   const tipico = !pavimento.contorno;
   const lim = useMemo(() => limites(contorno), [contorno]);
@@ -89,6 +90,9 @@ export default function VistaPavimento3D({ torre, pavimento, estado, onFechar }:
           <label className="flex items-center gap-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs font-bold text-slate-200">
             <input type="checkbox" checked={tetoAberto} onChange={e => setTetoAberto(e.target.checked)} className="h-3.5 w-3.5" /> Abrir teto
           </label>
+          <label className="flex items-center gap-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs font-bold text-slate-200" title="Corta as paredes na altura de 1,35 m para olhar dentro dos apartamentos">
+            <input type="checkbox" checked={corte} onChange={e => setCorte(e.target.checked)} className="h-3.5 w-3.5" /> Corte a 1,35 m
+          </label>
           <button type="button" onClick={onFechar}
             className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-700">
             <ArrowLeft className="h-4 w-4" /> Voltar
@@ -104,7 +108,7 @@ export default function VistaPavimento3D({ torre, pavimento, estado, onFechar }:
             <group position={[-(lim.minX + lim.maxX) / 2, 0, (lim.minY + lim.maxY) / 2]}>
               <Piso contorno={contorno} />
               <CamadasPavimento contorno={contorno} metades={metades} apartamentos={tipico ? torre.apartamentos ?? [] : []} altura={pavimento.altura}
-                nucleoC={nucleoC} estado={estadoVisto} filtro={filtro} comElevador paredesReais={paredes} />
+                nucleoC={nucleoC} estado={estadoVisto} filtro={filtro} comElevador paredesReais={paredes} corte={corte ? 1.35 : null} />
             </group>
             <OrbitControls makeDefault enableDamping target={[0, 1, 0]} maxPolarAngle={Math.PI / 2.05} />
           </Canvas>

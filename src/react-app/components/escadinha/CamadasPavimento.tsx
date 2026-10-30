@@ -13,7 +13,17 @@ const PAREDE = 0.14;
 
 // ---------------------------------------------------------------- texturas (desenhadas uma vez)
 
-let texturas: { bloco: THREE.CanvasTexture; piso: THREE.CanvasTexture; madeira: THREE.CanvasTexture } | null = null;
+let texturas: { bloco: THREE.Texture; piso: THREE.Texture; madeira: THREE.Texture; concreto: THREE.Texture } | null = null;
+/** Texturas do estudo do Juan (bloco 39×19 em amarração, porcelanato 60×60, concreto): cada imagem cobre 1,2 m × 1,2 m. */
+const ESCALA_FOTO = 1.2;
+function foto(url: string, reserva: THREE.Texture) {
+  if (typeof document === "undefined") return reserva;
+  const t = new THREE.TextureLoader().load(url, undefined, undefined, () => { /* sem a imagem, fica a reserva desenhada */ });
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
 function canvas(w: number, h: number, desenhar: (c: CanvasRenderingContext2D) => void) {
   const el = document.createElement("canvas");
   el.width = w;
@@ -27,7 +37,7 @@ function canvas(w: number, h: number, desenhar: (c: CanvasRenderingContext2D) =>
 }
 function obterTexturas() {
   if (texturas) return texturas;
-  texturas = {
+  const desenhado = {
     // Bloco estrutural de concreto 39×19 com junta de argamassa, fiadas em amarração.
     bloco: canvas(128, 64, c => {
       c.fillStyle = "#d6d3d1";
@@ -52,6 +62,12 @@ function obterTexturas() {
       for (let y = 0; y < 64; y += 16) c.fillRect(0, y, 64, 2);
       c.fillRect(20, 0, 2, 16); c.fillRect(44, 16, 2, 16); c.fillRect(12, 32, 2, 16); c.fillRect(52, 48, 2, 16);
     }),
+  };
+  texturas = {
+    bloco: foto("/texturas/bloco.jpg", desenhado.bloco),
+    piso: foto("/texturas/ceramica.jpg", desenhado.piso),
+    madeira: desenhado.madeira,
+    concreto: foto("/texturas/concreto.jpg", desenhado.piso),
   };
   return texturas;
 }
@@ -87,7 +103,7 @@ function geometriaPlaca(poly: Ponto[], espessura: number, escalaUV = 1) {
 function Paredes({ segmentos, altura, cor, textura, opacidade = 1 }: { segmentos: Segmento[]; altura: number; cor?: string; textura?: THREE.Texture; opacidade?: number }) {
   const geo = useMemo(() => {
     const partes = segmentos.filter(s => comprimento(s) > 0.01).map(s => {
-      const g = geometriaParede(s, altura, s.esp ?? PAREDE, 0.4, 0.2);
+      const g = geometriaParede(s, altura, s.esp ?? PAREDE, ESCALA_FOTO, ESCALA_FOTO);
       g.rotateY(angParede(s));
       g.translate(...posParede(s, ESPESSURA_LAJE + altura / 2));
       return g;
@@ -152,15 +168,18 @@ interface CamadasPavimentoProps {
   comElevador: boolean;
   /** Paredes reais do projeto por lado (1ª fiada); sem elas, as paredes saem do contorno dos apartamentos. */
   paredesReais?: Record<Lado, Segmento[]> | null;
+  /** Corta as paredes nesta altura (m) para ver o interior, como o corte a 1,35 m do estudo do Juan. */
+  corte?: number | null;
 }
 
 /**
  * O que já foi feito num pavimento, lado a lado: a alvenaria sobe em blocos (meia altura enquanto em execução),
  * a laje do teto fecha, entram esquadrias, prumadas, drywall, gesso, cerâmica, louças, portas, pintura e fachada.
  */
-export default function CamadasPavimento({ contorno, metades, apartamentos, altura, nucleoC, estado, filtro, comElevador, paredesReais }: CamadasPavimentoProps) {
+export default function CamadasPavimento({ contorno, metades, apartamentos, altura, nucleoC, estado, filtro, comElevador, paredesReais, corte = null }: CamadasPavimentoProps) {
   const tex = obterTexturas();
-  const util = Math.max(0.5, altura - ESPESSURA_LAJE);
+  const utilReal = Math.max(0.5, altura - ESPESSURA_LAJE);
+  const util = corte ? Math.min(utilReal, corte) : utilReal;
   const mostra = (lado: Lado, c: Camada) => (filtro === null || filtro.has(c)) && estado[lado]?.get(c);
 
   const porLado = useMemo(() => (["A", "B"] as Lado[]).map(lado => {
@@ -196,7 +215,7 @@ export default function CamadasPavimento({ contorno, metades, apartamentos, altu
               </>
             )}
             {mostra(lado, "laje") && metade.length >= 3 && (
-              <Placa poly={metade} y={altura - 0.02} espessura={0.12} cor="#cbd5e1" opacidade={mostra(lado, "laje") === "E" ? 1 : 0.45} />
+              <Placa poly={metade} y={altura - 0.02} espessura={0.12} cor="#e2e8f0" textura={tex.concreto} escalaUV={ESCALA_FOTO * 2} opacidade={mostra(lado, "laje") === "E" ? 1 : 0.45} />
             )}
             {escorado && metade.length >= 3 && aptos.flatMap(ap => {
               const [cx, cy] = [(ap.contorno[0][0] + ap.contorno[2 % ap.contorno.length][0]) / 2, (ap.contorno[0][1] + ap.contorno[2 % ap.contorno.length][1]) / 2];
@@ -211,8 +230,8 @@ export default function CamadasPavimento({ contorno, metades, apartamentos, altu
             {mostra(lado, "impermeabilizacao") && aptos.map(ap => <Placa key={`im${ap.id}`} poly={areaMolhada(ap, nucleoC)} y={ESPESSURA_LAJE + 0.01} espessura={0.02} cor="#3b82f6" opacidade={0.85} />)}
             {mostra(lado, "piso") && aptos.map(ap => <Placa key={`pi${ap.id}`} poly={ap.contorno} y={ESPESSURA_LAJE + 0.02} espessura={0.02} cor="#ffffff" textura={tex.madeira} escalaUV={1.2} />)}
             {mostra(lado, "ceramica") && aptos.flatMap(ap => [
-              <Placa key={`ce${ap.id}`} poly={areaMolhada(ap, nucleoC)} y={ESPESSURA_LAJE + 0.035} espessura={0.02} cor="#ffffff" textura={tex.piso} escalaUV={0.6} />,
-              <Placa key={`cs${ap.id}`} poly={sacadaDoApto(ap, nucleoC)} y={ESPESSURA_LAJE + 0.045} espessura={0.02} cor="#ffffff" textura={tex.piso} escalaUV={0.6} />,
+              <Placa key={`ce${ap.id}`} poly={areaMolhada(ap, nucleoC)} y={ESPESSURA_LAJE + 0.035} espessura={0.02} cor="#ffffff" textura={tex.piso} escalaUV={ESCALA_FOTO} />,
+              <Placa key={`cs${ap.id}`} poly={sacadaDoApto(ap, nucleoC)} y={ESPESSURA_LAJE + 0.045} espessura={0.02} cor="#ffffff" textura={tex.piso} escalaUV={ESCALA_FOTO} />,
             ])}
             {mostra(lado, "drywall") && <Paredes segmentos={aptos.map(divisoriaDoApto)} altura={util} cor={pintado ? "#f5efe2" : "#f1f5f9"} opacidade={mostra(lado, "drywall") === "E" ? 1 : 0.5} />}
             {mostra(lado, "gesso") && aptos.map(ap => <Placa key={`ge${ap.id}`} poly={ap.contorno} y={altura - 0.3} espessura={0.02} cor="#ffffff" opacidade={0.7} />)}
