@@ -1,4 +1,4 @@
-import { Download, Lock } from "lucide-react";
+import { Download } from "lucide-react";
 import { useMemo, useState, type MouseEvent } from "react";
 
 import MenuCelula, { type AlvoCelula } from "./MenuCelula";
@@ -72,11 +72,10 @@ export default function GradeEscadinha({ modelo, linhas, grade, avaliacao, edita
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-300">
         {LEGENDA.map(l => (
-          <span key={l.status} className="flex items-center gap-1">
+          <span key={l.status} className="flex items-center gap-1" title={l.dica}>
             <span className="h-2.5 w-2.5 rounded-sm border border-slate-500" style={{ background: l.cor }} /> {l.rotulo}
           </span>
         ))}
-        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-pink-500" /> Meta do período</span>
         <button type="button" onClick={() => void exportar()}
           className="ml-auto flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-100 hover:bg-slate-700">
           <Download className="h-3.5 w-3.5" /> Baixar Excel
@@ -130,9 +129,7 @@ export default function GradeEscadinha({ modelo, linhas, grade, avaliacao, edita
                       <button type="button" title={titulo} aria-label={titulo} disabled={!editavel} onClick={e => abrir(e, l, a.id, a.nome)}
                         style={{ background: COR_STATUS[av.status] }}
                         className={`relative flex h-7 w-full min-w-[2.1rem] items-center justify-center ${editavel ? "cursor-pointer hover:brightness-110" : "cursor-default"}`}>
-                        {av.status === "bloqueado" && <Lock className="h-3 w-3 text-slate-400" aria-hidden="true" />}
                         {av.status === "na" && <span className="text-[8px] font-extrabold text-slate-600">N/A</span>}
-                        {av.meta && <span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-pink-500" aria-hidden="true" />}
                       </button>
                     </td>
                   );

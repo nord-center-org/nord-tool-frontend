@@ -544,7 +544,7 @@ export default function Escadinha() {
             return (
               <VistaApartamento apto={apto} pavimento={pavSelecionado} idTorre={estado.idTorre} editavel={editavel} tipologias={tipologias}
                 atividades={atividadesEmOrdem(modelo).map(({ atividade }) => ({
-                  nome: atividade.nome, status: avaliacao.get(chaveCelula(pavSelecionado.id, apto.lado, atividade.id))?.status ?? "bloqueado",
+                  nome: atividade.nome, status: avaliacao.get(chaveCelula(pavSelecionado.id, apto.lado, atividade.id))?.status ?? "vazio",
                 }))}
                 onTipologias={carregarTipologias}
                 onEscolherTipologia={idT => mudarAtual(e => ({ ...e, torre: { ...e.torre, apartamentos: (e.torre.apartamentos ?? []).map(a => (a.id === apto.id ? { ...a, idTipologia: idT } : a)) } }))}

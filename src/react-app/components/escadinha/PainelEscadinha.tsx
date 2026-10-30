@@ -126,7 +126,7 @@ export default function PainelEscadinha({
                 {modelo.ciclos.map(c => {
                   const avs = c.atividades.map(a => avaliacao.get(chaveCelula(pav.id, lado, a.id)));
                   const feitas = avs.filter(a => a?.status === "executado" || a?.status === "na").length;
-                  const aberto = abertos.has(c.id) || (!abertos.size && feitas < c.atividades.length && avs.some(a => a && a.status !== "bloqueado"));
+                  const aberto = abertos.has(c.id) || (!abertos.size && feitas < c.atividades.length && avs.some(a => a && a.status !== "vazio"));
                   return (
                     <li key={c.id} className="overflow-hidden rounded-xl border border-slate-200">
                       <button type="button" onClick={() => alternar(c.id)} aria-expanded={aberto}
@@ -154,7 +154,6 @@ export default function PainelEscadinha({
                                     </span>
                                   </span>
                                   {a.install && <span className="rounded bg-blue-100 px-1 text-[9px] font-bold text-blue-700">Install</span>}
-                                  {av?.meta && <span className="mt-1 h-2 w-2 rounded-full bg-pink-500" title="Meta do período" />}
                                 </button>
                               </li>
                             );

@@ -229,18 +229,19 @@ export function linhasDaGrade(torre: Pick<Torre, "pavimentos">): LinhaGrade[] {
 // ---------------------------------------------------------------- status calculado
 
 export type StatusCelula =
-  | "executado" | "execucao" | "atrasado" | "atrasadoExec" | "atrasoAnterior" | "periodo" | "na" | "vazio" | "bloqueado";
+  | "executado" | "execucao" | "atrasado" | "atrasadoExec" | "atrasoAnterior" | "periodo" | "na" | "vazio" | "meta";
 
-export const LEGENDA: { status: StatusCelula; rotulo: string; cor: string }[] = [
-  { status: "executado", rotulo: "Executado", cor: "#22c55e" },
-  { status: "execucao", rotulo: "Em execução", cor: "#facc15" },
-  { status: "atrasado", rotulo: "Atrasado", cor: "#ef4444" },
-  { status: "atrasadoExec", rotulo: "Atividade atrasada em execução", cor: "#f97316" },
-  { status: "atrasoAnterior", rotulo: "Atraso com atividade anterior pendente", cor: "#a855f7" },
-  { status: "periodo", rotulo: "Dentro do período do ciclo", cor: "#94a3b8" },
-  { status: "na", rotulo: "Não se aplica", cor: "#cbd5e1" },
-  { status: "vazio", rotulo: "Liberado (vazio)", cor: "#ffffff" },
-  { status: "bloqueado", rotulo: "Aguardando a etapa anterior", cor: "#334155" },
+/** Legenda da escadinha (padrão Cury), na ordem em que aparece. */
+export const LEGENDA: { status: StatusCelula; rotulo: string; cor: string; dica: string }[] = [
+  { status: "executado", rotulo: "Executado", cor: "#22c55e", dica: "Marcada como executada." },
+  { status: "execucao", rotulo: "Em execução", cor: "#facc15", dica: "Marcada como em execução, dentro do prazo." },
+  { status: "atrasado", rotulo: "Atrasado", cor: "#ef4444", dica: "O prazo planejado passou e a atividade não foi feita." },
+  { status: "atrasadoExec", rotulo: "Atividade atrasada em execução", cor: "#f97316", dica: "Em execução, mas o prazo planejado já passou." },
+  { status: "atrasoAnterior", rotulo: "Atividade em atraso com atividade anterior pendente", cor: "#a855f7", dica: "Atrasada e ainda presa: a mesma atividade no pavimento de baixo ou o ciclo anterior não terminou." },
+  { status: "periodo", rotulo: "Atividade dentro do período do ciclo (15 dias)", cor: "#93c5fd", dica: "Entra no próximo período do ciclo: planeje para os próximos dias." },
+  { status: "na", rotulo: "Não se aplica nessa obra", cor: "#cbd5e1", dica: "Marcada como não se aplica." },
+  { status: "vazio", rotulo: "Vazio", cor: "#ffffff", dica: "Ainda não chegou a vez desta atividade." },
+  { status: "meta", rotulo: "Meta do ciclo (pendente)", cor: "#ec4899", dica: "Automático: precisa terminar dentro do período atual do ciclo." },
 ];
 export const COR_STATUS = Object.fromEntries(LEGENDA.map(l => [l.status, l.cor])) as Record<StatusCelula, string>;
 
@@ -296,13 +297,17 @@ export function avaliarGrade(modelo: ModeloEscadinha, linhas: LinhaGrade[], grad
         const vencida = !!janela && hojeN >= paraDia(janela[1]);
         const emCurso = !!janela && hojeN >= paraDia(janela[0]) && !vencida;
         let status: StatusCelula;
+        // Meta e "dentro do período" pelo período de referência (padrão 15 dias): termina neste período = meta;
+        // começa no próximo = dentro do período do ciclo.
+        const meta = !!periodo && !!janela && !feita(c) && paraDia(janela[1]) > paraDia(periodo.inicio) && paraDia(janela[1]) <= paraDia(periodo.fim);
+        const proximo = !!periodo && !!janela && paraDia(janela[0]) >= paraDia(periodo.fim) && paraDia(janela[0]) < paraDia(periodo.fim) + modelo.diasPeriodo;
         if (c?.s === "E") status = "executado";
         else if (c?.s === "N") status = "na";
         else if (c?.s === "X") status = vencida ? "atrasadoExec" : "execucao";
         else if (vencida) status = bloqueado ? "atrasoAnterior" : "atrasado";
-        else if (bloqueado) status = "bloqueado";
-        else status = emCurso ? "periodo" : "vazio";
-        const meta = !!periodo && !!janela && !feita(c) && paraDia(janela[1]) > paraDia(periodo.inicio) && paraDia(janela[1]) <= paraDia(periodo.fim);
+        else if (meta || emCurso) status = "meta";
+        else if (proximo) status = "periodo";
+        else status = "vazio";
         saida.set(chave, { status, meta, janela });
       }
     }
@@ -363,7 +368,7 @@ export function gargalos(modelo: ModeloEscadinha, linhas: LinhaGrade[], avaliaca
     for (const { atividade, ciclo, indiceCiclo } of ordem) {
       const chave = chaveCelula(l.pavimento.id, l.lado, atividade.id);
       const av = avaliacao.get(chave);
-      if (!av || av.status === "executado" || av.status === "na" || av.status === "bloqueado") continue;
+      if (!av || av.status === "executado" || av.status === "na") continue;
       // Só conta como gargalo quem já pode andar (não está no cadeado) e trava gente atrasada.
       let trava = 0;
       for (let n = l.nivel + 1; ; n++) {

@@ -58,34 +58,36 @@ test("linhas: do mais alto para o térreo, lados A e B, sem subsolo e barrilete"
   assert.equal(linhas.find(l => l.pavimento.id === "terreo")!.nivel, 0);
 });
 
-test("cadeado: a mesma atividade embaixo e o ciclo anterior no mesmo pavimento", () => {
+test("sem início da obra: só o que foi marcado; o resto fica vazio (sem cadeado)", () => {
   const g: Grade = { [chaveCelula("terreo", "A", "alv")]: { s: "E" }, [chaveCelula("terreo", "A", "laje")]: { s: "N" } };
   const av = avaliarGrade(mini, linhas, g, null, "2026-10-29");
   assert.equal(av.get(chaveCelula("terreo", "A", "alv"))!.status, "executado");
   assert.equal(av.get(chaveCelula("terreo", "A", "laje"))!.status, "na");
-  assert.equal(av.get(chaveCelula("p1", "A", "alv"))!.status, "vazio", "liberado: térreo A feito");
-  assert.equal(av.get(chaveCelula("p1", "B", "alv"))!.status, "bloqueado", "térreo B não foi feito");
-  assert.equal(av.get(chaveCelula("terreo", "A", "gesso"))!.status, "vazio", "ciclo 1 inteiro feito no térreo A");
-  assert.equal(av.get(chaveCelula("terreo", "B", "gesso"))!.status, "bloqueado");
-  assert.equal(av.get(chaveCelula("p2", "A", "alv"))!.status, "bloqueado");
+  assert.equal(av.get(chaveCelula("p1", "A", "alv"))!.status, "vazio");
+  assert.equal(av.get(chaveCelula("p1", "B", "alv"))!.status, "vazio");
+  assert.equal(av.get(chaveCelula("terreo", "B", "gesso"))!.status, "vazio");
 });
 
-test("plano: período, atrasado, atrasado em execução, atraso com anterior pendente e meta", () => {
-  // Início 01/10, ciclos de 10 dias: térreo do ciclo 1 vence 11/10; p1 vence 21/10; p2 31/10.
+test("plano: atrasado, atrasada em execução, atraso com anterior pendente, meta do ciclo e dentro do período", () => {
+  // Início 01/10, ciclos de 10 dias: térreo do ciclo 1 vence 11/10; p1 vence 21/10; p2 31/10; p3 10/11.
   const g: Grade = { [chaveCelula("terreo", "A", "alv")]: { s: "X" } };
   const av = avaliarGrade(mini, linhas, g, "2026-10-01", "2026-10-25");
   assert.equal(av.get(chaveCelula("terreo", "A", "alv"))!.status, "atrasadoExec");
   assert.equal(av.get(chaveCelula("terreo", "B", "alv"))!.status, "atrasado");
   assert.equal(av.get(chaveCelula("p1", "A", "alv"))!.status, "atrasoAnterior", "venceu em 21/10 e o térreo não terminou");
-  assert.equal(av.get(chaveCelula("p2", "A", "alv"))!.status, "bloqueado", "ainda no prazo (31/10), mas preso");
   assert.deepEqual(av.get(chaveCelula("p1", "A", "alv"))!.janela, ["2026-10-11", "2026-10-21"]);
-  // Período de referência 21/10–31/10: p2 do ciclo 1 vence 31/10 → meta.
+  // Período de referência 21/10–31/10: p2 vence 31/10 → meta do ciclo; p3 começa 31/10 (próximo período) → dentro do período.
+  assert.equal(av.get(chaveCelula("p2", "A", "alv"))!.status, "meta");
   assert.equal(av.get(chaveCelula("p2", "A", "alv"))!.meta, true);
-  assert.equal(av.get(chaveCelula("p3", "A", "alv"))!.meta, false);
+  assert.equal(av.get(chaveCelula("p3", "A", "alv"))!.status, "periodo");
   assert.deepEqual(periodoDe("2026-10-01", "2026-10-25", 10), { indice: 2, inicio: "2026-10-21", fim: "2026-10-31" });
-  // Liberado e dentro da janela = período (cinza).
+  // Executado e não se aplica ganham de tudo; vazio = vez ainda não chegou.
   const g2: Grade = { [chaveCelula("terreo", "A", "alv")]: { s: "E" } };
-  assert.equal(avaliarGrade(mini, linhas, g2, "2026-10-01", "2026-10-15").get(chaveCelula("p1", "A", "alv"))!.status, "periodo");
+  const av2 = avaliarGrade(mini, linhas, g2, "2026-10-01", "2026-10-05");
+  assert.equal(av2.get(chaveCelula("terreo", "A", "alv"))!.status, "executado");
+  assert.equal(av2.get(chaveCelula("terreo", "B", "alv"))!.status, "meta");
+  assert.equal(av2.get(chaveCelula("p1", "A", "alv"))!.status, "periodo");
+  assert.equal(av2.get(chaveCelula("p2", "A", "alv"))!.status, "vazio");
 });
 
 test("resumo e gargalos: quem segura mais atrasos aparece primeiro", () => {
