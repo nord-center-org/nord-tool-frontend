@@ -102,6 +102,7 @@ export default function Escadinha() {
   const [vistaPav, setVistaPav] = useState<"2d" | "3d">("2d");
   const [aptoModelo, setAptoModelo] = useState(false);
   const [tetoAberto, setTetoAberto] = useState(true);
+  const [corte, setCorte] = useState(false);
   const [apresentacao, setApresentacao] = useState(true);
   const [painel, setPainel] = useState(true);
   const [anexando, setAnexando] = useState(false);
@@ -608,6 +609,9 @@ export default function Escadinha() {
                       <label className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-100">
                         <input type="checkbox" checked={tetoAberto} onChange={e => setTetoAberto(e.target.checked)} /> Sem teto
                       </label>
+                      <label className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-100" title="Corta as paredes a 1,35 m para olhar dentro dos apartamentos">
+                        <input type="checkbox" checked={corte} onChange={e => setCorte(e.target.checked)} /> Corte a 1,35 m
+                      </label>
                     </>
                   )}
                   <button type="button" onClick={fecharPavimento}
@@ -622,7 +626,7 @@ export default function Escadinha() {
                     onAlterar={t => mudarAtual(e => ({ ...e, torre: t }))} tipologias={tipologias} onAbrirApto={setAptoAberto} />
                 ) : (
                   <div className="h-full overflow-hidden rounded-2xl border border-slate-800">
-                    <Pavimento3D torre={torre} pavimento={pavSelecionado} modelo={aptoModelo} tetoAberto={tetoAberto} filtro={aptoModelo ? null : filtroCamadas}
+                    <Pavimento3D torre={torre} pavimento={pavSelecionado} modelo={aptoModelo} tetoAberto={tetoAberto} corte={corte} filtro={aptoModelo ? null : filtroCamadas}
                       estado={{ A: camadas.get(`${pavSelecionado.id}|A`), B: camadas.get(`${pavSelecionado.id}|B`) }} />
                   </div>
                 )}

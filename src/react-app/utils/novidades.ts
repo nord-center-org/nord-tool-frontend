@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-30-escadinha-status-menu",
+    data: "2026-10-30",
+    titulo: "Escadinha: todos os status no menu da célula e o corte a 1,35 m no 3D",
+    texto: "No menu da célula agora aparecem todos os status da escadinha da Cury para escolher à mão (atrasado, atrasada em execução, atraso com anterior pendente, dentro do período do ciclo, vazio…); a meta do ciclo continua automática e “Limpar” volta ao cálculo automático. No pavimento em 3D, as paredes e pisos ganharam as texturas do estudo do Juan (bloco 39×19, porcelanato e concreto) e a opção “Corte a 1,35 m” para olhar dentro dos apartamentos.",
+    onde: { rotulo: "Organizacional → Escadinha", caminho: "/organizacional/escadinha" },
+  },
+  {
     id: "2026-10-29-escadinha-pavimento-3d",
     data: "2026-10-29",
     titulo: "Escadinha: apartamentos reais, pavimento em 3D e apartamento modelo",

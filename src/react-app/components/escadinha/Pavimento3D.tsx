@@ -23,6 +23,8 @@ interface Pavimento3DProps {
   tetoAberto: boolean;
   /** Filtro de camadas (null = todas). */
   filtro: Set<Camada> | null;
+  /** Corta as paredes a 1,35 m para olhar dentro dos apartamentos. */
+  corte?: boolean;
 }
 
 function forma(contorno: Ponto[]) {
@@ -36,7 +38,7 @@ function forma(contorno: Ponto[]) {
  * O pavimento isolado em 3D, como o protótipo do Juan (Torre 1, 2º pavimento): paredes reais da 1ª fiada subindo
  * conforme a alvenaria, e os acabamentos de cada cômodo conforme as atividades executadas — ou o apartamento modelo.
  */
-export default function Pavimento3D({ torre, pavimento, estado, modelo, tetoAberto, filtro }: Pavimento3DProps) {
+export default function Pavimento3D({ torre, pavimento, estado, modelo, tetoAberto, filtro, corte = false }: Pavimento3DProps) {
   const contorno = pavimento.contorno ?? torre.contorno;
   const tipico = !pavimento.contorno;
   const metades = useMemo(() => (tipico && torre.lados ? metadesDaTorre(torre.contorno, torre.lados) : { A: contorno, B: [] as Ponto[] }), [tipico, torre.contorno, torre.lados, contorno]);
@@ -76,6 +78,7 @@ export default function Pavimento3D({ torre, pavimento, estado, modelo, tetoAber
           comodos={tipico ? torre.comodos : undefined}
           aberturas={tipico ? torre.aberturas : undefined}
           tetoAberto={tetoAberto}
+          corte={corte ? 1.35 : null}
         />
         <OrbitControls makeDefault target={[0, 1, 0]} enableDamping maxPolarAngle={Math.PI * 0.49} minDistance={2} maxDistance={tamanho * 3} />
       </Canvas>
