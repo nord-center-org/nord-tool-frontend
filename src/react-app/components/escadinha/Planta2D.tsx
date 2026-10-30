@@ -118,6 +118,13 @@ export default function Planta2D({
           </g>
         );
       })}
+      {tipico && !mini && torre.comodos?.length ? (
+        <g style={{ pointerEvents: "none" }}>
+          {torre.comodos.map(c => (
+            <polygon key={c.id} points={pts(c.contorno)} fill={c.apto ? "none" : "rgba(148,163,184,0.10)"} stroke="#94a3b8" strokeOpacity={0.35} strokeWidth={traco * 0.6} />
+          ))}
+        </g>
+      ) : null}
       {tipicoComParedes && (
         <g style={{ pointerEvents: "none" }} opacity={mini ? 0.7 : 0.95}>
           {torre.paredes!.map((p, i) => (

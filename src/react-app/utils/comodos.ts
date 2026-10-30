@@ -149,17 +149,20 @@ export function detectarComodos(paredes: ParedeReal[], contorno: Ponto[]): Resul
   // componentes do vão livre
   const rotulo = new Int32Array(w * h).fill(-1);
   const tamanhos: number[] = [];
+  const caixas: { x0: number; x1: number; y0: number; y1: number }[] = [];
   const pilha: number[] = [];
   for (let i = 0; i < w * h; i++) {
     if (rotulo[i] >= 0 || bloqueio[i] || !dentroM[i]) continue;
     const id = tamanhos.length;
     let n = 0;
+    const cx = { x0: w, x1: 0, y0: h, y1: 0 };
     rotulo[i] = id;
     pilha.push(i);
     while (pilha.length) {
       const p = pilha.pop()!;
       n++;
-      const x = p % w;
+      const x = p % w, y = (p - x) / w;
+      if (x < cx.x0) cx.x0 = x; if (x > cx.x1) cx.x1 = x; if (y < cx.y0) cx.y0 = y; if (y > cx.y1) cx.y1 = y;
       for (const q of [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, p - w, p + w]) {
         if (q < 0 || q >= w * h || rotulo[q] >= 0 || bloqueio[q] || !dentroM[q]) continue;
         rotulo[q] = id;
@@ -167,6 +170,7 @@ export function detectarComodos(paredes: ParedeReal[], contorno: Ponto[]): Resul
       }
     }
     tamanhos.push(n);
+    caixas.push(cx);
   }
   const areaPx = PX * PX;
   const validos = tamanhos.map(n => n * areaPx >= 0.8);
@@ -199,7 +203,13 @@ export function detectarComodos(paredes: ParedeReal[], contorno: Ponto[]): Resul
   for (const i of ids) if ((ligacoes.get(i)?.size ?? 0) >= 2 && (hall < 0 || nota(i) > nota(hall))) hall = i;
   // Torre com junta de dilatação tem um corredor de cada lado: todo espaço tão "corredor" quanto o melhor também é hall.
   const halls = new Set<number>(hall >= 0 ? [hall] : []);
-  if (hall >= 0) for (const i of ids) if ((ligacoes.get(i)?.size ?? 0) >= 3 && nota(i) >= nota(hall) * 0.5) halls.add(i);
+  // corredor = comprido e estreito: pelo menos 6 m e largura média até 2,6 m
+  const corredor = (i: number) => {
+    const c = caixas[i];
+    const longo = Math.max(c.x1 - c.x0, c.y1 - c.y0) * PX;
+    return longo >= 6 && (tamanhos[i] * areaPx) / longo <= 2.6;
+  };
+  if (hall >= 0) for (const i of ids) if (i !== hall && (ligacoes.get(i)?.size ?? 0) >= 3 && corredor(i)) halls.add(i);
   const grupo = new Map<number, number>();
   let g = 0;
   for (const i of ids) {
