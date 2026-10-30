@@ -1,9 +1,9 @@
-import { Download, Lock } from "lucide-react";
-import { useMemo, useState, type MouseEvent } from "react";
+import { Box, Download } from "lucide-react";
+import { useMemo } from "react";
 
-import MenuCelula, { type AlvoCelula } from "./MenuCelula";
+import type { Lado } from "@/react-app/utils/escadinha";
 import {
-  COR_STATUS, LEGENDA, chaveCelula, type Avaliacao, type Grade, type LinhaGrade, type ModeloEscadinha, type StatusMarcado,
+  COR_STATUS, LEGENDA, chaveCelula, type Avaliacao, type Grade, type LinhaGrade, type ModeloEscadinha,
 } from "@/react-app/utils/escadinhaCury";
 
 interface GradeEscadinhaProps {
@@ -11,12 +11,12 @@ interface GradeEscadinhaProps {
   linhas: LinhaGrade[];
   grade: Grade;
   avaliacao: Map<string, Avaliacao>;
-  editavel: boolean;
   hoje: string;
   nomeTorre: string;
   /** Mostra só um ciclo (id) ou todos. */
   ciclo: string | null;
-  onMarcar: (chaves: string[], status: StatusMarcado | "", data?: string) => void;
+  /** Célula clicada: leva ao pavimento (e lado) no modelo 3D, onde se marca. */
+  onAbrirCelula: (idPavimento: string, lado: Lado) => void;
 }
 
 const dataBr = (iso?: string) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "");
@@ -29,24 +29,11 @@ const textoSobre = (hex: string) => {
 
 /**
  * A Escadinha no formato da Cury: ciclos coloridos no topo, atividades em pé, pavimento/lado nas linhas.
- * Cor = status calculado; cadeado = esperando a etapa anterior; ponto rosa = meta do período. Clique muda o status.
+ * Cor = status. A grade é só o reflexo: executado, em execução e não se aplica são marcados no pavimento (modelo 3D);
+ * atrasos, período do ciclo e meta saem sozinhos das datas. Clicar numa célula leva ao pavimento.
  */
-export default function GradeEscadinha({ modelo, linhas, grade, avaliacao, editavel, hoje, nomeTorre, ciclo, onMarcar }: GradeEscadinhaProps) {
-  const [alvo, setAlvo] = useState<AlvoCelula | null>(null);
+export default function GradeEscadinha({ modelo, linhas, grade, avaliacao, hoje, nomeTorre, ciclo, onAbrirCelula }: GradeEscadinhaProps) {
   const ciclos = useMemo(() => modelo.ciclos.filter(c => !ciclo || c.id === ciclo), [modelo, ciclo]);
-
-  const abrir = (e: MouseEvent, l: LinhaGrade, idAtividade: string, nomeAtividade: string) => {
-    if (!editavel) return;
-    const outro = l.lado === "A" ? "B" : "A";
-    setAlvo({
-      chaves: [chaveCelula(l.pavimento.id, l.lado, idAtividade)],
-      chaveOutroLado: linhas.some(x => x.pavimento.id === l.pavimento.id && x.lado === outro) ? chaveCelula(l.pavimento.id, outro, idAtividade) : undefined,
-      titulo: nomeAtividade,
-      subtitulo: nomeLinha(l),
-      x: e.clientX + 8,
-      y: e.clientY + 8,
-    });
-  };
 
   const exportar = async () => {
     const XLSX = await import("xlsx");
@@ -72,11 +59,11 @@ export default function GradeEscadinha({ modelo, linhas, grade, avaliacao, edita
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-300">
         {LEGENDA.map(l => (
-          <span key={l.status} className="flex items-center gap-1">
+          <span key={l.status} className="flex items-center gap-1" title={l.dica}>
             <span className="h-2.5 w-2.5 rounded-sm border border-slate-500" style={{ background: l.cor }} /> {l.rotulo}
           </span>
         ))}
-        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-pink-500" /> Meta do período</span>
+        <span className="flex items-center gap-1 text-slate-400"><Box className="h-3 w-3" /> Marque no pavimento (Modelo 3D); a grade reflete</span>
         <button type="button" onClick={() => void exportar()}
           className="ml-auto flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-100 hover:bg-slate-700">
           <Download className="h-3.5 w-3.5" /> Baixar Excel
@@ -127,12 +114,10 @@ export default function GradeEscadinha({ modelo, linhas, grade, avaliacao, edita
                   ].filter(Boolean).join("\n");
                   return (
                     <td key={a.id} className={`border-r border-slate-800 p-0 ${l.lado === "B" ? "border-b border-b-slate-600" : "border-b border-b-slate-800"}`}>
-                      <button type="button" title={titulo} aria-label={titulo} disabled={!editavel} onClick={e => abrir(e, l, a.id, a.nome)}
+                      <button type="button" title={`${titulo}\nClique para abrir o pavimento`} aria-label={titulo} onClick={() => onAbrirCelula(l.pavimento.id, l.lado)}
                         style={{ background: COR_STATUS[av.status] }}
-                        className={`relative flex h-7 w-full min-w-[2.1rem] items-center justify-center ${editavel ? "cursor-pointer hover:brightness-110" : "cursor-default"}`}>
-                        {av.status === "bloqueado" && <Lock className="h-3 w-3 text-slate-400" aria-hidden="true" />}
-                        {av.status === "na" && <span className="text-[8px] font-extrabold text-slate-600">N/A</span>}
-                        {av.meta && <span className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-pink-500" aria-hidden="true" />}
+                        className="relative flex h-7 w-full min-w-[2.1rem] cursor-pointer items-center justify-center hover:brightness-110">
+                        {av.status === "na" && <span className="text-[8px] font-extrabold text-white">N/A</span>}
                       </button>
                     </td>
                   );
@@ -142,7 +127,6 @@ export default function GradeEscadinha({ modelo, linhas, grade, avaliacao, edita
           </tbody>
         </table>
       </div>
-      {alvo && <MenuCelula alvo={alvo} hoje={hoje} onMarcar={onMarcar} onFechar={() => setAlvo(null)} />}
     </div>
   );
 }

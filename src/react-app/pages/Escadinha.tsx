@@ -1,5 +1,6 @@
 import {
-  AlertTriangle, ArrowLeft, Box, Check, CloudOff, Grid3x3, ListChecks, Loader2, Maximize, Minus, Pencil, Plus, RotateCcw, Trash2, TrendingUp, Upload,
+  AlertTriangle, ArrowLeft, Box, Check, CloudOff, Grid3x3, Home, ListChecks, Loader2, Map as MapaIcone, Maximize, Minus, Pencil, Plus, RotateCcw,
+  Sparkles, Trash2, TrendingUp, Upload,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -9,6 +10,7 @@ import GradeEscadinha from "@/react-app/components/escadinha/GradeEscadinha";
 import ImportarProjetos from "@/react-app/components/escadinha/ImportarProjetos";
 import ModeloEscadinhaEditor from "@/react-app/components/escadinha/ModeloEscadinhaEditor";
 import PainelEscadinha, { type FiltroTorre } from "@/react-app/components/escadinha/PainelEscadinha";
+import Pavimento3D from "@/react-app/components/escadinha/Pavimento3D";
 import Planta2D from "@/react-app/components/escadinha/Planta2D";
 import Torre3D, { type ControleTorre } from "@/react-app/components/escadinha/Torre3D";
 import VistaApartamento from "@/react-app/components/escadinha/VistaApartamento";
@@ -25,6 +27,8 @@ import {
   type ModeloEscadinha, type StatusMarcado,
 } from "@/react-app/utils/escadinhaCury";
 import { ladoDoPonto, prepararTorre } from "@/react-app/utils/escadinhaApto";
+import { completarComodos } from "@/react-app/utils/escadinhaComodos";
+import type { Lado } from "@/react-app/utils/escadinha";
 import { pesoDosLados, resumoBlocos } from "@/react-app/utils/projetoVetorial";
 import { podeAcessar } from "@/react-app/utils/sessao";
 
@@ -56,7 +60,8 @@ const doServidor = (t: TorreServidor): EstadoTorre => ({
   idTorre: t.idTorre,
   nmTorre: t.nmTorre,
   nrVersao: t.nrVersao,
-  torre: prepararTorre(t.config),
+  // Torre importada antes da leitura de cômodos ganha cômodos, portas e apartamentos reais pelas paredes.
+  torre: completarComodos(prepararTorre(t.config)),
   ciclos: Array.isArray(t.ciclos) ? t.ciclos : [],
   grade: lerGrade(t.grade),
   temPlanta: t.temPlanta,
@@ -91,6 +96,12 @@ export default function Escadinha() {
   const [erroSalvar, setErroSalvar] = useState<string | null>(null);
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [planta, setPlanta] = useState(false);
+  /** O pavimento escolhido está aberto (fatia fora da torre, planta/3D do pavimento por cima). */
+  const [aberto, setAberto] = useState(false);
+  const [ladoPainel, setLadoPainel] = useState<Lado>("A");
+  const [vistaPav, setVistaPav] = useState<"2d" | "3d">("2d");
+  const [aptoModelo, setAptoModelo] = useState(false);
+  const [tetoAberto, setTetoAberto] = useState(true);
   const [apresentacao, setApresentacao] = useState(true);
   const [painel, setPainel] = useState(true);
   const [anexando, setAnexando] = useState(false);
@@ -132,6 +143,7 @@ export default function Escadinha() {
   useEffect(() => {
     void carregar();
     setSelecionado(null);
+    setAberto(false);
     setPlanta(false);
   }, [idObra, carregar]);
 
@@ -285,11 +297,25 @@ export default function Escadinha() {
   const tipico = torre.pavimentos.find(p => p.tipo === "tipo") ?? null;
   const mudarAtual = (mudar: (t: EstadoTorre) => EstadoTorre) => alterarTorre(estado.chave, mudar);
 
+  /** Primeiro clique (no 3D ou na lista): escolhe o pavimento, destaca e mostra as atividades ao lado. */
   const selecionar = (id: string | null) => {
     setSelecionado(id);
+    setAberto(false);
     setAptoAberto(null);
     setPlanta(false);
     if (id) setPainel(true);
+  };
+  /** Segundo clique: abre o pavimento (fatia sai da torre e vira planta 2D / 3D do pavimento). */
+  const abrir = (id: string) => {
+    setSelecionado(id);
+    setAberto(true);
+    setApresentacao(false);
+    setPainel(true);
+  };
+  const fecharPavimento = () => {
+    setAberto(false);
+    setPlanta(false);
+    setAptoAberto(null);
   };
 
   const trocarTorre = (chave: string) => {
@@ -485,8 +511,9 @@ export default function Escadinha() {
             )}
           </div>
           <div className="min-h-0 flex-1">
-            <GradeEscadinha modelo={modelo} linhas={linhas} grade={grade} avaliacao={avaliacao} editavel={editavel} hoje={hoje}
-              nomeTorre={estado.nmTorre} ciclo={cicloGrade} onMarcar={marcar} />
+            <GradeEscadinha modelo={modelo} linhas={linhas} grade={grade} avaliacao={avaliacao} hoje={hoje}
+              nomeTorre={estado.nmTorre} ciclo={cicloGrade}
+              onAbrirCelula={(id, lado) => { setVista("3d"); setApresentacao(false); setLadoPainel(lado); selecionar(id); }} />
           </div>
         </section>
       ) : (
@@ -498,12 +525,14 @@ export default function Escadinha() {
             pausado={importando || anexando}
             torre={torre}
             selecionado={selecionado}
+            aberto={aberto ? selecionado : null}
             statusPorPavimento={statusPorPavimento}
             camadas={camadas}
             filtroCamadas={filtroCamadas}
             apresentacao={apresentacao}
             onInteragir={() => setApresentacao(false)}
             onSelecionar={selecionar}
+            onAbrir={abrir}
             onFatiaPronta={() => setPlanta(true)}
           />
 
@@ -517,7 +546,7 @@ export default function Escadinha() {
 
           {apresentacao && !selecionado && (
             <p className="pointer-events-none absolute bottom-5 left-1/2 hidden -translate-x-1/2 rounded-full bg-slate-800/80 px-4 py-1.5 text-xs font-semibold text-slate-200 backdrop-blur animate-aparecer sm:block">
-              Clique no prédio para interagir · toque num pavimento para abrir a planta
+              Toque num pavimento para escolher · toque de novo para abrir a planta e o 3D dele
             </p>
           )}
 
@@ -538,13 +567,13 @@ export default function Escadinha() {
             </div>
           )}
 
-          {planta && pavSelecionado && aptoAberto && (() => {
+          {planta && aberto && pavSelecionado && aptoAberto && (() => {
             const apto = torre.apartamentos?.find(a => a.id === aptoAberto);
             if (!apto) return null;
             return (
               <VistaApartamento apto={apto} pavimento={pavSelecionado} idTorre={estado.idTorre} editavel={editavel} tipologias={tipologias}
                 atividades={atividadesEmOrdem(modelo).map(({ atividade }) => ({
-                  nome: atividade.nome, status: avaliacao.get(chaveCelula(pavSelecionado.id, apto.lado, atividade.id))?.status ?? "bloqueado",
+                  nome: atividade.nome, status: avaliacao.get(chaveCelula(pavSelecionado.id, apto.lado, atividade.id))?.status ?? "vazio",
                 }))}
                 onTipologias={carregarTipologias}
                 onEscolherTipologia={idT => mudarAtual(e => ({ ...e, torre: { ...e.torre, apartamentos: (e.torre.apartamentos ?? []).map(a => (a.id === apto.id ? { ...a, idTipologia: idT } : a)) } }))}
@@ -552,21 +581,51 @@ export default function Escadinha() {
             );
           })()}
 
-          {planta && pavSelecionado && (
+          {planta && aberto && pavSelecionado && (
             <div className="absolute inset-0 z-30 flex flex-col bg-slate-950/95 animate-aparecer">
-              <div className="flex items-center justify-between gap-3 p-4 pb-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 p-4 pb-2">
                 <div>
-                  <p className="text-[11px] font-extrabold uppercase tracking-widest text-orange-400">Planta 2D</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-widest text-orange-400">{vistaPav === "2d" ? "Planta 2D" : aptoModelo ? "Apartamento modelo" : "3D · estado atual"}</p>
                   <h3 className="text-lg font-bold text-white">{pavSelecionado.nome}</h3>
                 </div>
-                <button type="button" onClick={() => selecionar(null)}
-                  className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-700">
-                  <ArrowLeft className="h-4 w-4" /> <Box className="h-4 w-4" /> Voltar ao 3D
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div role="tablist" aria-label="Vista do pavimento" className="flex rounded-xl border border-slate-700 bg-slate-800 p-1">
+                    <button type="button" role="tab" aria-selected={vistaPav === "2d"} onClick={() => setVistaPav("2d")}
+                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${vistaPav === "2d" ? "bg-orange-500 text-white" : "text-slate-300 hover:bg-slate-700"}`}>
+                      <MapaIcone className="h-4 w-4" /> Planta 2D
+                    </button>
+                    <button type="button" role="tab" aria-selected={vistaPav === "3d"} onClick={() => setVistaPav("3d")}
+                      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${vistaPav === "3d" ? "bg-orange-500 text-white" : "text-slate-300 hover:bg-slate-700"}`}>
+                      <Box className="h-4 w-4" /> 3D do pavimento
+                    </button>
+                  </div>
+                  {vistaPav === "3d" && (
+                    <>
+                      <button type="button" aria-pressed={aptoModelo} onClick={() => setAptoModelo(m => !m)}
+                        className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold ${aptoModelo ? "border-emerald-400 bg-emerald-500 text-white" : "border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700"}`}>
+                        {aptoModelo ? <Sparkles className="h-4 w-4" /> : <Home className="h-4 w-4" />} Apartamento modelo
+                      </button>
+                      <label className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-semibold text-slate-100">
+                        <input type="checkbox" checked={tetoAberto} onChange={e => setTetoAberto(e.target.checked)} /> Sem teto
+                      </label>
+                    </>
+                  )}
+                  <button type="button" onClick={fecharPavimento}
+                    className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-700">
+                    <ArrowLeft className="h-4 w-4" /> Voltar à torre
+                  </button>
+                </div>
               </div>
               <div className="min-h-0 flex-1 px-4 pb-4 animate-entrada">
-                <EditorPlanta torre={torre} pavimento={pavSelecionado} imagem={estado.imagem ?? null} editavel={editavel}
-                  onAlterar={t => mudarAtual(e => ({ ...e, torre: t }))} tipologias={tipologias} onAbrirApto={setAptoAberto} />
+                {vistaPav === "2d" ? (
+                  <EditorPlanta torre={torre} pavimento={pavSelecionado} imagem={estado.imagem ?? null} editavel={editavel}
+                    onAlterar={t => mudarAtual(e => ({ ...e, torre: t }))} tipologias={tipologias} onAbrirApto={setAptoAberto} />
+                ) : (
+                  <div className="h-full overflow-hidden rounded-2xl border border-slate-800">
+                    <Pavimento3D torre={torre} pavimento={pavSelecionado} modelo={aptoModelo} tetoAberto={tetoAberto} filtro={aptoModelo ? null : filtroCamadas}
+                      estado={{ A: camadas.get(`${pavSelecionado.id}|A`), B: camadas.get(`${pavSelecionado.id}|B`) }} />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -589,8 +648,12 @@ export default function Escadinha() {
               onFiltro={setFiltro}
               onInicioObra={iso => mudarAtual(e => ({ ...e, torre: { ...e.torre, inicioObra: iso } }))}
               onMarcar={marcar}
-              onFocar={id => { setApresentacao(false); setSelecionado(id); setPlanta(false); }}
-              onVerTudo={() => selecionar(null)}
+              onFocar={id => { setApresentacao(false); selecionar(id); }}
+              onVerTudo={() => { fecharPavimento(); selecionar(null); }}
+              onAbrir={abrir}
+              aberto={aberto}
+              lado={ladoPainel}
+              onLado={setLadoPainel}
               onAnexar={() => setImportando(true)}
               onModelo={() => setEditandoModelo(true)}
               onFechar={() => setPainel(false)}

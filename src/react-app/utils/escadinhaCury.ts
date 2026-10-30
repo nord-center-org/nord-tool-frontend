@@ -1,6 +1,6 @@
 /**
  * Escadinha no padrão Cury: ciclos com atividades em ordem, cada célula pavimento × lado × atividade com um status
- * (executado, em execução, não se aplica) e o resto calculado: cadeado (o que ainda não pode começar), atraso pelo
+ * (executado, em execução, não se aplica, marcados no pavimento) e o resto calculado: dependência da anterior, atraso pelo
  * plano (início da obra + dias e meta de pavimentos de cada ciclo), meta do período e os gargalos.
  * Também diz que "camada" do modelo 3D cada atividade acende (alvenaria, laje, louças…). Sem React aqui.
  */
@@ -229,18 +229,22 @@ export function linhasDaGrade(torre: Pick<Torre, "pavimentos">): LinhaGrade[] {
 // ---------------------------------------------------------------- status calculado
 
 export type StatusCelula =
-  | "executado" | "execucao" | "atrasado" | "atrasadoExec" | "atrasoAnterior" | "periodo" | "na" | "vazio" | "bloqueado";
+  | "executado" | "execucao" | "atrasado" | "atrasadoExec" | "atrasoAnterior" | "periodo" | "na" | "vazio" | "meta";
 
-export const LEGENDA: { status: StatusCelula; rotulo: string; cor: string }[] = [
-  { status: "executado", rotulo: "Executado", cor: "#22c55e" },
-  { status: "execucao", rotulo: "Em execução", cor: "#facc15" },
-  { status: "atrasado", rotulo: "Atrasado", cor: "#ef4444" },
-  { status: "atrasadoExec", rotulo: "Atividade atrasada em execução", cor: "#f97316" },
-  { status: "atrasoAnterior", rotulo: "Atraso com atividade anterior pendente", cor: "#a855f7" },
-  { status: "periodo", rotulo: "Dentro do período do ciclo", cor: "#94a3b8" },
-  { status: "na", rotulo: "Não se aplica", cor: "#cbd5e1" },
-  { status: "vazio", rotulo: "Liberado (vazio)", cor: "#ffffff" },
-  { status: "bloqueado", rotulo: "Aguardando a etapa anterior", cor: "#334155" },
+/**
+ * Os 9 status da escadinha, na ordem da legenda da obra. Executado, em execução e não se aplica são marcados no
+ * pavimento (aba do modelo 3D); os outros saem sozinhos das datas do plano. A grade é só o reflexo.
+ */
+export const LEGENDA: { status: StatusCelula; rotulo: string; cor: string; dica: string }[] = [
+  { status: "executado", rotulo: "Executado", cor: "#22c55e", dica: "Marcado como executado no pavimento." },
+  { status: "execucao", rotulo: "Em execução", cor: "#facc15", dica: "Marcado como em execução, ainda dentro do prazo." },
+  { status: "atrasado", rotulo: "Atrasado", cor: "#ef4444", dica: "O prazo do ciclo passou e a atividade não começou." },
+  { status: "atrasadoExec", rotulo: "Atividade atrasada em execução", cor: "#f97316", dica: "Em execução, mas o prazo do ciclo já passou." },
+  { status: "atrasoAnterior", rotulo: "Atividade em atraso com atividade anterior pendente", cor: "#a855f7", dica: "Atrasada, e a atividade anterior (ciclo anterior ou pavimento de baixo) ainda não terminou." },
+  { status: "periodo", rotulo: "Atividade dentro do período do ciclo (15 dias)", cor: "#38bdf8", dica: "O período do ciclo está correndo, mas ainda depende da atividade anterior." },
+  { status: "na", rotulo: "Não se aplica nessa obra", cor: "#94a3b8", dica: "Marcado como não se aplica." },
+  { status: "vazio", rotulo: "Vazio", cor: "#ffffff", dica: "Ainda não chegou o período desta atividade." },
+  { status: "meta", rotulo: "Meta do ciclo (pendente) — automático", cor: "#ec4899", dica: "Liberada e com prazo no período atual: é a meta deste ciclo." },
 ];
 export const COR_STATUS = Object.fromEntries(LEGENDA.map(l => [l.status, l.cor])) as Record<StatusCelula, string>;
 
@@ -266,7 +270,8 @@ export function periodoDe(inicio: string, hoje: string, diasPeriodo: number): { 
 
 /**
  * Avalia todas as células. Regras:
- * - cadeado: a mesma atividade no pavimento de baixo (mesmo lado) não terminou, ou o ciclo anterior não terminou neste pavimento/lado;
+ * - dependência: a mesma atividade no pavimento de baixo (mesmo lado) não terminou, ou o ciclo anterior não terminou neste pavimento/lado;
+ * - janela correndo = meta do ciclo (liberada) ou dentro do período do ciclo (ainda depende da anterior); antes dela, vazio;
  * - plano: o ciclo c começa no pavimento mais baixo depois de somados os dias dos ciclos anteriores e avança `metaPav`
  *   pavimentos a cada `dias`; passou do fim da janela sem executar = atrasado (roxo se a etapa anterior ainda está pendente).
  */
@@ -287,7 +292,7 @@ export function avaliarGrade(modelo: ModeloEscadinha, linhas: LinhaGrade[], grad
         const chave = chaveCelula(l.pavimento.id, l.lado, a.id);
         const c = grade[chave];
         const abaixo = l.nivel > 0 ? porNivel.get(`${l.nivel - 1}|${l.lado}`) : undefined;
-        const bloqueado = anteriorPendente || (!!abaixo && !feita(grade[chaveCelula(abaixo.pavimento.id, l.lado, a.id)]));
+        const dependente = anteriorPendente || (!!abaixo && !feita(grade[chaveCelula(abaixo.pavimento.id, l.lado, a.id)]));
         let janela: [string, string] | undefined;
         if (inicio && ciclo.metasAtivas) {
           const ini = paraDia(inicio) + inicios[ic] + Math.floor(l.nivel / ciclo.metaPav) * ciclo.dias;
@@ -299,9 +304,9 @@ export function avaliarGrade(modelo: ModeloEscadinha, linhas: LinhaGrade[], grad
         if (c?.s === "E") status = "executado";
         else if (c?.s === "N") status = "na";
         else if (c?.s === "X") status = vencida ? "atrasadoExec" : "execucao";
-        else if (vencida) status = bloqueado ? "atrasoAnterior" : "atrasado";
-        else if (bloqueado) status = "bloqueado";
-        else status = emCurso ? "periodo" : "vazio";
+        else if (vencida) status = dependente ? "atrasoAnterior" : "atrasado";
+        else if (emCurso) status = dependente ? "periodo" : "meta";
+        else status = "vazio";
         const meta = !!periodo && !!janela && !feita(c) && paraDia(janela[1]) > paraDia(periodo.inicio) && paraDia(janela[1]) <= paraDia(periodo.fim);
         saida.set(chave, { status, meta, janela });
       }
@@ -363,8 +368,8 @@ export function gargalos(modelo: ModeloEscadinha, linhas: LinhaGrade[], avaliaca
     for (const { atividade, ciclo, indiceCiclo } of ordem) {
       const chave = chaveCelula(l.pavimento.id, l.lado, atividade.id);
       const av = avaliacao.get(chave);
-      if (!av || av.status === "executado" || av.status === "na" || av.status === "bloqueado") continue;
-      // Só conta como gargalo quem já pode andar (não está no cadeado) e trava gente atrasada.
+      if (!av || av.status === "executado" || av.status === "na" || av.status === "periodo" || av.status === "atrasoAnterior") continue;
+      // Só conta como gargalo quem já pode andar (não depende de outra pendente) e trava gente atrasada.
       let trava = 0;
       for (let n = l.nivel + 1; ; n++) {
         const acima = porNivel.get(`${n}|${l.lado}`);

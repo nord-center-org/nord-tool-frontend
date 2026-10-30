@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { montarPavimentos } from "./escadinha.ts";
 import {
-  MODELO_CURY, atividadesEmOrdem, avaliarGrade, camadaDaAtividade, camadasDoFiltro, camadasPorPavimento, chaveCelula, gargalos,
+  LEGENDA, MODELO_CURY, atividadesEmOrdem, avaliarGrade, camadaDaAtividade, camadasDoFiltro, camadasPorPavimento, chaveCelula, gargalos,
   lerGrade, lerModeloEscadinha, linhasDaGrade, periodoDe, resumir, type Grade, type ModeloEscadinha,
 } from "./escadinhaCury.ts";
 
@@ -58,16 +58,21 @@ test("linhas: do mais alto para o térreo, lados A e B, sem subsolo e barrilete"
   assert.equal(linhas.find(l => l.pavimento.id === "terreo")!.nivel, 0);
 });
 
-test("cadeado: a mesma atividade embaixo e o ciclo anterior no mesmo pavimento", () => {
-  const g: Grade = { [chaveCelula("terreo", "A", "alv")]: { s: "E" }, [chaveCelula("terreo", "A", "laje")]: { s: "N" } };
+test("legenda: exatamente os 9 status da obra, sem cadeado", () => {
+  assert.deepEqual(LEGENDA.map(l => l.rotulo), [
+    "Executado", "Em execução", "Atrasado", "Atividade atrasada em execução", "Atividade em atraso com atividade anterior pendente",
+    "Atividade dentro do período do ciclo (15 dias)", "Não se aplica nessa obra", "Vazio", "Meta do ciclo (pendente) — automático",
+  ]);
+});
+
+test("sem início da obra: só o que foi marcado; o resto fica vazio", () => {
+  const g: Grade = { [chaveCelula("terreo", "A", "alv")]: { s: "E" }, [chaveCelula("terreo", "A", "laje")]: { s: "N" }, [chaveCelula("p1", "A", "alv")]: { s: "X" } };
   const av = avaliarGrade(mini, linhas, g, null, "2026-10-29");
   assert.equal(av.get(chaveCelula("terreo", "A", "alv"))!.status, "executado");
   assert.equal(av.get(chaveCelula("terreo", "A", "laje"))!.status, "na");
-  assert.equal(av.get(chaveCelula("p1", "A", "alv"))!.status, "vazio", "liberado: térreo A feito");
-  assert.equal(av.get(chaveCelula("p1", "B", "alv"))!.status, "bloqueado", "térreo B não foi feito");
-  assert.equal(av.get(chaveCelula("terreo", "A", "gesso"))!.status, "vazio", "ciclo 1 inteiro feito no térreo A");
-  assert.equal(av.get(chaveCelula("terreo", "B", "gesso"))!.status, "bloqueado");
-  assert.equal(av.get(chaveCelula("p2", "A", "alv"))!.status, "bloqueado");
+  assert.equal(av.get(chaveCelula("p1", "A", "alv"))!.status, "execucao");
+  assert.equal(av.get(chaveCelula("p1", "B", "alv"))!.status, "vazio");
+  assert.equal(av.get(chaveCelula("p2", "A", "alv"))!.status, "vazio");
 });
 
 test("plano: período, atrasado, atrasado em execução, atraso com anterior pendente e meta", () => {
@@ -77,15 +82,17 @@ test("plano: período, atrasado, atrasado em execução, atraso com anterior pen
   assert.equal(av.get(chaveCelula("terreo", "A", "alv"))!.status, "atrasadoExec");
   assert.equal(av.get(chaveCelula("terreo", "B", "alv"))!.status, "atrasado");
   assert.equal(av.get(chaveCelula("p1", "A", "alv"))!.status, "atrasoAnterior", "venceu em 21/10 e o térreo não terminou");
-  assert.equal(av.get(chaveCelula("p2", "A", "alv"))!.status, "bloqueado", "ainda no prazo (31/10), mas preso");
+  assert.equal(av.get(chaveCelula("p2", "A", "alv"))!.status, "periodo", "no período (até 31/10), mas o p1 ainda não terminou");
   assert.deepEqual(av.get(chaveCelula("p1", "A", "alv"))!.janela, ["2026-10-11", "2026-10-21"]);
   // Período de referência 21/10–31/10: p2 do ciclo 1 vence 31/10 → meta.
   assert.equal(av.get(chaveCelula("p2", "A", "alv"))!.meta, true);
   assert.equal(av.get(chaveCelula("p3", "A", "alv"))!.meta, false);
   assert.deepEqual(periodoDe("2026-10-01", "2026-10-25", 10), { indice: 2, inicio: "2026-10-21", fim: "2026-10-31" });
-  // Liberado e dentro da janela = período (cinza).
+  // Liberado e dentro da janela = meta do ciclo (automático); fora da janela ainda = vazio.
   const g2: Grade = { [chaveCelula("terreo", "A", "alv")]: { s: "E" } };
-  assert.equal(avaliarGrade(mini, linhas, g2, "2026-10-01", "2026-10-15").get(chaveCelula("p1", "A", "alv"))!.status, "periodo");
+  const av2 = avaliarGrade(mini, linhas, g2, "2026-10-01", "2026-10-15");
+  assert.equal(av2.get(chaveCelula("p1", "A", "alv"))!.status, "meta");
+  assert.equal(av2.get(chaveCelula("p2", "A", "alv"))!.status, "vazio");
 });
 
 test("resumo e gargalos: quem segura mais atrasos aparece primeiro", () => {

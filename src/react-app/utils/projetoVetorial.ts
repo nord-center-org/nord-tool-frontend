@@ -478,6 +478,78 @@ const CODIGOS: Record<string, TipoPrancha> = {
   HID: "hidraulica", ELE: "eletrica", IMP: "implantacao",
 };
 
+/**
+ * Torres pelo código do nome do arquivo, quando o título não diz (arquitetura com texto em curvas): TIA/TOA = torre A (1),
+ * TIB/TOB = B (2), TIC/TOC = C (3), TAC = torres A e C (1 e 3).
+ */
+export function torresDoCodigo(partes: string[]): number[] {
+  const n = (l: string) => l.charCodeAt(0) - 64;
+  for (const p of partes) {
+    const m = p.match(/^T[IO]([A-H])$/);
+    if (m) return [n(m[1])];
+    const d = p.match(/^T([A-H])([A-H])$/);
+    if (d && d[1] !== d[2]) return [n(d[1]), n(d[2])];
+  }
+  return [];
+}
+
+/** Nome da prancha sem a revisão ("…-304-MOD-TIA_R04.pdf" → "…-304-MOD-TIA") e a revisão em número (T04 < R04). */
+export function revisaoDoArquivo(arquivo: string): { base: string; ordem: number } {
+  const nome = arquivo.replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, "").toUpperCase();
+  const m = nome.match(/^(.*?)[-_ ]([RT])(\d{2})$/);
+  if (!m) return { base: nome, ordem: -1 };
+  return { base: m[1], ordem: Number(m[3]) * 2 + (m[2] === "R" ? 1 : 0) };
+}
+
+/** Só a revisão mais nova de cada prancha (pacotes do Construcode costumam trazer as antigas junto). */
+export function revisoesVigentes<T>(itens: T[], nome: (t: T) => string): { vigentes: T[]; antigas: T[] } {
+  const melhor = new Map<string, { item: T; ordem: number }>();
+  for (const it of itens) {
+    const { base, ordem } = revisaoDoArquivo(nome(it));
+    const atual = melhor.get(base);
+    if (!atual || ordem > atual.ordem) melhor.set(base, { item: it, ordem });
+  }
+  const vigentes = new Set([...melhor.values()].map(v => v.item));
+  return { vigentes: itens.filter(i => vigentes.has(i)), antigas: itens.filter(i => !vigentes.has(i)) };
+}
+
+/** A prancha precisa ser aberta (desenho)? Fôrma, 1ª fiada e graute da estrutura; o resto entra só pelo nome. */
+export function precisaDesenho(arquivo: string): boolean {
+  const partes = semAcento(arquivo.replace(/\.[^.]+$/, "")).split(/[-_ ]+/);
+  const temCodigo = partes.some(p => p in CODIGOS || /^(EST|ARQ|HID|ELE|INC|FUN|PAI)$/.test(p));
+  if (!temCodigo) return true; // nome fora do padrão: abre para ler o carimbo
+  return partes.includes("EST") && partes.some(p => p === "MOD" || p === "FOR" || p === "GRT");
+}
+
+/**
+ * Corte consolidado de várias pranchas da torre: para cada cota, o nome mais votado. Nome repetido em cotas diferentes
+ * (o "1º PAVIMENTO" que alguma prancha escreve como "TÉRREO") vira o pavimento que falta antes do seguinte.
+ */
+export function corteConsolidado(listas: NivelCorte[][]): NivelCorte[] {
+  const porCota = new Map<string, { cota: number; nomes: Map<string, number>; lajes: Map<number, number> }>();
+  for (const lista of listas) {
+    for (const n of lista) {
+      const k = n.cota.toFixed(2);
+      const e = porCota.get(k) ?? { cota: n.cota, nomes: new Map(), lajes: new Map() };
+      const nome = semAcento(n.nome).replace(/\s+/g, " ");
+      e.nomes.set(nome, (e.nomes.get(nome) ?? 0) + 1);
+      if (n.laje !== undefined) e.lajes.set(n.laje, (e.lajes.get(n.laje) ?? 0) + 1);
+      porCota.set(k, e);
+    }
+  }
+  const mais = <K,>(m: Map<K, number>) => [...m].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const niveis = [...porCota.values()].sort((a, b) => a.cota - b.cota).map(e => ({ nome: mais(e.nomes)!, cota: e.cota, laje: mais(e.lajes) }));
+  const numero = (s: string) => Number(s.match(/^(\d{1,3})\s*[º°O]?\s*PAV/)?.[1] ?? NaN);
+  const vistos = new Set<string>();
+  return niveis.map((n, i) => {
+    if (!vistos.has(n.nome)) { vistos.add(n.nome); return n; }
+    const prox = niveis.slice(i + 1).map(x => numero(x.nome)).find(Number.isFinite);
+    const nome = prox && prox > 1 ? `${prox - 1}º PAVIMENTO` : n.nome;
+    vistos.add(nome);
+    return { ...n, nome };
+  }).filter((n, i, l) => l.findIndex(x => x.nome === n.nome) === i);
+}
+
 /** Lê o carimbo: tipo pelo código do nome do arquivo (…-EST-LO-304-MOD-TIA_R04), torre e pavimentos pelo título. */
 export function lerCarimbo(arquivo: string, textos: TextoPdf[]): Carimbo {
   const nome = semAcento(arquivo.replace(/\.[^.]+$/, ""));
@@ -503,7 +575,8 @@ export function lerCarimbo(arquivo: string, textos: TextoPdf[]): Carimbo {
     .sort((a, b) => Number(b.carimbo) - Number(a.carimbo) || b.t.h - a.t.h || b.s.length - a.s.length);
   const titulo = candidatos[0]?.s ?? null;
   const st = titulo ? semAcento(titulo) : "";
-  const torres = (st.match(/^TORRES?\s+([\d\s,E]+?)\s*-/)?.[1] ?? "").match(/\d+/g)?.map(Number) ?? [];
+  const doTitulo = (st.match(/^TORRES?\s+([\d\s,E]+?)\s*-/)?.[1] ?? "").match(/\d+/g)?.map(Number) ?? [];
+  const torres = doTitulo.length ? doTitulo : torresDoCodigo(partes);
   const faixa = st.match(/\(\s*L\s*(\d{1,3})\s*(?:A|-|AO)\s*L?\s*(\d{1,3})\s*\)/) ?? st.match(/\(\s*L\s*(\d{1,3})\s*L\s*(\d{1,3})\s*\)/);
   const unica = st.match(/\(\s*L\s*(\d{1,3})\s*\)/);
   let tipo: TipoPrancha = codigo ? CODIGOS[codigo] : "outro";
@@ -663,10 +736,23 @@ export interface TorreDoPacote {
  */
 export function montarTorreDoPacote(pranchas: PranchaLida[], torre: number | null, hoje: string): TorreDoPacote | null {
   const daTorre = pranchas.filter(p => torre === null || !p.carimbo.torres.length || p.carimbo.torres.includes(torre));
-  const mods = daTorre.filter(p => p.paredes.length && p.contorno).sort((a, b) => (a.carimbo.lajes?.[0] ?? 99) - (b.carimbo.lajes?.[0] ?? 99));
-  const base = mods[0];
+  const porLaje = (a: PranchaLida, b: PranchaLida) => (a.carimbo.lajes?.[0] ?? 99) - (b.carimbo.lajes?.[0] ?? 99);
+  const mods = daTorre.filter(p => p.paredes.length && p.contorno).sort(porLaje);
+  // O modelo é o pavimento tipo: subsolo, térreo/transfer e cobertura têm outra planta e não servem de base.
+  let tipos = mods.filter(ehModulacaoTipo);
+  // Sem a 1ª fiada do tipo desta torre: usa a da torre gêmea, se o projeto diz que é a mesma ("TORRES 1 E 3").
+  let gemea: number | null = null;
+  if (!tipos.length && torre !== null) {
+    const irmas = new Set(pranchas.filter(p => p.carimbo.torres.length > 1 && p.carimbo.torres.includes(torre)).flatMap(p => p.carimbo.torres));
+    irmas.delete(torre);
+    for (const g of [...irmas].sort((a, b) => a - b)) {
+      const dela = pranchas.filter(p => p.carimbo.torres.length === 1 && p.carimbo.torres[0] === g && p.paredes.length && p.contorno && ehModulacaoTipo(p)).sort(porLaje);
+      if (dela.length) { tipos = dela; gemea = g; break; }
+    }
+  }
+  const base = tipos[0] ?? [...mods].sort((a, b) => b.paredes.length - a.paredes.length)[0];
   if (!base?.contorno) return null;
-  const corte = daTorre.map(p => p.niveis).sort((a, b) => b.length - a.length)[0] ?? [];
+  const corte = corteConsolidado(daTorre.map(p => p.niveis).filter(l => l.length >= 3));
   const { pavimentos, lajes } = pavimentosDoCorte(corte);
   const { contorno, paredes } = paraMetros(base.contorno, base.paredes);
   // mesma transformação para a junta
@@ -681,12 +767,18 @@ export function montarTorreDoPacote(pranchas: PranchaLida[], torre: number | nul
       : { a: [v, Math.min(...ly) - 2], b: [v, Math.max(...ly) + 2] };
   }
   const tiposDePav = new Set(pavimentos.map(p => p.id));
-  const quantitativos: QuantitativoFaixa[] = mods.map(p => {
+  const quantitativos: QuantitativoFaixa[] = (tipos.length ? tipos : mods).map(p => {
     const ids: string[] = [];
     if (p.carimbo.lajes) for (let l = p.carimbo.lajes[0]; l <= p.carimbo.lajes[1]; l++) if (lajes[l] && tiposDePav.has(lajes[l]) && /^p\d+$/.test(lajes[l])) ids.push(lajes[l]);
     return { arquivo: p.carimbo.arquivo, lajes: p.carimbo.lajes, pavimentos: ids, itens: p.quantitativo, metrosPorEspessura: somaMetros(p.paredes) };
   });
   const lajesTipo = Object.entries(lajes).filter(([, id]) => /^p\d+$/.test(id) && id !== "p1").map(([l]) => Number(l));
+  const checklist = checklistProjetos([...daTorre, ...(gemea !== null ? tipos : [])].map(p => p.carimbo), torre, lajesTipo).map(c => {
+    if (!/^1ª fiada/.test(c.item)) return c;
+    if (gemea !== null) return { ...c, ok: true, detalhe: `Sem 1ª fiada do tipo própria: usando a da Torre ${gemea} (o projeto trata as duas como a mesma tipologia). Confira e peça a prancha da torre se for diferente.` };
+    if (!tipos.length) return { ...c, ok: false, detalhe: `Falta a 1ª fiada do PAVIMENTO TIPO: o modelo saiu da prancha ${base.carimbo.titulo ?? base.carimbo.arquivo}, que é outro pavimento.` };
+    return c;
+  });
   return {
     contorno,
     paredes,
@@ -698,9 +790,17 @@ export function montarTorreDoPacote(pranchas: PranchaLida[], torre: number | nul
       escala: base.escala,
       pranchas: daTorre.map(p => ({ arquivo: p.carimbo.arquivo, tipo: p.carimbo.tipo, titulo: p.carimbo.titulo, revisao: p.carimbo.revisao })),
       quantitativos,
-      checklist: checklistProjetos(daTorre.map(p => p.carimbo), torre, lajesTipo),
+      checklist,
     },
   };
+}
+
+/** 1ª fiada do pavimento tipo: título "…PAVIMENTO TIPO…" ou código TIA/TIB/TIC no nome (TEA = térreo, COA = cobertura, PSA = subsolo). */
+export function ehModulacaoTipo(p: PranchaLida): boolean {
+  if (p.carimbo.tipo !== "modulacao") return false;
+  const titulo = semAcento(p.carimbo.titulo ?? "");
+  if (titulo) return /PAVIMENTO TIPO|PAV\.? TIPO|\bTIPO\b/.test(titulo) && !/TERREO|SUBSOLO|COBERTURA|BARRILETE/.test(titulo);
+  return /(^|[-_ ])TI[A-H]([-_ ]|$)/.test(semAcento(p.carimbo.arquivo.replace(/\.[^.]+$/, "")));
 }
 
 // ---------------------------------------------------------------- quantitativo × escadinha (medição)

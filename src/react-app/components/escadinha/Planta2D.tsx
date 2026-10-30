@@ -1,6 +1,6 @@
 import { useId, useMemo, useRef, type PointerEvent } from "react";
 
-import { limites, pilares, type Apartamento, type Lado, type Pavimento, type Ponto, type Torre } from "@/react-app/utils/escadinha";
+import { limites, pilares, type Apartamento, type Lado, type Pavimento, type Ponto, type TipoComodo, type Torre } from "@/react-app/utils/escadinha";
 import CamadaMedicao from "./CamadaMedicao";
 import { centroide, metades, COR_LADO } from "@/react-app/utils/escadinhaApto";
 
@@ -29,6 +29,11 @@ interface Planta2DProps {
 
 const fmt = (m: number) => m.toFixed(2).replace(".", ",");
 
+/** Cor de fundo de cada tipo de cômodo (o apartamento leva a cor do lado por cima). */
+const COR_COMODO: Record<TipoComodo, string> = {
+  hall: "#64748b", apartamento: "transparent", molhado: "#38bdf8", shaft: "#0f172a", escada: "#a78bfa", outro: "#334155",
+};
+
 /**
  * Planta 2D do pavimento: croqui (contorno e pilares), apartamentos pintados pelo lado (A/B), divisão dos lados,
  * cotas gerais e, se houver, a prancha do projeto ao fundo. Coordenadas em metros, y para cima (no SVG, -y).
@@ -50,6 +55,8 @@ export default function Planta2D({
   const traco = escala / (mini ? 90 : 220);
   const tipico = !pavimento?.contorno;
   const apartamentos: Apartamento[] = tipico ? torre.apartamentos ?? [] : [];
+  const comodos = tipico ? torre.comodos ?? [] : [];
+  const aberturas = tipico ? torre.aberturas ?? [] : [];
   const lados = tipico && torre.lados ? metades(torre.contorno, torre.lados) : null;
 
   // A prancha foi analisada em pixels: põe a imagem no mesmo sistema do croqui (metros, y para baixo).
@@ -100,6 +107,9 @@ export default function Planta2D({
         <polygon key={l} points={pts(lados[l])} fill={COR_LADO[l]} opacity={mini ? 0.12 : 0.08} />
       ))}
       <polygon points={pts(contorno)} fill={lados ? "none" : "rgba(251,146,60,0.12)"} stroke="#fb923c" strokeWidth={traco * 2} strokeLinejoin="round" />
+      {comodos.map(c => (
+        <polygon key={c.id} points={pts(c.contorno)} fill={COR_COMODO[c.tipo]} fillOpacity={c.tipo === "shaft" ? 0.8 : 0.35} stroke="none" style={{ pointerEvents: "none" }} />
+      ))}
       {apartamentos.map(ap => {
         const sel = selecionados.includes(ap.id);
         const [cx, cy] = centroide(ap.contorno);
@@ -107,7 +117,7 @@ export default function Planta2D({
           <g key={ap.id} onPointerDown={e => { if (!onClicarApto) return; e.stopPropagation(); onClicarApto(ap.id, e.shiftKey || e.ctrlKey || e.metaKey); }}
             onDoubleClick={e => { if (!onAbrirApto) return; e.stopPropagation(); onAbrirApto(ap.id); }}
             style={{ cursor: onClicarApto ? "pointer" : undefined }}>
-            <polygon points={pts(ap.contorno)} fill={COR_LADO[ap.lado]} fillOpacity={sel ? 0.55 : mini ? 0.3 : 0.22}
+            <polygon points={pts(ap.contorno)} fill={COR_LADO[ap.lado]} fillOpacity={sel ? 0.55 : mini ? 0.3 : comodos.length ? 0.16 : 0.22}
               stroke={sel ? "#fff" : COR_LADO[ap.lado]} strokeWidth={traco * (sel ? 2.4 : 1)} strokeLinejoin="round" />
             {!mini && (
               <text x={cx} y={-cy} textAnchor="middle" dominantBaseline="middle" fontSize={fonte} fontWeight="800" fill="#f8fafc" style={{ pointerEvents: "none" }}>
@@ -125,6 +135,29 @@ export default function Planta2D({
           ))}
         </g>
       )}
+      {!mini && aberturas.map((o, i) => {
+        // Porta: folha a 90° e o arco de abertura, como na planta de arquitetura.
+        const h = Math.abs(o.a[1] - o.b[1]) < 0.02;
+        const l = o.largura;
+        const [ax, ay] = o.a;
+        const folha: Ponto = h ? [ax, ay + l] : [ax + l, ay];
+        return (
+          <g key={`p${i}`} style={{ pointerEvents: "none" }} stroke={o.entrada ? "#fb923c" : "#94a3b8"} strokeWidth={traco * 0.8} fill="none">
+            <line x1={ax} y1={-ay} x2={folha[0]} y2={-folha[1]} />
+            <path d={`M ${folha[0]} ${-folha[1]} A ${l} ${l} 0 0 ${h ? 1 : 0} ${o.b[0]} ${-o.b[1]}`} strokeDasharray={`${traco * 2} ${traco * 1.5}`} />
+          </g>
+        );
+      })}
+      {!mini && comodos.filter(c => c.area >= 2 && c.tipo !== "shaft").map(c => {
+        const [cx, cy] = centroide(c.contorno);
+        const temApto = apartamentos.some(a => a.id === c.apto);
+        return (
+          <text key={`t${c.id}`} x={cx} y={-cy + (temApto ? fonte * 0.9 : 0)} textAnchor="middle" dominantBaseline="middle" fontSize={fonte * 0.42} fill="#cbd5e1"
+            opacity={0.85} style={{ pointerEvents: "none" }}>
+            {c.tipo === "hall" ? "Hall " : ""}{c.area.toFixed(1).replace(".", ",")} m²
+          </text>
+        );
+      })}
       {colunas.map(([x, y], i) => (
         <rect key={i} x={x - 0.25} y={-y - 0.25} width="0.5" height="0.5" fill="#e2e8f0" style={{ pointerEvents: "none" }} />
       ))}

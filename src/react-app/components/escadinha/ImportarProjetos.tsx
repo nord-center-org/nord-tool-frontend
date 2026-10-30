@@ -142,6 +142,13 @@ export default function ImportarProjetos({ atual, hoje, onFechar, onConfirmar, o
                 ) : (
                   <p className="rounded-2xl bg-amber-50 px-3 py-6 text-center text-sm text-amber-800">Escolha uma torre com planta de 1ª fiada.</p>
                 )}
+                {montada && (
+                  <p className="text-xs text-slate-500">
+                    Apartamentos e cômodos lidos das paredes da 1ª fiada (portas = vãos)
+                    {pacote.antigas.length > 0 && ` · ${pacote.antigas.length} revisão(ões) antiga(s) ignorada(s)`}
+                    {pacote.soPeloNome > 0 && ` · ${pacote.soPeloNome} prancha(s) de outras disciplinas conferidas pelo nome`}
+                  </p>
+                )}
                 {pacote.falhas.length > 0 && (
                   <details className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">
                     <summary className="cursor-pointer font-bold">{pacote.falhas.length} arquivo(s) não lidos</summary>

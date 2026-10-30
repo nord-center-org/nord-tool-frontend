@@ -33,7 +33,10 @@ export interface ControleTorre {
 
 interface Torre3DProps {
   torre: Torre;
+  /** Pavimento escolhido (destacado na torre, painel ao lado); um segundo clique abre. */
   selecionado: string | null;
+  /** Pavimento aberto: a fatia sai da torre e a câmera vai para cima dela. */
+  aberto: string | null;
   statusPorPavimento: Record<string, StatusAtividade>;
   /** O que já foi feito em cada pavimento|lado (da escadinha). */
   camadas?: Map<string, Map<Camada, EstadoCamada>>;
@@ -42,6 +45,8 @@ interface Torre3DProps {
   apresentacao: boolean;
   onInteragir: () => void;
   onSelecionar: (id: string | null) => void;
+  /** Segundo clique no pavimento já escolhido. */
+  onAbrir: (id: string) => void;
   /** Chamado quando a fatia terminou de sair e a câmera chegou em cima dela. */
   onFatiaPronta: () => void;
   /** Para de desenhar (janela aberta por cima, leitura de projeto): devolve a CPU/GPU para o resto da tela. */
@@ -87,6 +92,8 @@ interface PavimentoProps {
     /** Paredes reais do projeto (pavimento tipo); com elas não há pilares de croqui (alvenaria estrutural). */
     paredes: Record<Lado, Segmento[]> | null;
     semPilares: boolean;
+    comodos?: Torre["comodos"];
+    aberturas?: Torre["aberturas"];
   };
 }
 
@@ -132,7 +139,8 @@ function PavimentoMesh({ pav, contorno, cota, saidaX, selecionado, algumSelecion
       </mesh>
       {!apagado && !fantasma && (
         <CamadasPavimento contorno={contorno} metades={camadas.metades} apartamentos={camadas.apartamentos} altura={pav.altura}
-          nucleoC={camadas.nucleoC} estado={camadas.estado} filtro={camadas.filtro} comElevador paredesReais={camadas.paredes} />
+          nucleoC={camadas.nucleoC} estado={camadas.estado} filtro={camadas.filtro} comElevador paredesReais={camadas.paredes}
+          comodos={camadas.comodos} aberturas={camadas.aberturas} />
       )}
       {!apagado && !fantasma && colunas.map(([x, y], i) => (
         <mesh key={i} position={[x, ESPESSURA_LAJE + (pav.altura - ESPESSURA_LAJE) / 2, -y]}>
@@ -231,7 +239,7 @@ function MovimentoCamera({ alvo, controles, chegou, esperandoFatia, onFatiaPront
 
 /** Prédio 3D do croqui: gira como apresentação até o primeiro toque; cubo de vistas no canto; pavimentos clicáveis. */
 const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
-  { torre, selecionado, statusPorPavimento, camadas, filtroCamadas = null, apresentacao, onInteragir, onSelecionar, onFatiaPronta, pausado = false }, ref,
+  { torre, selecionado, aberto, statusPorPavimento, camadas, filtroCamadas = null, apresentacao, onInteragir, onSelecionar, onAbrir, onFatiaPronta, pausado = false }, ref,
 ) {
   const metadesT = useMemo(() => (torre.lados ? metadesDaTorre(torre.contorno, torre.lados) : { A: torre.contorno, B: [] as Ponto[] }), [torre.contorno, torre.lados]);
   const nucleoC = useMemo(() => centroNucleo(torre.contorno), [torre.contorno]);
@@ -287,12 +295,12 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
   const clicar = (id: string) => {
     if (apresentandoNoToque.current) return;
     onInteragir();
-    if (id !== selecionado) onSelecionar(id);
+    if (id === selecionado) onAbrir(id); else onSelecionar(id);
   };
 
-  // Pavimento escolhido (pelo 3D ou pela lista): a fatia sai e a câmera vai para cima dela; sem seleção, volta à apresentação.
+  // Pavimento aberto (pelo 3D ou pela lista): a fatia sai e a câmera vai para cima dela; fechado, volta à apresentação.
   useEffect(() => {
-    const i = torre.pavimentos.findIndex(p => p.id === selecionado);
+    const i = torre.pavimentos.findIndex(p => p.id === aberto);
     if (i < 0) {
       esperandoFatia.current = false;
       alvo.current = { posicao: posInicial.clone(), foco: focoInicial.clone() };
@@ -310,7 +318,7 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
     }, 700);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage à troca de pavimento
-  }, [selecionado]);
+  }, [aberto]);
 
   const lote = Math.max(lim.largura, lim.profundidade) * 2.2;
 
@@ -322,7 +330,7 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
       camera={{ position: posInicial.toArray(), fov: 35, near: 0.5, far: 2000 }}
       onPointerDown={() => { apresentandoNoToque.current = apresentacao; onInteragir(); }}
       // Só um clique no vazio do 3D desfaz a seleção (os rótulos HTML também disparam "missed").
-      onPointerMissed={e => { if (selecionado && (e.target as HTMLElement | null)?.tagName === "CANVAS") onSelecionar(null); }}
+      onPointerMissed={e => { if (selecionado && !aberto && (e.target as HTMLElement | null)?.tagName === "CANVAS") onSelecionar(null); }}
       dpr={[1, 2]}
     >
       <color attach="background" args={["#0f172a"]} />
@@ -347,9 +355,9 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
           contorno={p.contorno ?? torre.contorno}
           cota={niveis[i]}
           saidaX={saidaX}
-          selecionado={p.id === selecionado}
-          algumSelecionado={!!selecionado}
-          destacado={p.id === passando}
+          selecionado={p.id === aberto}
+          algumSelecionado={!!aberto}
+          destacado={p.id === passando || p.id === selecionado}
           onPassar={setPassando}
           onClicar={clicar}
           chegou={chegou}
@@ -363,16 +371,18 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
             filtro: filtroCamadas,
             paredes: !p.contorno && p.tipo === "tipo" ? paredesLados : null,
             semPilares: !!paredesLados,
+            comodos: !p.contorno && p.tipo === "tipo" ? torre.comodos : undefined,
+            aberturas: !p.contorno && p.tipo === "tipo" ? torre.aberturas : undefined,
           }}
         />
       ))}
-      {!selecionado && <Guindaste x={lim.minX - 4} z={0} altura={topo + 6} />}
+      {!aberto && <Guindaste x={lim.minX - 4} z={0} altura={topo + 6} />}
 
       <OrbitControls
         ref={controles}
         makeDefault
         target={focoInicial.toArray()}
-        autoRotate={apresentacao && !selecionado}
+        autoRotate={apresentacao && !selecionado && !aberto}
         autoRotateSpeed={0.8}
         enableDamping
         maxPolarAngle={Math.PI * 0.495}
@@ -396,14 +406,14 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
     </Canvas>
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-label="Pavimentos">
       {torre.pavimentos.map(p => {
-        const apagado = !!selecionado && p.id !== selecionado;
+        const apagado = !!aberto && p.id !== aberto;
         const ativo = p.id === passando || p.id === selecionado;
         return (
           <button
             key={p.id}
             ref={b => { botoes.current[p.id] = b; }}
             type="button"
-            onClick={() => { onInteragir(); if (p.id !== selecionado) onSelecionar(p.id); }}
+            onClick={() => { onInteragir(); if (p.id === selecionado) onAbrir(p.id); else onSelecionar(p.id); }}
             onPointerEnter={() => setPassando(p.id)}
             onPointerLeave={() => setPassando(null)}
             tabIndex={apagado ? -1 : 0}
@@ -411,7 +421,7 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
               apagado ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100"
             } ${ativo ? "border-orange-300 bg-orange-500 text-white" : "border-slate-600 bg-slate-800/90 text-slate-100 hover:bg-slate-700"}`}
             title={p.nome}
-            aria-label={`Abrir ${p.nome}`}
+            aria-label={p.id === selecionado ? `Abrir ${p.nome}` : `Escolher ${p.nome}`}
           >
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: COR.status[statusPorPavimento[p.id] ?? "pendente"] }} />
             {p.sigla}
