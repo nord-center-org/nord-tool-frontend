@@ -1,6 +1,6 @@
 import { DragEvent, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarDays, LayoutGrid, List, CalendarClock, Search, PlusCircle, X, Lock, Share2, Bot, Users } from "lucide-react";
+import { CalendarDays, LayoutGrid, List, CalendarClock, Search, PlusCircle, X, Lock, Share2, Bot, Users, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import {
   CronogramaSemanalService,
   type CronogramaEquipe,
@@ -138,6 +138,7 @@ export default function NordToolDashboard() {
   const [salvando, setSalvando] = useState(false);
   const [erroModal, setErroModal] = useState<string | null>(null);
   const [expandidoId, setExpandidoId] = useState<number | null>(null);
+  const [expandirTodas, setExpandirTodas] = useState(false);
   const [selecionados, setSelecionados] = useState<number[]>([]);
   const [statusEmMassa, setStatusEmMassa] = useState<Status>("executar");
   const [filtrosColuna, setFiltrosColuna] = useState<Partial<Record<ColunaLista, string[]>>>({});
@@ -522,6 +523,14 @@ export default function NordToolDashboard() {
                 <option value="Todas">Todas as categorias</option>
                 {categorias.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
+              <button
+                onClick={() => { setExpandirTodas(v => !v); setExpandidoId(null); }}
+                aria-pressed={expandirTodas}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                {expandirTodas ? <ChevronsDownUp size={16} /> : <ChevronsUpDown size={16} />}
+                {expandirTodas ? "Recolher observações" : "Expandir observações"}
+              </button>
               <button onClick={() => abrirNovo()} className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
                 <PlusCircle size={16} /> Nova demanda
               </button>
@@ -588,7 +597,7 @@ export default function NordToolDashboard() {
                   </thead>
                   <tbody>
                     {listaOrdenada.map(item => {
-                      const expandido = expandidoId === item.id;
+                      const expandido = expandirTodas || expandidoId === item.id;
                       const marcado = !!item.id && selecionados.includes(item.id);
                       return (
                         <tr key={item.id} onClick={() => setExpandidoId(expandido ? null : item.id ?? null)} className={`cursor-pointer border-t border-slate-200 transition-colors hover:bg-slate-50 ${marcado ? "bg-violet-50" : ""}`}>

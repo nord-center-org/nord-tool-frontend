@@ -20,7 +20,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-10-30-cronograma-dias-escadinha-auto",
     data: "2026-10-30",
     titulo: "Rotina com dias da semana, domingo primeiro e busca; escadinha monta sozinha",
-    texto: "Na Rotina do Cronograma Semanal, a visão de mês ganhou o cabeçalho com os dias da semana, a semana agora começa no domingo e tem barra de busca para achar um compromisso. Na Escadinha, assim que o ZIP de projetos termina de ser lido, a torre já é montada e salva sozinha, sem precisar clicar em “Montar a torre”.",
+    texto: "Na Rotina do Cronograma Semanal, a visão de mês ganhou o cabeçalho com os dias da semana, a semana agora começa no domingo e tem barra de busca para achar um compromisso. Na Lista, o botão “Expandir observações” abre as observações de todas as demandas de uma vez. Na Escadinha, assim que o ZIP de projetos termina de ser lido, a torre já é montada e salva sozinha, sem precisar clicar em “Montar a torre”.",
     onde: { rotulo: "Organizacional → Cronograma semanal", caminho: "/organizacional/cronograma" },
   },
   {
