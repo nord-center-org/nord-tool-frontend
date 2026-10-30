@@ -43,6 +43,8 @@ export interface Torre {
   espessuraLaje?: number;
   /** Paredes reais do pavimento tipo, lidas da 1ª fiada do projeto (m, mesmo sistema do contorno). */
   paredes?: ParedeReal[];
+  /** Cômodos do pavimento tipo achados pelas paredes (apto = apartamento a que pertence; null = hall/escada/shaft). */
+  comodos?: { id: string; contorno: Ponto[]; area: number; apto: string | null }[];
   /** Resumo do pacote de projetos importado (pranchas, quantitativo de blocos e o que falta). */
   projeto?: ProjetoImportado;
 }
@@ -75,6 +77,10 @@ export interface ProjetoImportado {
   importadoEm: string;
   torre: number | null;
   escala: number | null;
+  /** Prancha usada para a planta (paredes e contorno). */
+  base?: string;
+  /** Quando a planta não saiu da 1ª fiada do tipo, o porquê e o que pedir. */
+  aviso?: string | null;
   pranchas: { arquivo: string; tipo: string; titulo: string | null; revisao: string | null }[];
   quantitativos: QuantitativoFaixa[];
   checklist: { item: string; ok: boolean; detalhe: string }[];

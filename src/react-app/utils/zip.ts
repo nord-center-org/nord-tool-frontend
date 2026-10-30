@@ -131,3 +131,49 @@ export async function lerZip(bytes: Uint8Array, filtro: (nome: string) => boolea
   }
   return saida;
 }
+
+/**
+ * Lê um ZIP grande direto do arquivo (Blob/File) sem carregar tudo na memória: lê o diretório central do fim do arquivo
+ * e só os bytes das entradas pedidas. O pacote completo da obra no Construcode passa de 600 MB.
+ * `filtro` decide quais entradas descompactar; `todos` recebe o nome de todas (para a lista do que veio).
+ */
+export async function lerZipArquivo(arquivo: Blob, filtro: (nome: string) => boolean, todos?: (nome: string) => void): Promise<EntradaZip[]> {
+  const ler = async (ini: number, fim: number) => new Uint8Array(await arquivo.slice(ini, fim).arrayBuffer());
+  const cauda = Math.min(arquivo.size, 22 + 0xffff);
+  const fimBytes = await ler(arquivo.size - cauda, arquivo.size);
+  const dvFim = new DataView(fimBytes.buffer);
+  let eocd = -1;
+  for (let i = fimBytes.length - 22; i >= 0; i--) if (dvFim.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error("Arquivo ZIP inválido ou corrompido.");
+  const total = dvFim.getUint16(eocd + 10, true);
+  const tamDir = dvFim.getUint32(eocd + 12, true);
+  const iniDir = dvFim.getUint32(eocd + 16, true);
+  const dir = await ler(iniDir, iniDir + tamDir);
+  const dv = new DataView(dir.buffer);
+  const texto = new TextDecoder();
+  const saida: EntradaZip[] = [];
+  let p = 0;
+  for (let n = 0; n < total; n++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) throw new Error("Arquivo ZIP inválido ou corrompido.");
+    const metodo = dv.getUint16(p + 10, true);
+    const tamanho = dv.getUint32(p + 20, true);
+    const lenNome = dv.getUint16(p + 28, true), lenExtra = dv.getUint16(p + 30, true), lenComent = dv.getUint16(p + 32, true);
+    const local = dv.getUint32(p + 42, true);
+    const nome = texto.decode(dir.subarray(p + 46, p + 46 + lenNome));
+    p += 46 + lenNome + lenExtra + lenComent;
+    const base = nome.split("/").pop() ?? nome;
+    if (nome.endsWith("/") || nome.startsWith("__MACOSX/") || base.startsWith(".")) continue;
+    todos?.(base);
+    if (!filtro(base)) continue;
+    const cab = await ler(local, local + 30);
+    const dvc = new DataView(cab.buffer);
+    const inicio = local + 30 + dvc.getUint16(26, true) + dvc.getUint16(28, true);
+    const dados = await ler(inicio, inicio + tamanho);
+    if (metodo === 0) saida.push({ nome: base, bytes: dados });
+    else if (metodo === 8) {
+      const fluxo = new Blob([dados]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      saida.push({ nome: base, bytes: new Uint8Array(await new Response(fluxo).arrayBuffer()) });
+    } else throw new Error(`O arquivo ${base} usa uma compressão que o NordTool não lê.`);
+  }
+  return saida;
+}

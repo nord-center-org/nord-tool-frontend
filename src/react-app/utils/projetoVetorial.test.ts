@@ -133,10 +133,28 @@ test("carimbo: tipo pelo código do arquivo, torres, lajes e revisão pelo títu
   ]);
   assert.deepEqual({ ...c, arquivo: undefined }, {
     arquivo: undefined, disciplina: "EST", tipo: "modulacao", torres: [1],
-    titulo: "TORRE 1 - IMPLANTAÇÃO DE 1ª FIADA DO PAVIMENTO TIPO (L3 A L5)", lajes: [3, 5], revisao: "R04",
+    titulo: "TORRE 1 - IMPLANTAÇÃO DE 1ª FIADA DO PAVIMENTO TIPO (L3 A L5)", lajes: [3, 5], revisao: "R04", pavimento: "tipo",
   });
   const e = lerCarimbo("5875-AU02-EST-LO-691-ELV-TIA-R01.pdf", [txt("TORRES 1 E 3 - ELEVAÇÕES DAS PAREDES ESTRUTURAIS DO PAVIMENTO TIPO (L3 A L24)", 100, 100, 14)]);
   assert.deepEqual([e.tipo, e.torres, e.lajes, e.revisao], ["elevacao", [1, 3], [3, 24], "R01"]);
+});
+
+test("nome do arquivo Cury: disciplina, tipo, torres e pavimento", async () => {
+  const { codigoDoArquivo } = await import("./projetoVetorial.ts");
+  assert.deepEqual(codigoDoArquivo("5875-AU02-EST-LO-302-MOD-TEA_R04.pdf"), { disciplina: "EST", tipo: "modulacao", torres: [1], pavimento: "terreo" });
+  assert.deepEqual(codigoDoArquivo("5875-AU02-ARQ-LO-105-TAC-TIP-R03.pdf"), { disciplina: "ARQ", tipo: "arquitetura", torres: [1, 3], pavimento: "tipo" });
+  assert.deepEqual(codigoDoArquivo("5875-AU02-ARQ-LO-001-IMP-PSS-R04.pdf"), { disciplina: "ARQ", tipo: "implantacao", torres: [], pavimento: "subsolo" });
+  assert.deepEqual(codigoDoArquivo("5875-AU02-IMP-LO-010-TOB-TIP_R00.pdf"), { disciplina: "IMP", tipo: "impermeabilizacao", torres: [2], pavimento: "tipo" });
+  assert.deepEqual(codigoDoArquivo("5875-AU02-HID-LO-114-TOB-TIP-R00.pdf"), { disciplina: "HID", tipo: "hidraulica", torres: [2], pavimento: "tipo" });
+});
+
+test("revisões: a mesma prancha em dois pacotes fica com a revisão mais nova", async () => {
+  const { semRevisoesAntigas } = await import("./projetoVetorial.ts");
+  const pr = (arquivo: string, revisao: string): PranchaLida => ({
+    carimbo: { arquivo, disciplina: "EST", tipo: "modulacao", torres: [2], titulo: null, lajes: null, revisao }, escala: 75, niveis: [], paredes: [], quantitativo: [], totalBlocos: 0, contorno: null, junta: null,
+  });
+  const r = semRevisoesAntigas([pr("5875-AU02-EST-LO-314-MOD-TIB_R03.pdf", "R03"), pr("5875-AU02-EST-LO-314-MOD-TIB_R04.pdf", "R04"), pr("5875-AU02-EST-LO-315-MOD-TIB_R01.pdf", "R01")]);
+  assert.deepEqual(r.map(p => p.carimbo.arquivo).sort(), ["5875-AU02-EST-LO-314-MOD-TIB_R04.pdf", "5875-AU02-EST-LO-315-MOD-TIB_R01.pdf"]);
 });
 
 test("o que falta: aponta lajes sem 1ª fiada e disciplinas ausentes", () => {
@@ -161,7 +179,7 @@ test("pacote: monta a torre com contorno em metros, pavimentos do corte e quanti
   const h = (x0: number, x1: number, y: number): ParedeCm => ({ a: [x0, y], b: [x1, y], esp: 14 });
   const v = (x: number, y0: number, y1: number): ParedeCm => ({ a: [x, y0], b: [x, y1], esp: 14 });
   const paredes = [h(0, 2000, 0), v(2000, 0, 1000), h(0, 2000, 1000), v(0, 0, 1000)];
-  const carimbo: Carimbo = { arquivo: "MOD.pdf", disciplina: "EST", tipo: "modulacao", torres: [1], titulo: "TORRE 1 - IMPLANTAÇÃO (L3 A L4)", lajes: [3, 4], revisao: null };
+  const carimbo: Carimbo = { arquivo: "MOD.pdf", disciplina: "EST", tipo: "modulacao", torres: [1], titulo: "TORRE 1 - IMPLANTAÇÃO DE 1ª FIADA DO PAVIMENTO TIPO (L3 A L4)", lajes: [3, 4], revisao: null };
   const prancha: PranchaLida = {
     carimbo, escala: 75, paredes, totalBlocos: 10, contorno: contornoDasParedes(paredes), junta: { horizontal: false, valor: 1000 },
     quantitativo: [{ nome: "Bloco 39 (39×19×14)", categoria: "estrutural", comp: 39, esp: 14, qtd: 10 }],
