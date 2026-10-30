@@ -45,6 +45,30 @@ export interface Torre {
   paredes?: ParedeReal[];
   /** Resumo do pacote de projetos importado (pranchas, quantitativo de blocos e o que falta). */
   projeto?: ProjetoImportado;
+  /** Cômodos do pavimento tipo, fechados pelas paredes reais (hall, salas, banheiros, shafts). */
+  comodos?: ComodoPlanta[];
+  /** Vãos de porta da 1ª fiada (entrada = porta do apartamento para o hall). */
+  aberturas?: AberturaPlanta[];
+}
+
+export type TipoComodo = "hall" | "apartamento" | "molhado" | "shaft" | "escada" | "outro";
+
+export interface ComodoPlanta {
+  id: string;
+  contorno: Ponto[];
+  /** Área livre (m²). */
+  area: number;
+  tipo: TipoComodo;
+  /** Apartamento a que pertence (id). */
+  apto?: string;
+}
+
+export interface AberturaPlanta {
+  a: Ponto;
+  b: Ponto;
+  largura: number;
+  entre?: [string, string];
+  entrada?: boolean;
 }
 
 /** Parede reta: eixo de a até b e espessura (m). */

@@ -198,13 +198,13 @@ export default function VistaApartamento({ apto, pavimento, idTorre, editavel, t
           <div>
             <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Andamento deste lado</p>
             <ul className="mt-1 max-h-64 space-y-0.5 overflow-y-auto">
-              {atividades.filter(a => a.status !== "bloqueado" && a.status !== "vazio").map((a, i) => (
+              {atividades.filter(a => a.status !== "vazio").map((a, i) => (
                 <li key={i} className="flex items-start gap-1.5 text-[11px]" title={ROTULO[a.status]}>
                   <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: COR_STATUS[a.status] }} />
                   <span className="leading-snug text-slate-300">{a.nome.toLowerCase()}</span>
                 </li>
               ))}
-              {atividades.every(a => a.status === "bloqueado" || a.status === "vazio") && <li className="text-[11px] text-slate-500">Nada começou neste lado ainda.</li>}
+              {atividades.every(a => a.status === "vazio") && <li className="text-[11px] text-slate-500">Nada começou neste lado ainda.</li>}
             </ul>
           </div>
         </aside>

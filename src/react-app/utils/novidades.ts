@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-29-escadinha-pavimento-3d",
+    data: "2026-10-29",
+    titulo: "Escadinha: apartamentos reais, pavimento em 3D e apartamento modelo",
+    texto: "Os apartamentos, cômodos e portas agora saem das paredes do projeto (não mais caixas genéricas). Escolha o pavimento com um clique (na torre ou na lista ao lado) e abra com o segundo: veja a planta 2D ou o 3D do pavimento no estado atual, ou o “Apartamento modelo” pronto. A marcação é feita no pavimento e a grade da escadinha é o reflexo, com os 9 status da obra (inclusive a meta do ciclo, automática).",
+    onde: { rotulo: "Organizacional → Escadinha", caminho: "/organizacional/escadinha" },
+  },
+  {
     id: "2026-10-29-lugia-automatico",
     data: "2026-10-29",
     titulo: "Lugia no Automático: IAs gratuitas que se revezam sozinhas",

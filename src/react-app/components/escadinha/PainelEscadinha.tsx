@@ -1,4 +1,4 @@
-import { AlertTriangle, ChevronDown, Filter, Lightbulb, ListChecks, Settings2, Upload, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, Filter, Layers, Lightbulb, ListChecks, MousePointerClick, Settings2, Upload, X } from "lucide-react";
 import { useMemo, useState, type MouseEvent } from "react";
 
 import MenuCelula, { type AlvoCelula } from "./MenuCelula";
@@ -29,6 +29,13 @@ interface PainelEscadinhaProps {
   onMarcar: (chaves: string[], status: StatusMarcado | "", data?: string) => void;
   onFocar: (idPavimento: string) => void;
   onVerTudo: () => void;
+  /** Segundo clique no pavimento escolhido (ou o botão Abrir): abre a planta / 3D do pavimento. */
+  onAbrir: (idPavimento: string) => void;
+  /** O pavimento escolhido já está aberto. */
+  aberto: boolean;
+  /** Lado mostrado nas atividades do pavimento (controlado: a grade pode mandar para um lado). */
+  lado: Lado;
+  onLado: (l: Lado) => void;
   onAnexar: () => void;
   onModelo: () => void;
   onFechar: () => void;
@@ -42,9 +49,8 @@ const ROTULO = Object.fromEntries(LEGENDA.map(l => [l.status, l.rotulo])) as Rec
 /** Painel ao lado do 3D: resumo e pontos de atenção da torre ou, com um pavimento aberto, as atividades por lado. */
 export default function PainelEscadinha({
   modelo, linhas, grade, avaliacao, pavimentos, selecionado, inicioObra, hoje, editavel, admin, filtro, onFiltro, onInicioObra, onMarcar,
-  onFocar, onVerTudo, onAnexar, onModelo, onFechar, projeto,
+  onFocar, onVerTudo, onAbrir, aberto, lado, onLado: setLado, onAnexar, onModelo, onFechar, projeto,
 }: PainelEscadinhaProps) {
-  const [lado, setLado] = useState<Lado>("A");
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
   const [alvo, setAlvo] = useState<AlvoCelula | null>(null);
   const resumo = useMemo(() => resumir(modelo, linhas, grade, avaliacao), [modelo, linhas, grade, avaliacao]);
@@ -54,7 +60,22 @@ export default function PainelEscadinha({
   const naGrade = !!pav && linhas.some(l => l.pavimento.id === pav.id);
   const totalPavs = new Set(linhas.map(l => l.pavimento.id)).size;
   const atrasadas = resumo.contagem.atrasado + resumo.contagem.atrasoAnterior + resumo.contagem.atrasadoExec;
-  const metas = [...avaliacao.values()].filter(a => a.meta).length;
+  const metas = [...avaliacao.values()].filter(a => a.status === "meta").length;
+  // Andamento de cada pavimento (os dois lados): % feito e o pior alerta, para a lista.
+  const porPavimento = useMemo(() => {
+    const m = new Map<string, { feitas: number; total: number; atraso: boolean; meta: boolean }>();
+    for (const [k, a] of avaliacao) {
+      const id = k.slice(0, k.indexOf("|"));
+      const v = m.get(id) ?? { feitas: 0, total: 0, atraso: false, meta: false };
+      v.total++;
+      if (a.status === "executado" || a.status === "na") v.feitas++;
+      if (a.status === "atrasado" || a.status === "atrasadoExec" || a.status === "atrasoAnterior") v.atraso = true;
+      if (a.status === "meta") v.meta = true;
+      m.set(id, v);
+    }
+    return m;
+  }, [avaliacao]);
+  const listaPavs = useMemo(() => [...pavimentos].reverse(), [pavimentos]);
 
   const valorFiltro = filtro.tipo === "tudo" ? "tudo" : `${filtro.tipo}:${filtro.id}`;
   const mudarFiltro = (v: string) => {
@@ -79,6 +100,11 @@ export default function PainelEscadinha({
           <h2 className="truncate text-sm font-extrabold text-slate-800">{pav ? pav.nome : "Escadinha da torre"}</h2>
           <p className="text-[11px] text-slate-500">{pav ? "Atividades por lado" : `${Math.round(resumo.percentual * 100)}% executado · ${atrasadas} atrasada(s)`}</p>
         </div>
+        {pav && !aberto && (
+          <button type="button" onClick={() => onAbrir(pav.id)} className="flex items-center gap-1 rounded-lg bg-orange-500 px-2 py-1 text-xs font-bold text-white hover:bg-orange-600">
+            <Layers className="h-3.5 w-3.5" /> Abrir
+          </button>
+        )}
         {pav && <button type="button" onClick={onVerTudo} className="rounded-lg px-2 py-1 text-xs font-bold text-blue-600 hover:bg-blue-50">Ver torre</button>}
         <button type="button" onClick={onFechar} aria-label="Fechar painel" className="text-slate-400 hover:text-slate-700"><X className="h-4 w-4" /></button>
       </header>
@@ -112,6 +138,38 @@ export default function PainelEscadinha({
         </label>
       </div>
 
+      <nav aria-label="Pavimentos" className="border-b border-slate-100 px-2 py-2">
+        <p className="mb-1 flex items-center gap-1 px-2 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+          Pavimentos <span className="ml-auto flex items-center gap-1 font-semibold normal-case tracking-normal"><MousePointerClick className="h-3 w-3" /> 1 clique escolhe · 2 abre</span>
+        </p>
+        <ul className="max-h-48 space-y-0.5 overflow-y-auto pr-1">
+          {listaPavs.map(p => {
+            const v = porPavimento.get(p.id);
+            const pct = v?.total ? Math.round((v.feitas / v.total) * 100) : null;
+            const ativo = p.id === selecionado;
+            return (
+              <li key={p.id}>
+                <button type="button" onClick={() => (ativo ? onAbrir(p.id) : onFocar(p.id))} aria-current={ativo ? "true" : undefined}
+                  title={ativo ? `Abrir ${p.nome}` : `Escolher ${p.nome}`}
+                  className={`flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-xs ${ativo ? "bg-orange-50 ring-1 ring-orange-300" : "hover:bg-slate-50"}`}>
+                  <span className={`w-9 shrink-0 rounded px-1 text-center text-[10px] font-extrabold ${ativo ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-600"}`}>{p.sigla}</span>
+                  <span className="min-w-0 flex-1 truncate font-semibold text-slate-700">{p.nome}</span>
+                  {v?.atraso && <span className="h-2 w-2 shrink-0 rounded-full bg-red-500" title="Tem atividade atrasada" />}
+                  {!v?.atraso && v?.meta && <span className="h-2 w-2 shrink-0 rounded-full bg-pink-500" title="Tem meta do ciclo" />}
+                  {pct === null ? <span className="w-16 text-right text-[10px] text-slate-400">fora</span> : (
+                    <span className="flex w-16 items-center gap-1">
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} /></span>
+                      <span className="w-7 text-right text-[10px] font-bold text-slate-500">{pct}%</span>
+                    </span>
+                  )}
+                  {ativo && !aberto && <span className="rounded bg-orange-500 px-1.5 text-[10px] font-bold text-white">Abrir</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {pav ? (
           naGrade ? (
@@ -126,7 +184,7 @@ export default function PainelEscadinha({
                 {modelo.ciclos.map(c => {
                   const avs = c.atividades.map(a => avaliacao.get(chaveCelula(pav.id, lado, a.id)));
                   const feitas = avs.filter(a => a?.status === "executado" || a?.status === "na").length;
-                  const aberto = abertos.has(c.id) || (!abertos.size && feitas < c.atividades.length && avs.some(a => a && a.status !== "bloqueado"));
+                  const aberto = abertos.has(c.id) || (!abertos.size && feitas < c.atividades.length && avs.some(a => a && a.status !== "vazio"));
                   return (
                     <li key={c.id} className="overflow-hidden rounded-xl border border-slate-200">
                       <button type="button" onClick={() => alternar(c.id)} aria-expanded={aberto}
@@ -154,7 +212,7 @@ export default function PainelEscadinha({
                                     </span>
                                   </span>
                                   {a.install && <span className="rounded bg-blue-100 px-1 text-[9px] font-bold text-blue-700">Install</span>}
-                                  {av?.meta && <span className="mt-1 h-2 w-2 rounded-full bg-pink-500" title="Meta do período" />}
+
                                 </button>
                               </li>
                             );
@@ -172,7 +230,7 @@ export default function PainelEscadinha({
             <div className="mb-3 grid grid-cols-3 gap-2 text-center">
               <div className="rounded-xl bg-emerald-50 p-2"><p className="text-lg font-extrabold text-emerald-700">{Math.round(resumo.percentual * 100)}%</p><p className="text-[10px] font-bold text-emerald-700">executado</p></div>
               <div className="rounded-xl bg-red-50 p-2"><p className="text-lg font-extrabold text-red-600">{atrasadas}</p><p className="text-[10px] font-bold text-red-600">atrasadas</p></div>
-              <div className="rounded-xl bg-pink-50 p-2"><p className="text-lg font-extrabold text-pink-600">{metas}</p><p className="text-[10px] font-bold text-pink-600">meta do período</p></div>
+              <div className="rounded-xl bg-pink-50 p-2"><p className="text-lg font-extrabold text-pink-600">{metas}</p><p className="text-[10px] font-bold text-pink-600">meta do ciclo</p></div>
             </div>
 
             <h3 className="mb-1 flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-widest text-slate-400"><Lightbulb className="h-3.5 w-3.5" /> Pontos de atenção</h3>
