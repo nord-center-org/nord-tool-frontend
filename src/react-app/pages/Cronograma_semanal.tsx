@@ -64,6 +64,11 @@ const diasSemanaOpcoes: { id: number; label: string; curto: string }[] = [
 ];
 
 const diasDaSemanaCalendario = ["Segunda-Feira", "Terça-Feira", "Quarta-Feira", "Quinta-Feira", "Sexta-Feira", "Sábado", "Domingo"];
+// O calendário da Rotina começa no domingo.
+const DIAS_CABECALHO_MES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+const casaBusca = (item: CronogramaSemanalItem, termo: string) =>
+  !termo || [item.nmCronogramaSemanal, item.txObservacao ?? "", item.nmTag ?? ""].join(" ").toLocaleLowerCase("pt-BR").includes(termo);
 
 const doisDigitosLocal = (valor: number) => String(valor).padStart(2, "0");
 const ymd = (data: Date) => `${data.getFullYear()}-${doisDigitosLocal(data.getMonth() + 1)}-${doisDigitosLocal(data.getDate())}`;
@@ -177,14 +182,14 @@ export default function NordToolDashboard() {
     void carregar();
   }, []);
 
-  const filtrados = useMemo(() => {
-    const termo = busca.trim().toLocaleLowerCase("pt-BR");
-    return items.filter(item =>
-      passaFiltroPessoas(item, filtroPessoas, usuario?.id) &&
-      (categoria === "Todas" || item.nmCategoria === categoria) &&
-      (!termo || [item.nmCronogramaSemanal, item.txObservacao ?? "", item.nmTag ?? ""].join(" ").toLocaleLowerCase("pt-BR").includes(termo))
-    );
-  }, [items, categoria, busca, filtroPessoas, usuario?.id]);
+  const termoBusca = busca.trim().toLocaleLowerCase("pt-BR");
+  const passaBusca = (item: CronogramaSemanalItem) => casaBusca(item, termoBusca);
+
+  const filtrados = useMemo(() => items.filter(item =>
+    passaFiltroPessoas(item, filtroPessoas, usuario?.id) &&
+    (categoria === "Todas" || item.nmCategoria === categoria) &&
+    casaBusca(item, termoBusca)
+  ), [items, categoria, termoBusca, filtroPessoas, usuario?.id]);
   const donos = useMemo(() => donosDasDemandas(items, usuario?.id, "Eu"), [items, usuario?.id]);
 
   const valorColuna = (item: CronogramaSemanalItem, coluna: ColunaLista): string => {
@@ -245,14 +250,14 @@ export default function NordToolDashboard() {
 
   const semanaAtual = useMemo(() => {
     const inicio = new Date(dataCalendario);
-    inicio.setDate(inicio.getDate() - ((inicio.getDay() + 6) % 7));
+    inicio.setDate(inicio.getDate() - inicio.getDay());
     return Array.from({ length: 7 }, (_, i) => { const d = new Date(inicio); d.setDate(inicio.getDate() + i); return d; });
   }, [dataCalendario]);
 
   const celulasDoMes = useMemo(() => {
     const primeiroDia = new Date(dataCalendario.getFullYear(), dataCalendario.getMonth(), 1);
     const inicio = new Date(primeiroDia);
-    inicio.setDate(primeiroDia.getDate() - ((primeiroDia.getDay() + 6) % 7));
+    inicio.setDate(primeiroDia.getDate() - primeiroDia.getDay());
     return Array.from({ length: 42 }, (_, i) => { const d = new Date(inicio); d.setDate(inicio.getDate() + i); return d; });
   }, [dataCalendario]);
 
@@ -271,7 +276,7 @@ export default function NordToolDashboard() {
     // Demanda aparece no dia agendado e também no dia do prazo (a data marcada na demanda).
     const pontuais = items.filter(item => !item.flFixo && ((item.dtAgendamento && paraIso(item.dtAgendamento) === chave) || (item.dtPrazo && paraIso(item.dtPrazo) === chave)));
     return [...fixos, ...pontuais]
-      .filter(item => !categoriasRotina.length || categoriasRotina.includes(item.nmCategoria))
+      .filter(item => (!categoriasRotina.length || categoriasRotina.includes(item.nmCategoria)) && passaBusca(item))
       .sort((a, b) => horarioNoDia(a, chave).localeCompare(horarioNoDia(b, chave)));
   };
 
@@ -639,6 +644,17 @@ export default function NordToolDashboard() {
               </button>
             </div>
 
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
+              <input
+                value={busca}
+                onChange={e => setBusca(e.target.value)}
+                placeholder="Buscar compromisso ou observação..."
+                aria-label="Buscar na rotina"
+                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-violet-600"
+              />
+            </div>
+
             <div className="mb-4 flex flex-wrap gap-2">
               {categorias.map(c => (
                 <button key={c} onClick={() => alternarCategoriaRotina(c)} className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase ${categoriasRotina.includes(c) ? "border-violet-500 bg-violet-100 text-violet-700" : "border-slate-200 text-slate-500"}`}>
@@ -695,6 +711,9 @@ export default function NordToolDashboard() {
             ) : (
               <div className="overflow-x-auto">
               <div className="grid min-w-[640px] grid-cols-7 gap-2">
+                {DIAS_CABECALHO_MES.map(dia => (
+                  <div key={dia} className="text-center text-[10px] font-bold uppercase tracking-wide text-slate-500">{dia}</div>
+                ))}
                 {celulasDoMes.map(data => {
                   const itens = itensDoDia(data);
                   const foraDoMes = data.getMonth() !== dataCalendario.getMonth();

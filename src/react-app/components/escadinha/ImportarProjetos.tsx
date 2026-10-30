@@ -40,8 +40,12 @@ export default function ImportarProjetos({ atual, hoje, onFechar, onConfirmar, o
       setPacote(p);
       const torres = torresDoPacote(p.pranchas);
       const n = numeroDoNome(atual.nome);
-      setEscolhida(torres.includes(n) ? n : torres[0] ?? null);
+      const sugerida = torres.includes(n) ? n : torres[0] ?? null;
+      setEscolhida(sugerida);
       if (!torres.length) setErro("Não achamos planta de 1ª fiada (modulação) com blocos nesse pacote. Confira se veio a prancha MOD do pavimento tipo.");
+      // A leitura demora: terminou e deu para montar, já monta, sem esperar o clique (a sessão podia cair nesse meio-tempo).
+      const lista = sugerida !== null ? montarTorres(p, sugerida, outras) : [];
+      if (lista.length) onConfirmar(lista);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível ler os arquivos.");
     } finally {
@@ -52,16 +56,24 @@ export default function ImportarProjetos({ atual, hoje, onFechar, onConfirmar, o
   const torres = useMemo(() => (pacote ? torresDoPacote(pacote.pranchas) : []), [pacote]);
   const montada = useMemo(() => (pacote && escolhida !== null ? montarTorreDoPacote(pacote.pranchas, escolhida, hoje) : null), [pacote, escolhida, hoje]);
 
-  const confirmar = () => {
-    if (!pacote || !montada || escolhida === null) return;
-    const lista = [torreDoPacote(montada, atual.nome, pacote.nome, atual)];
-    if (outras) {
-      for (const t of torres.filter(t => t !== escolhida)) {
-        const m = montarTorreDoPacote(pacote.pranchas, t, hoje);
-        if (m) lista.push(torreDoPacote(m, `Torre ${t}`, pacote.nome));
+  /** Torre aberta montada com a torre escolhida do pacote; com `todas`, as outras torres do pacote viram torres novas. */
+  const montarTorres = (p: PacoteLido, torre: number, todas: boolean): Torre[] => {
+    const principal = montarTorreDoPacote(p.pranchas, torre, hoje);
+    if (!principal) return [];
+    const lista = [torreDoPacote(principal, atual.nome, p.nome, atual)];
+    if (todas) {
+      for (const t of torresDoPacote(p.pranchas).filter(t => t !== torre)) {
+        const m = montarTorreDoPacote(p.pranchas, t, hoje);
+        if (m) lista.push(torreDoPacote(m, `Torre ${t}`, p.nome));
       }
     }
-    onConfirmar(lista);
+    return lista;
+  };
+
+  const confirmar = () => {
+    if (!pacote || escolhida === null) return;
+    const lista = montarTorres(pacote, escolhida, outras);
+    if (lista.length) onConfirmar(lista);
   };
 
   const caixa = montada ? limites(montada.contorno) : null;
