@@ -1,4 +1,4 @@
-import { AlertTriangle, ChevronDown, Filter, Lightbulb, ListChecks, Settings2, Upload, X } from "lucide-react";
+import { AlertTriangle, Box, ChevronDown, Filter, Lightbulb, ListChecks, Map as IconePlanta, Settings2, Upload, X } from "lucide-react";
 import { useMemo, useState, type MouseEvent } from "react";
 
 import MenuCelula, { type AlvoCelula } from "./MenuCelula";
@@ -32,6 +32,10 @@ interface PainelEscadinhaProps {
   onAnexar: () => void;
   onModelo: () => void;
   onFechar: () => void;
+  /** Pavimento selecionado: abre a planta 2D. */
+  onAbrirPlanta?: (idPavimento: string) => void;
+  /** Pavimento selecionado: abre o pavimento em 3D (estado atual / apartamento modelo). */
+  onVer3D?: (idPavimento: string) => void;
   /** Projeto importado da torre (blocos × alvenaria executada e o que falta). */
   projeto?: { dados: ProjetoImportado; resumo: ResumoBlocos } | null;
 }
@@ -42,7 +46,7 @@ const ROTULO = Object.fromEntries(LEGENDA.map(l => [l.status, l.rotulo])) as Rec
 /** Painel ao lado do 3D: resumo e pontos de atenção da torre ou, com um pavimento aberto, as atividades por lado. */
 export default function PainelEscadinha({
   modelo, linhas, grade, avaliacao, pavimentos, selecionado, inicioObra, hoje, editavel, admin, filtro, onFiltro, onInicioObra, onMarcar,
-  onFocar, onVerTudo, onAnexar, onModelo, onFechar, projeto,
+  onFocar, onVerTudo, onAnexar, onModelo, onFechar, projeto, onAbrirPlanta, onVer3D,
 }: PainelEscadinhaProps) {
   const [lado, setLado] = useState<Lado>("A");
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
@@ -82,6 +86,22 @@ export default function PainelEscadinha({
         {pav && <button type="button" onClick={onVerTudo} className="rounded-lg px-2 py-1 text-xs font-bold text-blue-600 hover:bg-blue-50">Ver torre</button>}
         <button type="button" onClick={onFechar} aria-label="Fechar painel" className="text-slate-400 hover:text-slate-700"><X className="h-4 w-4" /></button>
       </header>
+      {pav && (onAbrirPlanta || onVer3D) && (
+        <div className="flex gap-2 border-b border-slate-100 px-4 py-2">
+          {onAbrirPlanta && (
+            <button type="button" onClick={() => onAbrirPlanta(pav.id)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-700">
+              <IconePlanta className="h-3.5 w-3.5" /> Abrir planta
+            </button>
+          )}
+          {onVer3D && (
+            <button type="button" onClick={() => onVer3D(pav.id)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+              <Box className="h-3.5 w-3.5" /> Ver em 3D
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="space-y-2 border-b border-slate-100 px-4 py-3">
         <div className="flex items-center gap-2">

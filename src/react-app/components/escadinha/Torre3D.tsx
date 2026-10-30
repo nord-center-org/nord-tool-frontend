@@ -33,7 +33,10 @@ export interface ControleTorre {
 
 interface Torre3DProps {
   torre: Torre;
+  /** Pavimento em foco (destacado; a lista lateral mostra as atividades dele). */
   selecionado: string | null;
+  /** Pavimento aberto: a fatia sai da torre e vira planta. */
+  aberto?: string | null;
   statusPorPavimento: Record<string, StatusAtividade>;
   /** O que já foi feito em cada pavimento|lado (da escadinha). */
   camadas?: Map<string, Map<Camada, EstadoCamada>>;
@@ -42,6 +45,8 @@ interface Torre3DProps {
   apresentacao: boolean;
   onInteragir: () => void;
   onSelecionar: (id: string | null) => void;
+  /** Segundo clique no pavimento já selecionado: abre a planta. */
+  onAbrir: (id: string) => void;
   /** Chamado quando a fatia terminou de sair e a câmera chegou em cima dela. */
   onFatiaPronta: () => void;
   /** Para de desenhar (janela aberta por cima, leitura de projeto): devolve a CPU/GPU para o resto da tela. */
@@ -231,7 +236,7 @@ function MovimentoCamera({ alvo, controles, chegou, esperandoFatia, onFatiaPront
 
 /** Prédio 3D do croqui: gira como apresentação até o primeiro toque; cubo de vistas no canto; pavimentos clicáveis. */
 const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
-  { torre, selecionado, statusPorPavimento, camadas, filtroCamadas = null, apresentacao, onInteragir, onSelecionar, onFatiaPronta, pausado = false }, ref,
+  { torre, selecionado, aberto = null, statusPorPavimento, camadas, filtroCamadas = null, apresentacao, onInteragir, onSelecionar, onAbrir, onFatiaPronta, pausado = false }, ref,
 ) {
   const metadesT = useMemo(() => (torre.lados ? metadesDaTorre(torre.contorno, torre.lados) : { A: torre.contorno, B: [] as Ponto[] }), [torre.contorno, torre.lados]);
   const nucleoC = useMemo(() => centroNucleo(torre.contorno), [torre.contorno]);
@@ -287,15 +292,30 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
   const clicar = (id: string) => {
     if (apresentandoNoToque.current) return;
     onInteragir();
-    if (id !== selecionado) onSelecionar(id);
+    if (id === selecionado) onAbrir(id);
+    else onSelecionar(id);
   };
 
-  // Pavimento escolhido (pelo 3D ou pela lista): a fatia sai e a câmera vai para cima dela; sem seleção, volta à apresentação.
+  // Pavimento em foco (sem abrir): a câmera vai até a altura dele, de frente, para ver a fatia no prédio.
   useEffect(() => {
+    if (aberto) return;
     const i = torre.pavimentos.findIndex(p => p.id === selecionado);
     if (i < 0) {
       esperandoFatia.current = false;
       alvo.current = { posicao: posInicial.clone(), foco: focoInicial.clone() };
+      return;
+    }
+    const y = niveis[i] + torre.pavimentos[i].altura / 2;
+    const d = Math.max(lim.largura, lim.profundidade) * 1.6;
+    alvo.current = { posicao: new THREE.Vector3(d * 0.8, y + d * 0.45, d * 0.8), foco: new THREE.Vector3(0, y, 0) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage à troca de pavimento em foco
+  }, [selecionado, aberto]);
+
+  // Pavimento aberto: a fatia sai e a câmera vai para cima dela.
+  useEffect(() => {
+    const i = torre.pavimentos.findIndex(p => p.id === aberto);
+    if (i < 0) {
+      esperandoFatia.current = false;
       return;
     }
     chegou.current = false;
@@ -309,8 +329,8 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
       };
     }, 700);
     return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage à troca de pavimento
-  }, [selecionado]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage à troca de pavimento aberto
+  }, [aberto]);
 
   const lote = Math.max(lim.largura, lim.profundidade) * 2.2;
 
@@ -347,9 +367,9 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
           contorno={p.contorno ?? torre.contorno}
           cota={niveis[i]}
           saidaX={saidaX}
-          selecionado={p.id === selecionado}
-          algumSelecionado={!!selecionado}
-          destacado={p.id === passando}
+          selecionado={p.id === aberto}
+          algumSelecionado={!!aberto}
+          destacado={p.id === passando || p.id === selecionado}
           onPassar={setPassando}
           onClicar={clicar}
           chegou={chegou}
@@ -366,7 +386,7 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
           }}
         />
       ))}
-      {!selecionado && <Guindaste x={lim.minX - 4} z={0} altura={topo + 6} />}
+      {!aberto && <Guindaste x={lim.minX - 4} z={0} altura={topo + 6} />}
 
       <OrbitControls
         ref={controles}
@@ -396,14 +416,14 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
     </Canvas>
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-label="Pavimentos">
       {torre.pavimentos.map(p => {
-        const apagado = !!selecionado && p.id !== selecionado;
+        const apagado = !!aberto && p.id !== aberto;
         const ativo = p.id === passando || p.id === selecionado;
         return (
           <button
             key={p.id}
             ref={b => { botoes.current[p.id] = b; }}
             type="button"
-            onClick={() => { onInteragir(); if (p.id !== selecionado) onSelecionar(p.id); }}
+            onClick={() => { onInteragir(); if (p.id === selecionado) onAbrir(p.id); else onSelecionar(p.id); }}
             onPointerEnter={() => setPassando(p.id)}
             onPointerLeave={() => setPassando(null)}
             tabIndex={apagado ? -1 : 0}
@@ -411,7 +431,7 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
               apagado ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100"
             } ${ativo ? "border-orange-300 bg-orange-500 text-white" : "border-slate-600 bg-slate-800/90 text-slate-100 hover:bg-slate-700"}`}
             title={p.nome}
-            aria-label={`Abrir ${p.nome}`}
+            aria-label={p.id === selecionado ? `Abrir a planta do ${p.nome}` : `Selecionar ${p.nome}`}
           >
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: COR.status[statusPorPavimento[p.id] ?? "pendente"] }} />
             {p.sigla}
