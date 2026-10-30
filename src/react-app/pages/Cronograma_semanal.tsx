@@ -1,13 +1,16 @@
 import { DragEvent, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarDays, LayoutGrid, List, CalendarClock, Search, PlusCircle, X, Lock, Share2, Bot, Users, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { CalendarDays, LayoutGrid, List, CalendarClock, Search, PlusCircle, X, Lock, Share2, Bot, Users, ChevronsDownUp, ChevronsUpDown, Sparkles } from "lucide-react";
 import {
   CronogramaSemanalService,
   type CronogramaEquipe,
   type CronogramaSemanalItem,
   type Status,
   type Categoria,
+  type RascunhoDemanda,
 } from "../services/CronogramaSemanalService";
+import ChatDemanda from "../components/cronograma/ChatDemanda";
+import { itemDoRascunho } from "../utils/rascunhoDemanda";
 import { HistoricoColumnFilter, type DirecaoOrdenacao } from "../components/HistoricoColumnFilter";
 import CompartilharItem from "../components/cronograma/CompartilharItem";
 import RelatorioIA from "../components/cronograma/RelatorioIA";
@@ -109,6 +112,7 @@ const vazio = (): CronogramaSemanalItem => ({
 export default function NordToolDashboard() {
   const [page, setPage] = useState<Page>("kanban");
   const [relatorioIA, setRelatorioIA] = useState(false);
+  const [chatAberto, setChatAberto] = useState(false);
   const { usuario } = useAuth();
   const pode = {
     excluir: podeAcessar(usuario?.permissoes, "CRONOGRAMA_EXCLUIR", "ESCRITA"),
@@ -337,6 +341,26 @@ export default function NordToolDashboard() {
     }
   };
 
+  /** Demanda montada no chat da Lugia: fixa em vários dias vira um item por dia, como no formulário. */
+  const criarDoRascunho = async (rascunho: RascunhoDemanda) => {
+    const { item, dias } = itemDoRascunho(rascunho);
+    if (item.flFixo) {
+      for (const dia of dias) await CronogramaSemanalService.criar({ ...item, idDiaSemana: dia });
+    } else {
+      await CronogramaSemanalService.criar(item);
+    }
+    await carregar();
+  };
+
+  const revisarRascunho = (rascunho: RascunhoDemanda) => {
+    const { item, dias } = itemDoRascunho(rascunho);
+    setEditando(null);
+    setDraft(item);
+    setDiasFixos(dias);
+    setErroModal(null);
+    setCriando(true);
+  };
+
   const excluir = async () => {
     if (!editando?.id) return;
     if (!window.confirm(`Excluir a demanda "${editando.nmCronogramaSemanal}"? Esta ação não pode ser desfeita.`)) return;
@@ -390,6 +414,10 @@ export default function NordToolDashboard() {
           {pode.equipes && <button onClick={() => setEquipesAberto(true)} title="Equipes da obra: quem está na mesma equipe vê as demandas uns dos outros"
             className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
             <Users size={16} /> Equipes
+          </button>}
+          {pode.mover && <button onClick={() => setChatAberto(true)} title="Escreva o que quer programar e a Lugia monta a demanda"
+            className="flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700">
+            <Sparkles size={16} /> Criar com a Lugia
           </button>}
           {pode.relatorioIA && <button onClick={() => setRelatorioIA(true)} title="Link para o Gemini ou outro assistente ler o seu cronograma"
             className="flex items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100">
@@ -746,6 +774,8 @@ export default function NordToolDashboard() {
           </div>
         )}
       </div>
+
+      {chatAberto && <ChatDemanda hoje={hoje()} onFechar={() => setChatAberto(false)} onCriar={criarDoRascunho} onRevisar={revisarRascunho} />}
 
       {(criando || editando) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" onMouseDown={fecharModal}>
