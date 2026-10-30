@@ -30,6 +30,18 @@ Todas as chamadas à API passam por `src/react-app/services/apiClient.ts` (`apiF
 `X-Request-Id`, e lança `ApiError` (com `status` e `cdErro`; ex.: 409 = conflito de versão). Em erro 500 a mensagem traz o código
 de correlação, o mesmo do log do backend.
 
+### Pipeline e deploy no Railway
+O `.github/workflows/pipeline.yml` faz uma checagem leve nos PRs para `develop` (Lint, Build & Testes e Secret Scanning), que
+precisa passar antes do merge. A cada merge em `develop` (ou manualmente) roda o pipeline completo: as mesmas etapas, Análise de
+Vulnerabilidades (`npm audit`, só alerta) e Container Image (build do `dockerfile` + Trivy, só alerta). O Resumo de Alertas junta
+tudo e o job CD publica no Railway (`railway up`) só se as etapas bloqueantes passarem. O build no Railway continua usando as
+variáveis do serviço (`VITE_API_BASE_URL` etc.).
+
+No environment `develop` do GitHub (Settings → Environments, só a branch `develop` liberada): secret `RAILWAY_TOKEN` (Project Token
+do ambiente `develop` no Railway) e variável `RAILWAY_SERVICE` = `nord_tool_frontend`. No serviço do Railway, o auto-deploy pelo
+GitHub fica **desligado** (Settings → Source → Disable); senão ele publica sem esperar o pipeline e pede aprovação para commits de
+quem não é membro do projeto.
+
 ### Login e sessão
 - `/login` é a única tela pública; as demais ficam dentro de `RotaProtegida` (sem sessão → login, voltando à tela pedida).
 - `components/AuthProvider.tsx` guarda a sessão em `sessionStorage` (por aba), renova o token 2 min antes de expirar se houve
