@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-10-30-cronograma-chat-lugia",
+    data: "2026-10-30",
+    titulo: "Cronograma: crie demandas conversando com a Lugia",
+    texto: "No Cronograma Semanal, o botão “Criar com a Lugia” abre um chat: escreva do seu jeito o que quer programar (“reunião de obra toda segunda e quarta às 9h”, “entregar o relatório sexta”) e ela monta a demanda com título, categoria, dias, horário e prazo. É só clicar em “Criar demanda” ou em “Revisar” para ajustar antes; dá para pedir ajustes na conversa.",
+    onde: { rotulo: "Organizacional → Cronograma semanal", caminho: "/organizacional/cronograma" },
+  },
+  {
     id: "2026-10-30-cronograma-dias-escadinha-auto",
     data: "2026-10-30",
     titulo: "Rotina com dias da semana, domingo primeiro e busca; escadinha monta sozinha",

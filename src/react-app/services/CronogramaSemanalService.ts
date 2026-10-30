@@ -25,6 +25,28 @@ export interface CronogramaSemanalItem {
   idsCompartilhados?: number[];
 }
 
+/** Demanda montada pela Lugia a partir do texto (ainda não salva). Datas como nos campos da tela. */
+export interface RascunhoDemanda {
+  nmCronogramaSemanal: string;
+  txObservacao?: string | null;
+  nmCategoria: Categoria;
+  nmStatusCronograma: Status;
+  nmTag?: string | null;
+  /** AAAA-MM-DD */
+  dtPrazo?: string | null;
+  flFixo: boolean;
+  /** Ids de dia_semana (1 = segunda … 5 = sexta, 7 = sábado). */
+  diasSemana: number[];
+  nmHorario?: string | null;
+  /** AAAA-MM-DDTHH:mm */
+  dtAgendamento?: string | null;
+}
+
+export interface InterpretacaoDemanda {
+  mensagem: string;
+  demandas: RascunhoDemanda[];
+}
+
 /** Equipe do cronograma numa obra: os membros veem as demandas uns dos outros. */
 export interface CronogramaEquipe {
   id: number;
@@ -122,6 +144,11 @@ export const CronogramaSemanalService = {
   /** Move na esteira (só o status): vale para quem enxerga o item, não só o dono. */
   mudarStatus(id: number, status: Status) {
     return apiFetch<CronogramaSemanalItem>(`${BASE_PATH}/${id}/status`, { method: 'PUT', body: JSON.stringify({ nmStatusCronograma: status }) });
+  },
+  /** A Lugia lê o pedido em texto livre e devolve as demandas montadas (não salva). */
+  async interpretar(texto: string, anteriores: string[], hoje: string) {
+    return (await apiFetch<InterpretacaoDemanda>(`${BASE_PATH}/interpretar`, { method: 'POST', body: JSON.stringify({ texto, anteriores, hoje }) }))
+      ?? { mensagem: 'Não entendi o que programar. Pode detalhar?', demandas: [] };
   },
   moverStatus(ids: number[], status: Status) {
     return Promise.all(ids.map(id => CronogramaSemanalService.mudarStatus(id, status)));
