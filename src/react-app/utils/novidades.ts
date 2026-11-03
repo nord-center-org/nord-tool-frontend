@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-03-cronograma-imagem-filtros",
+    data: "2026-11-03",
+    titulo: "Cronograma: exporte em imagem e os filtros ficam salvos",
+    texto: "Na Lista e na Rotina (semana ou mês) do Cronograma Semanal, o botão “Exportar imagem” monta uma imagem bonita com as demandas e as observações, para baixar ou compartilhar sem tirar print. E a tela agora lembra a visão e os filtros que você deixou da última vez.",
+    onde: { rotulo: "Organizacional → Cronograma semanal", caminho: "/organizacional/cronograma" },
+  },
+  {
     id: "2026-10-30-cronograma-chat-lugia",
     data: "2026-10-30",
     titulo: "Cronograma: crie demandas conversando com a Lugia",

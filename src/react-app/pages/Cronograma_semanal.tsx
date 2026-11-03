@@ -1,6 +1,6 @@
 import { DragEvent, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarDays, LayoutGrid, List, CalendarClock, Search, PlusCircle, X, Lock, Share2, Bot, Users, ChevronsDownUp, ChevronsUpDown, Sparkles } from "lucide-react";
+import { CalendarDays, LayoutGrid, List, CalendarClock, Search, PlusCircle, X, Lock, Share2, Bot, Users, ChevronsDownUp, ChevronsUpDown, Sparkles, ImageDown, FilterX } from "lucide-react";
 import {
   CronogramaSemanalService,
   type CronogramaEquipe,
@@ -22,6 +22,9 @@ import { useObra } from "../hooks/useObra";
 import { alternarDia, planejarDias } from "../utils/rotinaDias";
 import { podeAcessar } from "../utils/sessao";
 import { useAuth } from "../hooks/useAuth";
+import ExportarImagem, { type DemandaExportada, type DiaExportado } from "../components/cronograma/ExportarImagem";
+import { lerPreferenciasCronograma, salvarPreferenciasCronograma, temFiltroAtivo, PREFERENCIAS_PADRAO } from "../utils/preferenciasCronograma";
+import { nomeArquivoImagem, resumoFiltros, type ModoExportacao } from "../utils/exportacaoCronograma";
 
 type Page = "kanban" | "lista" | "rotina";
 type ColunaLista = "status" | "dtPrazo" | "nmCronogramaSemanal" | "nmCategoria" | "nmTag";
@@ -109,11 +112,16 @@ const vazio = (): CronogramaSemanalItem => ({
   flFixo: false,
 });
 
+const armazenamento = () => (typeof window === "undefined" ? undefined : window.localStorage);
+
 export default function NordToolDashboard() {
-  const [page, setPage] = useState<Page>("kanban");
+  const { usuario } = useAuth();
+  // A tela abre com a visão e os filtros que a pessoa deixou da última vez (guardados neste aparelho).
+  const [salvas] = useState(() => (usuario ? lerPreferenciasCronograma(armazenamento(), usuario.id) : PREFERENCIAS_PADRAO));
+  const [page, setPage] = useState<Page>(salvas.visao);
   const [relatorioIA, setRelatorioIA] = useState(false);
   const [chatAberto, setChatAberto] = useState(false);
-  const { usuario } = useAuth();
+  const [exportando, setExportando] = useState<ModoExportacao | null>(null);
   const pode = {
     excluir: podeAcessar(usuario?.permissoes, "CRONOGRAMA_EXCLUIR", "ESCRITA"),
     compartilhar: podeAcessar(usuario?.permissoes, "CRONOGRAMA_COMPARTILHAR", "ESCRITA"),
@@ -132,9 +140,10 @@ export default function NordToolDashboard() {
   const [items, setItems] = useState<CronogramaSemanalItem[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [categoria, setCategoria] = useState<Categoria | "Todas">("Todas");
-  const [busca, setBusca] = useState("");
-  const [filtroPessoas, setFiltroPessoas] = useState<Filtro>({ tipo: "todos" });
+  const [categoria, setCategoria] = useState<Categoria | "Todas">(
+    salvas.categoria === "Todas" || categorias.includes(salvas.categoria as Categoria) ? (salvas.categoria as Categoria | "Todas") : "Todas");
+  const [busca, setBusca] = useState(salvas.busca);
+  const [filtroPessoas, setFiltroPessoas] = useState<Filtro>(salvas.pessoas);
   const [dragging, setDragging] = useState<number | null>(null);
   const [editando, setEditando] = useState<CronogramaSemanalItem | null>(null);
   const [criando, setCriando] = useState(false);
@@ -145,11 +154,22 @@ export default function NordToolDashboard() {
   const [expandirTodas, setExpandirTodas] = useState(false);
   const [selecionados, setSelecionados] = useState<number[]>([]);
   const [statusEmMassa, setStatusEmMassa] = useState<Status>("executar");
-  const [filtrosColuna, setFiltrosColuna] = useState<Partial<Record<ColunaLista, string[]>>>({});
-  const [ordenacao, setOrdenacao] = useState<OrdenacaoLista>(null);
-  const [visaoCalendario, setVisaoCalendario] = useState<"semana" | "mes">("semana");
+  const [filtrosColuna, setFiltrosColuna] = useState<Partial<Record<ColunaLista, string[]>>>(salvas.filtrosColuna);
+  const [ordenacao, setOrdenacao] = useState<OrdenacaoLista>(salvas.ordenacao);
+  const [visaoCalendario, setVisaoCalendario] = useState<"semana" | "mes">(salvas.calendario);
   const [dataCalendario, setDataCalendario] = useState(new Date());
-  const [categoriasRotina, setCategoriasRotina] = useState<Categoria[]>([]);
+  const [categoriasRotina, setCategoriasRotina] = useState<Categoria[]>(salvas.categoriasRotina.filter((c): c is Categoria => categorias.includes(c as Categoria)));
+
+  const preferencias = useMemo(() => ({
+    visao: page, busca, categoria, pessoas: filtroPessoas, filtrosColuna, ordenacao, calendario: visaoCalendario, categoriasRotina,
+  }), [page, busca, categoria, filtroPessoas, filtrosColuna, ordenacao, visaoCalendario, categoriasRotina]);
+  useEffect(() => {
+    if (usuario) salvarPreferenciasCronograma(armazenamento(), usuario.id, preferencias);
+  }, [usuario, preferencias]);
+  const filtroAtivo = temFiltroAtivo(preferencias);
+  const limparFiltros = () => {
+    setBusca(""); setCategoria("Todas"); setFiltroPessoas({ tipo: "todos" }); setFiltrosColuna({}); setOrdenacao(null); setCategoriasRotina([]);
+  };
 
   const [ignorados, setIgnorados] = useState<string[]>([]);
   const alternarIgnorado = async (item: CronogramaSemanalItem, chave: string) => {
@@ -295,6 +315,61 @@ export default function NordToolDashboard() {
   const alternarCategoriaRotina = (categoria: Categoria) => setCategoriasRotina(current => current.includes(categoria) ? current.filter(c => c !== categoria) : [...current, categoria]);
 
   const hoje = () => ymd(new Date());
+
+  // ---------- exportar imagem (Lista e Rotina) ----------
+  const rotuloStatus = (id: Status) => statuses.find(s => s.id === id)?.label ?? id;
+  const rotuloPessoas = (f: Filtro): string | null =>
+    f.tipo === "meus" ? "Só as minhas" : f.tipo === "outros" ? "De outras pessoas"
+      : f.tipo === "pessoas" ? f.rotulo ?? `${f.ids.length} pessoa${f.ids.length === 1 ? "" : "s"}` : null;
+  const paraExportar = (item: CronogramaSemanalItem, chave: string, extra: Partial<DemandaExportada> = {}): DemandaExportada => ({
+    chave,
+    titulo: item.nmCronogramaSemanal ?? "",
+    observacao: item.txObservacao,
+    status: rotuloStatus(item.nmStatusCronograma),
+    statusId: item.nmStatusCronograma,
+    categoria: item.nmCategoria,
+    frente: item.nmTag || null,
+    prazo: formatarData(item.dtPrazo),
+    dono: ehMeu(item) ? null : item.nmDono ?? "outra pessoa",
+    ...extra,
+  });
+  const diasParaExportar = (datas: Date[], mes?: number): DiaExportado[] => datas.map(data => {
+    const chave = ymd(data);
+    return {
+      data,
+      hoje: chave === hoje(),
+      foraDoMes: mes !== undefined && data.getMonth() !== mes,
+      itens: itensDoDia(data).map(item => paraExportar(item, `${item.flFixo ? "f" : "p"}-${item.id}`, {
+        quando: rotuloNoDia(item, chave),
+        riscada: item.flFixo && ignorados.includes(`${item.id}|${chave}`),
+      })),
+    };
+  });
+  // No mês, a última semana só entra se tiver algum dia do mês.
+  const celulasParaExportar = celulasDoMes.slice(35).some(d => d.getMonth() === dataCalendario.getMonth()) ? celulasDoMes : celulasDoMes.slice(0, 35);
+  const dataCurta = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const periodoExportado = exportando === "lista" ? "Lista de demandas"
+    : exportando === "semana" ? `Semana de ${dataCurta(semanaAtual[0])} a ${semanaAtual[6].toLocaleDateString("pt-BR")}`
+    : (() => { const t = dataCalendario.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }); return t.charAt(0).toUpperCase() + t.slice(1); })();
+  const ROTULO_COLUNA: Record<ColunaLista, string> = { status: "Fila", dtPrazo: "Data", nmCronogramaSemanal: "Demanda", nmCategoria: "Categoria", nmTag: "Frente" };
+  const filtrosExportados = exportando === "lista"
+    ? resumoFiltros({
+      busca, categoria, pessoas: rotuloPessoas(filtroPessoas),
+      colunas: (Object.entries(filtrosColuna) as [ColunaLista, string[]][]).map(([c, v]) => ({ rotulo: ROTULO_COLUNA[c], valores: v })),
+    })
+    : resumoFiltros({ busca, categorias: categoriasRotina });
+  const botaoExportar = (modo: ModoExportacao) => (
+    <button type="button" onClick={() => setExportando(modo)} disabled={carregando} title="Gera uma imagem com as demandas (e as observações) para mandar a alguém"
+      className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">
+      <ImageDown size={16} /> Exportar imagem
+    </button>
+  );
+  const botaoLimpar = filtroAtivo && (
+    <button type="button" onClick={limparFiltros} title="Volta os filtros ao padrão"
+      className="flex items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-800">
+      <FilterX size={14} /> Limpar filtros
+    </button>
+  );
 
   const abrirEdicao = (item: CronogramaSemanalItem) => {
     setEditando(item);
@@ -459,6 +534,7 @@ export default function NordToolDashboard() {
                 {categorias.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <FiltroPessoas filtro={filtroPessoas} onMudar={setFiltroPessoas} donos={donos} equipes={equipes} />
+              {botaoLimpar}
               <button onClick={() => abrirNovo()} className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
                 <PlusCircle size={16} /> Nova demanda
               </button>
@@ -559,6 +635,8 @@ export default function NordToolDashboard() {
                 {expandirTodas ? <ChevronsDownUp size={16} /> : <ChevronsUpDown size={16} />}
                 {expandirTodas ? "Recolher observações" : "Expandir observações"}
               </button>
+              {botaoExportar("lista")}
+              {botaoLimpar}
               <button onClick={() => abrirNovo()} className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
                 <PlusCircle size={16} /> Nova demanda
               </button>
@@ -676,9 +754,12 @@ export default function NordToolDashboard() {
                 </span>
                 <button onClick={() => moverCalendario(1)} className="rounded-lg border border-slate-200 px-2 py-1 hover:bg-slate-100">›</button>
               </div>
+              <div className="flex flex-wrap items-center gap-2">
+              {botaoExportar(visaoCalendario)}
               <button onClick={() => abrirNovo(dataCalendario)} className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
                 <PlusCircle size={16} /> Novo compromisso
               </button>
+              </div>
             </div>
 
             <div className="relative mb-3">
@@ -699,6 +780,7 @@ export default function NordToolDashboard() {
                 </button>
               ))}
               {categoriasRotina.length > 0 && <button onClick={() => setCategoriasRotina([])} className="text-[10px] font-bold text-slate-500 hover:text-slate-800">× Limpar</button>}
+              {busca.trim() && <button onClick={() => setBusca("")} className="text-[10px] font-bold text-slate-500 hover:text-slate-800">× Limpar busca</button>}
             </div>
 
             {erro && (
@@ -774,6 +856,20 @@ export default function NordToolDashboard() {
           </div>
         )}
       </div>
+
+      {exportando && (
+        <ExportarImagem
+          modo={exportando}
+          periodo={periodoExportado}
+          filtros={filtrosExportados}
+          autor={usuario?.nome}
+          lista={exportando === "lista" ? listaOrdenada.map(item => paraExportar(item, String(item.id))) : undefined}
+          agruparPorStatus={exportando === "lista" && !ordenacao}
+          dias={exportando === "semana" ? diasParaExportar(semanaAtual) : exportando === "mes" ? diasParaExportar(celulasParaExportar, dataCalendario.getMonth()) : undefined}
+          nomeArquivo={nomeArquivoImagem(exportando, exportando === "semana" ? semanaAtual[0] : exportando === "mes" ? dataCalendario : new Date())}
+          onFechar={() => setExportando(null)}
+        />
+      )}
 
       {chatAberto && <ChatDemanda hoje={hoje()} onFechar={() => setChatAberto(false)} onCriar={criarDoRascunho} onRevisar={revisarRascunho} />}
 

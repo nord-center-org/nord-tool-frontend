@@ -423,6 +423,11 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         texto: "Arraste os cartões entre as colunas para mudar o status. Clique num cartão para editar. Os de outra pessoa aparecem com cadeado.",
         alvo: { css: "section" },
       },
+      {
+        titulo: "Exportar imagem",
+        texto: "Na Lista e na Rotina (semana ou mês), Exportar imagem monta uma imagem caprichada com as demandas filtradas e as observações, pronta para baixar ou mandar no WhatsApp. Os filtros que você deixa ficam guardados para a próxima vez.",
+        alvo: { css: "button", texto: "Exportar imagem" },
+      },
       ajudaNoCanto("Cronograma"),
     ],
   },
