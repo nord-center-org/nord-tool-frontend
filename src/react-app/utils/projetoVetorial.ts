@@ -4,7 +4,7 @@
  * Tudo puro (sem pdf.js nem DOM) para testar; a extração das linhas fica em projetoPdfVetor.ts.
  */
 import { dilatar, tracarBorda } from "./escadinhaPlanta.ts";
-import { ortogonalizar, simplificar, type Pavimento, type Ponto, type ProjetoImportado, type QuantitativoFaixa, type TipoPavimento } from "./escadinha.ts";
+import { ortogonalizar, simplificar, type Pavimento, type Ponto, type ProjetoImportado, type QuantitativoFaixa, type RotuloVao, type TipoPavimento } from "./escadinha.ts";
 import type { PaginaVetorial, PreenchidoPdf, RetanguloPdf, TextoPdf } from "./projetoPdfVetor.ts";
 
 const semAcento = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
@@ -279,15 +279,15 @@ export function blocosDaPlanta(blocos: Bloco[]): Bloco[] {
 
 // ---------------------------------------------------------------- paredes
 
-/** Parede reta (cm da prancha): eixo de a até b e espessura. */
-export interface ParedeCm { a: [number, number]; b: [number, number]; esp: number }
+/** Parede reta (cm da prancha): eixo de a até b, espessura e a categoria dos blocos (a que mais aparece nela). */
+export interface ParedeCm { a: [number, number]; b: [number, number]; esp: number; cat?: CategoriaBloco }
 
 /**
  * Junta blocos alinhados (mesma linha e espessura) em paredes; vãos até `vao` cm (juntas) não quebram a parede.
  * A direção e a espessura de cada bloco vêm do tipo (legenda), porque um bloco 9 de parede de 14 é mais curto que largo.
  */
 export function paredesDosBlocos(blocos: Bloco[], tipos: TipoBloco[] = [], vao = 3): ParedeCm[] {
-  const linhas = new Map<string, { a: number; b: number }[]>();
+  const linhas = new Map<string, { a: number; b: number; cat: CategoriaBloco }[]>();
   for (const bl of blocos) {
     const t = tipoDoBloco(bl, tipos);
     if (Math.abs(bl.w - bl.h) < 1 && bl.w < 12) continue; // pedacinhos quadrados não definem direção
@@ -296,7 +296,7 @@ export function paredesDosBlocos(blocos: Bloco[], tipos: TipoBloco[] = [], vao =
     const comp = t.horizontal ? bl.w : bl.h;
     const chave = `${t.horizontal ? "h" : "v"}|${Math.round(fixo)}|${t.esp}`;
     const l = linhas.get(chave);
-    const trecho = { a: meio - comp / 2, b: meio + comp / 2 };
+    const trecho = { a: meio - comp / 2, b: meio + comp / 2, cat: t.categoria };
     if (l) l.push(trecho); else linhas.set(chave, [trecho]);
   }
   const paredes: ParedeCm[] = [];
@@ -304,14 +304,20 @@ export function paredesDosBlocos(blocos: Bloco[], tipos: TipoBloco[] = [], vao =
     const [o, f, e] = chave.split("|");
     const fixo = Number(f), esp = Number(e);
     trechos.sort((p, q) => p.a - q.a);
-    let atual = { ...trechos[0] };
+    let atual = { a: trechos[0].a, b: trechos[0].b };
+    // Comprimento de bloco por categoria na parede: a que mais aparece dá a categoria (canaleta não decide).
+    let cats = new Map<CategoriaBloco, number>();
+    const contar = (t: { a: number; b: number; cat: CategoriaBloco }) => cats.set(t.cat, (cats.get(t.cat) ?? 0) + (t.b - t.a) * (t.cat === "canaleta" ? 0.1 : 1));
+    contar(trechos[0]);
     const fechar = () => {
       if (atual.b - atual.a < 10) return;
-      paredes.push(o === "h" ? { a: [atual.a, fixo], b: [atual.b, fixo], esp } : { a: [fixo, atual.a], b: [fixo, atual.b], esp });
+      const cat = [...cats].sort((x, y) => y[1] - x[1])[0]?.[0];
+      paredes.push(o === "h" ? { a: [atual.a, fixo], b: [atual.b, fixo], esp, cat } : { a: [fixo, atual.a], b: [fixo, atual.b], esp, cat });
     };
     for (const t of trechos.slice(1)) {
       if (t.a <= atual.b + vao) atual.b = Math.max(atual.b, t.b);
-      else { fechar(); atual = { ...t }; }
+      else { fechar(); atual = { a: t.a, b: t.b }; cats = new Map(); }
+      contar(t);
     }
     fechar();
   }
@@ -638,6 +644,40 @@ function resumirFaixa(nums: number[]): string {
   return partes.join(", ");
 }
 
+// ---------------------------------------------------------------- vãos (rótulos da 1ª fiada)
+
+/**
+ * Rótulo de vão escrito na 1ª fiada: "81 x 216" (largura × altura, cm) ao lado da porta, "121 x 121" fora da fachada,
+ * na frente da janela (texto deitado = janela numa parede em pé da planta e vice-versa). Posição em cm da prancha.
+ */
+export interface RotuloVaoCm { w: number; h: number; x: number; y: number; vertical: boolean }
+
+/** Rótulos de vão da planta (só os que caem na caixa dela, fora detalhes e legenda). */
+export function rotulosDeVaos(textos: TextoPdf[], k: number, dentroDaPlanta: (x: number, y: number) => boolean): RotuloVaoCm[] {
+  const saida: RotuloVaoCm[] = [];
+  for (const t of textos) {
+    const m = t.s.trim().match(/^(\d{2,3})\s*[xX×]\s*(\d{2,3})$/);
+    if (!m) continue;
+    const w = Number(m[1]), h = Number(m[2]);
+    if (w < 20 || w > 400 || h < 20 || h > 300) continue;
+    // centro do texto: o ponto do pdf.js é o começo da linha de base
+    const largura = t.s.length * t.h * 0.5;
+    const x = (t.vertical ? t.x - t.h * 0.35 : t.x + largura / 2) * k;
+    const y = (t.vertical ? t.y - largura / 2 : t.y - t.h * 0.35) * k;
+    if (!dentroDaPlanta(x, y)) continue;
+    saida.push({ w, h, x, y, vertical: t.vertical });
+  }
+  return saida;
+}
+
+/** Notas "AS ALVENARIAS DE FECHAMENTO SERÃO EXECUTADAS APÓS A INSTALAÇÃO DO EQUIPAMENTO" (paredes do elevador), em cm. */
+export function notasDoElevador(textos: TextoPdf[], k: number, dentroDaPlanta: (x: number, y: number) => boolean): [number, number][] {
+  return textos
+    .filter(t => /ALVENARIAS? DE FECHAMENTO/.test(semAcento(t.s)))
+    .map(t => [(t.x + t.s.length * t.h * 0.25) * k, t.y * k] as [number, number])
+    .filter(([x, y]) => dentroDaPlanta(x, y));
+}
+
 // ---------------------------------------------------------------- análise de uma prancha
 
 export interface PranchaLida {
@@ -651,6 +691,9 @@ export interface PranchaLida {
   contorno: [number, number][] | null;
   /** Junta de dilatação escrita na planta: reta horizontal (y) ou vertical (x), em cm da prancha. */
   junta: { horizontal: boolean; valor: number } | null;
+  /** Rótulos dos vãos (portas, janelas, portas-sacada) e notas das paredes do elevador, em cm da prancha. */
+  rotulos?: RotuloVaoCm[];
+  notasElevador?: [number, number][];
 }
 
 /**
@@ -680,17 +723,22 @@ export function analisarPrancha(arquivo: string, pagina: PaginaVetorial): Pranch
   const contorno = contornoDasParedes(paredes);
   const xs = planta.map(b => b.x), ys = planta.map(b => b.y);
   const caixa = { x0: Math.min(...xs) - 300, x1: Math.max(...xs) + 300, y0: Math.min(...ys) - 300, y1: Math.max(...ys) + 300 };
-  const junta = juntaDaPrancha(pagina.textos, escala, (x, y) => x > caixa.x0 && x < caixa.x1 && y > caixa.y0 && y < caixa.y1);
-  return { ...base, paredes, quantitativo: quantitativo(planta, tipos), totalBlocos: planta.length, contorno, junta };
+  const naPlanta = (x: number, y: number) => x > caixa.x0 && x < caixa.x1 && y > caixa.y0 && y < caixa.y1;
+  const junta = juntaDaPrancha(pagina.textos, escala, naPlanta);
+  const k = cmPorPonto(escala);
+  return {
+    ...base, paredes, quantitativo: quantitativo(planta, tipos), totalBlocos: planta.length, contorno, junta,
+    rotulos: rotulosDeVaos(pagina.textos, k, naPlanta), notasElevador: notasDoElevador(pagina.textos, k, naPlanta),
+  };
 }
 
 // ---------------------------------------------------------------- para a torre (metros)
 
 /** Parede no sistema da torre (m, centrado, y para cima). */
-export interface ParedeTorre { a: Ponto; b: Ponto; esp: number }
+export interface ParedeTorre { a: Ponto; b: Ponto; esp: number; cat?: CategoriaBloco }
 
 /** Converte contorno e paredes de cm da prancha para metros centrados (y para cima), como o resto da Escadinha. */
-export function paraMetros(contornoCm: [number, number][], paredes: ParedeCm[]): { contorno: Ponto[]; paredes: ParedeTorre[] } {
+export function paraMetros(contornoCm: [number, number][], paredes: ParedeCm[]): { contorno: Ponto[]; paredes: ParedeTorre[]; m: (p: [number, number]) => Ponto } {
   const xs = contornoCm.map(p => p[0]), ys = contornoCm.map(p => p[1]);
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
   const r = (v: number) => Math.round(v * 1000) / 1000;
@@ -700,7 +748,7 @@ export function paraMetros(contornoCm: [number, number][], paredes: ParedeCm[]):
   let s = 0;
   for (let i = 0; i < contorno.length; i++) { const [x1, y1] = contorno[i], [x2, y2] = contorno[(i + 1) % contorno.length]; s += x1 * y2 - x2 * y1; }
   if (s < 0) contorno = contorno.reverse();
-  return { contorno, paredes: paredes.map(p => ({ a: m(p.a), b: m(p.b), esp: Math.round(p.esp) / 100 })) };
+  return { contorno, paredes: paredes.map(p => ({ a: m(p.a), b: m(p.b), esp: Math.round(p.esp) / 100, ...(p.cat ? { cat: p.cat } : {}) })), m };
 }
 
 // ---------------------------------------------------------------- pacote → torre
@@ -728,6 +776,9 @@ export interface TorreDoPacote {
   /** Divisão dos lados pela junta (null = deixa a automática). */
   junta: { a: Ponto; b: Ponto } | null;
   projeto: ProjetoImportado;
+  /** Rótulos dos vãos e notas do elevador da 1ª fiada base (m, sistema da torre). */
+  rotulos: RotuloVao[];
+  notasElevador: Ponto[];
 }
 
 /**
@@ -754,7 +805,7 @@ export function montarTorreDoPacote(pranchas: PranchaLida[], torre: number | nul
   if (!base?.contorno) return null;
   const corte = corteConsolidado(daTorre.map(p => p.niveis).filter(l => l.length >= 3));
   const { pavimentos, lajes } = pavimentosDoCorte(corte);
-  const { contorno, paredes } = paraMetros(base.contorno, base.paredes);
+  const { contorno, paredes, m: emMetros } = paraMetros(base.contorno, base.paredes);
   // mesma transformação para a junta
   const xs = base.contorno.map(p => p[0]), ys = base.contorno.map(p => p[1]);
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
@@ -784,6 +835,8 @@ export function montarTorreDoPacote(pranchas: PranchaLida[], torre: number | nul
     paredes,
     pavimentos,
     junta,
+    rotulos: (base.rotulos ?? []).map(r => ({ w: r.w, h: r.h, p: emMetros([r.x, r.y]), vertical: r.vertical })),
+    notasElevador: (base.notasElevador ?? []).map(emMetros),
     projeto: {
       importadoEm: hoje,
       torre,

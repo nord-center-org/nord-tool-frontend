@@ -1,10 +1,11 @@
-import { ArrowLeft, ImagePlus, Loader2, RotateCw, Ruler, SquareDashed } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { ArrowLeft, Box, Home, ImagePlus, Loader2, Map as MapaIcone, RotateCw, Ruler, Sparkles, SquareDashed } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react";
 
 import CamadaMedicao from "./CamadaMedicao";
 import { escadinhaService, type TipologiaServidor } from "@/react-app/services/EscadinhaService";
 import { calcularDimensoes } from "@/react-app/utils/imagem";
-import { limites, type Apartamento, type Pavimento, type Ponto } from "@/react-app/utils/escadinha";
+import { limites, ROTULO_USO, type Apartamento, type ComodoPlanta, type Pavimento, type Ponto } from "@/react-app/utils/escadinha";
+import { pontoDentro } from "@/react-app/utils/escadinhaPecas";
 import { medidas } from "@/react-app/utils/escadinha3d";
 import { COR_STATUS, LEGENDA, type StatusCelula } from "@/react-app/utils/escadinhaCury";
 import { fmtM, fmtM2, imantar } from "@/react-app/utils/medicao";
@@ -20,6 +21,10 @@ interface VistaApartamentoProps {
   onTipologias: () => void;
   onEscolherTipologia: (idTipologia: number | null) => void;
   onVoltar: () => void;
+  /** Cômodos do projeto dentro do apartamento (desenhados na planta com o uso de cada um). */
+  comodos?: ComodoPlanta[];
+  /** O mesmo apartamento em 3D (estado atual ou apartamento modelo). */
+  tresD?: (modelo: boolean) => ReactNode;
 }
 
 const ROTULO = Object.fromEntries(LEGENDA.map(l => [l.status, l.rotulo])) as Record<StatusCelula, string>;
@@ -48,7 +53,9 @@ async function imagemReduzida(arquivo: File): Promise<string> {
  * Apartamento aberto (duplo clique na planta): a planta da tipologia sobre o contorno do croqui, medição de distância
  * e de área com ímã nos cantos, e o que já foi executado neste pavimento/lado.
  */
-export default function VistaApartamento({ apto, pavimento, idTorre, editavel, tipologias, atividades, onTipologias, onEscolherTipologia, onVoltar }: VistaApartamentoProps) {
+export default function VistaApartamento({ apto, pavimento, idTorre, editavel, tipologias, atividades, onTipologias, onEscolherTipologia, onVoltar, comodos = [], tresD }: VistaApartamentoProps) {
+  const [vista, setVista] = useState<"2d" | "3d">("2d");
+  const [modelo3d, setModelo3d] = useState(false);
   const svg = useRef<SVGSVGElement>(null);
   const [modo, setModo] = useState<"ver" | "medir" | "area">("ver");
   const [pontos, setPontos] = useState<Ponto[]>([]);
@@ -120,7 +127,25 @@ export default function VistaApartamento({ apto, pavimento, idTorre, editavel, t
           <p className="text-[11px] font-extrabold uppercase tracking-widest text-orange-400">{pavimento.nome} · Lado {apto.lado}</p>
           <h3 className="text-lg font-bold text-white">{apto.nome}{tipologia ? ` · ${tipologia.nmTipologia}` : ""}</h3>
         </div>
-        <div className="ml-auto flex flex-wrap items-center gap-1 rounded-xl border border-slate-700 bg-slate-900/90 p-1">
+        {tresD && (
+          <div role="tablist" aria-label="Vista do apartamento" className="flex rounded-xl border border-slate-700 bg-slate-800 p-1">
+            <button type="button" role="tab" aria-selected={vista === "2d"} onClick={() => setVista("2d")}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${vista === "2d" ? "bg-orange-500 text-white" : "text-slate-300 hover:bg-slate-700"}`}>
+              <MapaIcone className="h-4 w-4" /> Planta
+            </button>
+            <button type="button" role="tab" aria-selected={vista === "3d"} onClick={() => setVista("3d")}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${vista === "3d" ? "bg-orange-500 text-white" : "text-slate-300 hover:bg-slate-700"}`}>
+              <Box className="h-4 w-4" /> 3D
+            </button>
+          </div>
+        )}
+        {vista === "3d" && (
+          <button type="button" aria-pressed={modelo3d} onClick={() => setModelo3d(m => !m)}
+            className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold ${modelo3d ? "border-emerald-400 bg-emerald-500 text-white" : "border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700"}`}>
+            {modelo3d ? <Sparkles className="h-4 w-4" /> : <Home className="h-4 w-4" />} Apartamento modelo
+          </button>
+        )}
+        <div className={`ml-auto flex flex-wrap items-center gap-1 rounded-xl border border-slate-700 bg-slate-900/90 p-1 ${vista === "3d" ? "hidden" : ""}`}>
           <button type="button" onClick={() => { setModo("ver"); setPontos([]); }} className={botao(modo === "ver")}>Ver</button>
           <button type="button" onClick={() => { setModo("medir"); setPontos([]); }} className={botao(modo === "medir")}><Ruler className="h-3.5 w-3.5" /> Distância</button>
           <button type="button" onClick={() => { setModo("area"); setPontos([]); }} className={botao(modo === "area")}><SquareDashed className="h-3.5 w-3.5" /> Área</button>
@@ -129,6 +154,9 @@ export default function VistaApartamento({ apto, pavimento, idTorre, editavel, t
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-4 lg:flex-row">
+        {vista === "3d" && tresD ? (
+          <div className="relative min-h-[300px] flex-1 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">{tresD(modelo3d)}</div>
+        ) : (
         <div className="relative min-h-[300px] flex-1 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
           <svg ref={svg} viewBox={`${lim.minX - margem} ${-lim.maxY - margem} ${lim.largura + margem * 2} ${lim.profundidade + margem * 2}`}
             className="h-full w-full touch-none select-none" style={{ cursor: modo === "ver" ? undefined : "crosshair" }}
@@ -140,6 +168,15 @@ export default function VistaApartamento({ apto, pavimento, idTorre, editavel, t
                 <image href={imagem} x={cx - iw / 2} y={cy - ih / 2} width={iw} height={ih} preserveAspectRatio="none" />
               </g>
             )}
+            {!imagem && comodos.map(c => {
+              const [x, y] = pontoDentro(c.contorno);
+              return (
+                <g key={c.id}>
+                  <polygon points={pts(c.contorno)} fill={c.uso === "banheiro" || c.uso === "cozinha" ? "rgba(45,212,191,0.16)" : "rgba(148,163,184,0.08)"} stroke="#64748b" strokeWidth={traco} />
+                  {c.uso && <text x={x} y={-y} fontSize={escala * 0.032} fill="#cbd5e1" textAnchor="middle" dominantBaseline="middle">{ROTULO_USO[c.uso]}</text>}
+                </g>
+              );
+            })}
             <polygon points={pts(apto.contorno)} fill={imagem ? "none" : "rgba(251,146,60,0.12)"} stroke="#fb923c" strokeWidth={traco * 2.5} strokeLinejoin="round" />
             {modo !== "ver" && <CamadaMedicao pontos={pontos} cursor={cursor} area={modo === "area"} fonte={escala * 0.03} traco={traco} />}
           </svg>
@@ -147,10 +184,11 @@ export default function VistaApartamento({ apto, pavimento, idTorre, editavel, t
           {modo !== "ver" && pontos.length > 0 && (
             <button type="button" onClick={() => setPontos([])} className="absolute bottom-3 left-3 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-yellow-300">Limpar medição</button>
           )}
-          {!imagem && !carregando && (
+          {!imagem && !carregando && !comodos.length && (
             <p className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs text-slate-400">Anexe a planta da tipologia para ver os ambientes por cima do contorno.</p>
           )}
         </div>
+        )}
 
         <aside className="w-full shrink-0 space-y-3 overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900 p-3 text-slate-200 lg:w-72">
           <dl className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 text-xs">

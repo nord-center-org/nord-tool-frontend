@@ -4,6 +4,9 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, type Component
 import * as THREE from "three";
 
 import CamadasPavimento from "./CamadasPavimento";
+import NavegacaoLivre from "./NavegacaoLivre";
+import { ORBITA_LIVRE } from "./orbitaLivre";
+import type { IconeChao } from "./PecasPavimento";
 import { cotas, limites, pilares, type Apartamento, type Lado, type Pavimento, type Ponto, type StatusAtividade, type Torre } from "@/react-app/utils/escadinha";
 import { metades as metadesDaTorre } from "@/react-app/utils/escadinhaApto";
 import { centroNucleo, paredesPorLado, type Segmento } from "@/react-app/utils/escadinha3d";
@@ -42,6 +45,10 @@ interface Torre3DProps {
   camadas?: Map<string, Map<Camada, EstadoCamada>>;
   /** Filtro do 3D: só estas camadas (null = todas). */
   filtroCamadas?: Set<Camada> | null;
+  /** Estado de cada elemento (um por atividade) por pavimento|lado, o filtro por elemento e os ícones das atividades sem peça. */
+  elementos?: Map<string, Map<string, EstadoCamada>>;
+  filtroElementos?: Set<string> | null;
+  icones?: IconeChao[];
   apresentacao: boolean;
   onInteragir: () => void;
   onSelecionar: (id: string | null) => void;
@@ -94,6 +101,10 @@ interface PavimentoProps {
     semPilares: boolean;
     comodos?: Torre["comodos"];
     aberturas?: Torre["aberturas"];
+    planta?: { paredes: NonNullable<Torre["paredes"]>; vaos: NonNullable<Torre["vaos"]>; sacadas: NonNullable<Torre["sacadas"]> } | null;
+    elementos?: Record<Lado, Map<string, EstadoCamada> | undefined>;
+    filtroElementos?: Set<string> | null;
+    icones?: IconeChao[];
   };
 }
 
@@ -140,7 +151,8 @@ function PavimentoMesh({ pav, contorno, cota, saidaX, selecionado, algumSelecion
       {!apagado && !fantasma && (
         <CamadasPavimento contorno={contorno} metades={camadas.metades} apartamentos={camadas.apartamentos} altura={pav.altura}
           nucleoC={camadas.nucleoC} estado={camadas.estado} filtro={camadas.filtro} comElevador paredesReais={camadas.paredes}
-          comodos={camadas.comodos} aberturas={camadas.aberturas} />
+          comodos={camadas.comodos} aberturas={camadas.aberturas} planta={camadas.planta} elementos={camadas.elementos}
+          filtroElementos={camadas.filtroElementos} icones={camadas.icones} />
       )}
       {!apagado && !fantasma && colunas.map(([x, y], i) => (
         <mesh key={i} position={[x, ESPESSURA_LAJE + (pav.altura - ESPESSURA_LAJE) / 2, -y]}>
@@ -239,8 +251,12 @@ function MovimentoCamera({ alvo, controles, chegou, esperandoFatia, onFatiaPront
 
 /** Prédio 3D do croqui: gira como apresentação até o primeiro toque; cubo de vistas no canto; pavimentos clicáveis. */
 const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
-  { torre, selecionado, aberto, statusPorPavimento, camadas, filtroCamadas = null, apresentacao, onInteragir, onSelecionar, onAbrir, onFatiaPronta, pausado = false }, ref,
+  {
+    torre, selecionado, aberto, statusPorPavimento, camadas, filtroCamadas = null, elementos, filtroElementos = null, icones = [], apresentacao, onInteragir,
+    onSelecionar, onAbrir, onFatiaPronta, pausado = false,
+  }, ref,
 ) {
+  const planta = useMemo(() => (torre.comodos?.length && torre.paredes ? { paredes: torre.paredes, vaos: torre.vaos ?? [], sacadas: torre.sacadas ?? [] } : null), [torre.comodos, torre.paredes, torre.vaos, torre.sacadas]);
   const metadesT = useMemo(() => (torre.lados ? metadesDaTorre(torre.contorno, torre.lados) : { A: torre.contorno, B: [] as Ponto[] }), [torre.contorno, torre.lados]);
   const nucleoC = useMemo(() => centroNucleo(torre.contorno), [torre.contorno]);
   const paredesLados = useMemo(() => (torre.paredes?.length && torre.lados ? paredesPorLado(torre.paredes, torre.lados) : null), [torre.paredes, torre.lados]);
@@ -373,6 +389,10 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
             semPilares: !!paredesLados,
             comodos: !p.contorno && p.tipo === "tipo" ? torre.comodos : undefined,
             aberturas: !p.contorno && p.tipo === "tipo" ? torre.aberturas : undefined,
+            planta: !p.contorno && p.tipo === "tipo" ? planta : null,
+            elementos: elementos ? { A: elementos.get(`${p.id}|A`), B: elementos.get(`${p.id}|B`) } : undefined,
+            filtroElementos,
+            icones,
           }}
         />
       ))}
@@ -384,12 +404,12 @@ const Torre3D = forwardRef<ControleTorre, Torre3DProps>(function Torre3D(
         target={focoInicial.toArray()}
         autoRotate={apresentacao && !selecionado && !aberto}
         autoRotateSpeed={0.8}
-        enableDamping
-        maxPolarAngle={Math.PI * 0.495}
-        minDistance={5}
+        {...ORBITA_LIVRE}
+        minDistance={1}
         maxDistance={tamanho * 5}
         onStart={() => { alvo.current = null; }}
       />
+      <NavegacaoLivre ativo={!apresentacao} />
       <ProjetarRotulos pavimentos={torre.pavimentos} grupos={grupos} botoes={botoes} x={lim.maxX} />
       <MovimentoCamera alvo={alvo} controles={controles} chegou={chegou} esperandoFatia={esperandoFatia} onFatiaPronta={onFatiaPronta} />
 

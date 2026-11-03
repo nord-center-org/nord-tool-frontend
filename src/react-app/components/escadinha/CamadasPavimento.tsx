@@ -2,76 +2,22 @@ import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
-import { dentro, type AberturaPlanta, type Apartamento, type ComodoPlanta, type Lado, type Ponto } from "@/react-app/utils/escadinha";
+import {
+  dentro, type AberturaPlanta, type Apartamento, type ComodoPlanta, type Lado, type ParedeReal, type Ponto, type SacadaPlanta, type VaoFachada,
+} from "@/react-app/utils/escadinha";
 import { centroide } from "@/react-app/utils/escadinhaApto";
 import {
   areaMolhada, arestas, comprimento, divisoriaDoApto, fachadaDoLado, portaDoApto, prumadasDoLado, sacadaDoApto, type Segmento,
 } from "@/react-app/utils/escadinha3d";
 import type { Camada, EstadoCamada } from "@/react-app/utils/escadinhaCury";
 
+import { lugaresDosIcones, pecasDaPlanta, type Pecas } from "@/react-app/utils/escadinhaPecas";
+
+import PecasPavimento, { type IconeChao } from "./PecasPavimento";
+import { ESCALA_FOTO, obterTexturas } from "./texturas3d";
+
 const ESPESSURA_LAJE = 0.25;
 const PAREDE = 0.14;
-
-// ---------------------------------------------------------------- texturas (desenhadas uma vez)
-
-let texturas: { bloco: THREE.Texture; piso: THREE.Texture; madeira: THREE.Texture; concreto: THREE.Texture } | null = null;
-/** Texturas do estudo do Juan (bloco 39×19 em amarração, porcelanato 60×60, concreto): cada imagem cobre 1,2 m × 1,2 m. */
-const ESCALA_FOTO = 1.2;
-function foto(url: string, reserva: THREE.Texture) {
-  if (typeof document === "undefined") return reserva;
-  const t = new THREE.TextureLoader().load(url, undefined, undefined, () => { /* sem a imagem, fica a reserva desenhada */ });
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
-  return t;
-}
-function canvas(w: number, h: number, desenhar: (c: CanvasRenderingContext2D) => void) {
-  const el = document.createElement("canvas");
-  el.width = w;
-  el.height = h;
-  const c = el.getContext("2d");
-  if (c) desenhar(c);
-  const t = new THREE.CanvasTexture(el);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-function obterTexturas() {
-  if (texturas) return texturas;
-  const desenhado = {
-    // Bloco estrutural de concreto 39×19 com junta de argamassa, fiadas em amarração.
-    bloco: canvas(128, 64, c => {
-      c.fillStyle = "#d6d3d1";
-      c.fillRect(0, 0, 128, 64);
-      c.fillStyle = "#9ca3af";
-      const blocos: [number, number][] = [[2, 2], [66, 2], [-30, 34], [34, 34], [98, 34]];
-      for (const [x, y] of blocos) c.fillRect(x, y, 60, 28);
-      c.fillStyle = "rgba(255,255,255,0.12)";
-      for (const [x, y] of blocos) c.fillRect(x + 4, y + 4, 52, 6);
-    }),
-    piso: canvas(64, 64, c => {
-      c.fillStyle = "#f5f0e6";
-      c.fillRect(0, 0, 64, 64);
-      c.strokeStyle = "#d6cdbb";
-      c.lineWidth = 2;
-      c.strokeRect(1, 1, 62, 62);
-    }),
-    madeira: canvas(64, 64, c => {
-      c.fillStyle = "#b07a45";
-      c.fillRect(0, 0, 64, 64);
-      c.fillStyle = "#9a6638";
-      for (let y = 0; y < 64; y += 16) c.fillRect(0, y, 64, 2);
-      c.fillRect(20, 0, 2, 16); c.fillRect(44, 16, 2, 16); c.fillRect(12, 32, 2, 16); c.fillRect(52, 48, 2, 16);
-    }),
-  };
-  texturas = {
-    bloco: foto("/texturas/bloco.jpg", desenhado.bloco),
-    piso: foto("/texturas/ceramica.jpg", desenhado.piso),
-    madeira: desenhado.madeira,
-    concreto: foto("/texturas/concreto.jpg", desenhado.piso),
-  };
-  return texturas;
-}
 
 /** Caixa de parede ao longo do segmento, com UV em metros (para a textura repetir no tamanho certo). */
 function geometriaParede(s: Segmento, altura: number, espessura: number, escalaU: number, escalaV: number) {
@@ -174,69 +120,6 @@ function Janelas({ fachada }: { fachada: Segmento[] }) {
   );
 }
 
-/**
- * Acabamentos por cômodo real, como no protótipo do Juan: piso dos apartamentos, cerâmica branca nas áreas molhadas
- * e cinza no hall, forro, louças nos banheiros e portas nos vãos da 1ª fiada.
- */
-function ComodosDoLado({ salas, portas, altura, mostra, tetoAberto }: {
-  salas: ComodoPlanta[];
-  portas: AberturaPlanta[];
-  altura: number;
-  mostra: (c: Camada) => EstadoCamada | undefined | false;
-  tetoAberto: boolean;
-}) {
-  const tex = obterTexturas();
-  const secos = salas.filter(c => c.tipo === "apartamento");
-  const molhados = salas.filter(c => c.tipo === "molhado");
-  const halls = salas.filter(c => c.tipo === "hall");
-  const internos = [...secos, ...molhados];
-  return (
-    <group>
-      {mostra("contrapiso") && internos.map(c => <Placa key={`cp${c.id}`} poly={c.contorno} y={ESPESSURA_LAJE} espessura={0.03} cor="#a8a29e" />)}
-      {mostra("impermeabilizacao") && molhados.map(c => <Placa key={`im${c.id}`} poly={c.contorno} y={ESPESSURA_LAJE + 0.01} espessura={0.02} cor="#3b82f6" opacidade={0.85} />)}
-      {mostra("piso") && secos.map(c => <Placa key={`pi${c.id}`} poly={c.contorno} y={ESPESSURA_LAJE + 0.03} espessura={0.02} cor="#ffffff" textura={tex.madeira} escalaUV={1.2} />)}
-      {mostra("ceramica") && molhados.map(c => <Placa key={`ce${c.id}`} poly={c.contorno} y={ESPESSURA_LAJE + 0.035} espessura={0.02} cor="#ffffff" textura={tex.piso} escalaUV={ESCALA_FOTO} />)}
-      {mostra("ceramica") && halls.map(c => <Placa key={`ch${c.id}`} poly={c.contorno} y={ESPESSURA_LAJE + 0.035} espessura={0.02} cor="#9ca3af" textura={tex.piso} escalaUV={ESCALA_FOTO} />)}
-      {!tetoAberto && mostra("gesso") && [...internos, ...halls].map(c => (
-        <Placa key={`ge${c.id}`} poly={c.contorno} y={altura - (c.tipo === "hall" ? 0.35 : 0.27)} espessura={0.02} cor="#ffffff" opacidade={0.85} />
-      ))}
-      {(mostra("loucas") || mostra("metais")) && molhados.map(c => {
-        const [x, y] = centroide(c.contorno);
-        return (
-          <group key={`lo${c.id}`} position={[x, ESPESSURA_LAJE + 0.06, -y]}>
-            {mostra("loucas") && (
-              <>
-                <mesh position={[-0.3, 0.2, 0]}><boxGeometry args={[0.38, 0.4, 0.6]} /><meshStandardMaterial color="#ffffff" roughness={0.2} /></mesh>
-                <mesh position={[0.35, 0.42, 0]}><boxGeometry args={[0.6, 0.08, 0.45]} /><meshStandardMaterial color="#e5e7eb" roughness={0.3} /></mesh>
-              </>
-            )}
-            {mostra("metais") && (
-              <mesh position={[0.35, 0.6, -0.15]}><cylinderGeometry args={[0.03, 0.03, 0.28, 8]} /><meshStandardMaterial color="#cbd5e1" metalness={0.9} roughness={0.15} /></mesh>
-            )}
-          </group>
-        );
-      })}
-      {(mostra("portas") || mostra("eletrica")) && portas.map((o, i) => {
-        const s: Segmento = { a: o.a, b: o.b };
-        const [x, y] = [(o.a[0] + o.b[0]) / 2, (o.a[1] + o.b[1]) / 2];
-        return (
-          <group key={`po${i}`} position={[x, ESPESSURA_LAJE, -y]} rotation={[0, angParede(s), 0]}>
-            {mostra("portas") && (
-              <mesh position={[0, 1.05, 0]}>
-                <boxGeometry args={[Math.max(0.5, o.largura - 0.08), 2.1, 0.05]} />
-                <meshStandardMaterial color={o.entrada ? "#78350f" : "#b07a45"} roughness={0.6} />
-              </mesh>
-            )}
-            {mostra("eletrica") && o.entrada && (
-              <mesh position={[o.largura / 2 + 0.3, 1.1, 0.1]}><boxGeometry args={[0.12, 0.12, 0.05]} /><meshStandardMaterial color="#f97316" /></mesh>
-            )}
-          </group>
-        );
-      })}
-    </group>
-  );
-}
-
 // ---------------------------------------------------------------- pavimento
 
 interface CamadasPavimentoProps {
@@ -261,6 +144,45 @@ interface CamadasPavimentoProps {
   aberturas?: AberturaPlanta[];
   /** Esconde laje e forro para ver o interior (vista do pavimento). */
   tetoAberto?: boolean;
+  /**
+   * Projeto lido (paredes com janelas, sacadas) e o estado de cada elemento por lado: com eles, cada atividade da
+   * escadinha acrescenta a sua peça (sem eles, fica o croqui por camadas).
+   */
+  planta?: { paredes: ParedeReal[]; vaos: VaoFachada[]; sacadas: SacadaPlanta[] } | null;
+  elementos?: Record<Lado, Map<string, EstadoCamada> | undefined>;
+  filtroElementos?: Set<string> | null;
+  icones?: IconeChao[];
+  /** Só um apartamento (vista do apartamento em 3D). */
+  soApto?: string | null;
+}
+
+/** Peças da planta por lado (e por apartamento), guardadas por planta: todos os pavimentos tipo usam as mesmas. */
+const cachePecas = new WeakMap<object, Map<string, { pecas: Pecas; lugares: { aptos: Ponto[]; hall: Ponto[] } }>>();
+function pecasDoLado(comodos: ComodoPlanta[], aberturas: AberturaPlanta[], planta: NonNullable<CamadasPavimentoProps["planta"]>, contorno: Ponto[], metade: Ponto[], altura: number, chave: string, soApto: string | null) {
+  const porPlanta = cachePecas.get(comodos) ?? new Map();
+  cachePecas.set(comodos, porPlanta);
+  const k = `${chave}|${altura.toFixed(2)}|${soApto ?? ""}|${planta.paredes.length}|${metade.length}`;
+  const pronto = porPlanta.get(k);
+  if (pronto) return pronto;
+  const doApto = soApto ? comodos.filter(c => c.apto === soApto) : null;
+  const filtro = doApto
+    ? (p: Ponto) => doApto.some(c => dentroComFolga(p, c.contorno))
+    : metade.length >= 3 ? (p: Ponto) => dentro(p, metade) : undefined;
+  const base = { comodos: doApto ?? comodos, aberturas, paredes: planta.paredes, vaos: planta.vaos, sacadas: planta.sacadas, contorno, altura, filtro };
+  const r = { pecas: pecasDaPlanta(base), lugares: lugaresDosIcones(base) };
+  porPlanta.set(k, r);
+  return r;
+}
+
+/** Ponto dentro do cômodo ou a até ~25 cm da borda dele (paredes, portas e janelas ficam na borda). */
+function dentroComFolga(p: Ponto, poly: Ponto[]) {
+  if (dentro(p, poly)) return true;
+  return poly.some((a, i) => {
+    const b = poly[(i + 1) % poly.length];
+    const l2 = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2;
+    const t = l2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * (b[0] - a[0]) + (p[1] - a[1]) * (b[1] - a[1])) / l2)) : 0;
+    return Math.hypot(p[0] - (a[0] + t * (b[0] - a[0])), p[1] - (a[1] + t * (b[1] - a[1]))) < 0.25;
+  });
 }
 
 /**
@@ -269,6 +191,7 @@ interface CamadasPavimentoProps {
  */
 export default function CamadasPavimento({
   contorno, metades, apartamentos, altura, nucleoC, estado, filtro, comElevador, paredesReais, comodos, aberturas, tetoAberto = false, corte = null,
+  planta = null, elementos, filtroElementos = null, icones = [], soApto = null,
 }: CamadasPavimentoProps) {
   const tex = obterTexturas();
   const util = Math.min(Math.max(0.5, altura - ESPESSURA_LAJE), corte ?? Infinity);
@@ -286,42 +209,36 @@ export default function CamadasPavimento({
     })() : arestas(metades[lado]);
     const doLado = (p: Ponto) => metades[lado].length < 3 || dentro(p, metades[lado]);
     const salas = (comodos ?? []).filter(c => doLado(centroide(c.contorno)));
-    const portas = (aberturas ?? []).filter(o => o.entre && doLado([(o.a[0] + o.b[0]) / 2, (o.a[1] + o.b[1]) / 2]));
     return {
-      lado, aptos, paredes, salas, portas,
+      lado, aptos, paredes, salas,
       fachada: metades[lado].length >= 3 ? fachadaDoLado(contorno, metades[lado]) : [],
       prumadas: prumadasDoLado(apartamentos, lado, contorno, nucleoC),
     };
-  }), [apartamentos, metades, contorno, nucleoC, paredesReais, comodos, aberturas]);
+  }), [apartamentos, metades, contorno, nucleoC, paredesReais, comodos]);
 
   return (
     <group>
-      {porLado.map(({ lado, aptos, paredes, fachada, prumadas, salas, portas }) => {
+      {porLado.map(({ lado, aptos, paredes, fachada, prumadas, salas }) => {
         const alv = mostra(lado, "alvenaria");
         const pintado = mostra(lado, "pintura") === "E";
         const escorado = mostra(lado, "escoramento") === "E" && !estado[lado]?.has("desescoramento");
         const metade = metades[lado];
-        if (salas.length) {
+        if (salas.length && planta && elementos) {
+          if (soApto && !aptos.some(a => a.id === soApto)) return null;
+          const est = elementos[lado];
+          const vis = (el: string) => (filtroElementos === null || filtroElementos.has(el)) && est?.get(el);
+          const { pecas, lugares } = pecasDoLado(comodos ?? [], aberturas ?? [], planta, contorno, soApto ? [] : metade, util, lado, soApto);
+          const laje = vis("laje");
+          const contornoLaje = soApto ? apartamentos.find(a => a.id === soApto)?.contorno ?? [] : metade;
           return (
             <group key={lado}>
-              {alv && (
-                <>
-                  <Paredes segmentos={paredes} altura={alv === "E" ? util : util * 0.45} textura={tex.bloco} cor={pintado ? "#f5efe2" : undefined} />
-                  {alv === "X" && <BlocosSendoColocados segmentos={paredes} altura={util * 0.45} />}
-                </>
+              {!soApto && planta.sacadas.filter(sc => metade.length < 3 || dentro(centroide(sc.contorno), metade)).map((sc, i) => (
+                <Placa key={`sb${i}`} poly={sc.contorno} y={0} espessura={ESPESSURA_LAJE - 0.04} cor="#cbd5e1" />
+              ))}
+              {!tetoAberto && corte === null && laje && contornoLaje.length >= 3 && (
+                <Placa poly={contornoLaje} y={altura - 0.02} espessura={0.12} cor="#e2e8f0" textura={tex.concreto} escalaUV={ESCALA_FOTO * 2} opacidade={laje === "E" ? 1 : 0.45} />
               )}
-              {!tetoAberto && mostra(lado, "laje") && metade.length >= 3 && (
-                <Placa poly={metade} y={altura - 0.02} espessura={0.12} cor="#e2e8f0" textura={tex.concreto} escalaUV={ESCALA_FOTO * 2} opacidade={mostra(lado, "laje") === "E" ? 1 : 0.45} />
-              )}
-              <ComodosDoLado salas={salas} portas={portas} altura={altura} mostra={c => mostra(lado, c)} tetoAberto={tetoAberto} />
-              {mostra(lado, "esquadria") && <Janelas fachada={fachada} />}
-              {mostra(lado, "fachada") && <Paredes segmentos={fachada.map(s => ({ ...s }))} altura={util + ESPESSURA_LAJE - 0.02} cor="#e7dcc8" />}
-              {(["hidraulica", "gas", "incendio"] as Camada[]).map((c, ci) => mostra(lado, c) && prumadas.map((p, i) => (
-                <mesh key={`${c}${i}`} position={[p[0] + ci * 0.18, util / 2 + ESPESSURA_LAJE, -p[1]]}>
-                  <cylinderGeometry args={[0.06, 0.06, util + ESPESSURA_LAJE, 8]} />
-                  <meshStandardMaterial color={c === "gas" ? "#facc15" : c === "incendio" ? "#dc2626" : "#22c55e"} />
-                </mesh>
-              )))}
+              <PecasPavimento pecas={pecas} estado={est} filtro={filtroElementos} icones={icones} lugares={lugares} tetoAberto={tetoAberto} corte={corte} />
             </group>
           );
         }
@@ -401,7 +318,7 @@ export default function CamadasPavimento({
           </group>
         );
       })}
-      {comElevador && (filtro === null || filtro.has("elevador")) && (estado.A?.get("elevador") || estado.B?.get("elevador")) && (
+      {comElevador && !(planta && elementos && comodos?.length) && (filtro === null || filtro.has("elevador")) && (estado.A?.get("elevador") || estado.B?.get("elevador")) && (
         <mesh position={[nucleoC[0], ESPESSURA_LAJE + util / 2, -nucleoC[1]]}>
           <boxGeometry args={[1.6, util, 1.6]} />
           <meshStandardMaterial color="#64748b" metalness={0.6} roughness={0.3} />

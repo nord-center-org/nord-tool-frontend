@@ -220,7 +220,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Prédio 3D",
-        texto: "O croqui da torre gira como apresentação. Clique para girar você mesmo; o cubo no canto escolhe a vista. Toque no número do pavimento para ele sair como fatia e virar planta 2D.",
+        texto: "O croqui da torre gira como apresentação. Arraste para girar, botão direito (ou Shift) para mover, a roda aproxima onde o mouse aponta e o duplo clique gira em volta de um ponto; W A S D andam. Toque no número do pavimento para ele sair como fatia: cada atividade feita na escadinha aparece no 3D do pavimento e do apartamento.",
         alvo: { css: "section", texto: "pavimentos" },
       },
       {

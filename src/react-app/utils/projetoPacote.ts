@@ -12,7 +12,7 @@ import {
 import { extrairDoZip, indiceZip } from "./zip";
 import { nucleo, type Torre } from "./escadinha";
 import { apartamentosPadrao, atribuirLados, definirLados } from "./escadinhaApto";
-import { lerComodos } from "./escadinhaComodos";
+import { VERSAO_LEITURA, lerComodos } from "./escadinhaComodos";
 
 export interface PacoteLido {
   nome: string;
@@ -97,7 +97,7 @@ export function torreDoPacote(dados: TorreDoPacote, nome: string, arquivo: strin
   const { contorno } = dados;
   const pavimentos = dados.pavimentos.map(p => (p.tipo === "barrilete" ? { ...p, contorno: nucleo(contorno) } : p));
   const lados = dados.junta ? { ...definirLados(contorno, null, dados.junta), fonte: "junta" as const } : definirLados(contorno, null);
-  const lidos = lerComodos(dados.paredes, contorno);
+  const lidos = lerComodos(dados.paredes, contorno, dados.rotulos, dados.notasElevador);
   const apartamentos = lidos.apartamentos.length >= 2 ? lidos.apartamentos : apartamentosPadrao(contorno);
   return {
     nome,
@@ -107,9 +107,14 @@ export function torreDoPacote(dados: TorreDoPacote, nome: string, arquivo: strin
     arquivo,
     lados,
     apartamentos: atribuirLados(apartamentos, lados),
-    paredes: dados.paredes,
+    paredes: lidos.paredes,
     comodos: lidos.comodos,
     aberturas: lidos.aberturas,
+    rotulos: dados.rotulos,
+    notasElevador: dados.notasElevador,
+    vaos: lidos.vaos,
+    sacadas: lidos.sacadas,
+    leitura: VERSAO_LEITURA,
     projeto: dados.projeto,
     inicioObra: atual?.inicioObra ?? null,
     espessuraLaje: atual?.espessuraLaje,
