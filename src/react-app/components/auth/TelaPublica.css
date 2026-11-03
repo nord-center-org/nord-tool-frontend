@@ -27,7 +27,6 @@
 .nt-nega { animation: nt-nega 500ms ease-in-out; }
 @keyframes nt-nega { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
 
-@media (prefers-reduced-motion: reduce) {
-  .nt-cartao, .nt-tremor, .nt-letra, .nt-mascote, .nt-comemora, .nt-nega { animation: none !important; }
-  .nt-mao { transition: none; }
-}
+/* Menos movimento (do aparelho ou escolhido em Configurações → Aparência): classe no <html>. */
+html.nt-menos-movimento :is(.nt-cartao, .nt-tremor, .nt-letra, .nt-mascote, .nt-comemora, .nt-nega) { animation: none !important; }
+html.nt-menos-movimento .nt-mao { transition: none; }

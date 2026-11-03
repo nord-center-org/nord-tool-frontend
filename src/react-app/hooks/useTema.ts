@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { PreferenciaTema, Tema, TemaGeral } from "../utils/tema";
+import type { Animacoes, PreferenciaTema, Tema, TemaGeral } from "../utils/tema";
 
 export interface TemaContexto {
   preferencia: PreferenciaTema;
@@ -8,6 +8,9 @@ export interface TemaContexto {
   /** O tema próprio da tela aberta (null = segue o geral). */
   temaDestaTela: Tema | null;
   definirGeral(geral: TemaGeral): void;
+  definirAnimacoes(animacoes: Animacoes): void;
+  /** O aparelho pede menos movimento (acessibilidade ou economia de bateria). */
+  aparelhoPedeMenos: boolean;
   /** Tema próprio de uma tela (null volta a seguir o geral). Sem caminho, vale a tela aberta. */
   definirDaTela(tema: Tema | null, caminho?: string): void;
 }

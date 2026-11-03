@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { CHAVE_TEMA, PREFERENCIA_PADRAO, chaveDaTela, comGeral, comTemaDaTela, lerPreferencia, salvarPreferencia, temaDaTela } from "./tema.ts";
+import { CHAVE_TEMA, PREFERENCIA_PADRAO, chaveDaTela, comAnimacoes, comGeral, comTemaDaTela, lerPreferencia, menosMovimentoEfetivo, salvarPreferencia, temaDaTela } from "./tema.ts";
 
 const memoria = () => { const m = new Map<string, string>(); return { m, getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) }; };
 
@@ -28,7 +28,7 @@ test("guarda e lê a preferência; valor estragado volta ao padrão", () => {
   salvarPreferencia(s, p);
   assert.deepEqual(lerPreferencia(s), p);
   s.setItem(CHAVE_TEMA, JSON.stringify({ geral: "roxo", telas: { "/x": "azul", "/y/": "escuro", "z": "claro" } }));
-  assert.deepEqual(lerPreferencia(s), { geral: "claro", telas: { "/y": "escuro" } });
+  assert.deepEqual(lerPreferencia(s), { geral: "claro", telas: { "/y": "escuro" }, animacoes: "aparelho" });
   s.setItem(CHAVE_TEMA, "{quebrado");
   assert.deepEqual(lerPreferencia(s), PREFERENCIA_PADRAO);
   assert.deepEqual(lerPreferencia(undefined), PREFERENCIA_PADRAO);
@@ -37,4 +37,16 @@ test("guarda e lê a preferência; valor estragado volta ao padrão", () => {
 test("chave da tela ignora barra no fim", () => {
   assert.equal(chaveDaTela("/a/b/"), "/a/b");
   assert.equal(chaveDaTela("/"), "/");
+});
+
+test("animações: seguir o aparelho, sempre ligadas ou desligadas", () => {
+  assert.equal(menosMovimentoEfetivo("aparelho", true), true);
+  assert.equal(menosMovimentoEfetivo("aparelho", false), false);
+  assert.equal(menosMovimentoEfetivo("sempre", true), false, "economia de bateria não congela a tela");
+  assert.equal(menosMovimentoEfetivo("desligadas", false), true);
+  const s = { m: new Map<string, string>(), getItem(k: string) { return this.m.get(k) ?? null; }, setItem(k: string, v: string) { this.m.set(k, v); } };
+  salvarPreferencia(s, comAnimacoes(PREFERENCIA_PADRAO, "sempre"));
+  assert.equal(lerPreferencia(s).animacoes, "sempre");
+  s.setItem(CHAVE_TEMA, JSON.stringify({ geral: "escuro", animacoes: "turbo" }));
+  assert.equal(lerPreferencia(s).animacoes, "aparelho");
 });

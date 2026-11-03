@@ -10,9 +10,14 @@ export interface PreferenciaTema {
   geral: TemaGeral;
   /** Telas com tema próprio (caminho → tema); as outras seguem o geral. */
   telas: Record<string, Tema>;
+  /** Animações: seguir o "reduzir movimento" do aparelho, sempre ligadas ou desligadas. */
+  animacoes: Animacoes;
 }
 
-export const PREFERENCIA_PADRAO: PreferenciaTema = { geral: "claro", telas: {} };
+export type Animacoes = "aparelho" | "sempre" | "desligadas";
+const ehAnimacoes = (v: unknown): v is Animacoes => v === "aparelho" || v === "sempre" || v === "desligadas";
+
+export const PREFERENCIA_PADRAO: PreferenciaTema = { geral: "claro", telas: {}, animacoes: "aparelho" };
 export const CHAVE_TEMA = "@NordTool:tema";
 
 const ehTema = (v: unknown): v is Tema => v === "claro" || v === "escuro";
@@ -30,7 +35,7 @@ export function lerPreferencia(storage: Pick<Storage, "getItem"> | undefined): P
     if (v && typeof v.telas === "object" && v.telas) {
       for (const [k, t] of Object.entries(v.telas)) if (typeof k === "string" && k.startsWith("/") && ehTema(t)) telas[chaveDaTela(k)] = t;
     }
-    return { geral: ehGeral(v?.geral) ? v.geral : PREFERENCIA_PADRAO.geral, telas };
+    return { geral: ehGeral(v?.geral) ? v.geral : PREFERENCIA_PADRAO.geral, telas, animacoes: ehAnimacoes(v?.animacoes) ? v.animacoes : "aparelho" };
   } catch {
     return PREFERENCIA_PADRAO;
   }
@@ -61,5 +66,13 @@ export function comTemaDaTela(p: PreferenciaTema, caminho: string, tema: Tema | 
   else telas[chave] = tema;
   return { ...p, telas };
 }
+
+export const comAnimacoes = (p: PreferenciaTema, animacoes: Animacoes): PreferenciaTema => ({ ...p, animacoes });
+
+/** Menos movimento de fato: "sempre" liga as animações mesmo com o aparelho pedindo menos (economia de bateria). */
+export const menosMovimentoEfetivo = (animacoes: Animacoes, aparelhoPedeMenos: boolean): boolean =>
+  animacoes === "desligadas" || (animacoes === "aparelho" && aparelhoPedeMenos);
+
+export const ROTULO_ANIMACOES: Record<Animacoes, string> = { aparelho: "Seguir o aparelho", sempre: "Sempre ligadas", desligadas: "Desligadas" };
 
 export const ROTULO_TEMA: Record<TemaGeral, string> = { claro: "Claro", escuro: "Escuro", sistema: "Igual ao aparelho" };

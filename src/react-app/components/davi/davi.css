@@ -23,6 +23,4 @@
 @keyframes nt-abre { from { clip-path: circle(0% at 50% 50%); } to { clip-path: circle(150% at 50% 50%); } }
 .nt-pisca-tempo { animation: nt-pisca-tempo 0.5s steps(1, end) infinite; }
 @keyframes nt-pisca-tempo { 50% { opacity: 0.35; } }
-@media (prefers-reduced-motion: reduce) {
-  .nt-letra-pixel, .nt-cai-pixel, .nt-corre-tela, .nt-pula-pixel, .nt-contagem, .nt-iris, .nt-abre, .nt-pisca-tempo { animation: none !important; }
-}
+html.nt-menos-movimento :is(.nt-letra-pixel, .nt-cai-pixel, .nt-corre-tela, .nt-pula-pixel, .nt-contagem, .nt-iris, .nt-abre, .nt-pisca-tempo) { animation: none !important; }

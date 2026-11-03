@@ -5,6 +5,7 @@ import TelaPublica, { classeBotaoPublico, classeCampoPublico, classeRotuloPublic
 import type { Humor } from "@/react-app/components/auth/Mascote";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { destinoSeguro } from "@/react-app/utils/sessao";
+import { menosMovimento } from "@/react-app/utils/movimento";
 import { ApiError } from "@/react-app/services/apiClient";
 import { forcaSenha, problemaNaSenha } from "@/react-app/utils/cadastro";
 
@@ -35,7 +36,7 @@ export default function LoginPage() {
   const comemorar = () => {
     // O mascote comemora um instante antes de abrir o sistema (sem espera para quem pediu menos movimento).
     setReacao("feliz");
-    const calmo = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const calmo = menosMovimento();
     window.setTimeout(() => navigate(destino, { replace: true }), calmo ? 0 : 650);
   };
 

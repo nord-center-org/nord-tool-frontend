@@ -11,6 +11,4 @@
   94%, 97% { opacity: 1; }
   98%, 100% { opacity: 0; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .nt-avatar-vivo, .nt-avatar-piscada { animation: none; }
-}
+html.nt-menos-movimento :is(.nt-avatar-vivo, .nt-avatar-piscada) { animation: none; }
