@@ -6,8 +6,10 @@
  * Tudo em metros, y para cima, sem DOM (testável em node).
  */
 import {
-  area, limites, ortogonalizar, simplificar, type AberturaPlanta, type Apartamento, type ComodoPlanta, type Lado, type ParedeReal, type Ponto, type Torre,
+  area, limites, ortogonalizar, simplificar, type AberturaPlanta, type Apartamento, type ComodoPlanta, type Lado, type ParedeReal, type Ponto, type RotuloVao,
+  type SacadaPlanta, type Torre, type VaoFachada,
 } from "./escadinha.ts";
+import { classificarPlanta } from "./escadinhaUsos.ts";
 import { apartamentosPadrao, atribuirLados, cortar, definirLados } from "./escadinhaApto.ts";
 import { tracarBorda } from "./escadinhaPlanta.ts";
 
@@ -19,7 +21,14 @@ export interface LeituraComodos {
   comodos: ComodoPlanta[];
   aberturas: AberturaPlanta[];
   apartamentos: Apartamento[];
+  /** Paredes com o fechamento do elevador marcado; janelas, portas-sacada e sacadas (pelos rótulos). */
+  paredes: ParedeReal[];
+  vaos: VaoFachada[];
+  sacadas: SacadaPlanta[];
 }
+
+/** Versão atual da leitura (torres lidas por uma versão anterior são relidas ao abrir). */
+export const VERSAO_LEITURA = 2;
 
 const PX = 0.05;
 const VAO_MIN = 0.55;
@@ -66,7 +75,7 @@ export function aberturasDasParedes(paredes: ParedeReal[]): Abertura[] {
     pontas.push({ p: lo, dir: h ? [-1, 0] : [0, -1], esp: p.esp }, { p: hi, dir: h ? [1, 0] : [0, 1], esp: p.esp });
   }
   const tocaOutra = (q: Ponto, propria: ParedeReal | null) => paredes.some(p => p !== propria && distSeg(q, p) < p.esp / 2 + 0.08);
-  for (const { p, dir } of pontas) {
+  for (const { p, dir, esp } of pontas) {
     const dona = paredes.find(w => (w.a === p || w.b === p)) ?? null;
     if (tocaOutra(p, dona)) continue;
     let melhor: { d: number } | null = null;
@@ -77,7 +86,9 @@ export function aberturasDasParedes(paredes: ParedeReal[]): Abertura[] {
       const d = (face - ao) * (dir[0] + dir[1]) - w.esp / 2;
       if (d < VAO_MIN || d > 1.05) continue;
       const l = limites([w.a, w.b]);
-      const cruza = dir[0] !== 0 ? p[1] >= l.minY - 0.02 && p[1] <= l.maxY + 0.02 : p[0] >= l.minX - 0.02 && p[0] <= l.maxX + 0.02;
+      // A parede da frente pode terminar um pouco antes da linha da porta (encontro em T desenhado em pedaços).
+      const folga = esp / 2 + 0.12;
+      const cruza = dir[0] !== 0 ? p[1] >= l.minY - folga && p[1] <= l.maxY + folga : p[0] >= l.minX - folga && p[0] <= l.maxX + folga;
       if (cruza && (!melhor || d < melhor.d)) melhor = { d };
     }
     if (melhor) {
@@ -86,6 +97,57 @@ export function aberturasDasParedes(paredes: ParedeReal[]): Abertura[] {
     }
   }
   return saida;
+}
+
+/** Vãos entre trechos alinhados da mesma parede com largura entre `min` e `max` (m). */
+function vaosEntreTrechos(paredes: ParedeReal[], min: number, max: number): Abertura[] {
+  const saida: Abertura[] = [];
+  const linhas = new Map<string, { ini: number; fim: number; fixo: number; h: boolean }[]>();
+  for (const p of paredes) {
+    const h = horizontal(p);
+    const fixo = h ? p.a[1] : p.a[0];
+    const [ini, fim] = h ? [Math.min(p.a[0], p.b[0]), Math.max(p.a[0], p.b[0])] : [Math.min(p.a[1], p.b[1]), Math.max(p.a[1], p.b[1])];
+    const k = `${h ? "h" : "v"}|${Math.round(fixo * 50)}`;
+    const l = linhas.get(k) ?? [];
+    l.push({ ini, fim, fixo, h });
+    linhas.set(k, l);
+  }
+  for (const trechos of linhas.values()) {
+    trechos.sort((x, y) => x.ini - y.ini);
+    let fim = trechos[0].fim;
+    for (const t of trechos.slice(1)) {
+      const vao = t.ini - fim;
+      if (vao > min && vao <= max) {
+        const a: Ponto = t.h ? [fim, t.fixo] : [t.fixo, fim];
+        const b: Ponto = t.h ? [t.ini, t.fixo] : [t.fixo, t.ini];
+        saida.push({ a, b, largura: vao });
+      }
+      fim = Math.max(fim, t.fim);
+    }
+  }
+  return saida;
+}
+
+const centroDe = (o: { a: Ponto; b: Ponto }): Ponto => [(o.a[0] + o.b[0]) / 2, (o.a[1] + o.b[1]) / 2];
+
+/**
+ * Portas do elevador: a frente do poço fica aberta na 1ª fiada (a alvenaria de fechamento sobe depois do equipamento),
+ * então o vão é mais largo que uma porta. Vale só perto das notas do elevador (e onde não há rótulo de porta).
+ */
+export function portasDoElevador(paredes: ParedeReal[], notas: Ponto[], largas: Abertura[] = []): Abertura[] {
+  if (!notas.length) return [];
+  return vaosEntreTrechos(paredes, VAO_MAX, 1.8)
+    .filter(o => notas.some(n => Math.hypot(n[0] - centroDe(o)[0], n[1] - centroDe(o)[1]) < 3.2))
+    .filter(o => !largas.some(l => Math.hypot(centroDe(l)[0] - centroDe(o)[0], centroDe(l)[1] - centroDe(o)[1]) < 0.2))
+    .map(o => ({ ...o, tipo: "elevador" as const }));
+}
+
+/** Portas largas com rótulo (a corta-fogo de 116 × 216 do hall para a escada): o vão passa do tamanho de porta comum. */
+export function portasLargas(paredes: ParedeReal[], rotulos: RotuloVao[]): Abertura[] {
+  const largos = rotulos.filter(r => r.h >= 200 && r.w >= 100 && r.w <= 125);
+  if (!largos.length) return [];
+  return vaosEntreTrechos(paredes, VAO_MAX, 1.4)
+    .filter(o => largos.some(r => Math.abs(o.largura * 100 - r.w) <= 20 && Math.hypot(r.p[0] - centroDe(o)[0], r.p[1] - centroDe(o)[1]) < 1.5));
 }
 
 function distSeg([x, y]: Ponto, s: { a: Ponto; b: Ponto }): number {
@@ -155,13 +217,14 @@ function rotular(m: Uint8Array, w: number, h: number): { rotulo: Int32Array; tam
  * Lê cômodos, portas e apartamentos do pavimento tipo. O hall é o cômodo com mais portas (dá acesso a todos);
  * cada grupo de cômodos ligado por porta, sem passar pelo hall, com área de apartamento, vira um apartamento.
  */
-export function lerComodos(todas: ParedeReal[], contorno: Ponto[]): LeituraComodos {
-  const vazio = { comodos: [], aberturas: [], apartamentos: [] };
+export function lerComodos(todas: ParedeReal[], contorno: Ponto[], rotulos: RotuloVao[] = [], notasElevador: Ponto[] = []): LeituraComodos {
+  const vazio = { comodos: [], aberturas: [], apartamentos: [], paredes: todas, vaos: [], sacadas: [] };
   // Pedaço curto solto (símbolo, bloco de detalhe) não é parede: atrapalharia os vãos e partiria o corredor.
   const paredes = todas.filter(p => Math.hypot(p.b[0] - p.a[0], p.b[1] - p.a[1]) >= 0.5
     || todas.some(q => q !== p && distSeg(p.a, q) < q.esp / 2 + 0.06 || q !== p && distSeg(p.b, q) < q.esp / 2 + 0.06));
   if (paredes.length < 8 || contorno.length < 3) return vazio;
-  const aberturas = aberturasDasParedes(paredes);
+  const largas = portasLargas(paredes, rotulos);
+  const aberturas = [...aberturasDasParedes(paredes), ...largas];
   const { m, w, h, x0, y0 } = rasterizar(paredes, aberturas, contorno);
   const { rotulo, tamanhos } = rotular(m, w, h);
   const AREA_PX = PX * PX;
@@ -218,6 +281,13 @@ export function lerComodos(todas: ParedeReal[], contorno: Ponto[]): LeituraComod
   // Só trechos compridos (corredor partido por um vão): a sala do apartamento também tem muitas portas, mas não é comprida.
   const comprido = (c: Comodo) => { const l = limites(c.contorno); return Math.max(l.largura, l.profundidade) / Math.max(0.1, Math.min(l.largura, l.profundidade)) >= 3.5; };
   for (const c of ordem.slice(1)) if (grau(c.id) >= 3 && comprido(c) && [...vizinhos.get(c.id)!].some(v => halls.has(v))) halls.add(c.id);
+  // Do outro lado da corta-fogo (porta larga com rótulo) fica a escada: não entra em apartamento nenhum.
+  const escadas = new Set<string>();
+  for (const o of largas) {
+    const outro = o.entre?.find(id => !halls.has(id));
+    if (outro && o.entre?.some(id => halls.has(id))) escadas.add(outro);
+  }
+  for (const id of escadas) halls.add(id);
 
   // Grupos sem passar pelo hall.
   const grupo = new Map<string, number>();
@@ -359,12 +429,48 @@ export function lerComodos(todas: ParedeReal[], contorno: Ponto[]): LeituraComod
     for (const c of partes) { c.apto = id; c.tipo = c.area < 5 ? "molhado" : "apartamento"; }
     apartamentos.push({ id, nome: `Apto ${String(i + 1).padStart(2, "0")}`, contorno: unirContornos(partes.map(p => p.contorno)), lado: "A" as Lado });
   });
+  for (const id of escadas) halls.delete(id);
   for (const c of comodos) {
-    if (halls.has(c.id)) c.tipo = "hall";
-    else if (!c.apto) c.tipo = c.area < 2 ? "shaft" : c.area < 22 && grau(c.id) <= 1 ? "escada" : "outro";
+    if (escadas.has(c.id)) c.tipo = "escada";
+    else if (halls.has(c.id)) c.tipo = "hall";
+    else if (!c.apto) c.tipo = c.area < 2 ? "shaft" : c.area < 22 && grau(c.id) <= 1 && !escadas.size ? "escada" : "outro";
   }
   for (const o of aberturas) if (o.entre && o.entre.some(id => halls.has(id)) && o.entre.some(id => porId.get(id)?.apto)) o.entrada = true;
-  return { comodos, aberturas, apartamentos };
+  // Poços do elevador: à parte (não partem o hall), fechando a frente que a 1ª fiada deixa aberta.
+  const portasElev = portasDoElevador(paredes, notasElevador, largas);
+  if (portasElev.length) {
+    const r = rasterizar(paredes, [...aberturas, ...portasElev], contorno);
+    const { rotulo: rot2, tamanhos: tam2 } = rotular(r.m, r.w, r.h);
+    const vistos = new Set<number>();
+    for (const n of notasElevador) {
+      const px = Math.floor((n[0] - r.x0) / PX), py = Math.floor((n[1] - r.y0) / PX);
+      if (px < 0 || py < 0 || px >= r.w || py >= r.h) continue;
+      const rr = rot2[py * r.w + px];
+      if (rr <= 0 || vistos.has(rr) || tam2[rr] * AREA_PX < 1.5 || tam2[rr] * AREA_PX > 16) continue;
+      vistos.add(rr);
+      const mascara = new Uint8Array(r.w * r.h);
+      for (let i = 0; i < mascara.length; i++) if (rot2[i] === rr) mascara[i] = 1;
+      const borda = tracarBorda(mascara, r.w, r.h);
+      if (borda.length < 4) continue;
+      const rd = (v: number) => Math.round(v * 100) / 100;
+      comodos.push({
+        id: `e${vistos.size}`,
+        contorno: ortogonalizar(simplificar(borda, 1.2)).map(([x, y]) => [rd(x * PX + r.x0), rd(y * PX + r.y0)] as Ponto),
+        area: Math.round(tam2[rr] * AREA_PX * 100) / 100,
+        tipo: "outro",
+        uso: "elevador",
+      });
+    }
+    aberturas.push(...portasElev.filter(o => comodos.some(c => c.uso === "elevador" && limitesTocam(c.contorno, o))));
+  }
+  const planta = classificarPlanta(comodos, aberturas, todas, contorno, rotulos, notasElevador);
+  return { ...planta, apartamentos };
+}
+
+function limitesTocam(contorno: Ponto[], o: { a: Ponto; b: Ponto }) {
+  const l = limites(contorno);
+  const c: Ponto = [(o.a[0] + o.b[0]) / 2, (o.a[1] + o.b[1]) / 2];
+  return c[0] >= l.minX - 0.3 && c[0] <= l.maxX + 0.3 && c[1] >= l.minY - 0.3 && c[1] <= l.maxY + 0.3;
 }
 
 /** Quanto (m) cada par de cômodos divide de parede fina (até ~20 cm entre eles). */
@@ -395,19 +501,33 @@ function vizinhancaPorParede(rotulo: Int32Array, w: number, h: number, ids: Map<
   return saida;
 }
 
-/** Contorno de um apartamento a partir dos cômodos (união pela grade, engrossando as paredes internas). */
+/**
+ * Contorno de um apartamento a partir dos cômodos (união pela grade, engrossando as paredes internas). Se a união sai
+ * menor que os cômodos (parede mais grossa entre eles deixou um pedaço de fora), engrossa mais até cobrir todos.
+ */
 export function unirContornos(contornos: Ponto[][]): Ponto[] {
+  const soma = contornos.reduce((s, c) => s + Math.abs(area(c)), 0);
+  let melhor: Ponto[] = [];
+  for (const folga of [0.12, 0.2, 0.3, 0.45]) {
+    const poly = unirComFolga(contornos, folga);
+    if (Math.abs(area(poly)) > Math.abs(area(melhor))) melhor = poly;
+    if (Math.abs(area(poly)) >= soma * 0.97) return poly;
+  }
+  return melhor;
+}
+
+function unirComFolga(contornos: Ponto[][], folga: number): Ponto[] {
   const pts = contornos.flat();
   const l = limites(pts);
-  const P = 0.05, M = 0.4;
+  const P = 0.05, M = 0.4 + folga;
   const w = Math.ceil((l.largura + 2 * M) / P), h = Math.ceil((l.profundidade + 2 * M) / P);
   const m = new Uint8Array(w * h);
   for (const c of contornos) {
     const lc = limites(c);
-    for (let py = Math.floor((lc.minY - l.minY + M) / P); py <= Math.ceil((lc.maxY - l.minY + M) / P); py++) {
-      for (let px = Math.floor((lc.minX - l.minX + M) / P); px <= Math.ceil((lc.maxX - l.minX + M) / P); px++) {
+    for (let py = Math.floor((lc.minY - l.minY + M - folga) / P); py <= Math.ceil((lc.maxY - l.minY + M + folga) / P); py++) {
+      for (let px = Math.floor((lc.minX - l.minX + M - folga) / P); px <= Math.ceil((lc.maxX - l.minX + M + folga) / P); px++) {
         const x = px * P + l.minX - M + P / 2, y = py * P + l.minY - M + P / 2;
-        if (px >= 0 && py >= 0 && px < w && py < h && dentroComFolga([x, y], c, 0.12)) m[py * w + px] = 1;
+        if (px >= 0 && py >= 0 && px < w && py < h && dentroComFolga([x, y], c, folga)) m[py * w + px] = 1;
       }
     }
   }
@@ -438,12 +558,15 @@ function dentroPoly([x, y]: Ponto, pts: Ponto[]): boolean {
  * troca pelos apartamentos reais. Apartamentos desenhados ou renomeados à mão ficam como estão.
  */
 export function completarComodos(torre: Torre): Torre {
-  if (!torre.paredes?.length || torre.comodos) return torre;
-  const lidos = lerComodos(torre.paredes, torre.contorno);
+  if (!torre.paredes?.length || (torre.comodos && (torre.leitura ?? 1) >= VERSAO_LEITURA)) return torre;
+  const lidos = lerComodos(torre.paredes, torre.contorno, torre.rotulos, torre.notasElevador);
   if (!lidos.comodos.length) return torre;
   const chave = (aps: Apartamento[]) => JSON.stringify(aps.map(a => [a.nome, a.contorno]));
   const exemplo = !torre.apartamentos?.length || chave(torre.apartamentos) === chave(apartamentosPadrao(torre.contorno));
   const lados = torre.lados ?? definirLados(torre.contorno, null);
   const apartamentos = exemplo && lidos.apartamentos.length >= 2 ? atribuirLados(lidos.apartamentos, lados) : torre.apartamentos;
-  return { ...torre, comodos: lidos.comodos, aberturas: lidos.aberturas, apartamentos };
+  return {
+    ...torre, comodos: lidos.comodos, aberturas: lidos.aberturas, apartamentos, paredes: lidos.paredes, vaos: lidos.vaos, sacadas: lidos.sacadas,
+    leitura: VERSAO_LEITURA,
+  };
 }

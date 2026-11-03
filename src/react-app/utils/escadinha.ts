@@ -49,7 +49,32 @@ export interface Torre {
   comodos?: ComodoPlanta[];
   /** Vãos de porta da 1ª fiada (entrada = porta do apartamento para o hall). */
   aberturas?: AberturaPlanta[];
+  /** Rótulos dos vãos escritos na 1ª fiada ("81 x 216", "121 x 121"…) e notas das paredes do elevador. */
+  rotulos?: RotuloVao[];
+  notasElevador?: Ponto[];
+  /** Janelas e portas-sacada na fachada, e as sacadas, lidas dos rótulos. */
+  vaos?: VaoFachada[];
+  sacadas?: SacadaPlanta[];
+  /** Versão da leitura de cômodos e vãos (sobe quando a leitura melhora, para refazer ao abrir). */
+  leitura?: number;
 }
+
+/** Rótulo de vão da 1ª fiada: largura e altura (cm), centro do texto (m) e se o texto está em pé. */
+export interface RotuloVao { w: number; h: number; p: Ponto; vertical: boolean }
+
+/** Janela ou porta-sacada na fachada: eixo de a até b (na face externa), peitoril e altura (m). */
+export interface VaoFachada { tipo: "janela" | "porta_sacada"; a: Ponto; b: Ponto; peitoril: number; altura: number; comodo?: string }
+
+/** Sacada na frente de uma porta-sacada: contorno e as bordas livres (onde vai o gradil). */
+export interface SacadaPlanta { contorno: Ponto[]; bordas: [Ponto, Ponto][]; apto?: string }
+
+/** Uso do cômodo, pelos vãos do projeto (portas de 71 = banheiro, 81 = dormitório, porta-sacada = sala…). */
+export type UsoComodo = "sala" | "dormitorio" | "banheiro" | "cozinha" | "hall" | "escada" | "shaft" | "elevador" | "outro";
+
+export const ROTULO_USO: Record<UsoComodo, string> = {
+  sala: "Sala", dormitorio: "Dormitório", banheiro: "Banheiro", cozinha: "Cozinha / A.S.", hall: "Hall", escada: "Escada",
+  shaft: "Shaft", elevador: "Elevador", outro: "Outro",
+};
 
 export type TipoComodo = "hall" | "apartamento" | "molhado" | "shaft" | "escada" | "outro";
 
@@ -61,7 +86,11 @@ export interface ComodoPlanta {
   tipo: TipoComodo;
   /** Apartamento a que pertence (id). */
   apto?: string;
+  uso?: UsoComodo;
 }
+
+/** Porta de entrada, de banheiro, de dormitório, corta-fogo, interna, fechamento de shaft (drywall) ou porta do elevador. */
+export type TipoAbertura = "entrada" | "banheiro" | "dormitorio" | "pcf" | "interna" | "shaft" | "elevador";
 
 export interface AberturaPlanta {
   a: Ponto;
@@ -69,10 +98,13 @@ export interface AberturaPlanta {
   largura: number;
   entre?: [string, string];
   entrada?: boolean;
+  tipo?: TipoAbertura;
+  /** Altura do vão (m), do rótulo. */
+  altura?: number;
 }
 
-/** Parede reta: eixo de a até b e espessura (m). */
-export interface ParedeReal { a: Ponto; b: Ponto; esp: number }
+/** Parede reta: eixo de a até b e espessura (m); categoria dos blocos e se é fechamento do elevador. */
+export interface ParedeReal { a: Ponto; b: Ponto; esp: number; cat?: string; elevador?: boolean }
 
 export interface ItemBlocos {
   nome: string;

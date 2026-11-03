@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-03-escadinha-3d-por-atividade",
+    data: "2026-11-03",
+    titulo: "Escadinha: cada atividade aparece no 3D",
+    texto: "O 3D agora monta o pavimento pelo projeto: janelas, portas-sacada com sacada e gradil, banheiros, dormitórios, escada e elevadores, e cada atividade marcada acrescenta só a sua peça (a alvenaria só a alvenaria, cada prumada a sua…); testes, conferências e limpezas viram um ícone no chão. Navegue livre como no SketchUp e abra o apartamento em 3D.",
+    onde: { rotulo: "Organizacional → Escadinha", caminho: "/organizacional/escadinha" },
+  },
+  {
     id: "2026-11-03-animacoes-sempre-ligadas",
     data: "2026-11-03",
     titulo: "Animações paradas? Agora dá para ligar",

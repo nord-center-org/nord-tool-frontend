@@ -28,6 +28,7 @@ import {
 } from "@/react-app/utils/escadinhaCury";
 import { ladoDoPonto, prepararTorre } from "@/react-app/utils/escadinhaApto";
 import { completarComodos } from "@/react-app/utils/escadinhaComodos";
+import { elementosDoFiltro, elementosPorPavimento, mapaDeElementos, tudoPronto } from "@/react-app/utils/escadinhaElementos";
 import type { Lado } from "@/react-app/utils/escadinha";
 import { pesoDosLados, resumoBlocos } from "@/react-app/utils/projetoVetorial";
 import { podeAcessar } from "@/react-app/utils/sessao";
@@ -263,6 +264,11 @@ export default function Escadinha() {
     return { dados: p, resumo: resumoBlocos(p, feito) };
   }, [torre, camadas]);
   const filtroCamadas = useMemo(() => camadasDoFiltro(modelo, filtro), [modelo, filtro]);
+  // Um elemento do 3D por atividade (e um ícone no chão para as que não deixam peça).
+  const elementos = useMemo(() => elementosPorPavimento(modelo, grade), [modelo, grade]);
+  const filtroElementos = useMemo(() => elementosDoFiltro(modelo, filtro), [modelo, filtro]);
+  const icones = useMemo(() => [...mapaDeElementos(modelo).values()].filter(e => e.icone).map(e => ({ chave: e.chave, glifo: e.icone!, nome: e.nome, noHall: e.noHall })), [modelo]);
+  const prontoModelo = useMemo(() => tudoPronto(modelo), [modelo]);
   const statusPorPavimento = useMemo(() => {
     const m: Record<string, StatusAtividade> = {};
     for (const l of linhas) {
@@ -530,6 +536,9 @@ export default function Escadinha() {
             statusPorPavimento={statusPorPavimento}
             camadas={camadas}
             filtroCamadas={filtroCamadas}
+            elementos={elementos}
+            filtroElementos={filtroElementos}
+            icones={icones}
             apresentacao={apresentacao}
             onInteragir={() => setApresentacao(false)}
             onSelecionar={selecionar}
@@ -576,6 +585,13 @@ export default function Escadinha() {
                 atividades={atividadesEmOrdem(modelo).map(({ atividade }) => ({
                   nome: atividade.nome, status: avaliacao.get(chaveCelula(pavSelecionado.id, apto.lado, atividade.id))?.status ?? "vazio",
                 }))}
+                comodos={(torre.comodos ?? []).filter(c => c.apto === apto.id)}
+                tresD={(modeloApto: boolean) => (
+                  <Pavimento3D torre={torre} pavimento={pavSelecionado} modelo={modeloApto} tetoAberto corte={false} filtro={modeloApto ? null : filtroCamadas}
+                    estado={{ A: camadas.get(`${pavSelecionado.id}|A`), B: camadas.get(`${pavSelecionado.id}|B`) }}
+                    elementos={{ A: elementos.get(`${pavSelecionado.id}|A`), B: elementos.get(`${pavSelecionado.id}|B`) }}
+                    filtroElementos={filtroElementos} tudoPronto={prontoModelo} icones={icones} soApto={apto.id} />
+                )}
                 onTipologias={carregarTipologias}
                 onEscolherTipologia={idT => mudarAtual(e => ({ ...e, torre: { ...e.torre, apartamentos: (e.torre.apartamentos ?? []).map(a => (a.id === apto.id ? { ...a, idTipologia: idT } : a)) } }))}
                 onVoltar={() => setAptoAberto(null)} />
@@ -627,7 +643,9 @@ export default function Escadinha() {
                 ) : (
                   <div className="h-full overflow-hidden rounded-2xl border border-slate-800">
                     <Pavimento3D torre={torre} pavimento={pavSelecionado} modelo={aptoModelo} tetoAberto={tetoAberto} corte={corte} filtro={aptoModelo ? null : filtroCamadas}
-                      estado={{ A: camadas.get(`${pavSelecionado.id}|A`), B: camadas.get(`${pavSelecionado.id}|B`) }} />
+                      estado={{ A: camadas.get(`${pavSelecionado.id}|A`), B: camadas.get(`${pavSelecionado.id}|B`) }}
+                      elementos={{ A: elementos.get(`${pavSelecionado.id}|A`), B: elementos.get(`${pavSelecionado.id}|B`) }}
+                      filtroElementos={filtroElementos} tudoPronto={prontoModelo} icones={icones} />
                   </div>
                 )}
               </div>
