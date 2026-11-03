@@ -3,18 +3,34 @@ import { useLocation } from "react-router";
 
 import { TemaContext, type TemaContexto } from "@/react-app/hooks/useTema";
 import {
-  chaveDaTela, comGeral, comTemaDaTela, lerPreferencia, salvarPreferencia, temaDaTela, type PreferenciaTema,
+  chaveDaTela, comAnimacoes, comGeral, comTemaDaTela, menosMovimentoEfetivo, lerPreferencia, salvarPreferencia, temaDaTela, type PreferenciaTema,
 } from "@/react-app/utils/tema";
 
 const armazenamento = () => (typeof window === "undefined" ? undefined : window.localStorage);
 const CONSULTA_ESCURO = "(prefers-color-scheme: dark)";
+const CONSULTA_MOVIMENTO = "(prefers-reduced-motion: reduce)";
 
 /** Aplica o tema da tela aberta no <html> (classe nt-escuro + color-scheme) e guarda as escolhas. */
 export default function TemaProvider({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const [preferencia, setPreferencia] = useState<PreferenciaTema>(() => lerPreferencia(armazenamento()));
   const [sistemaEscuro, setSistemaEscuro] = useState(() => window.matchMedia?.(CONSULTA_ESCURO).matches ?? false);
+  const [aparelhoPedeMenos, setAparelhoPedeMenos] = useState(() => window.matchMedia?.(CONSULTA_MOVIMENTO).matches ?? false);
   const primeira = useRef(true);
+
+  useEffect(() => {
+    const mq = window.matchMedia?.(CONSULTA_MOVIMENTO);
+    if (!mq) return;
+    const mudou = () => setAparelhoPedeMenos(mq.matches);
+    mq.addEventListener("change", mudou);
+    return () => mq.removeEventListener("change", mudou);
+  }, []);
+
+  // Menos movimento vira classe no <html>: o CSS e o JS (utils/movimento.ts) olham para ela, não direto para o aparelho.
+  const menosMovimento = menosMovimentoEfetivo(preferencia.animacoes, aparelhoPedeMenos);
+  useEffect(() => {
+    document.documentElement.classList.toggle("nt-menos-movimento", menosMovimento);
+  }, [menosMovimento]);
 
   useEffect(() => {
     const mq = window.matchMedia?.(CONSULTA_ESCURO);
@@ -51,8 +67,10 @@ export default function TemaProvider({ children }: { children: ReactNode }) {
     tema,
     temaDestaTela: preferencia.telas[chaveDaTela(pathname)] ?? null,
     definirGeral: geral => atualizar(p => comGeral(p, geral)),
+    definirAnimacoes: a => atualizar(p => comAnimacoes(p, a)),
+    aparelhoPedeMenos,
     definirDaTela: (t, caminho) => atualizar(p => comTemaDaTela(p, caminho ?? pathname, t)),
-  }), [preferencia, tema, pathname, atualizar]);
+  }), [preferencia, tema, pathname, atualizar, aparelhoPedeMenos]);
 
   return <TemaContext.Provider value={valor}>{children}</TemaContext.Provider>;
 }

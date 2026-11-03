@@ -4,7 +4,7 @@ import { Monitor, Moon, Palette, Sun, X } from "lucide-react";
 
 import { useTema } from "@/react-app/hooks/useTema";
 import { tutorialDaTela } from "@/react-app/utils/tutorial";
-import { ROTULO_TEMA, type TemaGeral } from "@/react-app/utils/tema";
+import { ROTULO_ANIMACOES, ROTULO_TEMA, type Animacoes, type TemaGeral } from "@/react-app/utils/tema";
 
 const ICONE = { claro: Sun, escuro: Moon, sistema: Monitor } as const;
 const nomeDaTela = (caminho: string) => (caminho === "/" ? "Início" : tutorialDaTela(caminho)?.titulo ?? caminho);
@@ -27,7 +27,7 @@ function Miniatura({ tema }: { tema: TemaGeral }) {
 
 /** Configurações → Aparência: tema geral e as telas com tema próprio. */
 export default function AparenciaConfig() {
-  const { preferencia, definirGeral, definirDaTela } = useTema();
+  const { preferencia, definirGeral, definirDaTela, definirAnimacoes, aparelhoPedeMenos } = useTema();
   const { hash } = useLocation();
   const ref = useRef<HTMLElement>(null);
   useEffect(() => { if (hash === "#aparencia") ref.current?.scrollIntoView({ block: "start", behavior: "smooth" }); }, [hash]);
@@ -54,6 +54,25 @@ export default function AparenciaConfig() {
               );
             })}
           </div>
+
+          <p className="mt-5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Animações</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Animações">
+            {(["aparelho", "sempre", "desligadas"] as Animacoes[]).map(a => {
+              const ativo = preferencia.animacoes === a;
+              return (
+                <button key={a} type="button" role="radio" aria-checked={ativo} onClick={() => definirAnimacoes(a)}
+                  className={`rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors ${ativo ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+                  {ROTULO_ANIMACOES[a]}
+                </button>
+              );
+            })}
+          </div>
+          {aparelhoPedeMenos && preferencia.animacoes === "aparelho" && (
+            <p role="status" className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Este aparelho está pedindo menos movimento (economia de bateria ou “remover animações”), então as cenas ficam paradas.
+              Escolha <strong>Sempre ligadas</strong> para ver as animações mesmo assim.
+            </p>
+          )}
 
           <p className="mt-5 text-[10px] font-bold uppercase tracking-wider text-slate-400">Telas com tema próprio</p>
           {telas.length === 0 ? (

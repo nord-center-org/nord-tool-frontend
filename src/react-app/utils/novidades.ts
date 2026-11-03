@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-03-animacoes-sempre-ligadas",
+    data: "2026-11-03",
+    titulo: "Animações paradas? Agora dá para ligar",
+    texto: "Se o celular está na economia de bateria ou com “remover animações”, as cenas do login e da tela inicial ficavam paradas. Em Configurações → Aparência, escolha “Sempre ligadas” para ver as animações mesmo assim (ou “Desligadas”, se preferir tudo parado).",
+    onde: { rotulo: "Configurações → Aparência", caminho: "/configuracoes#aparencia" },
+  },
+  {
     id: "2026-11-03-cronograma-imagem-filtros",
     data: "2026-11-03",
     titulo: "Cronograma: exporte em imagem e os filtros ficam salvos",

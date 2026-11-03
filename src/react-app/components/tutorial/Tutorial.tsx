@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, HardHat, X } from "lucide-react";
 
+import { menosMovimento } from "@/react-app/utils/movimento";
+
 import {
   alvosDoPasso, contemTexto, posicionarBalao,
   type AlvoTutorial, type PassoTutorial, type Retangulo, type Tutorial as DadosTutorial,
@@ -78,7 +80,7 @@ export default function Tutorial({ tutorial, raiz, onPasso, onFechar }: Tutorial
     const inicio = performance.now();
     let el: HTMLElement | null = null;
     let rolou = false;
-    const reduzido = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const reduzido = menosMovimento();
     const tick = () => {
       // Procura de novo a cada volta: o alvo preferido pode aparecer depois (menu abrindo, lista carregando).
       el = acharAlvo(alvos, raiz?.() ?? null);

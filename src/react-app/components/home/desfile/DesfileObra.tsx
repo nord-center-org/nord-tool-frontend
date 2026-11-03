@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 
 import { ALTURA, MEMORIA_CENAS, duracaoCena, estadoNoTempo, sortearCena, type Cena } from "@/react-app/utils/desfile";
+import { menosMovimento } from "@/react-app/utils/movimento";
 import DesenhoAtor, { Betoneira } from "./Atores";
 import "./Desfile.css";
 
 const CHAO = 126;
 const FAIXA_FRENTE = 4;
 
-const menosMovimento = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 /**
  * Diretor do desfile: sorteia uma cena, move os atores a cada quadro (posição, andando/parado, ação e fala)

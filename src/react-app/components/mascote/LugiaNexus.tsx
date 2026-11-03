@@ -8,6 +8,7 @@ import imgNotebook from "@/react-app/assets/lugia-nexus/notebook.webp";
 import imgParado from "@/react-app/assets/lugia-nexus/parado.webp";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { dataCurta, lerUltimaVista, marcarVista, naoVistas, NOVIDADES, type Novidade } from "@/react-app/utils/novidades";
+import { menosMovimento } from "@/react-app/utils/movimento";
 import { podeAbrirRota } from "@/react-app/utils/sessao";
 import { jaViuTutorial } from "@/react-app/utils/tutorial";
 import { ESPIADA_MS, VISITA_MS, falaDaEspiada, intervaloEspiada, ladoDaEspiada, type LadoEspiada } from "@/react-app/utils/nexus";
@@ -15,7 +16,7 @@ import { ESPIADA_MS, VISITA_MS, falaDaEspiada, intervaloEspiada, ladoDaEspiada, 
 const armazenamento = () => (typeof window === "undefined" ? undefined : window.localStorage);
 const PIXEL = "font-['Press_Start_2P'] leading-[1.6]";
 
-const semAnimacao = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+const semAnimacao = menosMovimento;
 
 /** Texto surgindo letra a letra, como diálogo de jogo; com movimento reduzido aparece inteiro. */
 function useDigitacao(texto: string, ativo: boolean): string {
