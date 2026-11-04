@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-04-sac",
+    data: "2026-11-04",
+    titulo: "SAC: peça mudanças no sistema com print marcado",
+    texto: "No menu, o SAC abre um chamado para os administradores: escreva o que precisa mudar, tire o print de qualquer tela, marque com seta, círculo ou rabisco e envie. Você acompanha o status e a resposta em “Meus chamados”.",
+    onde: { rotulo: "Visão Geral → SAC", caminho: "/sac" },
+  },
+  {
     id: "2026-11-03-escadinha-3d-por-atividade",
     data: "2026-11-03",
     titulo: "Escadinha: cada atividade aparece no 3D",

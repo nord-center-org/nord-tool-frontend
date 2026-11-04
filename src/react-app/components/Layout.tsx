@@ -19,7 +19,7 @@ import {
   Home as HomeIcon, Briefcase, GraduationCap,
   ClipboardCheck, AlertTriangle, Camera, FileText, BookOpen, 
   TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Heart, PiggyBank,
-  Ruler, ChevronDown, HelpCircle, Sparkles
+  Ruler, ChevronDown, HelpCircle, Sparkles, LifeBuoy
 } from "lucide-react";
 
 const armazenamento = () => (typeof window === "undefined" ? undefined : window.localStorage);
@@ -37,6 +37,7 @@ export default function Layout() {
       items: [
         { path: "/", label: "Início", icon: HomeIcon },
         { path: "/lugia", label: "Lugia (IA)", icon: Sparkles },
+        { path: "/sac", label: "SAC", icon: LifeBuoy },
       ]
     },
     {

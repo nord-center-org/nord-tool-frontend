@@ -22,6 +22,7 @@ export type Modulo =
   | "MAPEAMENTOS"
   | "ESCADINHA"
   | "LUGIA"
+  | "SAC"
   | "CADASTROS"
   | "ADMINISTRACAO";
 
