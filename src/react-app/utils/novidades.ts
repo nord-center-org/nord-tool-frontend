@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-04-placas",
+    data: "2026-11-04",
+    titulo: "Placas: monte placas de aviso da obra",
+    texto: "Em Mapeamentos → Placas, crie placas a partir de um modelo (foto de fundo com marca d'água, logo, “OBRA:”, quadro de texto e rodapé) e baixe em PNG ou PDF A4 para imprimir. Os administradores montam e ajustam os modelos.",
+    onde: { rotulo: "Mapeamentos → Placas", caminho: "/mapeamentos/placas" },
+  },
+  {
     id: "2026-11-04-sac-avisos-exportar",
     data: "2026-11-04",
     titulo: "SAC: aviso quando o chamado é respondido e exportação",

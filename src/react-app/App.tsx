@@ -34,6 +34,7 @@ import TemaProvider from "@/react-app/components/tema/TemaProvider";
 /** Escadinha 3D carrega three.js: fica num pedaço separado, baixado só quando a tela abre. */
 const Escadinha = lazy(() => import("@/react-app/pages/Escadinha"));
 const Sac = lazy(() => import("@/react-app/pages/Sac"));
+const Placas = lazy(() => import("@/react-app/pages/Placas"));
 
 function CarregandoTela() {
   return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-600" aria-label="Carregando" /></div>;
@@ -66,6 +67,7 @@ export default function App() {
             <Route path="mapeamentos/conferencias" element={<MapeamentosPage />} />
             <Route path="mapeamentos/pendencias" element={<ConcretagemInProgress />} />
             <Route path="mapeamentos/relatorio-fotografico" element={<RelatorioFotograficoPage />} />
+            <Route path="mapeamentos/placas" element={<Suspense fallback={<CarregandoTela />}><Placas /></Suspense>} />
   
             {/* Organizacional */}
             <Route path="organizacional/rte" element={<ConcretagemInProgress />} />

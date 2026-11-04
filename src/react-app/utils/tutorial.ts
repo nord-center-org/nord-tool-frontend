@@ -55,6 +55,7 @@ export const DESCRICAO_DAS_TELAS: Record<string, string> = {
   "/dashboard": "Os números das entregas: liberadas, vistoriadas, aprovadas e reprovadas por período.",
   "/mapeamentos/conferencias": "Contagens de campo e quantitativos (projeto × medido × solicitado).",
   "/mapeamentos/pendencias": EM_BREVE,
+  "/mapeamentos/placas": "Placas de aviso da obra a partir de modelos (fundo com marca d'água, logo, texto e rodapé), em PNG ou PDF para imprimir.",
   "/mapeamentos/relatorio-fotografico": "Fotos organizadas por item, com edição e PDF pronto no padrão da obra.",
   "/organizacional/rte": EM_BREVE,
   "/organizacional/diario-obras": EM_BREVE,
@@ -211,6 +212,21 @@ const EM_CONSTRUCAO: Tutorial = {
 };
 
 export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
+  "/mapeamentos/placas": {
+    titulo: "Placas",
+    passos: [
+      {
+        titulo: "Placas da obra",
+        texto: "Cada placa sai de um modelo: escolha o modelo, escreva a obra e uma linha por item e baixe em PNG ou PDF A4 para imprimir.",
+        alvo: { css: "button", texto: "Nova placa" },
+      },
+      {
+        titulo: "Modelos",
+        texto: "Quem é admin de Placas monta os modelos: foto de fundo com marca d'água, logo, caixa “OBRA:”, quadro de texto (fonte, tamanho, alinhamento) e rodapé.",
+        alvo: { css: "[role=tab]", texto: "Modelos" },
+      },
+    ],
+  },
   "/sac": {
     titulo: "SAC",
     passos: [
