@@ -60,6 +60,7 @@ export default function CapturaLugiaProvider({ children }: { children: ReactNode
   const [inicio, setInicio] = useState<{ x: number; y: number } | null>(null);
   const [selecao, setSelecao] = useState<Retangulo | null>(null);
   const filaRef = useRef<PrintPendente[]>([]);
+  const destinoRef = useRef("/lugia");
 
   const cancelar = useCallback(() => {
     setEstado("inativo");
@@ -67,7 +68,8 @@ export default function CapturaLugiaProvider({ children }: { children: ReactNode
     setSelecao(null);
   }, []);
 
-  const iniciar = useCallback((modo: "agora" | "escolher") => {
+  const iniciar = useCallback((modo: "agora" | "escolher", destino = "/lugia") => {
+    destinoRef.current = destino;
     setErro(null);
     setSelecao(null);
     setEstado(modo === "agora" ? "selecionando" : "navegando");
@@ -92,12 +94,14 @@ export default function CapturaLugiaProvider({ children }: { children: ReactNode
     try {
       const { base64, mime } = await capturar(area);
       const tela = location.pathname;
-      const print: PrintPendente = { nome: nomePrint(tela, new Date()).replace(/\.png$/, mime === "image/png" ? ".png" : ".jpg"), mime, base64, tela };
+      const destino = destinoRef.current;
+      const print: PrintPendente = { nome: nomePrint(tela, new Date()).replace(/\.png$/, mime === "image/png" ? ".png" : ".jpg"), mime, base64, tela, destino };
       filaRef.current = [...filaRef.current, print];
       setPrints(filaRef.current);
       setEstado("inativo");
       setSelecao(null);
-      navigate("/lugia");
+      destinoRef.current = "/lugia";
+      navigate(destino);
     } catch (e) {
       setErro(e instanceof Error && e.message ? e.message : "Não foi possível capturar a tela.");
       setEstado("inativo");
@@ -121,11 +125,12 @@ export default function CapturaLugiaProvider({ children }: { children: ReactNode
     else setSelecao(null);
   };
 
-  const consumirPrints = useCallback(() => {
-    const fila = filaRef.current;
-    filaRef.current = [];
-    if (fila.length) setPrints([]);
-    return fila;
+  const consumirPrints = useCallback((destino = "/lugia") => {
+    const deles = filaRef.current.filter(p => p.destino === destino);
+    if (!deles.length) return deles;
+    filaRef.current = filaRef.current.filter(p => p.destino !== destino);
+    setPrints(filaRef.current);
+    return deles;
   }, []);
 
   // Estável e sem re-render quando nada muda: a tela da Lugia chama a cada tecla.
@@ -154,7 +159,7 @@ export default function CapturaLugiaProvider({ children }: { children: ReactNode
           </p>
           <div className="flex gap-2">
             <button type="button" onClick={cancelar} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50">Cancelar</button>
-            <button type="button" onClick={() => iniciar("agora")} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">Capturar</button>
+            <button type="button" onClick={() => iniciar("agora", destinoRef.current)} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">Capturar</button>
           </div>
         </div>
       )}

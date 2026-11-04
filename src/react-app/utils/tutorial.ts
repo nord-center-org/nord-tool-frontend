@@ -49,6 +49,7 @@ const EM_BREVE = "Em construção: a tela já está no menu e vai ganhar funçõ
 /** O que cada aba faz, em uma frase (usado no tour geral). */
 export const DESCRICAO_DAS_TELAS: Record<string, string> = {
   "/": "A página inicial: a equipe no canteiro, os atalhos dos módulos e este tour.",
+  "/sac": "Peça mudanças no sistema para os administradores: escreva, tire prints de qualquer tela, marque com seta e círculo e acompanhe a resposta.",
   "/entregas": "A agenda de vistorias e entregas da semana, separada por dia.",
   "/apartamentos": "A base de todos os apartamentos: status, datas, filtros, planilhas e ações em massa.",
   "/dashboard": "Os números das entregas: liberadas, vistoriadas, aprovadas e reprovadas por período.",
@@ -210,6 +211,26 @@ const EM_CONSTRUCAO: Tutorial = {
 };
 
 export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
+  "/sac": {
+    titulo: "SAC",
+    passos: [
+      {
+        titulo: "Peça mudanças no sistema",
+        texto: "Aqui você abre um chamado para os administradores: escreva o que precisa e como deveria ficar.",
+        alvo: { css: "#sac-titulo" },
+      },
+      {
+        titulo: "Mostre com um print",
+        texto: "“Tirar print de uma tela” deixa você ir até a tela, marcar a área e voltar com o print; toque no print para marcar com seta, círculo ou rabisco.",
+        alvo: { css: "button", texto: "Tirar print" },
+      },
+      {
+        titulo: "Acompanhe",
+        texto: "Em Meus chamados você vê o status (aberto, em andamento, resolvido ou recusado) e a resposta dos administradores.",
+        alvo: { css: "[role=tab]", texto: "Meus chamados" },
+      },
+    ],
+  },
   "/organizacional/escadinha": {
     titulo: "Escadinha",
     passos: [

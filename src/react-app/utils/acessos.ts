@@ -29,6 +29,7 @@ export const MODULOS: Record<string, { nome: string; telas: string }> = {
   FINANCEIRO: { nome: "Gestão financeira", telas: "Controle financeiro e investimentos" },
   CASAMENTO: { nome: "Casamento", telas: "Fornecedores, convidados e marcos" },
   LUGIA: { nome: "Lugia (IA)", telas: "Chat com Claude, ChatGPT e Gemini (Editar e Admin: para as próximas fases)" },
+  SAC: { nome: "SAC", telas: "Todos abrem chamados; Admin vê os chamados de todos e responde" },
   CADASTROS: { nome: "Cadastros", telas: "Empresas, cargos e ferramentas" },
   ADMINISTRACAO: { nome: "Administração", telas: "Acessos de usuários (use Admin)" },
 };
