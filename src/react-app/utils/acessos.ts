@@ -24,6 +24,7 @@ export const MODULOS: Record<string, { nome: string; telas: string }> = {
   MEDICOES: { nome: "Medições", telas: "Boletins de medição" },
   MAPEAMENTOS: { nome: "Mapeamentos", telas: "Contagens de campo e quantitativos" },
   ESCADINHA: { nome: "Escadinha", telas: "Prédio 3D, apartamentos, lados A/B e ciclos (Editar: montar torres e mudar ciclos)" },
+  PLACAS: { nome: "Placas", telas: "Placas de aviso da obra (Editar: criar placas; Admin: modelos)" },
   RELATORIO_FOTOGRAFICO: { nome: "Relatório fotográfico", telas: "Relatórios com fotos (Admin mantém os modelos)" },
   CAIXINHA: { nome: "Caixinha", telas: "Despesas e comprovantes" },
   FINANCEIRO: { nome: "Gestão financeira", telas: "Controle financeiro e investimentos" },

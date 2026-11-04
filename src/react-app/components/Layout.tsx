@@ -21,7 +21,7 @@ import {
   Home as HomeIcon, Briefcase, GraduationCap,
   ClipboardCheck, AlertTriangle, Camera, FileText, BookOpen, 
   TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Heart, PiggyBank,
-  Ruler, ChevronDown, HelpCircle, Sparkles, LifeBuoy
+  Ruler, ChevronDown, HelpCircle, Sparkles, LifeBuoy, Signpost
 } from "lucide-react";
 
 const armazenamento = () => (typeof window === "undefined" ? undefined : window.localStorage);
@@ -56,6 +56,7 @@ export default function Layout() {
         { path: "/mapeamentos/conferencias", label: "Contagens e quantitativos", icon: ClipboardCheck },
         { path: "/mapeamentos/pendencias", label: "Mapeamento de pendências", icon: AlertTriangle },
         { path: "/mapeamentos/relatorio-fotografico", label: "Relatório fotográfico", icon: Camera },
+        { path: "/mapeamentos/placas", label: "Placas", icon: Signpost },
       ]
     },
     {
