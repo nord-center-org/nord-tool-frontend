@@ -7,6 +7,7 @@ import { podeAbrirRota } from "@/react-app/utils/sessao";
 import CenaObra from "@/react-app/components/home/CenaObra";
 import LugiaNexus from "@/react-app/components/mascote/LugiaNexus";
 import EquipeNaObra from "@/react-app/components/home/EquipeNaObra";
+import AvisoSacInicio from "@/react-app/components/sac/AvisoSacInicio";
 import { useMeuAvatar } from "@/react-app/hooks/useMeuAvatar";
 import { useObra } from "@/react-app/hooks/useObra";
 import { avatarService, type AvatarUsuario } from "@/react-app/services/AvatarService";
@@ -105,6 +106,7 @@ export default function HomePage() {
           {recado && <p className="mt-1 text-xs font-bold text-pink-600 sm:text-sm">{recado}</p>}
         </div>
         <EquipeNaObra equipe={naCena} tema={tema} />
+        <AvisoSacInicio />
       </section>
 
       <div data-tutorial="modulos" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl px-4">

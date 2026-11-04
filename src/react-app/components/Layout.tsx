@@ -9,6 +9,8 @@ import { ExigeModuloDaRota } from "@/react-app/components/RotaProtegida";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { useObra } from "@/react-app/hooks/useObra";
 import { podeAbrirRota } from "@/react-app/utils/sessao";
+import NovidadesSacProvider from "@/react-app/components/sac/NovidadesSacProvider";
+import SeloSac from "@/react-app/components/sac/SeloSac";
 import CapturaLugiaProvider from "@/react-app/components/lugia/CapturaLugiaProvider";
 import BotaoPrintLugia from "@/react-app/components/lugia/BotaoPrintLugia";
 import { EVENTO_DAVI, criarContadorToques } from "@/react-app/utils/segredo";
@@ -150,6 +152,7 @@ export default function Layout() {
 
   return (
     <CapturaLugiaProvider>
+    <NovidadesSacProvider>
     <div className="flex h-screen w-full bg-slate-50 overflow-hidden relative font-sans">
       
       {/* No celular o menu fica por cima da tela, com fundo escuro que fecha ao tocar. */}
@@ -237,6 +240,7 @@ export default function Layout() {
                         >
                           <item.icon className="w-4 h-4" />
                           <span>{item.label}</span>
+                          {item.path === "/sac" && <SeloSac />}
                         </NavLink>
                       ))}
                     </div>
@@ -318,6 +322,7 @@ export default function Layout() {
       <GatinhoSecreto />
       {tutorial && <Tutorial key={location.pathname} tutorial={tutorial} raiz={raizDoTutorial} onPasso={prepararPasso} onFechar={fecharTutorial} />}
     </div>
+    </NovidadesSacProvider>
     </CapturaLugiaProvider>
   );
 }

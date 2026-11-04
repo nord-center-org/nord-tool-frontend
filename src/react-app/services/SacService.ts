@@ -14,6 +14,18 @@ export interface Chamado {
   dhCriacao: string;
   dhAtualizacao: string;
   imagens: number[];
+  /** Resposta ou status novo que quem abriu ainda não viu. */
+  inNovidade?: boolean;
+  /** Quem respondeu (e o avatar dele, nas novidades). */
+  idUsuarioResposta?: number | null;
+  nmCargoResposta?: string | null;
+  dsConfigResposta?: string | null;
+}
+
+export interface NovidadesSac {
+  chamados: Chamado[];
+  /** Só para o ADMIN do SAC: chamados de todo mundo ainda abertos. */
+  abertos: number | null;
 }
 
 const BASE = "/sac";
@@ -33,4 +45,6 @@ export const sacService = {
     apiFetch<Chamado>(`${BASE}/chamados/${id}/resposta`, { method: "PUT", body: JSON.stringify({ cdStatus, txResposta }) }),
   excluir: (id: number) => apiFetch<void>(`${BASE}/chamados/${id}`, { method: "DELETE" }),
   imagem: (id: number) => apiBlob(`${BASE}/imagens/${id}`),
+  novidades: async () => (await apiFetch<NovidadesSac>(`${BASE}/novidades`)) ?? { chamados: [], abertos: null },
+  marcarVistos: (ids: number[]) => apiFetch<void>(`${BASE}/chamados/vistos`, { method: "PUT", body: JSON.stringify({ ids }) }),
 };

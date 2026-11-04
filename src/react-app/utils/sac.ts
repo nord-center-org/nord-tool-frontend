@@ -40,3 +40,46 @@ export function ordenarChamados<T extends ChamadoResumo>(lista: T[]): T[] {
 
 /** Quantos chamados ainda esperam os administradores (aberto ou em andamento). */
 export const pendentes = (lista: ChamadoResumo[]) => lista.filter(c => c.cdStatus === "ABERTO" || c.cdStatus === "EM_ANDAMENTO").length;
+
+// ---------------------------------------------------------------- exportação
+
+export interface ChamadoExportado {
+  id: number; nmTitulo: string; txDescricao: string; txTela: string | null; cdStatus: string; txResposta: string | null;
+  nmUsuario: string; nmUsuarioResposta: string | null; dhCriacao: string; imagens: number[];
+}
+
+const data = (iso: string) => {
+  const [d, h] = iso.split("T");
+  const [a, m, dia] = d.split("-");
+  return `${dia}/${m}/${a}${h ? ` ${h.slice(0, 5)}` : ""}`;
+};
+
+/** Nome do arquivo de cada print no ZIP: imagens/chamado-12-1.png. */
+export const nomeImagemExportada = (idChamado: number, ordem: number, mime: string) =>
+  `imagens/chamado-${idChamado}-${ordem}.${/png/.test(mime) ? "png" : "jpg"}`;
+
+/**
+ * O texto dos chamados exportados (Markdown): um bloco por chamado com status, quem abriu, tela, data, descrição,
+ * resposta e os prints (com o caminho dentro do ZIP), pronto para mandar para quem vai fazer as mudanças.
+ */
+export function textoExportacao(chamados: ChamadoExportado[], imagens: Map<number, string[]>, geradoEm: string): string {
+  const linhas = [`# Chamados do SAC — NordTool`, ``, `${chamados.length} chamado(s) · exportado em ${data(geradoEm)}`, ``];
+  for (const c of chamados) {
+    linhas.push(`## #${c.id} — ${c.nmTitulo}`, ``);
+    linhas.push(`- **Status:** ${rotuloStatus(c.cdStatus)}`);
+    linhas.push(`- **Aberto por:** ${c.nmUsuario} em ${data(c.dhCriacao)}`);
+    if (c.txTela) linhas.push(`- **Tela:** ${c.txTela}`);
+    linhas.push(``, `### O que precisa mudar`, ``, c.txDescricao.trim(), ``);
+    if (c.txResposta) linhas.push(`### Resposta${c.nmUsuarioResposta ? ` (${c.nmUsuarioResposta})` : ""}`, ``, c.txResposta.trim(), ``);
+    const arquivos = imagens.get(c.id) ?? [];
+    if (arquivos.length) {
+      linhas.push(`### Prints`, ``);
+      arquivos.forEach((a, i) => linhas.push(`![Print ${i + 1} do chamado #${c.id}](${a})`));
+      linhas.push(``);
+    }
+  }
+  return linhas.join("\n");
+}
+
+/** Nome do ZIP: chamados-sac-2026-11-04.zip. */
+export const nomeZipChamados = (hoje: string) => `chamados-sac-${hoje}.zip`;
