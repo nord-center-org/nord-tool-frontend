@@ -226,7 +226,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Acompanhe",
-        texto: "Em Meus chamados você vê o status (aberto, em andamento, resolvido ou recusado) e a resposta dos administradores.",
+        texto: "Em Meus chamados você vê o status (aberto, em andamento, resolvido ou recusado) e a resposta dos administradores. Quando alguém responde, o avatar dele aparece no Início avisando. Marque chamados para exportar a descrição e os prints num ZIP.",
         alvo: { css: "[role=tab]", texto: "Meus chamados" },
       },
     ],

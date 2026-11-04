@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-04-sac-avisos-exportar",
+    data: "2026-11-04",
+    titulo: "SAC: aviso quando o chamado é respondido e exportação",
+    texto: "Quando um administrador responde ou muda o status do seu chamado, ele aparece no Início avisando até você abrir o chamado, e o SAC ganha um selo no menu. Nas listas de chamados dá para marcar vários e exportar um ZIP com a descrição e os prints de cada um.",
+    onde: { rotulo: "Visão Geral → SAC", caminho: "/sac" },
+  },
+  {
     id: "2026-11-04-sac",
     data: "2026-11-04",
     titulo: "SAC: peça mudanças no sistema com print marcado",

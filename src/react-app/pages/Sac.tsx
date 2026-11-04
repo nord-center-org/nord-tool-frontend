@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, CheckCircle2, ImagePlus, LifeBuoy, Loader2, Pencil, Send, Trash2, X } from "lucide-react";
+import { useSearchParams } from "react-router";
+import { Camera, CheckCircle2, Download, ImagePlus, LifeBuoy, Loader2, Pencil, Send, Trash2, X } from "lucide-react";
 
 import EditorFoto from "@/react-app/components/relatorio/EditorFoto";
 import CabecalhoPagina from "@/react-app/components/ui/CabecalhoPagina";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { useCapturaLugia } from "@/react-app/hooks/useCapturaLugia";
+import { useNovidadesSac } from "@/react-app/hooks/useNovidadesSac";
 import { sacService, type Chamado } from "@/react-app/services/SacService";
 import {
-  MAX_BYTES_PRINT, MAX_DESCRICAO, MAX_PRINTS, MAX_TITULO, STATUS_CHAMADO, classeStatus, ordenarChamados, pendentes, problemaDoRascunho,
-  rotuloStatus, type StatusChamado,
+  MAX_BYTES_PRINT, MAX_DESCRICAO, MAX_PRINTS, MAX_TITULO, STATUS_CHAMADO, classeStatus, nomeImagemExportada, nomeZipChamados, ordenarChamados,
+  pendentes, problemaDoRascunho, rotuloStatus, textoExportacao, type StatusChamado,
 } from "@/react-app/utils/sac";
+import { criarZip, type EntradaZip } from "@/react-app/utils/zip";
 import { podeAcessar } from "@/react-app/utils/sessao";
 
 interface PrintLocal { chave: string; nome: string; blob: Blob; url: string; tela: string | null }
@@ -46,6 +49,33 @@ async function caber(blob: Blob): Promise<Blob> {
   throw new Error("A imagem é grande demais.");
 }
 
+/** Baixa os chamados escolhidos num ZIP: chamados.md (texto de cada um) e a pasta imagens/ com os prints. */
+async function exportarChamados(lista: Chamado[]): Promise<void> {
+  const entradas: EntradaZip[] = [];
+  const nomes = new Map<number, string[]>();
+  for (const c of lista) {
+    const desse: string[] = [];
+    for (const [i, id] of c.imagens.entries()) {
+      const blob = await sacService.imagem(id);
+      const nome = nomeImagemExportada(c.id, i + 1, blob.type);
+      entradas.push({ nome, bytes: new Uint8Array(await blob.arrayBuffer()) });
+      desse.push(nome);
+    }
+    nomes.set(c.id, desse);
+  }
+  const agora = new Date();
+  const local = new Date(agora.getTime() - agora.getTimezoneOffset() * 60_000).toISOString().slice(0, 19);
+  entradas.unshift({ nome: "chamados.md", bytes: new TextEncoder().encode(textoExportacao(lista, nomes, local)) });
+  const url = URL.createObjectURL(new Blob([criarZip(entradas) as BlobPart], { type: "application/zip" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nomeZipChamados(local.slice(0, 10));
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
 const dataHora = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 /** Miniatura de um print já enviado (busca com o token; clique amplia). */
@@ -64,8 +94,9 @@ function ImagemChamado({ id, onAbrir }: { id: number; onAbrir: (id: number) => v
   );
 }
 
-function CartaoChamado({ c, admin, onAtualizar, onExcluir, onAbrirImagem }: {
+function CartaoChamado({ c, admin, onAtualizar, onExcluir, onAbrirImagem, selecionado, onSelecionar, novo, destaque }: {
   c: Chamado; admin: boolean; onAtualizar: (c: Chamado) => void; onExcluir: (c: Chamado) => void; onAbrirImagem: (id: number) => void;
+  selecionado: boolean; onSelecionar: (sim: boolean) => void; novo: boolean; destaque: boolean;
 }) {
   const [status, setStatus] = useState<StatusChamado>(c.cdStatus);
   const [resposta, setResposta] = useState(c.txResposta ?? "");
@@ -80,14 +111,17 @@ function CartaoChamado({ c, admin, onAtualizar, onExcluir, onAbrirImagem }: {
     finally { setSalvando(false); }
   };
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <article id={`chamado-${c.id}`} className={`rounded-2xl border bg-white p-4 shadow-sm ${destaque ? "border-blue-400 ring-2 ring-blue-200" : selecionado ? "border-blue-300" : "border-slate-200"}`}>
       <header className="flex flex-wrap items-start gap-2">
+        <input type="checkbox" checked={selecionado} onChange={e => onSelecionar(e.target.checked)} aria-label={`Selecionar o chamado #${c.id} para exportar`}
+          className="mt-1 h-4 w-4 shrink-0 accent-blue-600" />
         <div className="min-w-0 flex-1">
           <h3 className="font-bold text-slate-900">{c.nmTitulo}</h3>
           <p className="text-xs text-slate-500">
             #{c.id} · {dataHora(c.dhCriacao)}{admin ? ` · ${c.nmUsuario}` : ""}{c.txTela ? ` · tela ${c.txTela}` : ""}
           </p>
         </div>
+        {novo && <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-black text-white">Novidade</span>}
         <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${classeStatus(c.cdStatus)}`}>{rotuloStatus(c.cdStatus)}</span>
       </header>
       <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{c.txDescricao}</p>
@@ -144,7 +178,14 @@ export default function Sac() {
   const captura = useCapturaLugia();
   const { prints: fila, consumirPrints } = captura;
   const admin = podeAcessar(usuario?.permissoes, "SAC", "ADMIN");
-  const [aba, setAba] = useState<"novo" | "meus" | "todos">("novo");
+  const novidades = useNovidadesSac();
+  const [busca] = useSearchParams();
+  const doAviso = Number(busca.get("chamado")) || null;
+  const [aba, setAba] = useState<"novo" | "meus" | "todos">(doAviso ? "meus" : "novo");
+  const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
+  const [exportando, setExportando] = useState(false);
+  /** Chamados que tinham novidade quando a pessoa abriu a lista (o selo fica até sair da tela). */
+  const [novosVistos, setNovosVistos] = useState<Set<number>>(new Set());
   const [titulo, setTitulo] = useState(rascunho.titulo);
   const [descricao, setDescricao] = useState(rascunho.descricao);
   const [prints, setPrints] = useState<PrintLocal[]>(rascunho.prints);
@@ -240,6 +281,41 @@ export default function Sac() {
     const t = window.setTimeout(() => setAviso(null), 6000);
     return () => window.clearTimeout(t);
   }, [aviso]);
+
+  // Abriu "Meus chamados": as novidades foram vistas (o selo "Novidade" continua até sair da tela).
+  const { marcarVistos } = novidades;
+  useEffect(() => {
+    if (aba !== "meus" || !meus) return;
+    const ids = meus.filter(c => c.inNovidade).map(c => c.id);
+    if (!ids.length) return;
+    setNovosVistos(atual => new Set([...atual, ...ids]));
+    setMeus(l => l?.map(c => (ids.includes(c.id) ? { ...c, inNovidade: false } : c)) ?? null);
+    void marcarVistos(ids);
+  }, [aba, meus, marcarVistos]);
+
+  // Veio pelo aviso: rola até o chamado.
+  useEffect(() => {
+    if (!doAviso || aba !== "meus" || !meus) return;
+    const t = window.setTimeout(() => document.getElementById(`chamado-${doAviso}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 200);
+    return () => window.clearTimeout(t);
+  }, [doAviso, aba, meus]);
+
+  useEffect(() => { setSelecionados(new Set()); }, [aba]);
+
+  const exportar = async () => {
+    const escolhidos = lista.filter(c => selecionados.has(c.id));
+    if (!escolhidos.length) return;
+    setExportando(true);
+    setErro(null);
+    try {
+      await exportarChamados(escolhidos);
+      setAviso(`${escolhidos.length} chamado(s) exportado(s): o ZIP tem o chamados.md e a pasta imagens.`);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível exportar.");
+    } finally {
+      setExportando(false);
+    }
+  };
 
   const listaMeus = useMemo(() => ordenarChamados(meus ?? []), [meus]);
   const listaTodos = useMemo(() => ordenarChamados(todos ?? []), [todos]);
@@ -339,7 +415,25 @@ export default function Sac() {
               {aba === "meus" && <button type="button" onClick={() => setAba("novo")} className="ml-1 font-bold text-blue-600 hover:underline">Abrir um chamado</button>}
             </div>
           ) : (
-            lista.map(c => <CartaoChamado key={`${c.id}-${c.dhAtualizacao}`} c={c} admin={aba === "todos"} onAtualizar={atualizar} onExcluir={excluir} onAbrirImagem={setAmpliada} />)
+            <>
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+                <label className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                  <input type="checkbox" className="h-4 w-4 accent-blue-600" checked={selecionados.size === lista.length}
+                    onChange={e => setSelecionados(e.target.checked ? new Set(lista.map(c => c.id)) : new Set())} />
+                  Selecionar todos
+                </label>
+                <span className="text-xs text-slate-500">{selecionados.size} selecionado(s)</span>
+                <button type="button" onClick={exportar} disabled={!selecionados.size || exportando}
+                  className="ml-auto inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-700 disabled:opacity-40">
+                  {exportando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Exportar com prints
+                </button>
+              </div>
+              {lista.map(c => (
+                <CartaoChamado key={`${c.id}-${c.dhAtualizacao}`} c={c} admin={aba === "todos"} onAtualizar={atualizar} onExcluir={excluir} onAbrirImagem={setAmpliada}
+                  selecionado={selecionados.has(c.id)} novo={aba === "meus" && novosVistos.has(c.id)} destaque={aba === "meus" && c.id === doAviso}
+                  onSelecionar={sim => setSelecionados(atual => { const n = new Set(atual); if (sim) n.add(c.id); else n.delete(c.id); return n; })} />
+              ))}
+            </>
           )}
         </section>
       )}
