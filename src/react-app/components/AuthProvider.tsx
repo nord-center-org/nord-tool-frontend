@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { authService } from "@/react-app/services/AuthService";
+import { notificacaoService } from "@/react-app/services/NotificacaoService";
 import { EVENTO_SESSAO_ENCERRADA } from "@/react-app/services/apiClient";
 import { AuthContext, type AuthContexto } from "@/react-app/hooks/useAuth";
 import { gravarSessao, lerSessao, msAteRenovar, podeAcessar, sessaoValida, type Sessao } from "@/react-app/utils/sessao";
@@ -32,6 +33,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sair = useCallback(() => {
+    // Sair de propósito desliga as notificações deste aparelho (a sessão que só expirou continua recebendo).
+    void notificacaoService.esquecerEsteAparelho();
     setSessaoEncerrada(false);
     aplicar(null);
   }, [aplicar]);

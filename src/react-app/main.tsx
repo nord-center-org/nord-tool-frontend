@@ -9,3 +9,8 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </StrictMode>
 );
+
+// Service worker só para as notificações no celular (sem cache: ver public/sw.js).
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => { /* sem notificações */ }); });
+}

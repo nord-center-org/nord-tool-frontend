@@ -22,6 +22,7 @@ import { useObra } from "../hooks/useObra";
 import MeuAvatarMini from "../components/avatar/MeuAvatarMini";
 import CabecalhoPagina from "../components/ui/CabecalhoPagina";
 import AparenciaConfig from "../components/tema/AparenciaConfig";
+import NotificacoesConfig from "../components/notificacoes/NotificacoesConfig";
 
 type AbaCadastro = "empresas" | "cargos" | "permissoes" | "ferramentas";
 
@@ -206,6 +207,8 @@ export default function SettingsPage() {
               </div>
             </section>
           )}
+
+          <NotificacoesConfig />
 
           <AparenciaConfig />
 

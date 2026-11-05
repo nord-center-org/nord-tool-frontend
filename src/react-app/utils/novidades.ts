@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-05-notificacoes-celular",
+    data: "2026-11-05",
+    titulo: "Notificações no celular",
+    texto: "Em Configurações → Notificações no celular, toque em “Ativar notificações neste aparelho” para receber, mesmo com o app fechado, os avisos de demanda nova ou alterada, do horário agendado chegando, do prazo do dia e das respostas do SAC. No iPhone, adicione o NordTool à Tela de Início antes.",
+    onde: { rotulo: "Configurações → Notificações", caminho: "/configuracoes#notificacoes" },
+  },
+  {
     id: "2026-11-04-placas",
     data: "2026-11-04",
     titulo: "Placas: monte placas de aviso da obra",
