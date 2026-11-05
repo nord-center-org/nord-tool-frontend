@@ -1,5 +1,6 @@
 import { apiBlob, apiFetch } from "./apiClient";
 import type { FotoRelatorio, ItemRelatorio, StatusRelatorio } from "../utils/relatorioFotografico";
+import type { EquipeCompartilhavel, PessoaCompartilhavel } from "../utils/compartilhamento";
 
 export type FonteRelatorio = "HELVETICA" | "TIMES" | "COURIER";
 export type TipoImagemModelo = "fundo" | "icone";
@@ -19,6 +20,10 @@ export interface RelatorioFotografico {
   id: number; nmTitulo: string; nmLocal: string | null; dtRelatorio: string; nrFotosPagina: number; cdLayout: string; cdStatus: StatusRelatorio;
   idModelo: number | null; nmModelo: string | null; idFase: number | null; nmFase: string | null;
   idAutor: number; nmAutor: string | null; qtFotos: number; nrVersao: number;
+  /** v2: é de quem está logado (false = compartilhado comigo ou, para o administrador, de outra pessoa). */
+  inProprio?: boolean;
+  /** v2: com quem está compartilhado. */
+  idsCompartilhados?: number[];
   /** Só no detalhe. */
   itens?: ItemRelatorio[];
 }
@@ -39,9 +44,12 @@ export const relatorioFotograficoService = {
 
   listar: async () => (await apiFetch<RelatorioFotografico[]>(BASE)) ?? [],
   detalhar: (id: number) => apiFetch<RelatorioFotografico>(`${BASE}/${id}`),
-  /** idFase vai no cabeçalho X-Fase quando a pessoa participa de mais de uma fase. */
-  criar: (f: RelatorioForm, idFase?: number | null) =>
-    apiFetch<RelatorioFotografico>(BASE, { method: "POST", body: json(f), headers: idFase ? { "X-Fase": String(idFase) } : undefined }),
+  /** v2: o relatório é de quem cria (não depende mais de obra/fase). */
+  criar: (f: RelatorioForm) => apiFetch<RelatorioFotografico>(BASE, { method: "POST", body: json(f) }),
+  compartilhar: async (id: number, idsUsuarios: number[]) =>
+    (await apiFetch<RelatorioFotografico>(`${BASE}/${id}/compartilhamento`, { method: "PUT", body: json({ idsUsuarios }) }))?.idsCompartilhados ?? idsUsuarios,
+  pessoas: async () => (await apiFetch<PessoaCompartilhavel[]>(`${BASE}/pessoas`)) ?? [],
+  equipes: async () => (await apiFetch<EquipeCompartilhavel[]>(`${BASE}/equipes`)) ?? [],
   alterar: (id: number, f: RelatorioForm) => apiFetch<RelatorioFotografico>(`${BASE}/${id}`, { method: "PUT", body: json(f) }),
   alterarStatus: (id: number, cdStatus: StatusRelatorio, nrVersao: number) =>
     apiFetch<RelatorioFotografico>(`${BASE}/${id}/status`, { method: "PUT", body: json({ cdStatus, nrVersao }) }),

@@ -9,12 +9,13 @@ import { useAuth } from "@/react-app/hooks/useAuth";
 import {
   relatorioFotograficoService as servico, type ModeloRelatorio, type RelatorioFotografico, type RelatorioForm,
 } from "@/react-app/services/RelatorioFotograficoService";
+import { passaFiltroDono, type FiltroDono } from "@/react-app/utils/compartilhamento";
 import { ROTULO_STATUS, combinaBusca, type StatusRelatorio } from "@/react-app/utils/relatorioFotografico";
 import { podeAcessar } from "@/react-app/utils/sessao";
 
 const mensagem = (e: unknown, padrao: string) => (e instanceof Error && e.message ? e.message : padrao);
 
-/** Relatório fotográfico: lista dos relatórios da obra/fase, criação por modelo e preenchimento. */
+/** Relatório fotográfico: os relatórios da pessoa e os compartilhados com ela (o administrador vê todos), criação por modelo e preenchimento. */
 export default function RelatorioFotograficoPage() {
   const { usuario } = useAuth();
   const podeEditar = podeAcessar(usuario?.permissoes, "RELATORIO_FOTOGRAFICO", "ESCRITA");
@@ -27,6 +28,7 @@ export default function RelatorioFotograficoPage() {
   const [gerirModelos, setGerirModelos] = useState(false);
   const [busca, setBusca] = useState("");
   const [status, setStatus] = useState<StatusRelatorio | "">("");
+  const [dono, setDono] = useState<FiltroDono>("TODOS");
 
   const carregar = useCallback(async () => {
     setErro(null);
@@ -41,11 +43,12 @@ export default function RelatorioFotograficoPage() {
 
   useEffect(() => { void carregar(); }, [carregar]);
 
-  const visiveis = useMemo(() => (relatorios ?? []).filter(r => (!status || r.cdStatus === status) && combinaBusca(r, busca)), [relatorios, status, busca]);
+  const visiveis = useMemo(() => (relatorios ?? []).filter(r => (!status || r.cdStatus === status) && passaFiltroDono({ flProprio: r.inProprio }, dono) && combinaBusca(r, busca)),
+    [relatorios, status, dono, busca]);
 
-  const criar = async (form: RelatorioForm, idFase: number | null): Promise<string | null> => {
+  const criar = async (form: RelatorioForm): Promise<string | null> => {
     try {
-      const r = await servico.criar(form, idFase);
+      const r = await servico.criar(form);
       setRelatorios(l => [r, ...(l ?? [])]);
       setNovo(false);
       setAberto(r.id);
@@ -63,7 +66,7 @@ export default function RelatorioFotograficoPage() {
   if (aberto !== null) {
     return (
       <div className="mx-auto max-w-5xl">
-        <EditorRelatorio id={aberto} podeEditar={podeEditar} modelos={modelos} nomeUsuario={usuario?.nome ?? null} onVoltar={() => { setAberto(null); void carregar(); }}
+        <EditorRelatorio id={aberto} podeEditar={podeEditar} ehAdmin={ehAdmin} modelos={modelos} nomeUsuario={usuario?.nome ?? null} onVoltar={() => { setAberto(null); void carregar(); }}
           onAlterado={atualizarResumo} onExcluido={id => { setRelatorios(l => (l ?? []).filter(x => x.id !== id)); setAberto(null); }} />
       </div>
     );
@@ -71,7 +74,7 @@ export default function RelatorioFotograficoPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <CabecalhoPagina icone={Camera} titulo="Relatório fotográfico" subtitulo="Fotos organizadas por item, prontas para PDF"
+      <CabecalhoPagina icone={Camera} titulo="Relatório fotográfico" subtitulo={ehAdmin ? "Os seus relatórios, os compartilhados com você e os de toda a equipe" : "Os seus relatórios e os compartilhados com você"}
         acoes={<>
           {ehAdmin && (
             <button type="button" onClick={() => setGerirModelos(true)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
@@ -88,11 +91,16 @@ export default function RelatorioFotograficoPage() {
       <div className="mb-4 flex flex-wrap gap-2">
         <div className="relative min-w-0 flex-1 sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input aria-label="Buscar relatório" value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por título, local, fase…"
+          <input aria-label="Buscar relatório" value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por título, local, autor…"
             className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20" />
         </div>
+        <select aria-label="De quem" value={dono} onChange={e => setDono(e.target.value as FiltroDono)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+          <option value="TODOS">{ehAdmin ? "De todos" : "Meus e compartilhados"}</option>
+          <option value="MEUS">Meus</option>
+          <option value="COMIGO">{ehAdmin ? "De outras pessoas" : "Compartilhados comigo"}</option>
+        </select>
         <select aria-label="Status" value={status} onChange={e => setStatus(e.target.value as StatusRelatorio | "")} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
-          <option value="">Todos</option>
+          <option value="">Todos os status</option>
           <option value="RASCUNHO">{ROTULO_STATUS.RASCUNHO}</option>
           <option value="CONCLUIDO">{ROTULO_STATUS.CONCLUIDO}</option>
         </select>
@@ -120,7 +128,8 @@ export default function RelatorioFotograficoPage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-bold text-slate-800">{r.nmTitulo}</p>
                   <p className="truncate text-xs text-slate-500">
-                    {r.dtRelatorio.split("-").reverse().join("/")}{r.nmLocal ? ` · ${r.nmLocal}` : ""}{r.nmFase ? ` · ${r.nmFase}` : ""} · {r.qtFotos} foto(s)
+                    {r.dtRelatorio.split("-").reverse().join("/")}{r.nmLocal ? ` · ${r.nmLocal}` : ""}{r.inProprio === false && r.nmAutor ? ` · de ${r.nmAutor}` : ""} · {r.qtFotos} foto(s)
+                    {r.inProprio !== false && (r.idsCompartilhados?.length ?? 0) > 0 ? ` · compartilhado com ${r.idsCompartilhados!.length}` : ""}
                   </p>
                 </div>
                 <span className={`hidden shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold sm:inline ${r.cdStatus === "CONCLUIDO" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{ROTULO_STATUS[r.cdStatus]}</span>

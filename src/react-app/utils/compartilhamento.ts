@@ -2,6 +2,9 @@
 
 export interface PessoaCompartilhavel { id: number; nmNome: string; nmCargo: string | null; inEquipe: boolean }
 
+/** Equipe (do cronograma) usada como atalho: marca todos os membros. */
+export interface EquipeCompartilhavel { id: number; nmEquipe: string; nmObra: string | null; idsMembros: number[] }
+
 export type FiltroDono = "TODOS" | "MEUS" | "COMIGO";
 
 const normalizar = (t: string) => t.toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -18,6 +21,11 @@ export const alternarPessoa = (ids: number[], id: number): number[] => (ids.incl
 export function comEquipe(ids: number[], pessoas: PessoaCompartilhavel[]): number[] {
   const equipe = pessoas.filter(p => p.inEquipe).map(p => p.id);
   return [...ids, ...equipe.filter(id => !ids.includes(id))];
+}
+
+/** Marca os membros de uma equipe sem desmarcar ninguém (o próprio usuário o servidor tira). */
+export function comMembros(ids: number[], membros: number[]): number[] {
+  return [...ids, ...membros.filter((id, i) => !ids.includes(id) && membros.indexOf(id) === i)];
 }
 
 /** Item é meu quando o backend não disse o contrário (flProprio ausente em itens antigos). */
