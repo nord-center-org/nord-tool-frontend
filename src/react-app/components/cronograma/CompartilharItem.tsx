@@ -2,26 +2,45 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, Search, Share2, Users } from "lucide-react";
 
 import { CronogramaSemanalService } from "@/react-app/services/CronogramaSemanalService";
-import { alternarPessoa, comEquipe, filtrarPessoas, mesmosIds, resumoNomes, type PessoaCompartilhavel } from "@/react-app/utils/compartilhamento";
+import {
+  alternarPessoa, comEquipe, comMembros, filtrarPessoas, mesmosIds, resumoNomes, type EquipeCompartilhavel, type PessoaCompartilhavel,
+} from "@/react-app/utils/compartilhamento";
+
+/** De onde vêm as pessoas e como salvar (padrão: o cronograma). Equipes são opcionais. */
+export interface FonteCompartilhamento {
+  pessoas: () => Promise<PessoaCompartilhavel[]>;
+  compartilhar: (id: number, ids: number[]) => Promise<number[]>;
+  equipes?: () => Promise<EquipeCompartilhavel[]>;
+}
+
+const FONTE_CRONOGRAMA: FonteCompartilhamento = {
+  pessoas: () => CronogramaSemanalService.pessoas(),
+  compartilhar: async (id, ids) => (await CronogramaSemanalService.compartilhar(id, ids))?.idsCompartilhados ?? ids,
+};
 
 interface Props {
   idItem: number;
   idsAtuais: number[];
   onCompartilhado: (ids: number[]) => void;
+  fonte?: FonteCompartilhamento;
+  /** O que aparece quando não há ninguém (ex.: "Só você vê este relatório"). */
+  textoSoVoce?: string;
 }
 
-/** Com quem o dono compartilha o compromisso/nota (quem recebe vê, mas só o dono altera). */
-export default function CompartilharItem({ idItem, idsAtuais, onCompartilhado }: Props) {
+/** Com quem o dono compartilha o item (quem recebe vê, mas só o dono altera). */
+export default function CompartilharItem({ idItem, idsAtuais, onCompartilhado, fonte = FONTE_CRONOGRAMA, textoSoVoce = "Só você vê este item" }: Props) {
   const [pessoas, setPessoas] = useState<PessoaCompartilhavel[] | null>(null);
   const [aberto, setAberto] = useState(false);
   const [ids, setIds] = useState<number[]>(idsAtuais);
   const [busca, setBusca] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [equipes, setEquipes] = useState<EquipeCompartilhavel[]>([]);
 
   useEffect(() => {
-    CronogramaSemanalService.pessoas().then(setPessoas).catch(() => setPessoas([]));
-  }, []);
+    fonte.pessoas().then(setPessoas).catch(() => setPessoas([]));
+    fonte.equipes?.().then(setEquipes).catch(() => setEquipes([]));
+  }, [fonte]);
   useEffect(() => { setIds(idsAtuais); }, [idsAtuais]);
 
   const visiveis = useMemo(() => filtrarPessoas(pessoas ?? [], busca), [pessoas, busca]);
@@ -32,8 +51,7 @@ export default function CompartilharItem({ idItem, idsAtuais, onCompartilhado }:
     setSalvando(true);
     setErro(null);
     try {
-      const r = await CronogramaSemanalService.compartilhar(idItem, ids);
-      onCompartilhado(r?.idsCompartilhados ?? ids);
+      onCompartilhado(await fonte.compartilhar(idItem, ids));
       setAberto(false);
     } catch (e) {
       setErro(e instanceof Error && e.message ? e.message : "Não foi possível compartilhar.");
@@ -47,7 +65,7 @@ export default function CompartilharItem({ idItem, idsAtuais, onCompartilhado }:
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-slate-500">
           <Share2 size={14} className="mr-1 inline" />
-          {idsAtuais.length ? <>Compartilhado com <b className="text-slate-800">{resumoNomes(idsAtuais, pessoas ?? [])}</b></> : "Só você vê este item"}
+          {idsAtuais.length ? <>Compartilhado com <b className="text-slate-800">{resumoNomes(idsAtuais, pessoas ?? [])}</b></> : textoSoVoce}
         </p>
         <button type="button" onClick={() => setAberto(v => !v)} aria-expanded={aberto} className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-bold text-violet-700 hover:bg-slate-100">
           {aberto ? "Fechar" : "Compartilhar"}
@@ -68,6 +86,17 @@ export default function CompartilharItem({ idItem, idsAtuais, onCompartilhado }:
               </button>
             )}
           </div>
+          {equipes.length > 0 && (
+            <div className="flex flex-wrap gap-1.5" aria-label="Equipes">
+              {equipes.map(e => (
+                <button key={e.id} type="button" onClick={() => setIds(atual => comMembros(atual, e.idsMembros))}
+                  title={`Marcar os ${e.idsMembros.length} membros${e.nmObra ? ` (${e.nmObra})` : ""}`}
+                  className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-[11px] font-bold text-violet-700 hover:bg-violet-50">
+                  <Users size={12} /> {e.nmEquipe}
+                </button>
+              ))}
+            </div>
+          )}
           {pessoas === null ? <Loader2 className="mx-auto animate-spin text-violet-600" size={18} /> : (
             <ul className="max-h-44 space-y-0.5 overflow-y-auto" aria-label="Pessoas">
               {visiveis.map(p => (

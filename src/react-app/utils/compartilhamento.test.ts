@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { alternarPessoa, comEquipe, ehMeu, filtrarPessoas, passaFiltroDono, resumoNomes, type PessoaCompartilhavel } from "./compartilhamento.ts";
+import { alternarPessoa, comEquipe, comMembros, ehMeu, filtrarPessoas, passaFiltroDono, resumoNomes, type PessoaCompartilhavel } from "./compartilhamento.ts";
 
 const pessoas: PessoaCompartilhavel[] = [
   { id: 1, nmNome: "Ana Souza", nmCargo: "Engenheira", inEquipe: false },
@@ -35,4 +35,9 @@ test("resumo dos nomes", () => {
   assert.equal(resumoNomes([1], pessoas), "Ana");
   assert.equal(resumoNomes([1, 2], pessoas), "Ana e Bruno");
   assert.equal(resumoNomes([1, 2, 3, 9], pessoas), "Ana, Bruno e mais 2");
+});
+
+test("equipe marca os membros sem desmarcar e sem repetir", () => {
+  assert.deepEqual(comMembros([1, 2], [2, 3, 3, 4]), [1, 2, 3, 4]);
+  assert.deepEqual(comMembros([], []), []);
 });

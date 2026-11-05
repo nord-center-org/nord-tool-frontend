@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDown, ArrowLeft, ArrowUp, Camera, CheckCircle2, FileDown, ImagePlus, Loader2, Lock, Plus, RotateCcw, Save, Trash2, X,
-  Eye,
+  Eye, Share2,
 } from "lucide-react";
 
 import ImagemAutenticada from "@/react-app/components/ImagemAutenticada";
+import CompartilharItem, { type FonteCompartilhamento } from "@/react-app/components/cronograma/CompartilharItem";
 import CapturaFoto from "@/react-app/components/relatorio/CapturaFoto";
 import EditorFoto from "@/react-app/components/relatorio/EditorFoto";
 import SeletorLayout from "@/react-app/components/relatorio/SeletorLayout";
@@ -22,6 +23,7 @@ import {
 const classeInput = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-50 disabled:text-slate-500";
 const mensagem = (e: unknown, padrao: string) => (e instanceof Error && e.message ? e.message : padrao);
 const dataBr = (iso: string) => iso.split("-").reverse().join("/");
+const FONTE_RELATORIO: FonteCompartilhamento = { pessoas: servico.pessoas, compartilhar: servico.compartilhar, equipes: servico.equipes };
 
 /** Item na tela: `chave` estável mesmo para itens ainda não salvos (sem id). */
 interface ItemLocal { chave: string; id?: number; nmItem: string; txOrientacao: string | null; txResposta: string; fotos: FotoRelatorio[] }
@@ -31,7 +33,9 @@ const paraLocal = (itens: ItemRelatorio[] = []): ItemLocal[] =>
 
 interface Props {
   id: number;
+  /** Permissão de escrita no módulo; no relatório de outra pessoa só vale para o administrador. */
   podeEditar: boolean;
+  ehAdmin?: boolean;
   /** Modelos (para a aparência do PDF: fonte, cabeçalho, fundo e ícone). */
   modelos: ModeloRelatorio[];
   /** Quem gera o PDF: vai no rodapé "Feito no NordTool por …". */
@@ -42,7 +46,7 @@ interface Props {
 }
 
 /** Preenchimento do relatório: cabeçalho, itens (observação + fotos), concluir, PDF e exclusão. */
-export default function EditorRelatorio({ id, podeEditar, modelos, nomeUsuario, onVoltar, onAlterado, onExcluido }: Props) {
+export default function EditorRelatorio({ id, podeEditar: podeEditarModulo, ehAdmin = false, modelos, nomeUsuario, onVoltar, onAlterado, onExcluido }: Props) {
   const [rel, setRel] = useState<RelatorioFotografico | null>(null);
   const [titulo, setTitulo] = useState("");
   const [local, setLocal] = useState("");
@@ -100,6 +104,9 @@ export default function EditorRelatorio({ id, podeEditar, modelos, nomeUsuario, 
     );
   }
 
+  const meu = rel.inProprio !== false;
+  // Compartilhado comigo é só para ver; o administrador do módulo altera o de qualquer pessoa.
+  const podeEditar = podeEditarModulo && (meu || ehAdmin);
   const concluido = rel.cdStatus === "CONCLUIDO";
   const editavel = podeEditar && !concluido;
   const { respondidos, total } = progresso(itens.map((i, n) => ({ id: i.id ?? -n, nrOrdem: n, nmItem: i.nmItem, txOrientacao: i.txOrientacao, txResposta: i.txResposta, fotos: i.fotos })));
@@ -337,6 +344,15 @@ export default function EditorRelatorio({ id, podeEditar, modelos, nomeUsuario, 
           )}
         </div>
       </div>
+
+      {podeEditar ? (
+        <CompartilharItem idItem={rel.id} idsAtuais={rel.idsCompartilhados ?? []} fonte={FONTE_RELATORIO} textoSoVoce={meu ? "Só você vê este relatório" : `Só ${rel.nmAutor ?? "quem criou"} vê este relatório`}
+          onCompartilhado={ids => { const novo = { ...rel, idsCompartilhados: ids }; setRel(novo); onAlterado(novo); }} />
+      ) : !meu && (
+        <p className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          <Share2 className="h-4 w-4 shrink-0 text-violet-600" /> {rel.nmAutor ?? "Alguém"} compartilhou este relatório com você: dá para ver e baixar o PDF; só quem criou altera.
+        </p>
+      )}
 
       {/* Avisos flutuando embaixo: aparecem mesmo com a página rolada. */}
       <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[70] flex flex-col items-center gap-2 px-4">

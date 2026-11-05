@@ -3,14 +3,13 @@ import { Loader2 } from "lucide-react";
 
 import Campo, { classeInput } from "@/react-app/components/casamento/Campo";
 import ModalBase from "@/react-app/components/casamento/ModalBase";
-import { useObra } from "@/react-app/hooks/useObra";
 import type { ModeloRelatorio, RelatorioForm } from "@/react-app/services/RelatorioFotograficoService";
 import { hojeSaoPaulo } from "@/react-app/utils/caixinha";
 import SeletorLayout from "@/react-app/components/relatorio/SeletorLayout";
 
 interface Props {
   modelos: ModeloRelatorio[];
-  onCriar: (form: RelatorioForm, idFase: number | null) => Promise<string | null>;
+  onCriar: (form: RelatorioForm) => Promise<string | null>;
   onFechar: () => void;
 }
 
@@ -22,8 +21,6 @@ export default function NovoRelatorioModal({ modelos, onCriar, onFechar }: Props
   const [data, setData] = useState(hojeSaoPaulo());
   const [idModelo, setIdModelo] = useState<number | null>(ativos[0]?.id ?? null);
   const [layout, setLayout] = useState<string | null>(null);
-  const fases = useObra().fases.filter(f => f.id !== null);
-  const [idFase, setIdFase] = useState<number | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
@@ -35,13 +32,12 @@ export default function NovoRelatorioModal({ modelos, onCriar, onFechar }: Props
     if (salvando) return;
     if (!titulo.trim()) return setErro("Informe o título do relatório.");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return setErro("Informe a data.");
-    if (fases.length > 1 && !idFase) return setErro("Escolha a fase do relatório.");
     setSalvando(true);
     setErro(null);
     const mensagem = await onCriar({
       nmTitulo: titulo.trim(), nmLocal: local.trim() || null, dtRelatorio: data, idModelo, cdLayout: layoutEfetivo,
       itens: modelo ? undefined : [{ nmItem: "Fotos", txOrientacao: null, txResposta: null }],
-    }, fases.length > 1 ? idFase : null);
+    });
     setSalvando(false);
     if (mensagem) setErro(mensagem);
   };
@@ -61,14 +57,6 @@ export default function NovoRelatorioModal({ modelos, onCriar, onFechar }: Props
             <input type="date" value={data} onChange={e => setData(e.target.value)} className={classeInput} />
           </Campo>
         </div>
-        {fases.length > 1 && (
-          <Campo rotulo="Fase">
-            <select value={idFase ?? ""} onChange={e => setIdFase(e.target.value ? Number(e.target.value) : null)} className={classeInput}>
-              <option value="">Escolha a fase</option>
-              {fases.map(f => <option key={f.id} value={f.id ?? ""}>{f.nome}</option>)}
-            </select>
-          </Campo>
-        )}
         <Campo rotulo="Modelo" dica={modelo ? `${modelo.itens.length} item(ns) já entram no relatório.` : "Sem modelo: o relatório começa com um item \"Fotos\" e você adiciona outros."}>
           <select value={idModelo ?? ""} onChange={e => { setIdModelo(e.target.value ? Number(e.target.value) : null); setLayout(null); }} className={classeInput}>
             <option value="">Sem modelo (livre)</option>

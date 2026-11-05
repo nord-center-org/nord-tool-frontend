@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-05-relatorio-por-usuario",
+    data: "2026-11-05",
+    titulo: "Relatório fotográfico: cada um com os seus, e compartilháveis",
+    texto: "Os relatórios fotográficos agora são de quem cria, não da obra: cada pessoa vê os seus e os que foram compartilhados com ela, e os administradores veem todos. Dentro do relatório, “Compartilhar” manda para pessoas, para a sua equipe ou para uma equipe inteira; quem recebe vê e baixa o PDF.",
+    onde: { rotulo: "Mapeamentos → Relatório fotográfico", caminho: "/mapeamentos/relatorio-fotografico" },
+  },
+  {
     id: "2026-11-05-notificacoes-celular",
     data: "2026-11-05",
     titulo: "Notificações no celular",
