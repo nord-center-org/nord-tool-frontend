@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-09-bloco-notas",
+    data: "2026-11-09",
+    titulo: "Bloco de notas: escreva à mão e anote PDFs",
+    texto: "Em Mapeamentos → Bloco de notas, crie cadernos (pautado, quadriculado, pontilhado ou em branco) e escreva com caneta que sente a pressão, marca-texto, borracha, formas, texto e imagens. Abra um PDF para anotar por cima e baixe o caderno em PDF quando quiser.",
+    onde: { rotulo: "Mapeamentos → Bloco de notas", caminho: "/mapeamentos/bloco-notas" },
+  },
+  {
     id: "2026-11-05-relatorio-por-usuario",
     data: "2026-11-05",
     titulo: "Relatório fotográfico: cada um com os seus, e compartilháveis",

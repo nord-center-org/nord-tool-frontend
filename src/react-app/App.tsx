@@ -35,6 +35,7 @@ import TemaProvider from "@/react-app/components/tema/TemaProvider";
 const Escadinha = lazy(() => import("@/react-app/pages/Escadinha"));
 const Sac = lazy(() => import("@/react-app/pages/Sac"));
 const Placas = lazy(() => import("@/react-app/pages/Placas"));
+const BlocoNotas = lazy(() => import("@/react-app/pages/BlocoNotas"));
 
 function CarregandoTela() {
   return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-600" aria-label="Carregando" /></div>;
@@ -68,6 +69,7 @@ export default function App() {
             <Route path="mapeamentos/pendencias" element={<ConcretagemInProgress />} />
             <Route path="mapeamentos/relatorio-fotografico" element={<RelatorioFotograficoPage />} />
             <Route path="mapeamentos/placas" element={<Suspense fallback={<CarregandoTela />}><Placas /></Suspense>} />
+            <Route path="mapeamentos/bloco-notas" element={<Suspense fallback={<CarregandoTela />}><BlocoNotas /></Suspense>} />
   
             {/* Organizacional */}
             <Route path="organizacional/rte" element={<ConcretagemInProgress />} />

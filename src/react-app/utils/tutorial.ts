@@ -55,6 +55,7 @@ export const DESCRICAO_DAS_TELAS: Record<string, string> = {
   "/dashboard": "Os números das entregas: liberadas, vistoriadas, aprovadas e reprovadas por período.",
   "/mapeamentos/conferencias": "Contagens de campo e quantitativos (projeto × medido × solicitado).",
   "/mapeamentos/pendencias": EM_BREVE,
+  "/mapeamentos/bloco-notas": "Cadernos para escrever à mão (caneta com pressão, marca-texto, formas, texto e imagens), anotar PDFs e exportar em PDF.",
   "/mapeamentos/placas": "Placas de aviso da obra a partir de modelos (fundo com marca d'água, logo, texto e rodapé), em PNG ou PDF para imprimir.",
   "/mapeamentos/relatorio-fotografico": "Fotos organizadas por item, com edição e PDF pronto no padrão da obra.",
   "/organizacional/rte": EM_BREVE,
@@ -212,6 +213,25 @@ const EM_CONSTRUCAO: Tutorial = {
 };
 
 export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
+  "/mapeamentos/bloco-notas": {
+    titulo: "Bloco de notas",
+    passos: [
+      {
+        titulo: "Seus cadernos",
+        texto: "Crie cadernos com papel pautado, quadriculado, pontilhado ou em branco. Só você vê os seus, e tudo é salvo sozinho enquanto você escreve.",
+        alvo: { css: "button", texto: "Novo caderno" },
+      },
+      {
+        titulo: "Anote em PDFs",
+        texto: "“Abrir PDF” transforma cada página do PDF numa página do caderno para marcar por cima. No fim, baixe tudo em PDF.",
+        alvo: { css: "button", texto: "Abrir PDF" },
+      },
+      {
+        titulo: "Ferramentas",
+        texto: "Dentro do caderno: caneta (sente a pressão da caneta stylus), marca-texto, borracha de traço ou de parte, formas, texto, imagem e o laço para selecionar, mover, redimensionar e recolorir. “Só caneta” deixa o dedo rolar a página enquanto a caneta escreve.",
+      },
+    ],
+  },
   "/mapeamentos/placas": {
     titulo: "Placas",
     passos: [
