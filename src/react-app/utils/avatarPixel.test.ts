@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  ACESSORIOS, BARBAS, BOCAS, CABELOS, CORES_CABELO, DATAS, DETALHES, FORMATOS_OLHOS, FUNCOES, FUNDOS, OLHOS, SOBRANCELHAS, avatarPadrao,
+  ACESSORIOS, BARBAS, BATONS, BOCAS, CABELOS, CORES_CABELO, DATAS, DETALHES, ENFEITES, FORMATOS_OLHOS, FUNCOES, FUNDOS, OLHOS, SOBRANCELHAS, TRACOS, avatarPadrao,
   type DataComemorativa,
 } from "./avatar.ts";
 import { CONTORNO, LADO, diferenca, emRetangulos, montarGrade, tom } from "./avatarPixel.ts";
@@ -55,4 +55,25 @@ test("retângulos cobrem a grade e tons clareiam/escurecem", () => {
   assert.equal(area, LADO * LADO);
   assert.equal(tom("#808080", -0.5), "#404040");
   assert.equal(tom("#000000", 1), "#ffffff");
+});
+
+const mudou = (a: (string | null)[][], b: (string | null)[][]) => diferenca(a, b).flat().filter(v => v !== null).length;
+
+test("v2: traços femininos, batom e enfeites montam a grade e mudam o desenho", () => {
+  const base = avatarPadrao(3);
+  for (const tracos of TRACOS) for (const batom of Object.keys(BATONS) as (keyof typeof BATONS)[]) for (const enfeite of ENFEITES) {
+    for (const capacete of [true, false]) for (const olhos of OLHOS) for (const boca of BOCAS) {
+      assert.ok(cheia(montarGrade({ ...base, tracos, batom, enfeite, capacete, olhos, boca }, null)), `${tracos}/${batom}/${enfeite}/${olhos}/${boca}`);
+    }
+  }
+  const sem = { ...base, capacete: false };
+  const masc = montarGrade(sem, null), fem = montarGrade({ ...sem, tracos: "feminino" }, null);
+  assert.ok(mudou(masc, fem) > 4, "feminino tem cílios, bochechas e decote");
+  assert.ok(mudou(montarGrade(sem, null), montarGrade({ ...sem, batom: "vermelho" }, null)) > 0, "batom muda a boca");
+  for (const enfeite of ENFEITES.filter(e => e !== "nenhum")) assert.ok(mudou(masc, montarGrade({ ...sem, enfeite }, null)) > 0, enfeite);
+  // Laço, tiara e flor ficam escondidos debaixo do capacete; argola e pérola continuam.
+  const comCapacete = { ...base, capacete: true };
+  assert.equal(mudou(montarGrade(comCapacete, null), montarGrade({ ...comCapacete, enfeite: "laco" }, null)), 0);
+  assert.ok(mudou(montarGrade(comCapacete, null), montarGrade({ ...comCapacete, enfeite: "argola" }, null)) > 0);
+  for (const cabelo of ["longoLiso", "cachosLongos", "mariaChiquinha"] as const) assert.ok(mudou(masc, montarGrade({ ...sem, cabelo }, null)) > 0, cabelo);
 });

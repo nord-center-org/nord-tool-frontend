@@ -16,7 +16,15 @@ export const FUNDOS_CENA = ["ceu", "obra", "noite"] as const;
 
 export const CABELOS = [
   "curto", "raspado", "topete", "franja", "ondulado", "cacheado", "afro", "moicano", "longo", "rabo", "coque", "trancas", "dreads", "chanel", "careca",
+  // v2
+  "longoLiso", "cachosLongos", "mariaChiquinha",
 ] as const;
+/** v2: traços do rosto e do corpo (femininos: cílios, bochechas rosadas, sobrancelha fina e decote). */
+export const TRACOS = ["masculino", "feminino"] as const;
+/** v2: cor do batom ("nenhum" = boca natural). */
+export const BATONS = { nenhum: "", rosa: "#db2777", vermelho: "#dc2626", nude: "#c2826b", vinho: "#881337", coral: "#f97362" } as const;
+/** v2: enfeites (vão junto com óculos e EPI; laço, tiara e flor só aparecem sem capacete). */
+export const ENFEITES = ["nenhum", "argola", "perola", "laco", "tiara", "flor"] as const;
 export const SOBRANCELHAS = ["normal", "grossa", "fina", "arqueada"] as const;
 export const OLHOS = ["normal", "feliz", "piscando", "sereno", "surpreso", "bravo"] as const;
 /** Formato dos olhos (independe da expressão). */
@@ -69,6 +77,9 @@ export type CorOlhos = keyof typeof CORES_OLHOS;
 export type Acessorio = (typeof ACESSORIOS)[number];
 export type Detalhe = (typeof DETALHES)[number];
 export type CorCapacete = keyof typeof CORES_CAPACETE;
+export type Tracos = (typeof TRACOS)[number];
+export type Batom = keyof typeof BATONS;
+export type Enfeite = (typeof ENFEITES)[number];
 
 export interface AvatarConfig {
   pele: Pele; cabelo: Cabelo; corCabelo: CorCabelo; olhos: Olhos; boca: Boca; barba: Barba;
@@ -78,6 +89,10 @@ export interface AvatarConfig {
   corCapacete: CorCapacete;
   /** Veste o tema das datas comemorativas (Natal, Páscoa…) quando for a época. */
   datas: boolean;
+  /** v2 */
+  tracos: Tracos;
+  batom: Batom;
+  enfeite: Enfeite;
 }
 
 export type DataComemorativa = "natal" | "anoNovo" | "carnaval" | "pascoa" | "junina" | "halloween";
@@ -135,6 +150,10 @@ export function avatarPadrao(idUsuario: number, cargo?: string | null): AvatarCo
     detalhe: escolher(["nenhum", "nenhum", "nenhum", "sardas", "bochechas"] as const, s, 9),
     corCapacete: "funcao",
     datas: true,
+    // v2: o padrão continua o de antes (quem não mexeu no avatar não vê mudança).
+    tracos: "masculino",
+    batom: "nenhum",
+    enfeite: "nenhum",
   };
 }
 
@@ -145,6 +164,7 @@ export function avatarAleatorio(sorteio: () => number = Math.random): AvatarConf
     barba: um(BARBAS), funcao: um(chaves(FUNCOES)), capacete: sorteio() < 0.8, fundo: um(chaves(FUNDOS)),
     sobrancelha: um(SOBRANCELHAS), corOlhos: um(chaves(CORES_OLHOS)), formatoOlhos: um(FORMATOS_OLHOS), acessorio: sorteio() < 0.5 ? "nenhum" : um(ACESSORIOS),
     detalhe: um(DETALHES), corCapacete: sorteio() < 0.6 ? "funcao" : um(chaves(CORES_CAPACETE)), datas: true,
+    tracos: um(TRACOS), batom: sorteio() < 0.6 ? "nenhum" : um(chaves(BATONS)), enfeite: sorteio() < 0.5 ? "nenhum" : um(ENFEITES),
   };
 }
 
@@ -176,6 +196,9 @@ export function lerAvatar(dsConfig: string | null | undefined, idUsuario: number
     detalhe: de(DETALHES, bruto.detalhe, base.detalhe),
     corCapacete: de(chaves(CORES_CAPACETE), bruto.corCapacete, base.corCapacete),
     datas: typeof bruto.datas === "boolean" ? bruto.datas : base.datas,
+    tracos: de(TRACOS, bruto.tracos, base.tracos),
+    batom: de(chaves(BATONS), bruto.batom, base.batom),
+    enfeite: de(ENFEITES, bruto.enfeite, base.enfeite),
   };
 }
 

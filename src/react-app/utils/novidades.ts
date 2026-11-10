@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-10-avatar-feminino",
+    data: "2026-11-10",
+    titulo: "Avatar: versão feminina",
+    texto: "Em Meu avatar, escolha traços femininos (cílios, bochechas rosadas e blusa com decote), batom, cabelos novos (longo com franja, cachos longos, maria-chiquinha) e enfeites: argolas, pérolas, laço, tiara e flor.",
+    onde: { rotulo: "Configurações → Meu avatar", caminho: "/conta/avatar" },
+  },
+  {
     id: "2026-11-10-meus-dados",
     data: "2026-11-10",
     titulo: "Meus dados: cada um cuida dos seus",

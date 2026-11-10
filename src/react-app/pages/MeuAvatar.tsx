@@ -8,7 +8,8 @@ import { useAuth } from "@/react-app/hooks/useAuth";
 import { definirMeuAvatar, useMeuAvatar } from "@/react-app/hooks/useMeuAvatar";
 import { avatarService } from "@/react-app/services/AvatarService";
 import {
-  ACESSORIOS, BARBAS, BOCAS, CABELOS, CORES_CABELO, CORES_CAPACETE, CORES_OLHOS, DATAS, DETALHES, FORMATOS_OLHOS, FUNCOES, FUNDOS, FUNDOS_CENA, OLHOS, PELES, SOBRANCELHAS,
+  ACESSORIOS, BARBAS, BATONS, BOCAS, CABELOS, CORES_CABELO, CORES_CAPACETE, CORES_OLHOS, DATAS, DETALHES, ENFEITES, FORMATOS_OLHOS, FUNCOES, FUNDOS, FUNDOS_CENA, OLHOS, PELES,
+  SOBRANCELHAS, TRACOS,
   avatarAleatorio, lerAvatar, salvarAvatar, temaDoAvatar, type AvatarConfig, type DataComemorativa,
 } from "@/react-app/utils/avatar";
 import { hojeSaoPaulo } from "@/react-app/utils/caixinha";
@@ -24,7 +25,11 @@ const ROTULOS: Record<string, string> = {
   nenhum: "Nenhum", oculos: "Óculos", oculosSol: "Óculos escuros", oculosSeguranca: "Óculos de proteção", protetorAuricular: "Abafador",
   radio: "Rádio", lapis: "Lápis na orelha", brinco: "Brinco", mascara: "Máscara PFF2",
   sardas: "Sardas", pinta: "Pinta", bochechas: "Bochechas",
+  longoLiso: "Longo com franja", cachosLongos: "Cachos longos", mariaChiquinha: "Maria-chiquinha",
+  masculino: "Masculinos", feminino: "Femininos",
+  argola: "Argolas", perola: "Pérolas", laco: "Laço", tiara: "Tiara", flor: "Flor",
 };
+const ROTULO_BATOM: Record<string, string> = { nenhum: "Sem batom", rosa: "Rosa", vermelho: "Vermelho", nude: "Nude", vinho: "Vinho", coral: "Coral" };
 const ROTULO_FUNDO: Record<string, string> = { ceu: "Céu", obra: "Canteiro", noite: "Noite" };
 const ROTULO_CAPACETE: Record<string, string> = { funcao: "Da função" };
 
@@ -132,6 +137,11 @@ export default function MeuAvatarPage() {
         </section>
 
         <div className="space-y-4">
+          <Grupo titulo="Traços" dica="Femininos: cílios, bochechas rosadas e decote na blusa.">
+            <div className="grid max-w-xs grid-cols-2 gap-2">
+              {TRACOS.map(t => opcao(`t-${t}`, config.tracos === t, t === "feminino" ? { tracos: t, barba: "nenhuma" } : { tracos: t }, ROTULOS[t]))}
+            </div>
+          </Grupo>
           <Grupo titulo="Função na obra" dica="Define a roupa e a cor do capacete.">
             <div className="grid grid-cols-3 gap-1 sm:grid-cols-4 xl:grid-cols-8">
               {(Object.keys(FUNCOES) as AvatarConfig["funcao"][]).map(f => opcao(f, config.funcao === f, { funcao: f }, FUNCOES[f].rotulo))}
@@ -187,12 +197,22 @@ export default function MeuAvatarPage() {
             <Grupo titulo="Boca">
               <div className="grid grid-cols-5 gap-1">{BOCAS.map(b => opcao(b, config.boca === b, { boca: b }, ROTULOS[b]))}</div>
             </Grupo>
+            <Grupo titulo="Batom">
+              <div className="flex flex-wrap items-center gap-2">
+                {(Object.keys(BATONS) as AvatarConfig["batom"][]).map(b => b === "nenhum"
+                  ? <button key={b} type="button" aria-pressed={config.batom === b} onClick={() => mudar({ batom: b })} className={`rounded-full border-2 px-3 py-1.5 text-xs font-bold ${config.batom === b ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-500"}`}>{ROTULO_BATOM[b]}</button>
+                  : cor(`b-${b}`, config.batom === b, BATONS[b], { batom: b }, `Batom ${ROTULO_BATOM[b]}`))}
+              </div>
+            </Grupo>
             <Grupo titulo="Barba">
               <div className="grid grid-cols-3 gap-1 sm:grid-cols-6 md:grid-cols-3">{BARBAS.map(b => opcao(b, config.barba === b, { barba: b }, ROTULOS[b]))}</div>
             </Grupo>
           </div>
           <Grupo titulo="Acessórios" dica="Óculos, EPI e outros detalhes.">
             <div className="grid grid-cols-3 gap-1 sm:grid-cols-5 xl:grid-cols-9">{ACESSORIOS.map(a => opcao(a, config.acessorio === a, { acessorio: a }, ROTULOS[a]))}</div>
+          </Grupo>
+          <Grupo titulo="Enfeites" dica="Combinam com óculos e EPI. Laço, tiara e flor aparecem sem capacete.">
+            <div className="grid grid-cols-3 gap-1 sm:grid-cols-6">{ENFEITES.map(e => opcao(`e-${e}`, config.enfeite === e, e === "laco" || e === "tiara" || e === "flor" ? { enfeite: e, capacete: false } : { enfeite: e }, ROTULOS[e]))}</div>
           </Grupo>
           <Grupo titulo="Detalhes do rosto">
             <div className="grid grid-cols-4 gap-1 sm:max-w-md">{DETALHES.map(d => opcao(d, config.detalhe === d, { detalhe: d }, ROTULOS[d]))}</div>
