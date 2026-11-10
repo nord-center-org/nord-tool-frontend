@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as PE } from "react";
-import { ArrowDownToLine, ArrowUpToLine, ChevronDown, ChevronUp, Copy, Layers, RotateCw, Trash2 } from "lucide-react";
+import { ArrowDownToLine, ArrowUpToLine, ChevronDown, ChevronUp, Copy, Layers, RotateCw, Trash2, Brush } from "lucide-react";
 
 import {
   girar, moverComGuias, mudarOrdem, novoIdImagem, redimensionar, type Alca, type Guia, type ImagemPlaca,
@@ -11,6 +11,8 @@ interface Props {
   escala: number;
   imagens: ImagemPlaca[];
   onMudar: (lista: ImagemPlaca[]) => void;
+  /** Abre a imagem selecionada no editor de imagens. */
+  onEditar?: (imagem: ImagemPlaca) => void;
 }
 
 const ALCAS: Array<{ id: Alca; cursor: string; x: number; y: number }> = [
@@ -30,7 +32,7 @@ type Gesto =
  * bolinha de baixo gira. A barra em cima da prévia (para não cobrir a imagem) muda a ordem, a camada (atrás do painel ou na frente), duplica e
  * apaga. Setas movem 1 px (Shift: 10 px) e Delete apaga.
  */
-export default function ImagensNaFolha({ folha, escala, imagens, onMudar }: Props) {
+export default function ImagensNaFolha({ folha, escala, imagens, onMudar, onEditar }: Props) {
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [guias, setGuias] = useState<Guia[]>([]);
   const gesto = useRef<Gesto | null>(null);
@@ -146,6 +148,7 @@ export default function ImagensNaFolha({ folha, escala, imagens, onMudar }: Prop
           <button type="button" className={botao} onClick={() => acao("camada")} title="Atrás do painel ou na frente de tudo">
             <Layers className="h-4 w-4 shrink-0" /> <span className="whitespace-nowrap">{atual.camada === "frente" ? "Na frente" : "Atrás do painel"}</span>
           </button>
+          {onEditar && <button type="button" className={botao} onClick={() => onEditar(atual)} title="Editar a imagem (recortar, cores, desenhar…)" aria-label="Editar imagem"><Brush className="h-4 w-4" /></button>}
           <button type="button" className={botao} onClick={() => acao("duplicar")} title="Duplicar" aria-label="Duplicar imagem"><Copy className="h-4 w-4" /></button>
           <button type="button" className={`${botao} text-red-300`} onClick={() => acao("apagar")} title="Apagar" aria-label="Apagar imagem"><Trash2 className="h-4 w-4" /></button>
         </div>
