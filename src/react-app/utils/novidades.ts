@@ -24,6 +24,13 @@ export const NOVIDADES: Novidade[] = [
     onde: { rotulo: "Tela inicial", caminho: "/" },
   },
   {
+    id: "2026-11-10-chat-dos-cadernos",
+    data: "2026-11-10",
+    titulo: "Lugia nos cadernos",
+    texto: "No Bloco de notas, “Perguntar à Lugia” procura nos seus cadernos, planilhas e documentos, lê fotos e PDFs que você mandar e cria planilha, documento ou página nova. Ela mostra o que vai fazer e só faz quando você toca em “Fazer”.",
+    onde: { rotulo: "Mapeamentos → Bloco de notas", caminho: "/mapeamentos/bloco-notas" },
+  },
+  {
     id: "2026-11-10-avatar-feminino",
     data: "2026-11-10",
     titulo: "Avatar: versão feminina",

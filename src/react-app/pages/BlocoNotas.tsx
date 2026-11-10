@@ -1,7 +1,8 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowLeftRight, FileText, FileUp, ImageIcon, Loader2, NotebookPen, Pencil, Search, Sheet, Trash2, type LucideIcon } from "lucide-react";
+import { ArrowLeftRight, FileText, FileUp, ImageIcon, Loader2, NotebookPen, Pencil, Search, Sheet, Sparkles, Trash2, type LucideIcon } from "lucide-react";
 
 import EditorCaderno from "@/react-app/components/bloco/EditorCaderno";
+import ChatCadernos from "@/react-app/components/bloco/assistente/ChatCadernos";
 import EditorDocumentoAvulso from "@/react-app/components/bloco/EditorDocumentoAvulso";
 import { sanitizarHtml } from "@/react-app/components/bloco/documento";
 import { ACEITA_ARQUIVOS, importarArquivo } from "@/react-app/components/bloco/arquivosBloco";
@@ -11,6 +12,10 @@ import CabecalhoPagina from "@/react-app/components/ui/CabecalhoPagina";
 import { arquivosBlocoService, blocoNotasService as servico, type ArquivoBloco, type Caderno, type TipoArquivoBloco } from "@/react-app/services/BlocoNotasService";
 import { CORES_CAPA, ROTULO_FUNDO, tipoDoArquivo, tituloDoPdf, type Fundo } from "@/react-app/utils/blocoNotas";
 import { itensDoBloco, type FiltroBloco, type ItemBloco } from "@/react-app/utils/centralBloco";
+import { linhasParaAbas, paginaComTexto, type AcaoCaderno, type ItemConhecido } from "@/react-app/utils/chatCadernos";
+import { useAuth } from "@/react-app/hooks/useAuth";
+import { lugiaDisponivel } from "@/react-app/services/LugiaService";
+import { podeAcessar } from "@/react-app/utils/sessao";
 
 // A planilha (Fortune-sheet) é grande: só carrega quando uma planilha é aberta.
 const EditorPlanilha = lazy(() => import("@/react-app/components/bloco/planilha/EditorPlanilha"));
@@ -130,7 +135,9 @@ const ICONE: Record<ItemBloco["tipo"], LucideIcon> = { CADERNO: NotebookPen, PLA
 const NOME_TIPO: Record<ItemBloco["tipo"], string> = { CADERNO: "Caderno", PLANILHA: "Planilha", DOCUMENTO: "Documento" };
 const CHAVE_FILTRO = "@NordTool:bloco-notas:filtro";
 
-type Aberto = { tipo: ItemBloco["tipo"]; id: number } | { tipo: "CONVERSOR" } | { tipo: "IMAGEM"; arquivo: File | null } | null;
+/** pagina e versao (v4): o chat dos cadernos manda abrir numa página e avisa quando criou uma. */
+type Aberto = { tipo: ItemBloco["tipo"]; id: number; pagina?: number; versao?: number } | { tipo: "CONVERSOR" } | { tipo: "IMAGEM"; arquivo: File | null } | null;
+const TIPO_DO_CHAT = { caderno: "CADERNO", planilha: "PLANILHA", documento: "DOCUMENTO" } as const;
 
 /**
  * Bloco de notas (v3): a central dos arquivos da pessoa. Em "Criar" ficam caderno (à mão, PDF), planilha (estilo Google
@@ -149,6 +156,9 @@ export default function BlocoNotasPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [importando, setImportando] = useState<string | null>(null);
   const arquivoPdf = useRef<HTMLInputElement>(null);
+  const { usuario } = useAuth();
+  const comLugia = lugiaDisponivel() && podeAcessar(usuario?.permissoes, "LUGIA");
+  const [chatAberto, setChatAberto] = useState(false);
 
   const carregar = useCallback(async () => {
     setErro(null);
@@ -265,13 +275,77 @@ export default function BlocoNotasPage() {
     }
   };
 
+  /** v4: executa a ação do chat dos cadernos que a pessoa confirmou. Devolve o erro (ou null). */
+  const executar = async (a: AcaoCaderno): Promise<string | null> => {
+    try {
+      switch (a.acao) {
+        case "abrir":
+          setAberto({ tipo: TIPO_DO_CHAT[a.tipo], id: a.id, pagina: a.pagina, versao: Date.now() });
+          return null;
+        case "criar_caderno": {
+          const c = await servico.criar(a.titulo, CORES_CAPA[0], "BRANCO");
+          const primeira = c.paginas?.[0];
+          if (a.texto && primeira) await servico.salvar(primeira.id, paginaComTexto(a.texto, primeira.nrLargura), primeira.cdFundo, primeira.nrVersao);
+          setCadernos(l => [c, ...(l ?? [])]);
+          setAberto({ tipo: "CADERNO", id: c.id, versao: Date.now() });
+          return null;
+        }
+        case "anotar": {
+          const p = await servico.novaPagina(a.id, {});
+          await servico.salvar(p.id, paginaComTexto(a.texto, p.nrLargura), p.cdFundo, p.nrVersao);
+          setCadernos(l => (l ?? []).map(x => (x.id === a.id ? { ...x, qtPaginas: x.qtPaginas + 1 } : x)));
+          // Abre (ou recarrega, se já está aberto) na página nova, que é a última.
+          setAberto({ tipo: "CADERNO", id: a.id, pagina: 100_000, versao: Date.now() });
+          return null;
+        }
+        case "criar_documento":
+          await novoArquivo("DOCUMENTO", a.titulo, sanitizarHtml(a.html, true));
+          return null;
+        case "criar_planilha":
+          await novoArquivo("PLANILHA", a.titulo, JSON.stringify(linhasParaAbas(a.linhas)));
+          return null;
+        case "renomear": {
+          if (a.tipo === "caderno") {
+            const c = (cadernos ?? []).find(x => x.id === a.id);
+            if (!c) return "Não achei esse caderno.";
+            const r = await servico.alterar(c.id, a.titulo, c.cdCor, c.nrVersao);
+            setCadernos(l => (l ?? []).map(x => (x.id === r.id ? { ...x, ...r } : x)));
+          } else {
+            const arq = (arquivos ?? []).find(x => x.id === a.id && x.cdTipo === TIPO_DO_CHAT[a.tipo]);
+            if (!arq) return "Não achei esse arquivo.";
+            const r = await arquivosBlocoService.salvar(arq.id, arq.nrVersao, { nmTitulo: a.titulo });
+            setArquivos(l => (l ?? []).map(x => (x.id === r.id ? { ...x, ...r, conteudo: undefined } : x)));
+          }
+          if (aberto && "id" in aberto && aberto.id === a.id && aberto.tipo === TIPO_DO_CHAT[a.tipo]) setAberto({ ...aberto, versao: Date.now() });
+          return null;
+        }
+      }
+    } catch (e) {
+      return mensagem(e, "Não deu para fazer.");
+    }
+  };
+
+  const conhecidos = useMemo<ItemConhecido[]>(() => [
+    ...(cadernos ?? []).map(c => ({ tipo: "caderno" as const, id: c.id, titulo: c.nmTitulo })),
+    ...(arquivos ?? []).map(a => ({ tipo: (a.cdTipo === "PLANILHA" ? "planilha" : "documento") as ItemConhecido["tipo"], id: a.id, titulo: a.nmTitulo })),
+  ], [cadernos, arquivos]);
+
+  const botaoChat = comLugia && (
+    <button type="button" onClick={() => setChatAberto(v => !v)} aria-expanded={chatAberto} title="Perguntar e pedir coisas para a Lugia nos seus cadernos"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:from-blue-700 hover:to-indigo-700">
+      <Sparkles className="h-3.5 w-3.5" /> Perguntar à Lugia
+    </button>
+  );
+  const itemAberto = aberto && "id" in aberto ? { tipo: aberto.tipo, id: aberto.id } : null;
+
   const atualizarArquivo = useCallback((a: ArquivoBloco) => setArquivos(l => (l ?? []).map(x => (x.id === a.id ? { ...x, ...a, conteudo: undefined } : x))), []);
   const voltar = () => { setAberto(null); void carregar(); };
 
+  const tela = (() => {
   if (aberto?.tipo === "CADERNO") {
     return (
       <div>
-        <EditorCaderno id={aberto.id} onVoltar={voltar}
+        <EditorCaderno key={aberto.id} id={aberto.id} onVoltar={voltar} paginaInicial={aberto.pagina} recarregarEm={aberto.versao} extra={botaoChat}
           onAlterado={c => setCadernos(l => (l ?? []).map(x => (x.id === c.id ? { ...x, ...c, paginas: undefined } : x)))} />
       </div>
     );
@@ -293,15 +367,15 @@ export default function BlocoNotasPage() {
   if (aberto?.tipo === "PLANILHA") {
     return (
       <Suspense fallback={<div className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Abrindo a planilha…</div>}>
-        <EditorPlanilha id={aberto.id} onVoltar={voltar} onAlterado={atualizarArquivo} />
+        <EditorPlanilha key={`${aberto.id}-${aberto.versao ?? 0}`} id={aberto.id} onVoltar={voltar} onAlterado={atualizarArquivo} extra={botaoChat} />
       </Suspense>
     );
   }
-  if (aberto?.tipo === "DOCUMENTO") return <EditorDocumentoAvulso id={aberto.id} onVoltar={voltar} onAlterado={atualizarArquivo} />;
+  if (aberto?.tipo === "DOCUMENTO") return <EditorDocumentoAvulso key={`${aberto.id}-${aberto.versao ?? 0}`} id={aberto.id} onVoltar={voltar} onAlterado={atualizarArquivo} extra={botaoChat} />;
 
   return (
     <div className="mx-auto max-w-5xl">
-      <CabecalhoPagina icone={NotebookPen} titulo="Bloco de notas" subtitulo="Cadernos, planilhas e documentos num lugar só" />
+      <CabecalhoPagina icone={NotebookPen} titulo="Bloco de notas" subtitulo="Cadernos, planilhas e documentos num lugar só" acoes={botaoChat || undefined} />
 
       <section aria-label="Criar" className="mb-6">
         <h2 className="mb-2 text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Criar</h2>
@@ -392,5 +466,13 @@ export default function BlocoNotasPage() {
       <input ref={arquivoPdf} type="file" accept={ACEITA_ARQUIVOS} className="hidden" aria-label="Arquivo para abrir"
         onChange={e => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void importar(a); }} />
     </div>
+  );
+  })();
+
+  return (
+    <>
+      {tela}
+      {comLugia && <ChatCadernos visivel={chatAberto} onFechar={() => setChatAberto(false)} itens={conhecidos} aberto={itemAberto} onExecutar={executar} />}
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Sheet as AbaEditor } from "@fortune-sheet/core";
 import { Workbook, type WorkbookInstance } from "@fortune-sheet/react";
 import "@fortune-sheet/react/dist/index.css";
@@ -22,7 +22,7 @@ const botao = "inline-flex items-center gap-1.5 rounded-lg border border-slate-2
  * =SOMA(A1:A3) e =SE(A1>0;"sim";"não")), formatação, mesclar, congelar, filtro, classificar, comentários e links.
  * Salva sozinha 1,5 s depois da última mudança, com versão; baixa em Excel (.xlsx).
  */
-export default function EditorPlanilha({ id, onVoltar, onAlterado }: { id: number; onVoltar: () => void; onAlterado?: (a: ArquivoBloco) => void }) {
+export default function EditorPlanilha({ id, onVoltar, onAlterado, extra }: { id: number; onVoltar: () => void; onAlterado?: (a: ArquivoBloco) => void; extra?: ReactNode }) {
   const [arquivo, setArquivo] = useState<ArquivoBloco | null>(null);
   const [inicial, setInicial] = useState<AbaFs[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -48,6 +48,19 @@ export default function EditorPlanilha({ id, onVoltar, onAlterado }: { id: numbe
     }).catch(e => vivo && setErro(mensagem(e, "Não foi possível abrir a planilha.")));
     return () => { vivo = false; };
   }, [id]);
+
+  // v4: fórmulas sem resultado (planilha criada pelo chat dos cadernos): calcula ao abrir, aba por aba.
+  useEffect(() => {
+    if (!inicial) return;
+    const semResultado = inicial.filter(a => a.id && (a.celldata ?? []).some(c => c.v?.f && (c.v.v === null || c.v.v === undefined)));
+    if (!semResultado.length) return;
+    const t = window.setTimeout(() => {
+      for (const a of semResultado) {
+        try { wb.current?.calculateFormula(a.id); } catch { /* fórmula inválida: o editor mostra o erro na célula */ }
+      }
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [inicial]);
 
   const salvar = useCallback(async (extra?: { nmTitulo?: string }) => {
     if (salvando.current) { pendente.current = true; return; }
@@ -131,6 +144,7 @@ export default function EditorPlanilha({ id, onVoltar, onAlterado }: { id: numbe
           onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
           className="order-last w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1 text-lg font-bold text-slate-800 hover:border-slate-200 focus:border-blue-500 focus:outline-none sm:order-none sm:w-auto sm:flex-1" />
         <span className="ml-auto text-xs font-bold sm:ml-0" aria-live="polite">{rotulo[estado]}</span>
+        {extra}
         <button type="button" className={botao} onClick={baixar}><Download className="h-3.5 w-3.5" />Baixar Excel</button>
       </div>
       {estado === "conflito" && (

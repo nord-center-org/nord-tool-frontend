@@ -248,6 +248,11 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         alvo: { css: "button", texto: "Juntar, dividir, comprimir" },
       },
       {
+        titulo: "Perguntar à Lugia",
+        texto: "Abre o chat dos cadernos: pergunte o que você anotou (“onde escrevi da concretagem?”), mande foto de um quadro ou de uma nota e peça para virar planilha, documento ou página nova. A Lugia mostra o que vai fazer e só faz quando você toca em “Fazer”. Ela lê as caixas de texto, os documentos e as planilhas; o escrito à mão ainda não.",
+        alvo: { css: "button", texto: "Perguntar à Lugia" },
+      },
+      {
         titulo: "Editar imagem",
         texto: "Um editor como o Paint.net: camadas, pincel, borracha, formas, texto, balde de tinta, conta-gotas, seleção para recortar, girar, espelhar, redimensionar e ajustes (brilho, contraste, saturação, desfoque, preto e branco…). Solte a imagem no botão ou cole com Ctrl+V. Fotos do relatório e imagens das placas também abrem nele.",
         alvo: { css: "button", texto: "solte a imagem aqui" },
