@@ -82,3 +82,16 @@ test("formato dos olhos: lido do JSON e com padrão para avatares antigos", () =
   assert.equal(lerAvatar(JSON.stringify({ formatoOlhos: "puxado" }), 3).formatoOlhos, "puxado");
   assert.equal(lerAvatar(JSON.stringify({ formatoOlhos: "xxx" }), 3).formatoOlhos, avatarPadrao(3).formatoOlhos);
 });
+
+test("v2: avatar salvo antes continua igual e os campos novos são lidos com cuidado", async () => {
+  const { lerAvatar, avatarPadrao } = await import("./avatar.ts");
+  const antigo = lerAvatar(JSON.stringify({ cabelo: "longo", pele: "p3" }), 5);
+  assert.equal(antigo.tracos, "masculino");
+  assert.equal(antigo.batom, "nenhum");
+  assert.equal(antigo.enfeite, "nenhum");
+  const novo = lerAvatar(JSON.stringify({ tracos: "feminino", batom: "vinho", enfeite: "tiara", cabelo: "mariaChiquinha" }), 5);
+  assert.deepEqual([novo.tracos, novo.batom, novo.enfeite, novo.cabelo], ["feminino", "vinho", "tiara", "mariaChiquinha"]);
+  const estranho = lerAvatar(JSON.stringify({ tracos: "x", batom: 3, enfeite: "coroa" }), 5);
+  assert.deepEqual([estranho.tracos, estranho.batom, estranho.enfeite], ["masculino", "nenhum", "nenhum"]);
+  assert.equal(avatarPadrao(9).tracos, "masculino");
+});

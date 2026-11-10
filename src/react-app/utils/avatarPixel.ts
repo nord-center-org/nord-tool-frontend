@@ -4,7 +4,7 @@
  * Acabamento: contorno colorido (cada contorno puxa a cor da região que envolve), luz e sombra em todas as peças.
  */
 import {
-  CORES_CABELO, CORES_OLHOS, FUNCOES, FUNDOS, PELES, corDoCapacete, mistura, tom, type AvatarConfig, type DataComemorativa,
+  BATONS, CORES_CABELO, CORES_OLHOS, FUNCOES, FUNDOS, PELES, corDoCapacete, mistura, tom, type AvatarConfig, type DataComemorativa,
 } from "./avatar.ts";
 
 export { tom } from "./avatar.ts";
@@ -456,6 +456,40 @@ const ABAFADOR = espelho([
 ]); // y0 = 12
 
 /** Cores das peças que não dependem da pessoa. */
+// ---------- v2: cabelos femininos ----------
+
+/** Maria-chiquinha: um rabinho de cada lado, na altura das orelhas. */
+const CHIQUINHA = espelho([
+  "...KK...........",
+  "..KHHK..........",
+  ".KHiHK..........",
+  ".KHHhK..........",
+  "KHHHhK..........",
+  "KHHhK...........",
+  "KHHHK...........",
+  ".KHhK...........",
+  ".KHK............",
+  "..K.............",
+]); // y0 = 10
+
+/** Cachos longos: o cabelo de trás com volume e mechas. */
+const CACHOS_TRAS = espelho([
+  "....KHHHHHHHHHHH",
+  ...Array.from({ length: 12 }, (_, i) => (i % 3 === 0 ? "...KHiHhHHHHHHHH" : i % 3 === 1 ? "...KHHhHHHHHHHHH" : "...KhHHiHHHHHHHH")),
+  ...Array.from({ length: 6 }, (_, i) => (i % 2 ? "...KHhHiHK......" : "...KHHhHHK......")),
+  "....KHhHK.......",
+  ".....KKK........",
+]); // y0 = 6
+
+/** Laço no alto da cabeça (lado direito). */
+const LACO = [
+  "KKK.KKK",
+  "KQpKpQK",
+  "KQQKQQK",
+  "KQpKpQK",
+  "KKK.KKK",
+]; // x0 = 20, y0 = 3
+
 const FIXAS: Cores = {
   V: "#f97316", Z: "#fef08a", b: "#a16207", W: "#f8fafc", l: "#94a3b8", g: "#16a34a",
   R: "#dc2626", r: "#991b1b", F: "#f8fafc", f: "#cbd5e1", Q: "#ec4899", p: "#f9a8d4",
@@ -494,13 +528,20 @@ export function montarGrade(c: AvatarConfig, tema: DataComemorativa | null, olho
   const fundoAntes = t.fundo.map(l => [...l]);
 
   // Cabelo de trás (fica atrás da cabeça e do corpo).
-  if (c.cabelo === "longo") pintar(t, CABELO_LONGO_TRAS, 6, cores);
+  if (c.cabelo === "longo" || c.cabelo === "longoLiso") pintar(t, CABELO_LONGO_TRAS, 6, cores);
+  if (c.cabelo === "cachosLongos") pintar(t, CACHOS_TRAS, 6, cores);
+  if (c.cabelo === "mariaChiquinha") pintar(t, CHIQUINHA, 10, cores);
   if (c.cabelo === "dreads") pintar(t, listras(CABELO_LONGO_TRAS), 6, cores);
   if (c.cabelo === "afro") pintar(t, comCapacete ? AFRO_TRAS.slice(5) : AFRO_TRAS, comCapacete ? 5 : 0, cores);
   if (c.cabelo === "rabo" && semChapeu) pintar(t, RABO, 3, cores);
 
   pintar(t, CORPO, 23, cores);
   pintar(t, GOLA, 23, cores);
+  // v2: traços femininos ganham decote em V na blusa.
+  if (c.tracos === "feminino") {
+    px(t, [[14, 23], [15, 23], [16, 23], [17, 23], [15, 24], [16, 24]], cores.S);
+    px(t, [[13, 23], [18, 23], [14, 24], [17, 24], [15, 25], [16, 25]], cores.t);
+  }
   uniforme(t, c, cores);
   pintar(t, PESCOCO, 20, cores);
   if (funcao.extra === "cracha") {
@@ -512,7 +553,7 @@ export function montarGrade(c: AvatarConfig, tema: DataComemorativa | null, olho
   pintar(t, CABECA, 5, cores);
 
   // Rosto: bochechas, nariz, detalhes.
-  const rosado = mistura(pele, "#f472b6", c.detalhe === "bochechas" ? 0.55 : 0.3);
+  const rosado = mistura(pele, "#f472b6", c.detalhe === "bochechas" ? 0.55 : c.tracos === "feminino" ? 0.42 : 0.3);
   px(t, [[10, 17], [11, 17], [20, 17], [21, 17]], rosado);
   if (c.detalhe === "bochechas") px(t, [[9, 17], [22, 17], [10, 16], [21, 16]], mistura(pele, "#f472b6", 0.35));
   px(t, [[16, 16], [16, 17]], cores.s);
@@ -524,8 +565,9 @@ export function montarGrade(c: AvatarConfig, tema: DataComemorativa | null, olho
   barba(t, c, pele, cores);
   if (tema === "carnaval") pintar(t, MASCARA_CARNAVAL, 13, cores);
   olhos(t, c, pele, olhosFechados);
+  if (c.tracos === "feminino") cilios(t, c, olhosFechados);
   sobrancelhas(t, c, cabelo);
-  boca(t, c.boca);
+  boca(t, c.boca, BATONS[c.batom]);
   if (c.barba === "bigode" || c.barba === "cavanhaque" || c.barba === "cheia") bigode(t, cabelo, cores.h);
   if (c.acessorio === "mascara") pintar(t, PFF, 15, { ...cores, s: "#64748b" });
 
@@ -546,6 +588,12 @@ export function montarGrade(c: AvatarConfig, tema: DataComemorativa | null, olho
     case "trancas": pintar(t, CABELO_CURTO, 4, cores); pintar(t, TRANCA, 11, cores); break;
     case "chanel": pintar(t, CHANEL, 4, cores); break;
     case "careca": px(t, [[12, 7], [13, 7], [12, 8]], cores.L); break;
+    case "longoLiso": pintar(t, CABELO_CURTO, 4, cores); pintar(t, FRANJA, 8, cores); pintar(t, CABELO_LONGO_LADOS, 11, cores); break;
+    case "cachosLongos": pintar(t, CABELO_CACHEADO, 1, cores); pintar(t, listras(CABELO_LONGO_LADOS), 11, cores); break;
+    case "mariaChiquinha":
+      pintar(t, CABELO_CURTO, 4, cores); pintar(t, FRANJA, 8, cores);
+      px(t, [[5, 10], [26, 10]], "#ec4899");
+      break;
   }
 
   // Óculos e protetor ficam por cima do cabelo. Lentes claras só pintam por cima da pele (o olho aparece).
@@ -555,6 +603,19 @@ export function montarGrade(c: AvatarConfig, tema: DataComemorativa | null, olho
     pintar(t, ABAFADOR, 12, cores);
   }
   if (c.acessorio === "brinco") px(t, [[5, 18], [26, 18]], "#facc15");
+  // v2: enfeites (combinam com óculos e EPI; os da cabeça só sem capacete ou chapéu).
+  if (c.enfeite === "argola") px(t, [[4, 18], [3, 19], [5, 19], [4, 20], [27, 18], [26, 19], [28, 19], [27, 20]], "#facc15");
+  if (c.enfeite === "perola") { px(t, [[5, 18], [26, 18]], "#f8fafc"); px(t, [[5, 19], [26, 19]], "#cbd5e1"); }
+  if (semChapeu && c.enfeite === "laco") pintar(t, LACO, 3, cores, 20);
+  if (semChapeu && c.enfeite === "tiara") {
+    for (let x = 9; x <= 22; x++) px(t, [[x, x === 9 || x === 22 ? 8 : 6]], "#ec4899");
+    px(t, [[10, 7], [21, 7]], "#ec4899");
+    px(t, [[13, 6], [18, 6]], "#f9a8d4");
+  }
+  if (semChapeu && c.enfeite === "flor") {
+    px(t, [[23, 6], [22, 7], [24, 7], [23, 8]], "#f472b6");
+    px(t, [[23, 7]], "#facc15");
+  }
 
   // Chapéu de aba larga: acima da aba só aparece o fundo (e o chapéu por cima).
   const aba = tema === "halloween" ? 9 : tema === "junina" ? 8 : 0;
@@ -746,8 +807,25 @@ function oculos(t: Tela, tipo: AvatarConfig["acessorio"], tonsPele: Set<string>)
   }
 }
 
-function boca(t: Tela, tipo: AvatarConfig["boca"]) {
-  const M = "#7f1d1d";
+/** v2: cílios no canto de fora de cada olho (olho fechado ganha o cílio para baixo). */
+function cilios(t: Tela, c: AvatarConfig, piscada: boolean) {
+  const fechados = piscada || c.olhos === "feliz" || c.olhos === "sereno";
+  for (const x of [11, 19]) {
+    const fora = x < 16 ? x - 1 : x + 2;
+    const passo = x < 16 ? -1 : 1;
+    if (fechados) px(t, [[fora, 15], [fora + passo, 16]], CONTORNO);
+    else px(t, [[fora, 13], [fora + passo, 13], [x + (x < 16 ? 0 : 1), 13]], CONTORNO);
+  }
+  if (c.olhos === "piscando" && !piscada) px(t, [[21, 15], [22, 16]], CONTORNO);
+}
+
+function boca(t: Tela, tipo: AvatarConfig["boca"], batom = "") {
+  const M = batom || "#7f1d1d";
+  // Com batom, a boca fechada vira lábios cheios (o de cima mais claro).
+  if (batom && (tipo === "sorriso" || tipo === "seria" || tipo === "canto")) {
+    px(t, [[14, 18], [17, 18]], tom(batom, 0.15));
+    px(t, [[15, 18], [16, 18]], tom(batom, 0.3));
+  }
   switch (tipo) {
     case "aberta":
       px(t, [[13, 18], [18, 18], [14, 19], [15, 19], [16, 19], [17, 19]], M);
