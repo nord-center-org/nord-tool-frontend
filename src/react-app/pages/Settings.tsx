@@ -4,8 +4,7 @@ import { listarStatusVistoria } from "@/react-app/services/EndpointsDominioServi
 import { CHAVE_PRE_CARREGAMENTO, lerPreCarregamento, type PreCarregamento } from "@/react-app/utils/preCarregamentoApartamentos";
 import {
   Settings as SettingsIcon, Save, ChevronDown, ChevronUp,
-  Loader2, Building2, Clock, Filter, Database, LayoutDashboard, FolderCog, Wrench, ShieldCheck, Network, KeyRound, LogOut, Mail, Smile
-} from "lucide-react";
+  Loader2, Building2, Clock, Filter, Database, LayoutDashboard, FolderCog, Wrench, ShieldCheck, Network, KeyRound, LogOut, Mail, Smile, UserRound } from "lucide-react";
 import { Link } from "react-router";
 import { ControleChavesService, type ObraControleChaves } from "../services/ControleChavesService";
 import { OpcoesColaboradorService, type Empresa, type Cargo, type Permissao } from "../services/OpcoesColaboradorService";
@@ -192,6 +191,9 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
+                <Link to="/conta/dados" className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">
+                  <UserRound className="h-4 w-4" /> Meus dados
+                </Link>
                 <Link to="/conta/avatar" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
                   <Smile className="h-4 w-4" /> Meu avatar
                 </Link>
