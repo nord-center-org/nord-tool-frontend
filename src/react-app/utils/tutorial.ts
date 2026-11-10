@@ -243,9 +243,9 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         alvo: { css: "button", texto: "PDF, imagem, Word" },
       },
       {
-        titulo: "Converter e editar imagem",
-        texto: "Juntar, dividir e converter PDFs e o editor de imagens chegam nas próximas entregas, aqui mesmo.",
-        alvo: { css: "button", texto: "Em breve: juntar" },
+        titulo: "Converter arquivos",
+        texto: "Como no ILovePDF: juntar, dividir e organizar PDFs, imagem/Word/Excel para PDF, PDF para imagem, comprimir, numerar páginas, marca d'água e trocar o formato de imagens. Tudo acontece no seu aparelho; o PDF pronto pode virar um caderno.",
+        alvo: { css: "button", texto: "Juntar, dividir, comprimir" },
       },
       {
         titulo: "Meus arquivos",
