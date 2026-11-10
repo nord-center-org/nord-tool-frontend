@@ -223,12 +223,16 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Anote em PDFs",
-        texto: "“Abrir PDF” transforma cada página do PDF numa página do caderno para marcar por cima. No fim, baixe tudo em PDF.",
-        alvo: { css: "button", texto: "Abrir PDF" },
+        texto: "“Abrir arquivo” transforma um PDF, imagem, Word (.docx), planilha (Excel/CSV) ou texto em páginas do caderno para marcar por cima. No fim, baixe tudo em PDF.",
+        alvo: { css: "button", texto: "Abrir arquivo" },
       },
       {
         titulo: "Ferramentas",
         texto: "Dentro do caderno: caneta (sente a pressão da caneta stylus), marca-texto, borracha de traço ou de parte, formas, texto, imagem e o laço para selecionar, mover, redimensionar e recolorir. “Só caneta” deixa o dedo rolar a página enquanto a caneta escreve.",
+      },
+      {
+        titulo: "Texto e documento",
+        texto: "Na caixa de texto, a barra de cima formata o que estiver selecionado (negrito, itálico, sublinhado, tamanho, cor) e alinha a caixa; a alça da direita muda a largura. Em “Texto” fica o documento do caderno, no estilo do Word, em páginas ou contínuo; “Lado a lado” mostra o documento e o desenho juntos. O botão de girar vira a página atual.",
       },
     ],
   },

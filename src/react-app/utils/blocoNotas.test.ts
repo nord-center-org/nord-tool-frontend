@@ -170,5 +170,126 @@ test("tamanho das páginas do PDF e nomes", () => {
   assert.equal(nomeArquivoCaderno("Obra Norte – Vistoria"), "caderno-obra-norte-vistoria.pdf");
   assert.equal(nomeArquivoCaderno("???"), "caderno-caderno.pdf");
   assert.equal(tituloDoPdf("Projeto torre B.PDF"), "Projeto torre B");
-  assert.equal(tituloDoPdf(".pdf"), "PDF importado");
+  assert.equal(tituloDoPdf(".pdf"), "Arquivo importado");
+  assert.equal(tituloDoPdf("Orçamento.xlsx"), "Orçamento");
+});
+
+// ---------------------------------------------------------------- v2
+
+import {
+  corCss, diagramarTexto, girarItens, htmlParaTrechos, juntarTrechos, lerTrechos, proximoGiro, recuoDaLinha, trechosDe, trechosParaHtml,
+  type NoTexto, type Texto,
+} from "./blocoNotas.ts";
+
+const medir1 = (t: string) => t.length * 10; // 10 px por letra
+
+test("v2: caixa de texto antiga continua igual e a nova guarda a formatação", () => {
+  const antiga = lerConteudo({ itens: [{ t: "tx", id: "x", x: 0, y: 0, w: 100, s: 20, c: "#111827", txt: "Oi" }] }).itens[0] as Texto;
+  assert.equal(antiga.r, undefined);
+  assert.deepEqual(trechosDe(antiga), [{ t: "Oi" }]);
+  const nova = lerConteudo({ itens: [{ t: "tx", id: "y", x: 0, y: 0, w: 100, s: 20, c: "#111827", txt: "velho", al: "center",
+    r: [{ t: "Torre ", b: 1 }, { t: "B", b: 1 }, { t: " ok", c: "#dc2626", s: 500 }, { t: "" }, { x: 1 }] }] }).itens[0] as Texto;
+  assert.deepEqual(nova.r, [{ t: "Torre B", b: 1 }, { t: " ok", c: "#dc2626", s: 96 }]);
+  assert.equal(nova.txt, "Torre B ok", "o texto puro acompanha os trechos");
+  assert.equal(nova.al, "center");
+  assert.deepEqual(lerTrechos("x"), []);
+  assert.deepEqual(juntarTrechos([{ t: "a", b: 1 }, { t: "" }, { t: "b", b: 1 }, { t: "c" }]), [{ t: "ab", b: 1 }, { t: "c" }]);
+});
+
+test("v2: diagramar quebra por palavra, respeita Enter e corta palavra longa", () => {
+  const l = diagramarTexto({ txt: "", w: 100, s: 20, r: [{ t: "uma frase " }, { t: "grande", b: 1 }, { t: "\nfim" }] }, medir1);
+  assert.deepEqual(l.map(x => x.pecas.map(p => p.t).join("")), ["uma frase ", "grande", "fim"]);
+  assert.equal(l[0].util, 90, "sem o espaço do fim");
+  const longa = diagramarTexto({ txt: "abcdefghijklmno", w: 50, s: 20 }, medir1);
+  assert.deepEqual(longa.map(x => x.pecas.map(p => p.t).join("")), ["abcde", "fghij", "klmno"]);
+  const tamanhos = diagramarTexto({ txt: "", w: 500, s: 20, r: [{ t: "a" }, { t: "B", s: 40 }] }, medir1);
+  assert.equal(tamanhos[0].altura, 52, "a maior letra manda na altura da linha");
+  assert.equal(diagramarTexto({ txt: "", w: 100, s: 20 }, medir1).length, 1, "caixa vazia tem uma linha");
+});
+
+test("v2: alinhamento da linha", () => {
+  const [l] = diagramarTexto({ txt: "abc ", w: 100, s: 20 }, medir1);
+  assert.equal(recuoDaLinha(l, 100, "center"), 35);
+  assert.equal(recuoDaLinha(l, 100, "right"), 70);
+  assert.equal(recuoDaLinha(l, 100, undefined), 0);
+});
+
+test("v2: trechos ↔ HTML do editor", () => {
+  const html = trechosParaHtml([{ t: "<Oi>", b: 1 }, { t: " 2\nlinha", c: "#dc2626", s: 30 }], 2);
+  assert.equal(html, '<b>&lt;Oi&gt;</b><span data-s="30" style="color:#dc2626;font-size:60px"> 2<br>linha</span>');
+  const no = (nodeName: string, filhos: NoTexto[], extra: Partial<NoTexto> = {}): NoTexto => ({ nodeType: 1, nodeName, textContent: null, childNodes: filhos, ...extra });
+  const txt = (t: string): NoTexto => ({ nodeType: 3, nodeName: "#text", textContent: t, childNodes: [] });
+  const raiz = no("DIV", [
+    no("B", [txt("Torre")]), txt(" B"),
+    no("DIV", [no("SPAN", [txt("vermelho")], { style: { color: "rgb(220, 38, 38)" }, getAttribute: (n: string) => (n === "data-s" ? "30" : null) })]),
+    no("DIV", [no("FONT", [txt("azul")], { getAttribute: (n: string) => (n === "color" ? "#2563EB" : null) }), no("BR", [])]),
+  ]);
+  assert.deepEqual(htmlParaTrechos(raiz), [
+    { b: 1, t: "Torre" }, { t: " B\n" }, { c: "#dc2626", s: 30, t: "vermelho" }, { t: "\n" }, { c: "#2563eb", t: "azul" },
+  ]);
+  assert.equal(corCss("rgb(1, 2, 255)"), "#0102ff");
+  assert.equal(corCss("azul"), undefined);
+});
+
+test("v2: girar a página gira traços e formas e move textos e imagens", () => {
+  const itens = [
+    { t: "tr", id: "a", c: "#111827", w: 2, p: [10, 20, 0.5] },
+    { t: "fo", id: "f", f: "linha", c: "#111827", w: 2, x1: 0, y1: 0, x2: 100, y2: 0 },
+    { t: "im", id: "i", img: 1, x: 0, y: 0, w: 40, h: 20 },
+  ] as Parameters<typeof girarItens>[0];
+  const g = girarItens(itens, 794, 1123);
+  assert.deepEqual((g[0] as { p: number[] }).p, [1103, 10, 0.5]);
+  assert.deepEqual([(g[1] as { x1: number }).x1, (g[1] as { y1: number }).y1, (g[1] as { x2: number }).x2, (g[1] as { y2: number }).y2], [1123, 0, 1123, 100]);
+  const im = g[2] as { x: number; y: number; w: number; h: number };
+  assert.deepEqual([im.x + im.w / 2, im.y + im.h / 2, im.w, im.h], [1113, 20, 40, 20], "o centro gira, a imagem continua em pé");
+  const volta = girarItens(g, 1123, 794, true);
+  assert.deepEqual((volta[0] as { p: number[] }).p, [10, 20, 0.5]);
+  assert.equal(proximoGiro(0), 90);
+  assert.equal(proximoGiro(270), 0);
+  assert.equal(proximoGiro(0, true), 270);
+});
+
+import { documentoVazio, filtrarEstilo } from "./blocoNotas.ts";
+
+test("v2: documento só aceita estilo de texto", () => {
+  assert.equal(filtrarEstilo("color: red; position: fixed; background-color: #ff0; font-size: 18px"), "color: red; background-color: #ff0; font-size: 18px");
+  assert.equal(filtrarEstilo("background-color: url(javascript:alert(1))"), "");
+  assert.equal(filtrarEstilo("color: expression(alert(1))"), "");
+  assert.equal(filtrarEstilo("text-align: center; behavior: url(x)"), "text-align: center");
+  assert.equal(filtrarEstilo("lixo"), "");
+  assert.ok(documentoVazio("<p><br></p>&nbsp; "));
+  assert.ok(!documentoVazio("<p>Oi</p>"));
+});
+
+import { motivoArquivoNaoSuportado, planilhaParaHtml, tamanhoDaPaginaImagem, textoParaHtml, tipoDoArquivo } from "./blocoNotas.ts";
+
+test("v2: que arquivo vira o quê", () => {
+  assert.equal(tipoDoArquivo("Projeto.PDF"), "pdf");
+  assert.equal(tipoDoArquivo("foto.jpeg"), "imagem");
+  assert.equal(tipoDoArquivo("x", "image/png"), "imagem");
+  assert.equal(tipoDoArquivo("memorial.docx"), "word");
+  assert.equal(tipoDoArquivo("orcamento.xlsx"), "planilha");
+  assert.equal(tipoDoArquivo("lista.csv"), "planilha");
+  assert.equal(tipoDoArquivo("leia.txt"), "texto");
+  assert.equal(tipoDoArquivo("apresentacao.pptx"), null);
+  assert.match(motivoArquivoNaoSuportado("apresentacao.pptx"), /PDF/);
+  assert.match(motivoArquivoNaoSuportado("antigo.doc"), /docx/);
+  assert.match(motivoArquivoNaoSuportado("IMG_1.HEIC"), /JPEG/);
+});
+
+test("v2: página da imagem na proporção dela e texto em parágrafos", () => {
+  assert.deepEqual(tamanhoDaPaginaImagem(4000, 3000), { largura: 1123, altura: 842 });
+  assert.deepEqual(tamanhoDaPaginaImagem(1000, 2000), { largura: 562, altura: 1123 });
+  assert.deepEqual(tamanhoDaPaginaImagem(0, 0), { largura: 794, altura: 1123 });
+  assert.equal(textoParaHtml("a <b>\nb\r\n\r\nc"), "<p>a &lt;b&gt;<br>b</p><p>c</p>");
+});
+
+test("v2: planilha vira tabelas com o cabeçalho repetido", () => {
+  const linhas = [["Item", "Qtd"], ...Array.from({ length: 5 }, (_, k) => [`L${k}`, k])];
+  const html = planilhaParaHtml("Plan<1>", linhas, 2);
+  assert.equal((html.match(/<table>/g) ?? []).length, 3);
+  assert.equal((html.match(/<th>Item<\/th>/g) ?? []).length, 3);
+  assert.ok(html.startsWith("<h3>Plan&lt;1&gt;</h3>"));
+  assert.match(planilhaParaHtml("p", [["a"], ["b"], ["c"]], 10, 2), /mais 1 linha/);
+  assert.equal(planilhaParaHtml("p", []), "");
 });

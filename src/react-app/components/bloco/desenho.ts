@@ -3,17 +3,60 @@
  * desenho serve à tela (em qualquer zoom) e à exportação em PDF.
  */
 import {
-  ALFA_MARCA, larguraNaPressao, linhasDoFundo, linhasDoTexto, pontasDaSeta, pontosDoFundo, type Fundo, type Item, type Traco,
+  ALFA_MARCA, diagramarTexto, larguraNaPressao, linhasDoFundo, pontasDaSeta, pontosDoFundo, recuoDaLinha, type Fundo, type Item, type Medidor,
+  type Texto, type Traco,
 } from "@/react-app/utils/blocoNotas";
+
+export const FONTE_TEXTO = `Inter, "Segoe UI", Roboto, Arial, sans-serif`;
+const fonte = (s: number, b: boolean, i: boolean) => `${i ? "italic " : ""}${b ? "700 " : ""}${s}px ${FONTE_TEXTO}`;
+
+/** Medidor com o canvas de verdade (a quebra de linha da tela e do PDF é a mesma). */
+let canvasMedida: CanvasRenderingContext2D | null = null;
+export const medirNoCanvas: Medidor = (t, s, b, i) => {
+  canvasMedida ??= document.createElement("canvas").getContext("2d");
+  if (!canvasMedida) return t.length * s * 0.55;
+  canvasMedida.font = fonte(s, b, i);
+  return canvasMedida.measureText(t).width;
+};
+
+/** v2: texto formatado (negrito, itálico, sublinhado, cor e tamanho por trecho) com o alinhamento da caixa. */
+export function desenharTexto(ctx: CanvasRenderingContext2D, i: Texto) {
+  ctx.save();
+  ctx.textBaseline = "alphabetic";
+  let y = i.y;
+  for (const l of diagramarTexto(i, medirNoCanvas)) {
+    const base = y + l.tamanho * 1.05;
+    const x0 = i.x + recuoDaLinha(l, i.w, i.al);
+    for (const p of l.pecas) {
+      const s = p.tr.s ?? i.s;
+      ctx.font = fonte(s, !!p.tr.b, !!p.tr.i);
+      ctx.fillStyle = p.tr.c ?? i.c;
+      ctx.fillText(p.t, x0 + p.x, base);
+      if (p.tr.u && p.t.trim()) {
+        ctx.fillRect(x0 + p.x, base + s * 0.12, medirNoCanvas(p.t.trimEnd(), s, !!p.tr.b, !!p.tr.i), Math.max(1, s / 14));
+      }
+    }
+    y += l.altura;
+  }
+  ctx.restore();
+}
 
 export type ImagensCarregadas = Map<number, CanvasImageSource>;
 
-/** Papel: branco com as linhas do fundo, ou a imagem da página do PDF. */
-export function desenharPapel(ctx: CanvasRenderingContext2D, fundo: Fundo, largura: number, altura: number, imagemFundo?: CanvasImageSource | null) {
+/**
+ * Papel: branco com as linhas do fundo, ou a imagem da página do PDF — girada junto com a página (v2): a imagem foi
+ * guardada sem giro, então em 90°/270° ela é desenhada com largura e altura trocadas.
+ */
+export function desenharPapel(ctx: CanvasRenderingContext2D, fundo: Fundo, largura: number, altura: number, imagemFundo?: CanvasImageSource | null, giro = 0) {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, largura, altura);
   if (imagemFundo) {
-    ctx.drawImage(imagemFundo, 0, 0, largura, altura);
+    ctx.save();
+    if (giro === 90) { ctx.translate(largura, 0); ctx.rotate(Math.PI / 2); ctx.drawImage(imagemFundo, 0, 0, altura, largura); }
+    else if (giro === 180) { ctx.translate(largura, altura); ctx.rotate(Math.PI); ctx.drawImage(imagemFundo, 0, 0, largura, altura); }
+    else if (giro === 270) { ctx.translate(0, altura); ctx.rotate(-Math.PI / 2); ctx.drawImage(imagemFundo, 0, 0, altura, largura); }
+    else ctx.drawImage(imagemFundo, 0, 0, largura, altura);
+    ctx.restore();
     return;
   }
   ctx.lineWidth = 1;
@@ -101,10 +144,7 @@ export function desenharItem(ctx: CanvasRenderingContext2D, i: Item, imagens: Im
     }
     ctx.stroke();
   } else if (i.t === "tx") {
-    ctx.fillStyle = i.c;
-    ctx.font = `${i.s}px Inter, "Segoe UI", Roboto, Arial, sans-serif`;
-    ctx.textBaseline = "top";
-    linhasDoTexto(i).forEach((linha, n) => ctx.fillText(linha, i.x, i.y + n * i.s * 1.3 + i.s * 0.1));
+    desenharTexto(ctx, i);
   } else {
     const img = imagens.get(i.img);
     if (img) ctx.drawImage(img, i.x, i.y, i.w, i.h);
@@ -118,10 +158,10 @@ export function desenharItem(ctx: CanvasRenderingContext2D, i: Item, imagens: Im
 
 /** A página inteira na escala dada (px do canvas por px da página). */
 export function desenharPagina(
-  ctx: CanvasRenderingContext2D, escala: number, pagina: { cdFundo: Fundo; nrLargura: number; nrAltura: number },
+  ctx: CanvasRenderingContext2D, escala: number, pagina: { cdFundo: Fundo; nrLargura: number; nrAltura: number; nrRotacao?: number },
   itens: Item[], imagens: ImagensCarregadas, imagemFundo?: CanvasImageSource | null,
 ) {
   ctx.setTransform(escala, 0, 0, escala, 0, 0);
-  desenharPapel(ctx, pagina.cdFundo, pagina.nrLargura, pagina.nrAltura, imagemFundo);
+  desenharPapel(ctx, pagina.cdFundo, pagina.nrLargura, pagina.nrAltura, imagemFundo, pagina.nrRotacao ?? 0);
   for (const i of itens) desenharItem(ctx, i, imagens);
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { FileUp, Loader2, NotebookPen, Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import EditorCaderno from "@/react-app/components/bloco/EditorCaderno";
-import { importarPdf } from "@/react-app/components/bloco/pdfBloco";
+import { ACEITA_ARQUIVOS, importarArquivo } from "@/react-app/components/bloco/arquivosBloco";
 import Campo, { classeInput } from "@/react-app/components/casamento/Campo";
 import ModalBase from "@/react-app/components/casamento/ModalBase";
 import CabecalhoPagina from "@/react-app/components/ui/CabecalhoPagina";
@@ -119,21 +119,21 @@ export default function BlocoNotasPage() {
     }
   };
 
-  /** PDF vira um caderno novo: as páginas do PDF entram e a página em branco do começo sai. */
+  /** O arquivo (PDF, imagem, Word, planilha, texto) vira um caderno novo; a página em branco do começo sai. */
   const importar = async (arquivo: File) => {
-    setImportando("Lendo o PDF…");
+    setImportando(`Lendo ${arquivo.name}…`);
     setErro(null);
     let criado: Caderno | null = null;
     try {
       criado = await servico.criar(tituloDoPdf(arquivo.name), CORES_CAPA[6], "BRANCO");
       const branca = criado.paginas?.[0]?.id;
-      await importarPdf(criado.id, arquivo, undefined, (feitas, total) => setImportando(`Importando página ${feitas} de ${total}…`));
+      await importarArquivo(criado.id, arquivo, undefined, (feitas, total) => setImportando(`Importando página ${feitas} de ${total}…`));
       if (branca) await servico.excluirPagina(branca);
       await carregar();
       setAberto(criado.id);
     } catch (e) {
       if (criado) await servico.excluir(criado.id).catch(() => undefined);
-      setErro(mensagem(e, "Não foi possível importar o PDF."));
+      setErro(mensagem(e, "Não foi possível abrir o arquivo."));
     } finally {
       setImportando(null);
     }
@@ -154,7 +154,7 @@ export default function BlocoNotasPage() {
         acoes={<>
           <button type="button" onClick={() => arquivoPdf.current?.click()} disabled={importando !== null}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-            {importando ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />} Abrir PDF
+            {importando ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />} Abrir arquivo
           </button>
           <button type="button" onClick={() => setModal("novo")} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">
             <Plus className="h-4 w-4" /> Novo caderno
@@ -178,7 +178,7 @@ export default function BlocoNotasPage() {
         !erro && <div className="flex justify-center p-10"><Loader2 className="h-8 w-8 animate-spin text-blue-500" aria-label="Carregando" /></div>
       ) : visiveis.length === 0 ? (
         <div className="animate-surgir rounded-2xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-500">
-          {cadernos.length === 0 ? <>Nenhum caderno ainda. <button type="button" onClick={() => setModal("novo")} className="font-bold text-blue-600">Criar o primeiro</button> ou abra um PDF para anotar.</> : "Nenhum caderno com esse nome."}
+          {cadernos.length === 0 ? <>Nenhum caderno ainda. <button type="button" onClick={() => setModal("novo")} className="font-bold text-blue-600">Criar o primeiro</button> ou abra um arquivo (PDF, imagem, Word, planilha) para anotar.</> : "Nenhum caderno com esse nome."}
         </div>
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-label="Cadernos">
@@ -204,7 +204,7 @@ export default function BlocoNotasPage() {
       <p className="mt-6 text-center text-[11px] text-slate-400">Seus cadernos são só seus. Tudo é salvo sozinho enquanto você escreve.</p>
 
       {modal && <CadernoModal caderno={modal === "novo" ? null : modal} onSalvar={salvar} onFechar={() => setModal(null)} />}
-      <input ref={arquivoPdf} type="file" accept="application/pdf,.pdf" className="hidden" onChange={e => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void importar(a); }} />
+      <input ref={arquivoPdf} type="file" accept={ACEITA_ARQUIVOS} className="hidden" onChange={e => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void importar(a); }} />
     </div>
   );
 }

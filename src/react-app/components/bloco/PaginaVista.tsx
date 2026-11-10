@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as PE } from "react";
 import { Copy, Loader2, Trash2 } from "lucide-react";
 
-import { desenharItem, desenharPagina, desenharTraco, type ImagensCarregadas } from "@/react-app/components/bloco/desenho";
+import EditorCaixaTexto, { type EditorCaixaTextoApi } from "@/react-app/components/bloco/EditorCaixaTexto";
+import { desenharItem, desenharPagina, desenharPapel, desenharTraco, type ImagensCarregadas } from "@/react-app/components/bloco/desenho";
+import { desenharPaginaPdf } from "@/react-app/components/bloco/pdfOriginal";
 import { fundoDaPagina, imagemDoBloco } from "@/react-app/components/bloco/imagensBloco";
 import type { PaginaBloco } from "@/react-app/services/BlocoNotasService";
 import {
-  acrescentarPonto, alturaTexto, apagarItens, apagarParcial, caixaDoItem, CORES, dentroDaCaixa, duplicarItens, escalarItens,
+  acrescentarPonto, apagarItens, apagarParcial, caixaDoItem, CORES, dentroDaCaixa, duplicarItens, escalarItens,
   formaDoArrasto, itemNoPonto, itensNoLaco, moverItens, novoId, pintarItens, pressao, uniaoCaixas,
   type Item, type Ponto, type Texto, type TipoForma,
 } from "@/react-app/utils/blocoNotas";
 
-export type Ferramenta = "caneta" | "marca" | "borracha" | "forma" | "texto" | "laco" | "mao";
+/** "nenhuma" (v2): lápis solto — o toque só rola a página e nada é desenhado. */
+export type Ferramenta = "caneta" | "marca" | "borracha" | "forma" | "texto" | "laco" | "mao" | "nenhuma";
 
 export interface ConfigFerramenta {
   ferramenta: Ferramenta;
@@ -61,11 +64,17 @@ export default function PaginaVista({ pagina, numero, itens, zoom, config, selec
   const [imagens, setImagens] = useState<ImagensCarregadas>(() => new Map());
   const [fundo, setFundo] = useState<ImageBitmap | null>(null);
   const [texto, setTexto] = useState<Texto | null>(null);
+  const editorTexto = useRef<EditorCaixaTextoApi>(null);
   const [cursor, setCursor] = useState<Ponto | null>(null);
 
   const largura = pagina.nrLargura * zoom, altura = pagina.nrAltura * zoom;
   const dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
   const resolucao = Math.min(dpr * zoom, LADO_MAX_CANVAS / Math.max(pagina.nrLargura, pagina.nrAltura));
+  const giro = pagina.nrRotacao ?? 0;
+  /** v2: a página desenhada do PDF original na resolução da tela (null enquanto não há PDF ou ele carrega). */
+  const [fundoPdf, setFundoPdf] = useState<HTMLCanvasElement | null>(null);
+  const detalheRef = useRef<HTMLCanvasElement>(null);
+  const [detalhe, setDetalhe] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const exibidos = trabalho ?? itens;
 
   // Carrega quando chega perto da tela; conta quanto dela está visível (para saber a página atual).
@@ -97,6 +106,68 @@ export default function PaginaVista({ pagina, numero, itens, zoom, config, selec
     return () => { vivo = false; };
   }, [exibidos, imagens]);
 
+  // v2: fundo vindo do PDF original, na resolução do canvas (refeito quando o zoom para de mudar).
+  useEffect(() => {
+    if (!pagina.idPdf || !pagina.nrPaginaPdf) { setFundoPdf(null); return; }
+    const sinal = { cancelado: false };
+    const t = window.setTimeout(() => {
+      const c = document.createElement("canvas");
+      void desenharPaginaPdf(c, pagina.idPdf!, pagina.nrPaginaPdf!, giro, pagina.nrLargura,
+        { x: 0, y: 0, w: pagina.nrLargura, h: pagina.nrAltura, escala: resolucao }, sinal)
+        .then(ok => { if (ok && !sinal.cancelado) setFundoPdf(c); });
+    }, 150);
+    return () => { sinal.cancelado = true; window.clearTimeout(t); };
+  }, [pagina.idPdf, pagina.nrPaginaPdf, pagina.nrLargura, pagina.nrAltura, giro, resolucao]);
+
+  /**
+   * v2: zoom maior que o canvas inteiro aguenta — redesenha só o pedaço visível da página na resolução da tela (PDF
+   * vetorial e desenho), como os leitores de PDF. Refaz ao rolar, ao mudar o zoom e quando o desenho muda.
+   */
+  useEffect(() => {
+    const precisa = dpr * zoom > resolucao * 1.05;
+    const rolagem = caixaRef.current?.closest("[data-rolagem]") as HTMLElement | null;
+    if (!precisa || !rolagem || !exibidos) { setDetalhe(null); return; }
+    let sinal = { cancelado: false };
+    let t = 0;
+    const refazer = () => {
+      sinal.cancelado = true;
+      sinal = { cancelado: false };
+      const meu = sinal;
+      window.clearTimeout(t);
+      t = window.setTimeout(async () => {
+        const el = caixaRef.current, c = detalheRef.current;
+        if (!el || !c) return;
+        const r = el.getBoundingClientRect(), v = rolagem.getBoundingClientRect();
+        const x0 = Math.max(r.left, v.left), y0 = Math.max(r.top, v.top), x1 = Math.min(r.right, v.right), y1 = Math.min(r.bottom, v.bottom);
+        if (x1 <= x0 || y1 <= y0) { setDetalhe(null); return; }
+        const reg = { x: (x0 - r.left) / zoom, y: (y0 - r.top) / zoom, w: (x1 - x0) / zoom, h: (y1 - y0) / zoom };
+        const escala = dpr * zoom;
+        const tela = document.createElement("canvas");
+        if (pagina.idPdf && pagina.nrPaginaPdf) {
+          if (!await desenharPaginaPdf(tela, pagina.idPdf, pagina.nrPaginaPdf, giro, pagina.nrLargura, { ...reg, escala }, meu)) return;
+        } else {
+          tela.width = Math.round(reg.w * escala);
+          tela.height = Math.round(reg.h * escala);
+          const cx = tela.getContext("2d")!;
+          cx.setTransform(escala, 0, 0, escala, -reg.x * escala, -reg.y * escala);
+          desenharPapel(cx, pagina.cdFundo, pagina.nrLargura, pagina.nrAltura, pagina.inFundo ? fundo : null, giro);
+        }
+        if (meu.cancelado) return;
+        const ctx = tela.getContext("2d")!;
+        ctx.setTransform(escala, 0, 0, escala, -reg.x * escala, -reg.y * escala);
+        for (const i of exibidos) if (i.id !== texto?.id) desenharItem(ctx, i, imagens);
+        c.width = tela.width;
+        c.height = tela.height;
+        c.getContext("2d")!.drawImage(tela, 0, 0);
+        setDetalhe(reg);
+      }, 140);
+    };
+    refazer();
+    rolagem.addEventListener("scroll", refazer, { passive: true });
+    window.addEventListener("resize", refazer);
+    return () => { sinal.cancelado = true; window.clearTimeout(t); rolagem.removeEventListener("scroll", refazer); window.removeEventListener("resize", refazer); };
+  }, [dpr, zoom, resolucao, exibidos, imagens, fundo, giro, texto?.id, pagina]);
+
   // Desenho salvo (e o que muda durante borracha/mover).
   useEffect(() => {
     const c = baseRef.current;
@@ -106,8 +177,10 @@ export default function PaginaVista({ pagina, numero, itens, zoom, config, selec
     const ctx = c.getContext("2d");
     if (!ctx) return;
     // O texto em edição some do canvas (aparece na caixa de digitar).
-    desenharPagina(ctx, resolucao, pagina, (exibidos ?? []).filter(i => i.id !== texto?.id), imagens, pagina.inFundo ? fundo : null);
-  }, [pagina, resolucao, exibidos, imagens, fundo, texto?.id]);
+    // Fundo: o PDF original (já girado pelo pdf.js) ou, enquanto ele não chega, a imagem de prévia.
+    const pag = fundoPdf ? { ...pagina, nrRotacao: 0 } : pagina;
+    desenharPagina(ctx, resolucao, pag, (exibidos ?? []).filter(i => i.id !== texto?.id), imagens, fundoPdf ?? (pagina.inFundo ? fundo : null));
+  }, [pagina, resolucao, exibidos, imagens, fundo, fundoPdf, texto?.id]);
 
   const caixaSelecao = useMemo(() => {
     if (!selecao.size || !exibidos) return null;
@@ -158,7 +231,7 @@ export default function PaginaVista({ pagina, numero, itens, zoom, config, selec
   };
 
   /** Toque de dedo no modo "só caneta" (ou a ferramenta mão): deixa o navegador rolar. */
-  const ignorar = (e: PE<HTMLCanvasElement>) => config.ferramenta === "mao" || (config.soCaneta && e.pointerType === "touch");
+  const ignorar = (e: PE<HTMLCanvasElement>) => config.ferramenta === "mao" || config.ferramenta === "nenhuma" || (config.soCaneta && e.pointerType === "touch");
 
   const abrirTexto = (t: Texto) => {
     onSelecao(new Set());
@@ -175,7 +248,7 @@ export default function PaginaVista({ pagina, numero, itens, zoom, config, selec
       return;
     }
     const antigo = itens.find(i => i.id === t.id) as Texto | undefined;
-    if (antigo && antigo.txt === t.txt) return;
+    if (antigo && JSON.stringify(antigo) === JSON.stringify(t)) return;
     onItens(existe ? itens.map(i => (i.id === t.id ? t : i)) : [...itens, t]);
   };
 
@@ -185,7 +258,7 @@ export default function PaginaVista({ pagina, numero, itens, zoom, config, selec
     e.currentTarget.setPointerCapture(e.pointerId);
     const p = ponto(e);
     const f = config.ferramenta;
-    if (texto) { fecharTexto(texto); return; }
+    if (texto) { editorTexto.current?.terminar(); return; }
     if (f === "caneta" || f === "marca") {
       const marca = f === "marca";
       gesto.current = { tipo: "traco", item: { t: "tr", id: novoId(), c: marca ? config.corMarca : config.cor, w: marca ? config.espessuraMarca : config.espessura, ...(marca ? { marca: true } : {}), p: [p.x, p.y, pressao(e.pointerType, e.pressure)] } };
@@ -273,26 +346,23 @@ export default function PaginaVista({ pagina, numero, itens, zoom, config, selec
     else onItens(pintarItens(itens, selecao, acao));
   };
 
-  const cursorCss = config.ferramenta === "mao" ? "grab" : config.ferramenta === "texto" ? "text" : config.ferramenta === "laco" ? "default" : config.ferramenta === "borracha" ? "none" : "crosshair";
+  const cursorCss = config.ferramenta === "nenhuma" ? "default" : config.ferramenta === "mao" ? "grab" : config.ferramenta === "texto" ? "text" : config.ferramenta === "laco" ? "default" : config.ferramenta === "borracha" ? "none" : "crosshair";
 
   return (
     <div ref={caixaRef} className="relative mx-auto shadow-md ring-1 ring-slate-300/70" style={{ width: largura, height: altura }}
       data-pagina={pagina.id} aria-label={`Página ${numero}`} role="group">
       <canvas ref={baseRef} className="absolute inset-0 h-full w-full" aria-hidden="true" />
+      <canvas ref={detalheRef} aria-hidden="true" className="pointer-events-none absolute"
+        style={detalhe ? { left: detalhe.x * zoom, top: detalhe.y * zoom, width: detalhe.w * zoom, height: detalhe.h * zoom } : { display: "none" }} />
       <canvas ref={topoRef} className="absolute inset-0 h-full w-full"
-        style={{ touchAction: config.ferramenta === "mao" || config.soCaneta ? "pan-x pan-y" : "none", cursor: cursorCss }}
+        style={{ touchAction: config.ferramenta === "mao" || config.ferramenta === "nenhuma" || config.soCaneta ? "pan-x pan-y" : "none", cursor: cursorCss }}
         onPointerDown={aoDescer} onPointerMove={aoMover} onPointerUp={aoSubir} onPointerCancel={aoSubir}
         onPointerLeave={() => setCursor(null)} aria-label={`Desenhar na página ${numero}`} />
       {itens === null && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/60"><Loader2 className="h-6 w-6 animate-spin text-slate-400" aria-label="Carregando página" /></div>
       )}
       {texto && (
-        <textarea autoFocus aria-label="Escrever texto" value={texto.txt}
-          onChange={e => setTexto({ ...texto, txt: e.target.value })}
-          onBlur={() => fecharTexto(texto)}
-          onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); fecharTexto(texto); } }}
-          className="absolute resize-none overflow-hidden rounded border border-dashed border-violet-400 bg-white/80 p-0 leading-[1.3] outline-none"
-          style={{ left: texto.x * zoom, top: texto.y * zoom, width: texto.w * zoom, height: Math.max(alturaTexto(texto), texto.s * 1.3) * zoom + 4, fontSize: texto.s * zoom, color: texto.c, fontFamily: "Inter, 'Segoe UI', Roboto, Arial, sans-serif" }} />
+        <EditorCaixaTexto ref={editorTexto} key={texto.id} texto={texto} zoom={zoom} larguraMaxima={Math.max(40, pagina.nrLargura - texto.x)} onFechar={fecharTexto} />
       )}
       {caixaSelecao && !trabalho && (
         <>
