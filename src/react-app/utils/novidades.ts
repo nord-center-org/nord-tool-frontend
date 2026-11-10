@@ -24,6 +24,13 @@ export const NOVIDADES: Novidade[] = [
     onde: { rotulo: "Configurações → Meu avatar", caminho: "/conta/avatar" },
   },
   {
+    id: "2026-11-10-meus-dados",
+    data: "2026-11-10",
+    titulo: "Meus dados: cada um cuida dos seus",
+    texto: "Em Configurações → Meus dados, cada pessoa preenche e altera o próprio nome, celular e empresa. O cargo continua com o administrador, porque é ele que dá os acessos.",
+    onde: { rotulo: "Configurações → Meus dados", caminho: "/conta/dados" },
+  },
+  {
     id: "2026-11-10-editor-imagens",
     data: "2026-11-10",
     titulo: "Editor de imagens, como o Paint.net",
