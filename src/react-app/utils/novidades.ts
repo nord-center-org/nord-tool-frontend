@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-10-placas-imagens",
+    data: "2026-11-10",
+    titulo: "Placas: ponha imagens na folha",
+    texto: "Nas placas e nos modelos, “Adicionar imagem” põe fotos, selos e logos em qualquer lugar da folha: arraste para mover, puxe os cantos para redimensionar, gire pela bolinha de baixo e escolha se a imagem fica na frente ou atrás do painel, como no Canva.",
+    onde: { rotulo: "Mapeamentos → Placas", caminho: "/mapeamentos/placas" },
+  },
+  {
     id: "2026-11-09-bloco-notas",
     data: "2026-11-09",
     titulo: "Bloco de notas: escreva à mão e anote PDFs",

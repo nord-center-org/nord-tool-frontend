@@ -3,13 +3,15 @@ import { toBlob } from "html-to-image";
 import { PDFDocument } from "pdf-lib";
 import { Copy, Download, FileDown, ImagePlus, LayoutTemplate, Loader2, Pencil, Plus, Signpost, Trash2, X } from "lucide-react";
 
+import ImagensNaFolha from "@/react-app/components/placas/ImagensNaFolha";
 import PlacaVisual from "@/react-app/components/placas/PlacaVisual";
 import CabecalhoPagina from "@/react-app/components/ui/CabecalhoPagina";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { useObra } from "@/react-app/hooks/useObra";
 import { placaService, type ModeloPlaca, type Placa, type TipoImagemPlaca } from "@/react-app/services/PlacaService";
 import {
-  CONFIG_EXEMPLO, FOLHA, FONTES, VALORES_EXEMPLO, lerConfig, lerValores, linhasDoTexto, nomeArquivoPlaca, type ConfigPlaca, type Fonte, type ValoresPlaca,
+  CONFIG_EXEMPLO, FOLHA, FONTES, MAX_IMAGENS, VALORES_EXEMPLO, imagemNova, lerConfig, lerValores, linhasDoTexto, nomeArquivoPlaca,
+  type ConfigPlaca, type Fonte, type ImagemPlaca, type ValoresPlaca,
 } from "@/react-app/utils/placas";
 import { podeAcessar } from "@/react-app/utils/sessao";
 
@@ -45,6 +47,64 @@ function useImagens(m: ModeloPlaca | null) {
   return imgs;
 }
 
+// ---------------------------------------------------------------- v2: imagens soltas (data URL, para a exportação levar junto)
+
+const cacheSoltas = new Map<number, Promise<string | null>>();
+const paraDataUrl = (b: Blob) => new Promise<string>((ok, erro) => {
+  const r = new FileReader();
+  r.onload = () => ok(String(r.result));
+  r.onerror = () => erro(r.error);
+  r.readAsDataURL(b);
+});
+function urlSolta(id: number): Promise<string | null> {
+  let p = cacheSoltas.get(id);
+  if (!p) {
+    p = placaService.imagemSolta(id).then(paraDataUrl).catch(() => null);
+    cacheSoltas.set(id, p);
+  }
+  return p;
+}
+
+/** URLs das imagens soltas do modelo e da placa, pelo id (as novas entram conforme chegam). */
+function useSoltas(listas: ImagemPlaca[][]): Record<number, string> {
+  const ids = [...new Set(listas.flat().map(i => i.img))].sort((a, b) => a - b).join(",");
+  const [urls, setUrls] = useState<Record<number, string>>({});
+  useEffect(() => {
+    let vivo = true;
+    for (const id of ids ? ids.split(",").map(Number) : []) {
+      void urlSolta(id).then(u => { if (vivo && u) setUrls(m => (m[id] === u ? m : { ...m, [id]: u })); });
+    }
+    return () => { vivo = false; };
+  }, [ids]);
+  return urls;
+}
+
+/** Envia a imagem como veio (PNG mantém o fundo transparente) e devolve a imagem posta no meio da folha. */
+async function adicionarSolta(arquivo: File, folha: { largura: number; altura: number }): Promise<ImagemPlaca> {
+  if (!/^image\/(png|jpeg)$/.test(arquivo.type)) throw new Error("Use uma imagem PNG ou JPEG.");
+  if (arquivo.size > 5 * 1024 * 1024) throw new Error("A imagem deve ter no máximo 5 MB.");
+  const bmp = await createImageBitmap(arquivo);
+  const tamanho = { w: bmp.width, h: bmp.height };
+  bmp.close();
+  const id = await placaService.enviarImagemSolta(arquivo, arquivo.name);
+  cacheSoltas.set(id, paraDataUrl(arquivo));
+  return imagemNova(id, tamanho.w, tamanho.h, folha);
+}
+
+/** Botão "Adicionar imagem" com o seletor de arquivo. */
+function BotaoImagem({ onArquivo, ocupado, cheio }: { onArquivo: (f: File) => void; ocupado: boolean; cheio: boolean }) {
+  const input = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <button type="button" onClick={() => input.current?.click()} disabled={ocupado || cheio} title={cheio ? `No máximo ${MAX_IMAGENS} imagens` : "Pôr uma imagem na folha"}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+        {ocupado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />} Adicionar imagem
+      </button>
+      <input ref={input} type="file" accept="image/png,image/jpeg" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onArquivo(f); }} />
+    </>
+  );
+}
+
 // ---------------------------------------------------------------- exportação
 
 async function imagemDaPlaca(no: HTMLElement): Promise<Blob> {
@@ -76,15 +136,23 @@ async function pdfDaPlaca(png: Blob, retrato: boolean): Promise<Blob> {
 
 // ---------------------------------------------------------------- miniatura
 
-function Miniatura({ config, valores, modelo, largura }: { config: ConfigPlaca; valores: ValoresPlaca; modelo: ModeloPlaca | null; largura: number }) {
+function Miniatura({ config, valores, modelo, largura, editar }: {
+  config: ConfigPlaca; valores: ValoresPlaca; modelo: ModeloPlaca | null; largura: number;
+  /** v2: imagens que dá para mexer na prévia (as da placa ou, no editor do modelo, as do modelo). */
+  editar?: { imagens: ImagemPlaca[]; onMudar: (l: ImagemPlaca[]) => void };
+}) {
   const imgs = useImagens(modelo);
+  const soltas = useSoltas([config.imagens, valores.imagens]);
   const folha = FOLHA[config.orientacao];
   const escala = largura / folha.largura;
   return (
-    <div style={{ width: largura, height: folha.altura * escala }} className="overflow-hidden rounded-lg shadow-sm ring-1 ring-slate-200">
-      <div style={{ transform: `scale(${escala})`, transformOrigin: "top left", width: folha.largura, height: folha.altura }}>
-        <PlacaVisual config={config} valores={valores} fundo={imgs.fundo} logo={imgs.logo} />
+    <div style={{ width: largura, height: folha.altura * escala }} className="relative rounded-lg shadow-sm ring-1 ring-slate-200">
+      <div className="h-full w-full overflow-hidden rounded-lg">
+        <div style={{ transform: `scale(${escala})`, transformOrigin: "top left", width: folha.largura, height: folha.altura }}>
+          <PlacaVisual config={config} valores={valores} fundo={imgs.fundo} logo={imgs.logo} soltas={soltas} />
+        </div>
       </div>
+      {editar && <ImagensNaFolha folha={folha} escala={escala} imagens={editar.imagens} onMudar={editar.onMudar} />}
     </div>
   );
 }
@@ -140,13 +208,23 @@ function EditorPlaca({ placa, modelos, onFechar, onSalvo, editavel }: {
   const [cabecalho, setCabecalho] = useState(inicial.cabecalho);
   const [texto, setTexto] = useState(inicial.linhas.join("\n"));
   const [rodape, setRodape] = useState(inicial.rodape);
+  const [imagens, setImagens] = useState<ImagemPlaca[]>(inicial.imagens);
+  const [enviandoImagem, setEnviandoImagem] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [baixando, setBaixando] = useState<"png" | "pdf" | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const modelo = modelos.find(m => m.id === idModelo) ?? null;
   const config = useMemo(() => lerConfig(modelo?.config), [modelo]);
-  const valores: ValoresPlaca = { cabecalho, linhas: linhasDoTexto(texto), rodape };
+  const valores: ValoresPlaca = { cabecalho, linhas: linhasDoTexto(texto), rodape, imagens };
   const imgs = useImagens(modelo);
+  const soltas = useSoltas([config.imagens, imagens]);
+  const novaImagem = async (f: File) => {
+    setEnviandoImagem(true);
+    setErro(null);
+    try { const i = await adicionarSolta(f, FOLHA[config.orientacao]); setImagens(l => [...l, i]); }
+    catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível pôr a imagem."); }
+    finally { setEnviandoImagem(false); }
+  };
   const exportar = useRef<HTMLDivElement>(null);
   const { ref: area, largura } = useLargura<HTMLDivElement>();
   const nome = titulo.trim() || valores.linhas[0] || "placa";
@@ -211,10 +289,18 @@ function EditorPlaca({ placa, modelos, onFechar, onSalvo, editavel }: {
                 <textarea value={rodape} rows={3} maxLength={1500} disabled={!editavel} onChange={e => setRodape(e.target.value)} className={campo} />
               </Rotulo>
             )}
+            {editavel && (
+              <div className="space-y-1">
+                <BotaoImagem onArquivo={f => void novaImagem(f)} ocupado={enviandoImagem} cheio={imagens.length >= MAX_IMAGENS} />
+                <p className="text-[11px] text-slate-500">Na prévia: arraste para mover, puxe os cantos para redimensionar (Shift solta a proporção) e a bolinha de baixo para girar.</p>
+              </div>
+            )}
             {erro && <p role="alert" className="text-sm font-semibold text-red-600">{erro}</p>}
           </div>
-          <div ref={area} className="min-w-0 flex-1">
-            <Miniatura config={config} valores={valores} modelo={modelo} largura={Math.min(largura, 900)} />
+          <div ref={area} className="min-w-0 flex-1 lg:sticky lg:top-0 lg:self-start">
+            <div className="pt-12">
+              <Miniatura config={config} valores={valores} modelo={modelo} largura={Math.min(largura, 900)} editar={editavel ? { imagens, onMudar: setImagens } : undefined} />
+            </div>
             <p className="mt-2 text-xs text-slate-500">Folha A4 {config.orientacao === "paisagem" ? "deitada" : "em pé"}. O PDF sai do tamanho da folha, pronto para imprimir.</p>
           </div>
         </div>
@@ -237,7 +323,7 @@ function EditorPlaca({ placa, modelos, onFechar, onSalvo, editavel }: {
       </div>
       {/* A placa em tamanho real, fora da tela: é ela que vira PNG/PDF. */}
       <div aria-hidden="true" style={{ position: "fixed", left: -20000, top: 0 }}>
-        <PlacaVisual ref={exportar} config={config} valores={valores} fundo={imgs.fundo} logo={imgs.logo} />
+        <PlacaVisual ref={exportar} config={config} valores={valores} fundo={imgs.fundo} logo={imgs.logo} soltas={soltas} />
       </div>
     </div>
   );
@@ -252,6 +338,7 @@ function EditorModelo({ modelo, onFechar, onSalvo }: { modelo: ModeloPlaca; onFe
   const [atual, setAtual] = useState(modelo);
   const [salvando, setSalvando] = useState(false);
   const [enviando, setEnviando] = useState<TipoImagemPlaca | null>(null);
+  const [enviandoSolta, setEnviandoSolta] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const arquivo = useRef<HTMLInputElement>(null);
   const tipoArquivo = useRef<TipoImagemPlaca>("fundo");
@@ -276,6 +363,13 @@ function EditorModelo({ modelo, onFechar, onSalvo }: { modelo: ModeloPlaca; onFe
   };
   const remover = async (tipo: TipoImagemPlaca) => {
     try { setAtual(await placaService.removerImagem(modelo.id, tipo)); } catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível tirar a imagem."); }
+  };
+  const novaSolta = async (f: File) => {
+    setEnviandoSolta(true);
+    setErro(null);
+    try { const i = await adicionarSolta(f, FOLHA[c.orientacao]); setC(x => ({ ...x, imagens: [...x.imagens, i] })); }
+    catch (e) { setErro(e instanceof Error ? e.message : "Não foi possível pôr a imagem."); }
+    finally { setEnviandoSolta(false); }
   };
   const botaoImagem = (tipo: TipoImagemPlaca, rotulo: string, tem: boolean) => (
     <div className="flex items-center gap-2">
@@ -347,6 +441,12 @@ function EditorModelo({ modelo, onFechar, onSalvo }: { modelo: ModeloPlaca; onFe
             </fieldset>
 
             <fieldset className="space-y-2 rounded-2xl border border-slate-200 p-3">
+              <legend className="px-1 text-xs font-black uppercase tracking-wide text-slate-500">Imagens na folha</legend>
+              <BotaoImagem onArquivo={f => void novaSolta(f)} ocupado={enviandoSolta} cheio={c.imagens.length >= MAX_IMAGENS} />
+              <p className="text-[11px] text-slate-500">Saem em todas as placas deste modelo. Na prévia: arraste, redimensione pelos cantos e gire pela bolinha de baixo.</p>
+            </fieldset>
+
+            <fieldset className="space-y-2 rounded-2xl border border-slate-200 p-3">
               <legend className="px-1 text-xs font-black uppercase tracking-wide text-slate-500">Rodapé</legend>
               <Liga valor={c.rodape.ativo} onMudar={v => mudar("rodape", { ativo: v })} rotulo="Rodapé" />
               {c.rodape.ativo && (<>
@@ -362,9 +462,10 @@ function EditorModelo({ modelo, onFechar, onSalvo }: { modelo: ModeloPlaca; onFe
             <input ref={arquivo} type="file" accept="image/png,image/jpeg" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void enviar(f); }} />
             {erro && <p role="alert" className="text-sm font-semibold text-red-600">{erro}</p>}
           </div>
-          <div ref={area} className="min-w-0 flex-1">
-            <div className="lg:sticky lg:top-0">
-              <Miniatura config={c} valores={VALORES_EXEMPLO} modelo={atual} largura={Math.min(largura, 900)} />
+          <div ref={area} className="min-w-0 flex-1 lg:sticky lg:top-0 lg:self-start">
+            <div className="pt-12">
+              <Miniatura config={c} valores={VALORES_EXEMPLO} modelo={atual} largura={Math.min(largura, 900)}
+                editar={{ imagens: c.imagens, onMudar: l => setC(x => ({ ...x, imagens: l })) }} />
               <p className="mt-2 text-xs text-slate-500">Prévia com o texto de exemplo. As imagens entram assim que são enviadas.</p>
             </div>
           </div>
