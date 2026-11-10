@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Sheet as AbaEditor } from "@fortune-sheet/core";
 import { Workbook, type WorkbookInstance } from "@fortune-sheet/react";
 import "@fortune-sheet/react/dist/index.css";
 import * as XLSX from "xlsx";
@@ -139,7 +140,7 @@ export default function EditorPlanilha({ id, onVoltar, onAlterado }: { id: numbe
         </p>
       )}
       <div className="planilha-bloco relative min-h-[20rem] flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white" data-planilha="">
-        <Workbook ref={wb} data={inicial} lang="en" currency="R$" hooks={hooks}
+        <Workbook ref={wb} data={inicial as unknown as AbaEditor[]} lang="en" currency="R$" hooks={hooks}
           onChange={dados => { atual.current = dados as unknown as AbaFs[]; agendar(); }} />
       </div>
     </div>
