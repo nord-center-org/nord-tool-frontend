@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowDown, ArrowLeft, ArrowUp, Circle, Copy, Eraser, FileDown, FileUp, Hand, Highlighter, ImagePlus, Lasso, Loader2, Minus,
   MoveUpRight, PenLine, PenTool, Plus, Redo2, Square, Trash2, Type, Undo2, X, ZoomIn, ZoomOut, Layers, CheckCircle2, AlertTriangle,
@@ -64,10 +64,16 @@ interface Props {
   id: number;
   onVoltar: () => void;
   onAlterado: (c: Caderno) => void;
+  /** v4: abre já nesta página (1…), quando o chat dos cadernos manda abrir. */
+  paginaInicial?: number;
+  /** v4: muda quando o chat cria uma página neste caderno; recarrega a lista sem perder o que não foi salvo. */
+  recarregarEm?: number;
+  /** v4: botão extra na barra de cima (o chat dos cadernos). */
+  extra?: ReactNode;
 }
 
 /** O caderno aberto: páginas em rolagem, ferramentas de desenho, salvar automático e PDF. */
-export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
+export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial, recarregarEm, extra }: Props) {
   const [caderno, setCaderno] = useState<Caderno | null>(null);
   const [estado, setEstado] = useState<Record<number, EstadoPagina>>({});
   const estadoRef = useRef(estado);
@@ -112,7 +118,7 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
       setErro(mensagem(e, "Não foi possível abrir o caderno."));
     }
   }, [id]);
-  useEffect(() => { void carregar(); }, [carregar]);
+  useEffect(() => { void carregar(); }, [carregar, recarregarEm]);
 
   const paginas = useMemo(() => caderno?.paginas ?? [], [caderno]);
   const larguraMax = Math.max(1, ...paginas.map(p => p.nrLargura));
@@ -252,6 +258,15 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
   const irPara = (idPagina: number) => {
     rolagemRef.current?.querySelector(`[data-pagina="${idPagina}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  // v4: o chat mandou abrir numa página (ou criou uma): rola até ela quando a lista chega.
+  const paginaPedida = paginaInicial ? caderno?.paginas?.[Math.min(paginaInicial, caderno.paginas.length) - 1]?.id : undefined;
+  useEffect(() => {
+    if (!paginaPedida) return;
+    setAtual(paginaPedida);
+    const t = window.setTimeout(() => rolagemRef.current?.querySelector(`[data-pagina="${paginaPedida}"]`)?.scrollIntoView({ block: "start" }), 250);
+    return () => window.clearTimeout(t);
+  }, [paginaPedida, recarregarEm]);
 
   const comCaderno = (c: Caderno) => {
     setCaderno(c);
@@ -412,6 +427,7 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
         <span className="hidden items-center gap-1 text-xs text-slate-500 sm:inline-flex" role="status">
           {salvando ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Salvando…</> : pendentes.length ? "Alterações não salvas" : <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Salvo</>}
         </span>
+        {extra}
         <div role="radiogroup" aria-label="Ver" className="flex rounded-lg border border-slate-200 p-0.5">
           {([["desenho", "Desenho", NotebookPen], ["texto", "Texto", FileText], ["lado", "Lado a lado", Columns2]] as const).map(([m, rotulo, Icone]) => (
             <button key={m} type="button" role="radio" aria-checked={modo === m} onClick={() => setModo(m)} title={rotulo}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, FileDown, FileText, Loader2 } from "lucide-react";
 
 import DocumentoCaderno, { type ExibicaoDocumento, type FonteDocumento } from "@/react-app/components/bloco/DocumentoCaderno";
@@ -15,7 +15,7 @@ const lerExibicao = (): ExibicaoDocumento => { try { return localStorage.getItem
  * Documento avulso do bloco de notas (v3), no estilo do Word: o mesmo editor do documento do caderno (páginas A4 ou
  * contínuo, salva sozinho), com nome e "Baixar PDF". Nome e conteúdo dividem a mesma versão do arquivo.
  */
-export default function EditorDocumentoAvulso({ id, onVoltar, onAlterado }: { id: number; onVoltar: () => void; onAlterado?: (a: ArquivoBloco) => void }) {
+export default function EditorDocumentoAvulso({ id, onVoltar, onAlterado, extra }: { id: number; onVoltar: () => void; onAlterado?: (a: ArquivoBloco) => void; extra?: ReactNode }) {
   const [arquivo, setArquivo] = useState<ArquivoBloco | null>(null);
   const [titulo, setTitulo] = useState("");
   const [exibicao, setExibicao] = useState<ExibicaoDocumento>(lerExibicao);
@@ -88,6 +88,7 @@ export default function EditorDocumentoAvulso({ id, onVoltar, onAlterado }: { id
         <input value={titulo} maxLength={120} aria-label="Nome do documento" onChange={e => setTitulo(e.target.value)} onBlur={() => void renomear()}
           onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
           className="order-last w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1 text-lg font-bold text-slate-800 hover:border-slate-200 focus:border-blue-500 focus:outline-none sm:order-none sm:w-auto sm:flex-1" />
+        {extra}
         <button type="button" className={`${botao} ml-auto sm:ml-0`} onClick={() => void baixarPdf()} disabled={baixando}>
           {baixando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}Baixar PDF
         </button>

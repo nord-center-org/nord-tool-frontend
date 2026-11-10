@@ -50,7 +50,11 @@ export const lugiaService = {
 
   /** Envia a mensagem e lê a resposta em tempo real (SSE sobre POST, por isso fetch e não EventSource). */
   async conversar(
-    pedido: { idConversa?: number; modelo?: string; modo?: "chat" | "agente"; texto: string; anexos: AnexoEnvio[] },
+    pedido: {
+      idConversa?: number; modelo?: string; modo?: "chat" | "agente"; texto: string; anexos: AnexoEnvio[];
+      /** Bloco de notas v4: "cadernos" leva o Bloco de notas da pessoa junto, com o item aberto na tela. */
+      contexto?: "cadernos"; tipoAberto?: "CADERNO" | "PLANILHA" | "DOCUMENTO"; idAberto?: number;
+    },
     callbacks: CallbacksChat,
     sinal?: AbortSignal,
   ): Promise<void> {
