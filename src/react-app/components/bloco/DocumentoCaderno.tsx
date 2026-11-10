@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, CheckCircle2, Highlighter, IndentDecrease, IndentIncrease, Italic, List, ListOrdered,
   Loader2, Minus, Redo2, RemoveFormatting, Strikethrough, Underline, Undo2,
@@ -11,8 +11,17 @@ import { CORES, CORES_MARCA, PAGINA_DOCUMENTO } from "@/react-app/utils/blocoNot
 
 export type ExibicaoDocumento = "paginas" | "continuo";
 
+/** De onde vem e para onde vai o documento: o do caderno ou um documento avulso (v3). */
+export interface FonteDocumento {
+  carregar: () => Promise<{ html: string; nrVersao: number }>;
+  salvar: (html: string, nrVersao: number) => Promise<{ nrVersao: number }>;
+}
+
 interface Props {
-  idCaderno: number;
+  /** Documento do caderno (v2). */
+  idCaderno?: number;
+  /** v3: outra origem (documento avulso). */
+  fonte?: FonteDocumento;
   exibicao: ExibicaoDocumento;
   onExibicao: (e: ExibicaoDocumento) => void;
   /** Para o PDF do caderno: o HTML atual do documento. */
@@ -30,7 +39,11 @@ const TAMANHOS = [{ v: "2", r: "Pequeno" }, { v: "3", r: "Normal" }, { v: "4", r
  * cor, marca-texto, tamanho, alinhamento, listas, recuo e linha. Em "páginas" o texto aparece em folhas A4 (com as
  * quebras marcadas); em "contínuo", numa coluna só. Salva sozinho, com controle de versão.
  */
-export default function DocumentoCaderno({ idCaderno, exibicao, onExibicao, onHtml }: Props) {
+export default function DocumentoCaderno({ idCaderno, fonte, exibicao, onExibicao, onHtml }: Props) {
+  const origem = useMemo<FonteDocumento>(() => fonte ?? {
+    carregar: () => servico.documento(idCaderno ?? 0),
+    salvar: (html, v) => servico.salvarDocumento(idCaderno ?? 0, html, v),
+  }, [fonte, idCaderno]);
   const editor = useRef<HTMLDivElement>(null);
   const caixa = useRef<HTMLDivElement>(null);
   const versao = useRef(1);
@@ -39,15 +52,18 @@ export default function DocumentoCaderno({ idCaderno, exibicao, onExibicao, onHt
   const [largura, setLargura] = useState<number>(PAGINA_DOCUMENTO.largura);
   const [paginas, setPaginas] = useState(1);
   const timer = useRef<number | null>(null);
+  // Guardado em ref: um onHtml novo a cada render não pode recarregar o documento (apagaria o que acabou de ser escrito).
+  const avisarHtml = useRef(onHtml);
+  avisarHtml.current = onHtml;
 
   const carregar = useCallback(async () => {
-    const d = await servico.documento(idCaderno);
+    const d = await origem.carregar();
     versao.current = d.nrVersao;
     if (editor.current) editor.current.innerHTML = sanitizarHtml(d.html);
-    onHtml?.(editor.current?.innerHTML ?? "");
+    avisarHtml.current?.(editor.current?.innerHTML ?? "");
     setCarregado(true);
     setEstado("salvo");
-  }, [idCaderno, onHtml]);
+  }, [origem]);
   useEffect(() => { void carregar().catch(() => setEstado("erro")); }, [carregar]);
 
   // Largura: a folha A4 cabe na tela (no celular ela encolhe junto com o texto).
@@ -70,13 +86,13 @@ export default function DocumentoCaderno({ idCaderno, exibicao, onExibicao, onHt
     const html = sanitizarHtml(el.innerHTML);
     setEstado("salvando");
     try {
-      const r = await servico.salvarDocumento(idCaderno, html, versao.current);
+      const r = await origem.salvar(html, versao.current);
       versao.current = r.nrVersao;
       setEstado(s => (s === "salvando" ? "salvo" : s));
     } catch (e) {
       setEstado(e instanceof ApiError && e.status === 409 ? "conflito" : "erro");
     }
-  }, [idCaderno]);
+  }, [origem]);
 
   const mudou = () => {
     setEstado("sujo");

@@ -66,3 +66,22 @@ export const blocoNotasService = {
   imagem: (id: number) => apiBlob(`${BASE}/imagens/${id}`),
   fundo: (idPagina: number) => apiBlob(`${BASE}/paginas/${idPagina}/fundo`),
 };
+
+/** v3: planilhas e documentos avulsos do bloco de notas. */
+export type TipoArquivoBloco = "PLANILHA" | "DOCUMENTO";
+export interface ArquivoBloco {
+  id: number; cdTipo: TipoArquivoBloco; nmTitulo: string; cdCor: string; nrVersao: number; dhCriacao: string; dhAlteracao: string;
+  /** Só com o arquivo aberto: JSON das abas (planilha) ou HTML (documento). */
+  conteudo?: string;
+}
+
+const ARQ = "/blocos-notas/arquivos";
+export const arquivosBlocoService = {
+  listar: async () => (await apiFetch<ArquivoBloco[]>(ARQ)) ?? [],
+  abrir: (id: number) => apiFetch<ArquivoBloco>(`${ARQ}/${id}`),
+  criar: (cdTipo: TipoArquivoBloco, nmTitulo: string, conteudo?: string) =>
+    apiFetch<ArquivoBloco>(ARQ, { method: "POST", body: JSON.stringify({ cdTipo, nmTitulo, conteudo }) }),
+  salvar: (id: number, nrVersao: number, dados: { nmTitulo?: string; cdCor?: string; conteudo?: string }) =>
+    apiFetch<ArquivoBloco>(`${ARQ}/${id}`, { method: "PUT", body: JSON.stringify({ ...dados, nrVersao }) }),
+  excluir: async (id: number) => { await apiFetch(`${ARQ}/${id}`, { method: "DELETE" }); },
+};

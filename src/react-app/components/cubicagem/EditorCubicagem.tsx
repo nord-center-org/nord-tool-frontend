@@ -8,6 +8,7 @@ import {
 import VistaPdf, { type ModoMedida } from "@/react-app/components/cubicagem/VistaPdf";
 import { abrirProjeto, gradeDaPagina, type ProjetoPdf } from "@/react-app/components/cubicagem/pdfCubicagem";
 import { ApiError } from "@/react-app/services/apiClient";
+import { baixarArquivo, nomeDeArquivo } from "@/react-app/utils/baixarArquivo";
 import { cubicagemService as servico, type Cubicagem } from "@/react-app/services/CubicagemService";
 import {
   ORDEM_TIPOS, ROTULO_FORMA, ROTULO_TIPO, ROTULO_TIPO_UM, acharPeca, areaDoPoligono, calibrar, comprimentoDaLinha, distancia, formatar, lerNumero,
@@ -290,8 +291,9 @@ export default function EditorCubicagem({ id, onVoltar }: { id: number; onVoltar
   const baixarPlanilha = () => {
     const livro = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(livro, XLSX.utils.json_to_sheet(linhasDaPlanilha(pecas, perda ?? 0)), "Cubicagem");
-    const nome = (titulo.trim() || "cubicagem").replace(/[^\p{L}\p{N} _-]+/gu, "").trim().replace(/\s+/g, "-").slice(0, 60);
-    XLSX.writeFile(livro, `Cubicagem-${nome}.xlsx`);
+    const nome = nomeDeArquivo(titulo, "cubicagem");
+    const bytes = XLSX.write(livro, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    baixarArquivo(new File([bytes], `Cubicagem-${nome}.xlsx`, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
   };
 
   if (erro) return <div className="p-6"><p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{erro}</p><button type="button" className={`${botao} mt-3`} onClick={onVoltar}><ArrowLeft className="h-4 w-4" />Voltar</button></div>;

@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-10-bloco-notas-planilhas",
+    data: "2026-11-10",
+    titulo: "Bloco de notas: planilhas e documentos",
+    texto: "O bloco de notas virou a central dos seus arquivos: além dos cadernos, crie planilhas como no Google Sheets (fórmulas, abas, formatação, filtro, Excel) e documentos como no Word. Excel e Word abertos ali viram planilha e documento.",
+    onde: { rotulo: "Mapeamentos → Bloco de notas", caminho: "/mapeamentos/bloco-notas" },
+  },
+  {
     id: "2026-11-10-menu-favoritos",
     data: "2026-11-10",
     titulo: "Menu: marque as telas que você mais usa",
