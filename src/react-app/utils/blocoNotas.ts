@@ -11,7 +11,11 @@ export type TipoForma = "linha" | "seta" | "ret" | "elipse";
 /** Traço de caneta ou marca-texto. p = [x, y, pressão, x, y, pressão, …] (pressão 0–1). */
 export interface Traco { t: "tr"; id: string; c: string; w: number; marca?: boolean; p: number[] }
 export interface Forma { t: "fo"; id: string; f: TipoForma; c: string; w: number; x1: number; y1: number; x2: number; y2: number }
-export interface Texto { t: "tx"; id: string; x: number; y: number; w: number; s: number; c: string; txt: string }
+/** v2: pedaço de texto com a mesma formatação (s = tamanho; vazio = o da caixa; c vazio = a cor da caixa). */
+export interface Trecho { t: string; b?: 1; i?: 1; u?: 1; c?: string; s?: number }
+export type Alinhamento = "left" | "center" | "right";
+/** Caixa de texto. txt é o texto puro; r (v2) traz a formatação; al (v2) o alinhamento. */
+export interface Texto { t: "tx"; id: string; x: number; y: number; w: number; s: number; c: string; txt: string; r?: Trecho[]; al?: Alinhamento }
 export interface Imagem { t: "im"; id: string; img: number; x: number; y: number; w: number; h: number }
 export type Item = Traco | Forma | Texto | Imagem;
 
@@ -60,7 +64,11 @@ export function lerConteudo(bruto: unknown): Conteudo {
     } else if (o.t === "fo" && ["linha", "seta", "ret", "elipse"].includes(o.f as string)) {
       itens.push({ t: "fo", id, f: o.f as TipoForma, c: cor(o.c), w: Math.min(60, Math.max(0.5, num(o.w, 3))), x1: num(o.x1), y1: num(o.y1), x2: num(o.x2), y2: num(o.y2) });
     } else if (o.t === "tx" && typeof o.txt === "string") {
-      itens.push({ t: "tx", id, x: num(o.x), y: num(o.y), w: Math.max(40, num(o.w, 300)), s: Math.min(96, Math.max(8, num(o.s, 18))), c: cor(o.c), txt: str(o.txt, 5000) });
+      const tx: Texto = { t: "tx", id, x: num(o.x), y: num(o.y), w: Math.max(40, num(o.w, 300)), s: Math.min(96, Math.max(8, num(o.s, 18))), c: cor(o.c), txt: str(o.txt, 5000) };
+      const r = lerTrechos(o.r);
+      if (r.length) { tx.r = r; tx.txt = r.map(x => x.t).join("").slice(0, 5000); }
+      if (o.al === "center" || o.al === "right") tx.al = o.al;
+      itens.push(tx);
     } else if (o.t === "im" && typeof o.img === "number" && o.img > 0) {
       itens.push({ t: "im", id, img: o.img, x: num(o.x), y: num(o.y), w: Math.max(10, num(o.w, 100)), h: Math.max(10, num(o.h, 100)) });
     }
@@ -80,6 +88,219 @@ export function compactar(itens: Item[]): Conteudo {
     }),
   };
 }
+
+// ---------------------------------------------------------------- v2: texto formatado
+
+/** Trechos salvos, só com o que é reconhecido (até 5000 letras no total). */
+export function lerTrechos(bruto: unknown): Trecho[] {
+  if (!Array.isArray(bruto)) return [];
+  const r: Trecho[] = [];
+  let total = 0;
+  for (const b of bruto) {
+    if (!b || typeof b !== "object") continue;
+    const o = b as Record<string, unknown>;
+    if (typeof o.t !== "string" || !o.t) continue;
+    const t = o.t.slice(0, 5000 - total);
+    if (!t) break;
+    total += t.length;
+    const x: Trecho = { t };
+    if (o.b) x.b = 1;
+    if (o.i) x.i = 1;
+    if (o.u) x.u = 1;
+    if (typeof o.c === "string" && COR.test(o.c)) x.c = o.c;
+    if (typeof o.s === "number" && Number.isFinite(o.s)) x.s = Math.min(96, Math.max(8, Math.round(o.s)));
+    r.push(x);
+  }
+  return juntarTrechos(r);
+}
+
+const mesmoEstilo = (a: Trecho, b: Trecho) => !!a.b === !!b.b && !!a.i === !!b.i && !!a.u === !!b.u && a.c === b.c && a.s === b.s;
+
+/** Junta trechos vizinhos com a mesma formatação e tira os vazios. */
+export function juntarTrechos(lista: Trecho[]): Trecho[] {
+  const r: Trecho[] = [];
+  for (const x of lista) {
+    if (!x.t) continue;
+    const ultimo = r[r.length - 1];
+    if (ultimo && mesmoEstilo(ultimo, x)) r[r.length - 1] = { ...ultimo, t: ultimo.t + x.t };
+    else r.push({ ...x });
+  }
+  return r;
+}
+
+/** Os trechos da caixa (as caixas antigas, sem formatação, viram um trecho só). */
+export const trechosDe = (i: Pick<Texto, "txt" | "r">): Trecho[] => (i.r?.length ? i.r : i.txt ? [{ t: i.txt }] : []);
+
+export interface PecaLinha { t: string; x: number; w: number; tr: Trecho }
+/** Linha diagramada: `util` é a largura sem os espaços do fim (é ela que conta para centralizar ou alinhar à direita). */
+export interface LinhaTexto { pecas: PecaLinha[]; largura: number; util: number; altura: number; tamanho: number }
+
+/** Mede um pedaço de texto num tamanho e formatação. */
+export type Medidor = (texto: string, tamanho: number, negrito: boolean, italico: boolean) => number;
+
+/** Medida aproximada (sem canvas): 0,55 da altura por letra, um pouco mais em negrito. */
+export const medidaAproximada: Medidor = (t, s, b) => t.length * s * (b ? 0.58 : 0.55);
+
+/**
+ * Quebra o texto formatado em linhas na largura da caixa, palavra por palavra (palavra maior que a linha é cortada
+ * nas letras). Cada linha tem a altura da maior letra dela × 1,3.
+ */
+export function diagramarTexto(i: Pick<Texto, "txt" | "r" | "w" | "s">, medir: Medidor = medidaAproximada): LinhaTexto[] {
+  const linhas: LinhaTexto[] = [];
+  const por = (tr: Trecho, texto: string) => medir(texto, tr.s ?? i.s, !!tr.b, !!tr.i);
+  let atual: LinhaTexto = { pecas: [], largura: 0, util: 0, altura: 0, tamanho: 0 };
+  const fechar = () => {
+    const tam = atual.tamanho || i.s;
+    const u = atual.pecas[atual.pecas.length - 1];
+    const sobra = u ? u.t.length - u.t.trimEnd().length : 0;
+    const util = atual.largura - (u && sobra ? por(u.tr, u.t.slice(u.t.length - sobra)) : 0);
+    linhas.push({ ...atual, util, tamanho: tam, altura: tam * 1.3 });
+    atual = { pecas: [], largura: 0, util: 0, altura: 0, tamanho: 0 };
+  };
+  const colocar = (tr: Trecho, texto: string) => {
+    const w = por(tr, texto);
+    const ultima = atual.pecas[atual.pecas.length - 1];
+    if (ultima && ultima.tr === tr) { ultima.t += texto; ultima.w += w; }
+    else atual.pecas.push({ t: texto, x: atual.largura, w, tr });
+    atual.largura += w;
+    atual.tamanho = Math.max(atual.tamanho, tr.s ?? i.s);
+  };
+  for (const tr of trechosDe(i)) {
+    const partes = tr.t.split("\n");
+    partes.forEach((parte, n) => {
+      if (n > 0) fechar();
+      // palavras com o espaço que vem depois delas
+      for (const palavra of parte.match(/\S+\s*|\s+/g) ?? []) {
+        const w = por(tr, palavra.trimEnd());
+        if (atual.largura + w > i.w && atual.largura > 0 && palavra.trim()) fechar();
+        if (w > i.w && palavra.trim()) {
+          // palavra maior que a linha: corta nas letras
+          let pedaco = "";
+          for (const letra of palavra) {
+            if (atual.largura + por(tr, pedaco + letra) > i.w && (pedaco || atual.largura > 0)) {
+              if (pedaco) colocar(tr, pedaco);
+              fechar();
+              pedaco = "";
+            }
+            pedaco += letra;
+          }
+          if (pedaco) colocar(tr, pedaco);
+        } else if (palavra.trim() || atual.largura > 0) {
+          colocar(tr, palavra);
+        }
+      }
+    });
+  }
+  if (atual.pecas.length || !linhas.length) fechar();
+  return linhas;
+}
+
+/** Deslocamento da linha conforme o alinhamento da caixa. */
+export const recuoDaLinha = (l: LinhaTexto, largura: number, al: Alinhamento | undefined) => {
+  const sobra = Math.max(0, largura - l.util);
+  return al === "center" ? sobra / 2 : al === "right" ? sobra : 0;
+};
+
+/** Escapa o texto para pôr no editor (HTML). */
+const escapar = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/**
+ * Trechos → HTML do editor da caixa (contentEditable). O tamanho vai em data-s (px da página) e no estilo já com o
+ * zoom; quebras de linha viram <br>.
+ */
+export function trechosParaHtml(trechos: Trecho[], zoom: number): string {
+  return trechos.map(tr => {
+    let h = escapar(tr.t).replace(/\n/g, "<br>");
+    if (tr.u) h = `<u>${h}</u>`;
+    if (tr.i) h = `<i>${h}</i>`;
+    if (tr.b) h = `<b>${h}</b>`;
+    const estilo = [tr.c ? `color:${tr.c}` : "", tr.s ? `font-size:${tr.s * zoom}px` : ""].filter(Boolean).join(";");
+    return estilo || tr.s ? `<span${tr.s ? ` data-s="${tr.s}"` : ""}${estilo ? ` style="${estilo}"` : ""}>${h}</span>` : h;
+  }).join("");
+}
+
+/** O mínimo de um nó do DOM que a leitura usa (dá para testar sem navegador). */
+export interface NoTexto {
+  nodeType: number; nodeName: string; textContent: string | null; childNodes: ArrayLike<NoTexto>;
+  getAttribute?: (n: string) => string | null;
+  style?: { color?: string; fontWeight?: string; fontStyle?: string; textDecoration?: string; textDecorationLine?: string };
+}
+
+/** Cor do CSS (rgb(…) ou #rrggbb) → #rrggbb, ou undefined. */
+export function corCss(v: string | null | undefined): string | undefined {
+  if (!v) return undefined;
+  if (COR.test(v)) return v.toLowerCase();
+  const m = /^rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(v);
+  if (!m) return undefined;
+  return `#${[m[1], m[2], m[3]].map(n => Math.min(255, Number(n)).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** Lê o que foi digitado no editor da caixa (contentEditable) de volta em trechos. */
+export function htmlParaTrechos(raiz: NoTexto): Trecho[] {
+  const saida: Trecho[] = [];
+  const blocos = new Set(["DIV", "P", "LI", "H1", "H2", "H3"]);
+  const andar = (no: NoTexto, estilo: Omit<Trecho, "t">, primeiro: boolean) => {
+    if (no.nodeType === 3) { if (no.textContent) saida.push({ ...estilo, t: no.textContent.replace(/\u00a0/g, " ") }); return; }
+    if (no.nodeType !== 1) return;
+    const nome = no.nodeName.toUpperCase();
+    if (nome === "BR") { saida.push({ ...estilo, t: "\n" }); return; }
+    const e: Omit<Trecho, "t"> = { ...estilo };
+    if (nome === "B" || nome === "STRONG") e.b = 1;
+    if (nome === "I" || nome === "EM") e.i = 1;
+    if (nome === "U") e.u = 1;
+    const st = no.style;
+    if (st) {
+      if (st.fontWeight === "bold" || Number(st.fontWeight) >= 600) e.b = 1;
+      if (st.fontStyle === "italic") e.i = 1;
+      if ((st.textDecorationLine || st.textDecoration || "").includes("underline")) e.u = 1;
+      const c = corCss(st.color);
+      if (c) e.c = c;
+    }
+    const cor = corCss(no.getAttribute?.("color"));
+    if (cor) e.c = cor;
+    const s = Number(no.getAttribute?.("data-s"));
+    if (Number.isFinite(s) && s > 0) e.s = Math.min(96, Math.max(8, Math.round(s)));
+    // Bloco novo (o Enter do navegador cria <div>): começa noutra linha.
+    if (blocos.has(nome) && !primeiro && saida.length && !saida[saida.length - 1].t.endsWith("\n")) saida.push({ ...estilo, t: "\n" });
+    Array.from(no.childNodes).forEach((filho, n) => andar(filho, e, primeiro && n === 0));
+  };
+  Array.from(raiz.childNodes).forEach((filho, n) => andar(filho, {}, n === 0));
+  // Sem quebra sobrando no fim.
+  const r = juntarTrechos(saida);
+  const u = r[r.length - 1];
+  if (u && u.t.endsWith("\n")) { u.t = u.t.replace(/\n+$/, ""); if (!u.t) r.pop(); }
+  return r;
+}
+
+// ---------------------------------------------------------------- v2: girar a página
+
+export type Giro = 0 | 90 | 180 | 270;
+
+/**
+ * Gira o desenho junto com a página, 90° no sentido do relógio (ou contra, com `antihorario`): traços e formas giram
+ * de verdade; textos e imagens mudam de lugar (o centro gira) mas continuam em pé, no mesmo tamanho.
+ */
+export function girarItens(itens: Item[], largura: number, altura: number, antihorario = false): Item[] {
+  // horário: (x, y) → (altura − y, x); anti-horário: (x, y) → (y, largura − x)
+  const pt = (x: number, y: number): [number, number] => (antihorario ? [y, largura - x] : [altura - y, x]);
+  return itens.map(i => {
+    if (i.t === "tr") {
+      const p = [...i.p];
+      for (let k = 0; k + 2 < p.length; k += 3) [p[k], p[k + 1]] = pt(p[k], p[k + 1]);
+      return { ...i, p };
+    }
+    if (i.t === "fo") {
+      const [x1, y1] = pt(i.x1, i.y1), [x2, y2] = pt(i.x2, i.y2);
+      return { ...i, x1, y1, x2, y2 };
+    }
+    const c = caixaDoItem(i);
+    const [cx, cy] = pt(c.x + c.w / 2, c.y + c.h / 2);
+    return { ...i, x: cx - c.w / 2, y: cy - c.h / 2 };
+  });
+}
+
+/** Giro seguinte (0 → 90 → 180 → 270 → 0, ou ao contrário). */
+export const proximoGiro = (atual: number, antihorario = false): Giro => ((((atual + (antihorario ? -90 : 90)) % 360) + 360) % 360) as Giro;
 
 // ---------------------------------------------------------------- caneta
 
@@ -170,7 +391,7 @@ export function linhasDoTexto(i: Pick<Texto, "txt" | "w" | "s">): string[] {
   return saida;
 }
 
-export const alturaTexto = (i: Pick<Texto, "txt" | "w" | "s">) => Math.max(1, linhasDoTexto(i).length) * i.s * 1.3;
+export const alturaTexto = (i: Pick<Texto, "txt" | "w" | "s" | "r">) => diagramarTexto(i).reduce((s, l) => s + l.altura, 0);
 
 /** O ponto toca o item? (folga = raio da borracha ou do dedo) */
 export function tocaItem(i: Item, x: number, y: number, folga: number): boolean {
@@ -309,7 +530,10 @@ export function escalarItens(itens: Item[], ids: Set<string>, origem: Ponto, fat
     if (!ids.has(i.id)) return i;
     if (i.t === "tr") return { ...i, w: Math.max(0.5, i.w * f), p: i.p.map((v, k) => (k % 3 === 0 ? ex(v) : k % 3 === 1 ? ey(v) : v)) };
     if (i.t === "fo") return { ...i, w: Math.max(0.5, i.w * f), x1: ex(i.x1), y1: ey(i.y1), x2: ex(i.x2), y2: ey(i.y2) };
-    if (i.t === "tx") return { ...i, x: ex(i.x), y: ey(i.y), w: Math.max(40, i.w * f), s: Math.min(96, Math.max(8, i.s * f)) };
+    if (i.t === "tx") return {
+      ...i, x: ex(i.x), y: ey(i.y), w: Math.max(40, i.w * f), s: Math.min(96, Math.max(8, i.s * f)),
+      ...(i.r ? { r: i.r.map(tr => (tr.s ? { ...tr, s: Math.min(96, Math.max(8, Math.round(tr.s * f))) } : tr)) } : {}),
+    };
     return { ...i, x: ex(i.x), y: ey(i.y), w: Math.max(10, i.w * f), h: Math.max(10, i.h * f) };
   });
 }
@@ -403,5 +627,90 @@ export function nomeArquivoCaderno(titulo: string): string {
   return `caderno-${base}.pdf`;
 }
 
-/** Título do caderno a partir do PDF importado: "Projeto torre B.pdf" → "Projeto torre B". */
-export const tituloDoPdf = (nomeArquivo: string) => (nomeArquivo.replace(/\.pdf$/i, "").trim() || "PDF importado").slice(0, 120);
+/** Título do caderno a partir do arquivo importado: "Projeto torre B.pdf" → "Projeto torre B". */
+export const tituloDoPdf = (nomeArquivo: string) => (nomeArquivo.replace(/\.[a-z0-9]{1,5}$/i, "").trim() || "Arquivo importado").slice(0, 120);
+
+// ---------------------------------------------------------------- v2: documento de texto (estilo Word)
+
+/** Tags que o documento aceita; o resto vira só o texto de dentro. */
+export const TAGS_DOCUMENTO = new Set([
+  "P", "DIV", "BR", "B", "STRONG", "I", "EM", "U", "S", "STRIKE", "H1", "H2", "H3", "UL", "OL", "LI", "BLOCKQUOTE", "SPAN", "FONT", "HR", "SUB", "SUP",
+]);
+
+const PROPRIEDADES = new Set(["color", "background-color", "font-size", "text-align", "font-weight", "font-style", "text-decoration", "text-decoration-line", "margin-left", "padding-left"]);
+const VALOR_SEGURO = /^[#(),.%\w\s-]{1,60}$/;
+
+/**
+ * Do atributo style, só formatação de texto (cor, fundo, tamanho, alinhamento, peso, itálico, sublinhado, recuo), com
+ * valores simples: sem url(), expression() ou qualquer coisa que carregue ou rode algo.
+ */
+export function filtrarEstilo(estilo: string): string {
+  return estilo.split(";").map(d => d.trim()).filter(Boolean).flatMap(d => {
+    const k = d.indexOf(":");
+    if (k < 0) return [];
+    const prop = d.slice(0, k).trim().toLowerCase(), valor = d.slice(k + 1).trim();
+    if (!PROPRIEDADES.has(prop) || !VALOR_SEGURO.test(valor) || /url|expression|import|javascript/i.test(valor)) return [];
+    return [`${prop}: ${valor}`];
+  }).join("; ");
+}
+
+/** Documento vazio ou só com espaços e quebras. */
+export const documentoVazio = (html: string) => !html.replace(/<br\s*\/?>|<\/?(p|div)[^>]*>|&nbsp;|\s/gi, "");
+
+/** Altura útil de uma página A4 do documento (px a 96 dpi) com as margens de 2 cm. */
+export const PAGINA_DOCUMENTO = { largura: 794, altura: 1123, margem: 76 } as const;
+
+// ---------------------------------------------------------------- v2: outros arquivos como página
+
+export type TipoArquivo = "pdf" | "imagem" | "word" | "planilha" | "texto";
+
+/** O que cada arquivo vira no caderno (pela extensão e pelo tipo); null = não dá para abrir aqui. */
+export function tipoDoArquivo(nome: string, mime = ""): TipoArquivo | null {
+  const ext = (nome.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1]) ?? "";
+  if (ext === "pdf" || mime === "application/pdf") return "pdf";
+  if (["jpg", "jpeg", "png", "webp", "gif", "bmp", "avif"].includes(ext) || /^image\/(jpeg|png|webp|gif|bmp|avif)$/.test(mime)) return "imagem";
+  if (ext === "docx") return "word";
+  if (["xlsx", "xls", "ods", "csv"].includes(ext)) return "planilha";
+  if (["txt", "md", "log", "json", "xml"].includes(ext) || mime.startsWith("text/")) return "texto";
+  return null;
+}
+
+/** Por que um arquivo não abre (para a mensagem). */
+export function motivoArquivoNaoSuportado(nome: string): string {
+  const ext = nome.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? "";
+  if (ext === "doc") return "O formato .doc antigo não abre aqui. Salve como .docx (Word) ou PDF e tente de novo.";
+  if (["ppt", "pptx", "odp", "key"].includes(ext)) return "Apresentações não abrem aqui. Exporte como PDF e insira o PDF.";
+  if (["heic", "heif"].includes(ext)) return "Fotos HEIC do iPhone não abrem neste navegador. Mude a câmera para “Mais compatível” ou envie como JPEG.";
+  return "Este tipo de arquivo não abre aqui. Use PDF, imagem, Word (.docx), planilha (Excel/CSV) ou texto.";
+}
+
+/** Página para uma imagem: o lado maior com 1123 px (A4), na proporção dela. */
+export function tamanhoDaPaginaImagem(largura: number, altura: number): { largura: number; altura: number } {
+  if (!(largura > 0 && altura > 0)) return { largura: A4.largura, altura: A4.altura };
+  const f = 1123 / Math.max(largura, altura);
+  return { largura: Math.max(100, Math.round(largura * f)), altura: Math.max(100, Math.round(altura * f)) };
+}
+
+const escaparHtml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/** Texto puro → HTML de parágrafos (linhas em branco separam parágrafos; o resto vira quebra de linha). */
+export function textoParaHtml(texto: string): string {
+  return texto.replace(/\r\n?/g, "\n").split(/\n{2,}/).map(p => `<p>${escaparHtml(p).replace(/\n/g, "<br>")}</p>`).join("");
+}
+
+/** Linhas de uma planilha → tabelas de até `porTabela` linhas, repetindo o cabeçalho (cabem na página e quebram bem). */
+export function planilhaParaHtml(nome: string, linhas: unknown[][], porTabela = 28, maxLinhas = 3000, maxColunas = 30): string {
+  const celula = (v: unknown) => escaparHtml(v === null || v === undefined ? "" : String(v)).slice(0, 300);
+  const dados = linhas.slice(0, maxLinhas).map(l => (Array.isArray(l) ? l.slice(0, maxColunas) : []));
+  if (!dados.length) return "";
+  const colunas = Math.max(1, ...dados.map(l => l.length));
+  const linhaHtml = (l: unknown[], th = false) => `<tr>${Array.from({ length: colunas }, (_, k) => `<${th ? "th" : "td"}>${celula(l[k])}</${th ? "th" : "td"}>`).join("")}</tr>`;
+  const [cabecalho, ...resto] = dados;
+  const partes: string[] = [`<h3>${escaparHtml(nome)}</h3>`];
+  if (!resto.length) partes.push(`<table>${linhaHtml(cabecalho, true)}</table>`);
+  for (let k = 0; k < resto.length; k += porTabela) {
+    partes.push(`<table><thead>${linhaHtml(cabecalho, true)}</thead><tbody>${resto.slice(k, k + porTabela).map(l => linhaHtml(l)).join("")}</tbody></table>`);
+  }
+  if (linhas.length > maxLinhas) partes.push(`<p>… e mais ${linhas.length - maxLinhas} linha(s) que não couberam.</p>`);
+  return partes.join("");
+}

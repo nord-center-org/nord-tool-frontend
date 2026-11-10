@@ -2,15 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown, ArrowLeft, ArrowUp, Circle, Copy, Eraser, FileDown, FileUp, Hand, Highlighter, ImagePlus, Lasso, Loader2, Minus,
   MoveUpRight, PenLine, PenTool, Plus, Redo2, Square, Trash2, Type, Undo2, X, ZoomIn, ZoomOut, Layers, CheckCircle2, AlertTriangle,
+  RotateCw, RotateCcw, FileText, Columns2, NotebookPen,
 } from "lucide-react";
+import DocumentoCaderno, { type ExibicaoDocumento } from "@/react-app/components/bloco/DocumentoCaderno";
 
 import PaginaVista, { type ConfigFerramenta, type Ferramenta } from "@/react-app/components/bloco/PaginaVista";
 import { guardarImagem } from "@/react-app/components/bloco/imagensBloco";
-import { exportarPdf, importarPdf, itensSalvos } from "@/react-app/components/bloco/pdfBloco";
+import { ACEITA_ARQUIVOS, importarArquivo } from "@/react-app/components/bloco/arquivosBloco";
+import { exportarPdf, itensSalvos } from "@/react-app/components/bloco/pdfBloco";
 import { ApiError } from "@/react-app/services/apiClient";
 import { blocoNotasService as servico, type Caderno, type PaginaBloco } from "@/react-app/services/BlocoNotasService";
 import {
-  CORES, CORES_MARCA, ESPESSURAS, ROTULO_FUNDO, compactar, lerConteudo, nomeArquivoCaderno, novoId, registrar,
+  CORES, CORES_MARCA, ESPESSURAS, ROTULO_FUNDO, compactar, girarItens, tipoDoArquivo, lerConteudo, nomeArquivoCaderno, novoId, proximoGiro, registrar,
   type Fundo, type Item, type Passo, type TipoForma,
 } from "@/react-app/utils/blocoNotas";
 import { prepararFoto } from "@/react-app/utils/imagem";
@@ -30,6 +33,13 @@ function lerConfig(): ConfigFerramenta {
   } catch {
     return CONFIG_PADRAO;
   }
+}
+
+function lerPreferencia<T extends string>(chave: string, padrao: T): T {
+  try { return (localStorage.getItem(`${CHAVE_CONFIG}:${chave}`) as T | null) ?? padrao; } catch { return padrao; }
+}
+function gravarPreferencia(chave: string, valor: string) {
+  try { localStorage.setItem(`${CHAVE_CONFIG}:${chave}`, valor); } catch { /* sem armazenamento */ }
 }
 
 const mensagem = (e: unknown, padrao: string) => (e instanceof Error && e.message ? e.message : padrao);
@@ -70,6 +80,12 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
   const [ajuste, setAjuste] = useState(1);
   const [atual, setAtual] = useState<number | null>(null);
   const [painel, setPainel] = useState(false);
+  // v2: o que aparece — o desenho, o documento de texto ou os dois lado a lado (lembrado no aparelho).
+  const [modo, setModo] = useState<"desenho" | "texto" | "lado">(() => lerPreferencia("modo", "desenho"));
+  const [exibicao, setExibicao] = useState<ExibicaoDocumento>(() => lerPreferencia("exibicao", "paginas"));
+  useEffect(() => { gravarPreferencia("modo", modo); gravarPreferencia("exibicao", exibicao); }, [modo, exibicao]);
+  const documentoHtml = useRef("");
+  const guardarHtml = useCallback((h: string) => { documentoHtml.current = h; }, []);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
@@ -110,7 +126,7 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
     const obs = new ResizeObserver(medir);
     obs.observe(el);
     return () => obs.disconnect();
-  }, [larguraMax, caderno]);
+  }, [larguraMax, caderno, modo]);
   const zoom = ajuste * fator;
 
   const carregando = useRef(new Set<number>());
@@ -137,7 +153,7 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
     const enviados = p.itens;
     setEstado(e => ({ ...e, [idPagina]: { ...e[idPagina], salvando: true } }));
     try {
-      const r = await servico.salvar(idPagina, compactar(enviados), meta.cdFundo, p.nrVersao);
+      const r = await servico.salvar(idPagina, compactar(enviados), meta.cdFundo, p.nrVersao, meta.nrRotacao ?? 0);
       setEstado(e => ({ ...e, [idPagina]: { ...e[idPagina], nrVersao: r.nrVersao, salvando: false, sujo: e[idPagina].itens !== enviados } }));
     } catch (e) {
       setEstado(est => ({ ...est, [idPagina]: { ...est[idPagina], salvando: false } }));
@@ -199,7 +215,11 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
       else if ((e.key === "Delete" || e.key === "Backspace") && selecao?.ids.size) {
         const itens = estadoRef.current[selecao.pagina]?.itens;
         if (itens) { e.preventDefault(); aplicar(selecao.pagina, itens.filter(i => !selecao.ids.has(i.id))); setSelecao(null); }
-      } else if (e.key === "Escape") setSelecao(null);
+      } else if (e.key === "Escape") {
+        // Esc: primeiro solta a seleção; depois, o lápis.
+        if (selecao) setSelecao(null);
+        else setConfig(c => ({ ...c, ferramenta: "nenhuma" }));
+      }
     };
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
@@ -216,7 +236,7 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
     };
     el.addEventListener("wheel", roda, { passive: false });
     return () => el.removeEventListener("wheel", roda);
-  }, [caderno]);
+  }, [caderno, modo]);
 
   const aoVisivel = useCallback((idPagina: number, fracao: number) => {
     visiveis.current.set(idPagina, fracao);
@@ -278,6 +298,21 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
     try { comCaderno(await servico.reordenar(id, ids)); } catch (e) { setErro(mensagem(e, "Não foi possível mudar a ordem.")); }
   };
 
+  /** v2: gira a página 90° (o desenho gira junto; o fundo de PDF também). Os passos de desfazer dela ficam para trás. */
+  const girarPagina = async (idPagina: number | null, antihorario = false) => {
+    if (idPagina === null || !caderno) return;
+    const meta = paginas.find(p => p.id === idPagina);
+    const itens = estadoRef.current[idPagina]?.itens;
+    if (!meta || !itens) { setAviso("Espere a página abrir para girar."); return; }
+    const novos = girarItens(itens, meta.nrLargura, meta.nrAltura, antihorario);
+    const giro = proximoGiro(meta.nrRotacao ?? 0, antihorario);
+    setCaderno(c => c && { ...c, paginas: (c.paginas ?? []).map(p => (p.id === idPagina ? { ...p, nrRotacao: giro, nrLargura: p.nrAltura, nrAltura: p.nrLargura } : p)) });
+    setEstado(e => ({ ...e, [idPagina]: { ...e[idPagina], itens: novos, sujo: true } }));
+    setDesfazer(d => d.filter(x => x.pagina !== idPagina));
+    setRefazer(d => d.filter(x => x.pagina !== idPagina));
+    setSelecao(null);
+  };
+
   const trocarFundo = (idPagina: number, fundo: Fundo) => {
     if (!caderno) return;
     setCaderno({ ...caderno, paginas: paginas.map(p => (p.id === idPagina ? { ...p, cdFundo: fundo } : p)) });
@@ -286,17 +321,19 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
 
   // ---------- PDF e imagens ----------
 
+  /** Insere o arquivo (PDF, imagem, Word, planilha ou texto) depois da página atual. */
   const inserirPdf = async (arquivo: File) => {
     setOcupado("pdf");
-    setAviso("Lendo o PDF…");
+    setAviso(`Lendo ${arquivo.name}…`);
     try {
-      const criadas = await importarPdf(id, arquivo, posicaoDe(atual) + 1, (feitas, total) => setAviso(`Importando página ${feitas} de ${total}…`));
+      const criadas = await importarArquivo(id, arquivo, posicaoDe(atual) + 1, (feitas, total) => setAviso(`Importando página ${feitas} de ${total}…`));
       await carregar();
-      setAviso(`${criadas.length} página(s) do PDF entraram no caderno.`);
+      const semOriginal = tipoDoArquivo(arquivo.name, arquivo.type) === "pdf" && !criadas[0]?.idPdf;
+      setAviso(`${criadas.length} página(s) de ${arquivo.name} entraram no caderno.${semOriginal ? " O PDF tem mais de 15 MB: as páginas entraram como imagem em alta resolução (o zoom muito grande perde nitidez)." : ""}`);
       if (criadas[0]) setTimeout(() => irPara(criadas[0].id), 200);
     } catch (e) {
       setAviso(null);
-      setErro(mensagem(e, "Não foi possível importar o PDF."));
+      setErro(mensagem(e, "Não foi possível inserir o arquivo."));
     } finally {
       setOcupado(null);
     }
@@ -309,7 +346,8 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
       await Promise.all(pendentes.map(p => salvarPagina(p)));
       const bytes = await exportarPdf(paginas,
         async p => estadoRef.current[p.id]?.itens ?? itensSalvos(p.id),
-        (feitas, total) => setAviso(`Gerando o PDF: página ${feitas} de ${total}…`));
+        (feitas, total) => setAviso(`Gerando o PDF: página ${feitas} de ${total}…`),
+        documentoHtml.current || (await servico.documento(id)).html);
       const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
       const a = document.createElement("a");
       a.href = url;
@@ -374,12 +412,21 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
         <span className="hidden items-center gap-1 text-xs text-slate-500 sm:inline-flex" role="status">
           {salvando ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Salvando…</> : pendentes.length ? "Alterações não salvas" : <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Salvo</>}
         </span>
+        <div role="radiogroup" aria-label="Ver" className="flex rounded-lg border border-slate-200 p-0.5">
+          {([["desenho", "Desenho", NotebookPen], ["texto", "Texto", FileText], ["lado", "Lado a lado", Columns2]] as const).map(([m, rotulo, Icone]) => (
+            <button key={m} type="button" role="radio" aria-checked={modo === m} onClick={() => setModo(m)} title={rotulo}
+              className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold ${modo === m ? "bg-slate-800 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
+              <Icone className="h-3.5 w-3.5" /><span className="hidden sm:inline">{rotulo}</span>
+            </button>
+          ))}
+        </div>
         <div className="flex items-center gap-1">
           <button type="button" onClick={() => voltarPasso("desfazer")} disabled={!desfazer.length} title="Desfazer (Ctrl+Z)" aria-label="Desfazer" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30"><Undo2 className="h-4 w-4" /></button>
           <button type="button" onClick={() => voltarPasso("refazer")} disabled={!refazer.length} title="Refazer (Ctrl+Y)" aria-label="Refazer" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30"><Redo2 className="h-4 w-4" /></button>
           <button type="button" onClick={() => setFator(x => Math.max(0.4, x / 1.25))} title="Diminuir" aria-label="Diminuir zoom" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><ZoomOut className="h-4 w-4" /></button>
           <button type="button" onClick={() => setFator(1)} title="Caber na largura" className="w-12 rounded-lg py-1 text-xs font-bold text-slate-600 hover:bg-slate-100">{Math.round(zoom * 100)}%</button>
           <button type="button" onClick={() => setFator(x => Math.min(4, x * 1.25))} title="Aumentar" aria-label="Aumentar zoom" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><ZoomIn className="h-4 w-4" /></button>
+          <button type="button" onClick={() => void girarPagina(atual)} disabled={modo === "texto"} title="Girar a página atual 90°" aria-label="Girar página" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30"><RotateCw className="h-4 w-4" /></button>
           <button type="button" onClick={() => setPainel(p => !p)} aria-expanded={painel} title="Páginas" className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100">
             <Layers className="h-4 w-4" /> {numeroAtual}/{paginas.length}
           </button>
@@ -389,11 +436,12 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
         </div>
       </div>
 
+      {modo !== "texto" && (<>
       {/* Ferramentas e as opções da escolhida. */}
       <div className="border-b border-slate-200 bg-white">
         <div className="flex items-center gap-1 overflow-x-auto px-2 py-1.5" role="toolbar" aria-label="Ferramentas">
           {FERRAMENTAS.map(({ id: fid, rotulo, Icone }) => (
-            <button key={fid} type="button" onClick={() => { mudar({ ferramenta: fid }); if (fid !== "laco") setSelecao(null); }} aria-pressed={f === fid} title={rotulo} aria-label={rotulo} className={botaoFerramenta(f === fid)}>
+            <button key={fid} type="button" onClick={() => { mudar({ ferramenta: f === fid ? "nenhuma" : fid }); if (fid !== "laco") setSelecao(null); }} aria-pressed={f === fid} title={f === fid ? `${rotulo} (toque de novo para soltar)` : rotulo} aria-label={rotulo} className={botaoFerramenta(f === fid)}>
               <Icone className="h-5 w-5" />
             </button>
           ))}
@@ -463,8 +511,11 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
           )}
           {f === "laco" && <span className="shrink-0 text-xs text-slate-500">Circule para selecionar; arraste para mover e puxe a bolinha para redimensionar.</span>}
           {f === "mao" && <span className="shrink-0 text-xs text-slate-500">Arraste para rolar. Ctrl + roda do mouse muda o zoom.</span>}
+          {f === "nenhuma" && <span className="shrink-0 text-xs text-slate-500">Lápis solto: nada é desenhado. Toque numa ferramenta para voltar a escrever.</span>}
         </div>
       </div>
+
+      </>)}
 
       {(erro || aviso || conflito) && (
         <div className="space-y-1 px-3 pt-2">
@@ -479,8 +530,14 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
         </div>
       )}
 
-      <div className="relative flex min-h-0 flex-1">
-        <div ref={rolagemRef} className="min-w-0 flex-1 overflow-auto bg-slate-100 py-4"
+      <div className={`relative flex min-h-0 flex-1 ${modo === "lado" ? "flex-col md:flex-row" : ""}`}>
+        {modo !== "desenho" && (
+          <div className={`min-h-0 min-w-0 flex-1 ${modo === "lado" ? "border-b border-slate-300 md:border-b-0 md:border-r" : ""}`}>
+            <DocumentoCaderno idCaderno={id} exibicao={exibicao} onExibicao={setExibicao} onHtml={guardarHtml} />
+          </div>
+        )}
+        {modo !== "texto" && (
+        <div ref={rolagemRef} data-rolagem className="min-h-0 min-w-0 flex-1 overflow-auto bg-slate-100 py-4"
           onPointerDown={e => {
             if (e.target === e.currentTarget) setSelecao(null);
             // Mão com mouse: arrastar rola (no toque o navegador já rola sozinho).
@@ -512,6 +569,7 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
             </div>
           </div>
         </div>
+        )}
 
         {painel && (
           <aside className="absolute inset-y-0 right-0 z-20 flex w-72 max-w-[85vw] flex-col border-l border-slate-200 bg-white shadow-xl animate-entrada" aria-label="Páginas do caderno">
@@ -524,7 +582,7 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
                 <Plus className="h-3.5 w-3.5" /> Página depois da atual
               </button>
               <button type="button" disabled={ocupado !== null} onClick={() => arquivoPdf.current?.click()} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-                {ocupado === "pdf" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileUp className="h-3.5 w-3.5" />} Inserir PDF
+                {ocupado === "pdf" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileUp className="h-3.5 w-3.5" />} Inserir arquivo
               </button>
             </div>
             <ol className="flex-1 space-y-1 overflow-y-auto p-2">
@@ -534,6 +592,8 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
                     <button type="button" onClick={() => irPara(p.id)} className="flex-1 text-left text-sm font-bold text-slate-700">Página {n + 1}</button>
                     <button type="button" onClick={() => void moverPagina(p.id, -1)} disabled={n === 0} aria-label={`Subir a página ${n + 1}`} className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button>
                     <button type="button" onClick={() => void moverPagina(p.id, 1)} disabled={n === paginas.length - 1} aria-label={`Descer a página ${n + 1}`} className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => void girarPagina(p.id, true)} aria-label={`Girar a página ${n + 1} para a esquerda`} title="Girar para a esquerda" className="rounded p-1 text-slate-500 hover:bg-slate-100"><RotateCcw className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => void girarPagina(p.id)} aria-label={`Girar a página ${n + 1} para a direita`} title="Girar para a direita" className="rounded p-1 text-slate-500 hover:bg-slate-100"><RotateCw className="h-3.5 w-3.5" /></button>
                     <button type="button" onClick={() => void novaPagina(null, p.id, p.id)} aria-label={`Duplicar a página ${n + 1}`} title="Duplicar" className="rounded p-1 text-slate-500 hover:bg-slate-100"><Copy className="h-3.5 w-3.5" /></button>
                     <button type="button" onClick={() => void excluirPagina(p.id)} disabled={paginas.length <= 1} aria-label={`Excluir a página ${n + 1}`} title="Excluir" className="rounded p-1 text-red-500 hover:bg-red-50 disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
@@ -549,7 +609,7 @@ export default function EditorCaderno({ id, onVoltar, onAlterado }: Props) {
         )}
       </div>
 
-      <input ref={arquivoPdf} type="file" accept="application/pdf,.pdf" className="hidden" onChange={e => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void inserirPdf(a); }} />
+      <input ref={arquivoPdf} type="file" accept={ACEITA_ARQUIVOS} className="hidden" onChange={e => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void inserirPdf(a); }} />
       <input ref={arquivoImagem} type="file" accept="image/*" className="hidden" onChange={e => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void inserirImagem(a); }} />
     </div>
   );

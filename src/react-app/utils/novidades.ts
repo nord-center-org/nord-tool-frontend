@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-10-bloco-notas-texto",
+    data: "2026-11-10",
+    titulo: "Bloco de notas: texto formatado, documento, PDF nítido e outros arquivos",
+    texto: "As caixas de texto agora têm negrito, itálico, sublinhado, cor, tamanho e alinhamento, e dá para mudar a largura delas. Cada caderno ganhou um documento de texto no estilo do Word (em páginas ou contínuo), que pode ficar lado a lado com o desenho, e as páginas podem ser giradas. PDFs ficam nítidos no zoom como no original, dá para inserir imagens, Word, Excel e TXT como páginas, e tocar de novo na ferramenta ativa solta o lápis.",
+    onde: { rotulo: "Mapeamentos → Bloco de notas", caminho: "/mapeamentos/bloco-notas" },
+  },
+  {
     id: "2026-11-10-placas-imagens",
     data: "2026-11-10",
     titulo: "Placas: ponha imagens na folha",
