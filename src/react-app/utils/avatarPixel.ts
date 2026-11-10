@@ -179,6 +179,35 @@ const RADIO = [
   "KKKK.",
 ]; // x0 = 6, y0 = 23
 
+/** v3: o porta-voz das novidades segura, na mão, uma caneca de café (com vapor) ou o rádio. */
+const CAFE = [
+  "..s..s...",
+  ".s..s....",
+  "KKKKKKK..",
+  "KbbbbbKKK",
+  "KWWWWWK.K",
+  "KRRRRRK.K",
+  "KWWWWWKKK",
+  "SSWWWWK..",
+  "SSKKKKK..",
+]; // x0 = 3, y0 = 20
+
+const RADIO_MAO = [
+  ".K.....",
+  ".K.....",
+  ".K.....",
+  "KKKKK..",
+  "KgggK..",
+  "KgggK..",
+  "KrKrK..",
+  "KrrrK..",
+  "KrKrK..",
+  "SSrrK..",
+  "SSKKK..",
+]; // x0 = 4, y0 = 18 (rádio de obra, amarelo, com visor)
+
+export type Segurando = "cafe" | "radio";
+
 // ---------- Cabelos ----------
 
 const CABELO_CURTO = espelho([
@@ -498,7 +527,7 @@ const FIXAS: Cores = {
 
 // ---------- Montagem ----------
 
-export function montarGrade(c: AvatarConfig, tema: DataComemorativa | null, olhosFechados = false, semFundo = false): Grade {
+export function montarGrade(c: AvatarConfig, tema: DataComemorativa | null, olhosFechados = false, semFundo = false, segurando: Segurando | null = null): Grade {
   const t: Tela = {
     g: Array.from({ length: LADO }, () => Array<string | null>(LADO).fill(null)),
     contorno: Array.from({ length: LADO }, () => Array<boolean>(LADO).fill(false)),
@@ -637,6 +666,10 @@ export function montarGrade(c: AvatarConfig, tema: DataComemorativa | null, olho
     px(t, [[27, 10], [26, 11]], "#facc15");
     px(t, [[25, 12]], "#fde68a");
   }
+
+  // v3: por cima de tudo, para o cabelo comprido não esconder o que está na mão.
+  if (segurando === "cafe") pintar(t, CAFE, 20, { s: "#cbd5e1", b: "#6b3a1e", W: "#f8fafc", R: "#dc2626", S: pele }, 3);
+  if (segurando === "radio") pintar(t, RADIO_MAO, 18, { r: "#f59e0b", g: "#86efac", S: pele }, 4);
 
   contornoColorido(t);
   return g;

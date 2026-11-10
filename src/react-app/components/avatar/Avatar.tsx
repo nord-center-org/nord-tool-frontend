@@ -1,7 +1,7 @@
 import { useId, useMemo } from "react";
 
 import type { AvatarConfig, DataComemorativa } from "@/react-app/utils/avatar";
-import { LADO, diferenca, emRetangulos, montarGrade } from "@/react-app/utils/avatarPixel";
+import { LADO, diferenca, emRetangulos, montarGrade, type Segurando } from "@/react-app/utils/avatarPixel";
 import "./Avatar.css";
 
 interface AvatarProps {
@@ -18,18 +18,20 @@ interface AvatarProps {
   atraso?: number;
   /** Sem o quadro de fundo (o boneco "solto", como o mascote do login). */
   semFundo?: boolean;
+  /** v3: algo na mão (o porta-voz das novidades). */
+  segurando?: Segurando | null;
 }
 
 /** Avatar em pixel art 32×32 desenhado em SVG (nítido em qualquer tamanho). */
-export default function Avatar({ config, tema = null, tamanho = 64, rotulo, className, animado = false, atraso = 0, semFundo = false }: AvatarProps) {
+export default function Avatar({ config, tema = null, tamanho = 64, rotulo, className, animado = false, atraso = 0, semFundo = false, segurando = null }: AvatarProps) {
   const id = useId().replace(/:/g, "");
   const { corpo, piscada } = useMemo(() => {
-    const aberto = montarGrade(config, tema, false, semFundo);
+    const aberto = montarGrade(config, tema, false, semFundo, segurando);
     return {
       corpo: emRetangulos(aberto),
-      piscada: animado ? emRetangulos(diferenca(aberto, montarGrade(config, tema, true, semFundo))) : [],
+      piscada: animado ? emRetangulos(diferenca(aberto, montarGrade(config, tema, true, semFundo, segurando))) : [],
     };
-  }, [config, tema, animado, semFundo]);
+  }, [config, tema, animado, semFundo, segurando]);
   // Quem passa altura pela classe (ex.: h-12 sm:h-16) manda no tamanho.
   const temMedida = /(^|\s)(sm:|md:)?h-/.test(className ?? "");
 

@@ -77,3 +77,17 @@ test("v2: traços femininos, batom e enfeites montam a grade e mudam o desenho",
   assert.ok(mudou(montarGrade(comCapacete, null), montarGrade({ ...comCapacete, enfeite: "argola" }, null)) > 0);
   for (const cabelo of ["longoLiso", "cachosLongos", "mariaChiquinha"] as const) assert.ok(mudou(masc, montarGrade({ ...sem, cabelo }, null)) > 0, cabelo);
 });
+
+test("v3: o porta-voz segura cafezinho ou rádio, com e sem fundo, e só a mão muda", () => {
+  const base = { ...avatarPadrao(5), capacete: false };
+  for (const cabelo of CABELOS) for (const funcao of Object.keys(FUNCOES) as (keyof typeof FUNCOES)[]) for (const item of ["cafe", "radio"] as const) {
+    assert.ok(cheia(montarGrade({ ...base, cabelo, funcao }, null, false, false, item)), `${cabelo}/${funcao}/${item}`);
+    assert.equal(montarGrade({ ...base, cabelo, funcao }, null, false, true, item).length, LADO);
+  }
+  const nada = montarGrade(base, null), cafe = montarGrade(base, null, false, false, "cafe"), radio = montarGrade(base, null, false, false, "radio");
+  assert.ok(mudou(nada, cafe) > 10, "a xícara aparece");
+  assert.ok(mudou(nada, radio) > 10, "o rádio aparece");
+  assert.ok(mudou(cafe, radio) > 10, "são coisas diferentes");
+  // O rosto (linhas 0–19, colunas 8–23) continua igual: o que está na mão fica ao lado do corpo.
+  for (const item of [cafe, radio]) assert.ok(diferenca(nada, item).slice(0, 20).every(l => l.slice(8, 24).every(v => v === null)));
+});
