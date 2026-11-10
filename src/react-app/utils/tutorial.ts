@@ -245,6 +245,10 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         texto: "Quem é admin de Placas monta os modelos: foto de fundo com marca d'água, logo, caixa “OBRA:”, quadro de texto (fonte, tamanho, alinhamento) e rodapé.",
         alvo: { css: "[role=tab]", texto: "Modelos" },
       },
+      {
+        titulo: "Imagens na folha",
+        texto: "Na placa e no modelo, “Adicionar imagem” põe qualquer imagem na folha. Na prévia, arraste para mover (aparecem linhas-guia no centro), puxe os cantos para redimensionar, gire pela bolinha de baixo e use a barra para mudar a ordem, pôr atrás do painel, duplicar ou apagar.",
+      },
     ],
   },
   "/sac": {
