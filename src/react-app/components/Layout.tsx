@@ -15,13 +15,15 @@ import CapturaLugiaProvider from "@/react-app/components/lugia/CapturaLugiaProvi
 import BotaoPrintLugia from "@/react-app/components/lugia/BotaoPrintLugia";
 import { EVENTO_DAVI, criarContadorToques } from "@/react-app/utils/segredo";
 import { alternarGrupo, grupoDaRota, lerGruposAbertos, salvarGruposAbertos } from "@/react-app/utils/menuLateral";
+import { alternarFavorito, itensFavoritos, lerFavoritosLocais, limparFavoritos, salvarFavoritosLocais } from "@/react-app/utils/menuFavoritos";
+import { menuFavoritoService } from "@/react-app/services/MenuFavoritoService";
 import { idGrupoMenu, jaViuTutorial, marcarTutorialVisto, tutorialDaTela, tutorialGeral, type PassoTutorial, type Tutorial as DadosTutorial } from "@/react-app/utils/tutorial";
 import { 
   Database, BarChart3, Package, Settings, Menu, ChevronLeft, 
   Home as HomeIcon, Briefcase, GraduationCap,
   ClipboardCheck, AlertTriangle, Camera, FileText, BookOpen, 
   TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Heart, PiggyBank,
-  Ruler, ChevronDown, HelpCircle, Sparkles, LifeBuoy, Signpost, NotebookPen, Box
+  Ruler, ChevronDown, HelpCircle, Sparkles, LifeBuoy, Signpost, NotebookPen, Box, BrickWall, type LucideIcon
 } from "lucide-react";
 
 const armazenamento = () => (typeof window === "undefined" ? undefined : window.localStorage);
@@ -109,6 +111,66 @@ export default function Layout() {
       return novo;
     });
   }, [grupoAtual, usuario]);
+  // Favoritos (o tijolo): cópia do aparelho na hora, a lista do servidor logo depois.
+  const [favoritos, setFavoritos] = useState<string[]>([]);
+  useEffect(() => {
+    if (!usuario) return;
+    setFavoritos(lerFavoritosLocais(armazenamento(), usuario.id));
+    let vivo = true;
+    menuFavoritoService.listar().then(lista => {
+      if (!vivo) return;
+      const limpa = limparFavoritos(lista);
+      setFavoritos(limpa);
+      salvarFavoritosLocais(armazenamento(), usuario.id, limpa);
+    }).catch(() => undefined);
+    return () => { vivo = false; };
+  }, [usuario]);
+  const alternarFavoritoDoMenu = (caminho: string) => {
+    if (!usuario) return;
+    const antes = favoritos;
+    const nova = alternarFavorito(antes, caminho);
+    setFavoritos(nova);
+    salvarFavoritosLocais(armazenamento(), usuario.id, nova);
+    menuFavoritoService.salvar(nova).catch(() => {
+      setFavoritos(antes);
+      salvarFavoritosLocais(armazenamento(), usuario.id, antes);
+    });
+  };
+  const listaFavoritos = itensFavoritos(favoritos, gruposVisiveis);
+
+  const itemDoMenu = (item: { path: string; label: string; icon: LucideIcon }, noGrupoFavoritos = false) => {
+    const favorito = favoritos.includes(item.path);
+    return (
+      <div key={item.path} className="group/item relative">
+        <NavLink
+          to={item.path}
+          end={item.path === "/"}
+          onClick={() => setSidebarOpen(false)}
+          className={({ isActive }) =>
+            `flex items-center gap-3 py-2.5 pl-3 pr-10 rounded-xl transition-all duration-200 text-sm active:scale-[0.98] ${
+              isActive
+                ? "bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold"
+                : "text-slate-600 hover:bg-slate-50 hover:text-blue-600 font-medium"
+            }`
+          }
+        >
+          <item.icon className="w-4 h-4" />
+          <span>{item.label}</span>
+          {item.path === "/sac" && <SeloSac />}
+        </NavLink>
+        <button type="button" onClick={() => alternarFavoritoDoMenu(item.path)} aria-pressed={favorito}
+          aria-label={favorito ? `Tirar ${item.label} dos favoritos` : `Marcar ${item.label} como favorito`}
+          title={favorito ? "Tirar dos favoritos" : "Marcar como favorito"}
+          data-favorito={noGrupoFavoritos ? "grupo" : "item"}
+          className={`absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg transition-opacity hover:bg-black/5 focus-visible:opacity-100 ${
+            favorito ? "opacity-100" : "opacity-0 group-hover/item:opacity-60 [@media(hover:none)]:opacity-30"
+          } ${location.pathname === item.path || (item.path !== "/" && location.pathname.startsWith(`${item.path}/`)) ? "text-white" : favorito ? "text-orange-500" : "text-slate-400"}`}>
+          <BrickWall className="h-4 w-4" fill={favorito ? "currentColor" : "none"} fillOpacity={favorito ? 0.25 : 0} aria-hidden="true" />
+        </button>
+      </div>
+    );
+  };
+
   // Tutorial: no início é o tour da ferramenta toda; nas outras telas, o passo a passo da tela.
   const [tutorial, setTutorial] = useState<DadosTutorial | null>(null);
   const antesDoTutorial = useRef<{ menu: boolean; grupos: string[] } | null>(null);
@@ -211,6 +273,16 @@ export default function Layout() {
           )}
 
           <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-4 no-scrollbar" aria-label="Módulos">
+            {listaFavoritos.length > 0 && (
+              <div>
+                <p className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-extrabold uppercase tracking-widest text-orange-500">
+                  <BrickWall className="h-3.5 w-3.5" aria-hidden="true" />Favoritos
+                </p>
+                <div className="space-y-1 pb-2 pt-1" aria-label="Favoritos" role="group">
+                  {listaFavoritos.map(item => itemDoMenu(item, true))}
+                </div>
+              </div>
+            )}
             {gruposVisiveis.map(group => {
               // A Visão Geral (só Início) fica sempre à mostra.
               const fixo = group.items.length === 1 && group.items[0].path === "/";
@@ -227,25 +299,7 @@ export default function Layout() {
                   )}
                   {aberto && (
                     <div id={idLista} className="space-y-1 pb-2 pt-1 animate-entrada">
-                      {group.items.map((item) => (
-                        <NavLink
-                          key={item.path}
-                          to={item.path}
-                          end={item.path === "/"}
-                          onClick={() => setSidebarOpen(false)}
-                          className={({ isActive }) =>
-                            `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm active:scale-[0.98] ${
-                              isActive
-                                ? "bg-blue-600 text-white shadow-md shadow-blue-500/20 font-bold"
-                                : "text-slate-600 hover:bg-slate-50 hover:text-blue-600 font-medium"
-                            }`
-                          }
-                        >
-                          <item.icon className="w-4 h-4" />
-                          <span>{item.label}</span>
-                          {item.path === "/sac" && <SeloSac />}
-                        </NavLink>
-                      ))}
+                      {group.items.map(item => itemDoMenu(item))}
                     </div>
                   )}
                 </div>

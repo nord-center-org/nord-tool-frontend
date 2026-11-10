@@ -17,6 +17,12 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-10-menu-favoritos",
+    data: "2026-11-10",
+    titulo: "Menu: marque as telas que você mais usa",
+    texto: "Toque no tijolo ao lado de qualquer tela do menu e ela vai para o grupo Favoritos, no topo. Os favoritos valem no celular e no computador; toque no tijolo de novo para tirar.",
+  },
+  {
     id: "2026-11-10-cubicagem",
     data: "2026-11-10",
     titulo: "Cubicagem: o volume das peças direto do projeto",
