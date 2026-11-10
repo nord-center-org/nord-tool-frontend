@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-10-cubicagem",
+    data: "2026-11-10",
+    titulo: "Cubicagem: o volume das peças direto do projeto",
+    texto: "Em Mapeamentos → Cubicagem, abra o PDF do projeto e escreva o código da peça (V12, P5, L3): a seção é achada no desenho, você mede o comprimento ou a área ali mesmo e sai o volume em m³, com totais por tipo, descontos, perda e planilha.",
+    onde: { rotulo: "Mapeamentos → Cubicagem", caminho: "/mapeamentos/cubicagem" },
+  },
+  {
     id: "2026-11-10-bloco-notas-texto",
     data: "2026-11-10",
     titulo: "Bloco de notas: texto formatado, documento, PDF nítido e outros arquivos",
