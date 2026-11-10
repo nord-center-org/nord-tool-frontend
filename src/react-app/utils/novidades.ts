@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-10-editor-imagens",
+    data: "2026-11-10",
+    titulo: "Editor de imagens, como o Paint.net",
+    texto: "No bloco de notas, “Editar imagem” abre um editor com camadas, pincel, formas, texto, balde de tinta, recorte, girar, redimensionar e ajustes de cor. As fotos do relatório fotográfico e as imagens das placas abrem nele pelo botão do pincel.",
+    onde: { rotulo: "Mapeamentos → Bloco de notas", caminho: "/mapeamentos/bloco-notas" },
+  },
+  {
     id: "2026-11-10-conversor-arquivos",
     data: "2026-11-10",
     titulo: "Converter arquivos, como no ILovePDF",

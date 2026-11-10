@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as EventoPonteiro } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUpRight, Check, Circle, Crop, Loader2, Pencil, RotateCw, Square, Undo2, X } from "lucide-react";
+import { ArrowUpRight, Brush, Check, Circle, Crop, Loader2, Pencil, RotateCw, Square, Undo2, X } from "lucide-react";
+
+import EditorImagemTelaCheia from "@/react-app/components/imagem/EditorImagemTelaCheia";
 
 import {
   CORES_MARCACAO, RECORTE_INTEIRO, ajustarRecorte, cabecaSeta, dimensoesGiradas, girarPonto, girarRetangulo, marcacaoValida,
@@ -70,6 +72,7 @@ function pintar(ctx: CanvasRenderingContext2D, img: HTMLImageElement, rotacao: R
 
 /** Foto ampliada em tela cheia; com edição: girar, cortar, riscar, círculo, quadrado, seta e cor da linha. */
 export default function EditorFoto({ carregar, titulo, editavel, onSalvar, onFechar }: EditorFotoProps) {
+  const [completo, setCompleto] = useState(false);
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [rotacao, setRotacao] = useState<Rotacao>(0);
@@ -205,9 +208,16 @@ export default function EditorFoto({ carregar, titulo, editavel, onSalvar, onFec
               {salvando ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
             </button>
           )}
+          {editavel && (
+            <button type="button" onClick={() => setCompleto(true)} aria-label="Editor completo" title="Abrir no editor de imagens (camadas, ajustes de cor, texto…)" className={botao(false)}><Brush className="h-5 w-5" /></button>
+          )}
           <button type="button" onClick={onFechar} aria-label="Fechar" title="Fechar" className={botao(false)}><X className="h-5 w-5" /></button>
         </div>
       </header>
+      {completo && (
+        <EditorImagemTelaCheia titulo={titulo} carregar={carregar} onFechar={() => setCompleto(false)}
+          onSalvar={async imagem => { const falha = await onSalvar(imagem); if (!falha) onFechar(); return falha; }} />
+      )}
 
       <div className="relative flex min-h-0 flex-1 items-center justify-center p-3">
         {erro && <p role="alert" className="absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-xl bg-red-600 px-3 py-1.5 text-sm text-white shadow">{erro}</p>}

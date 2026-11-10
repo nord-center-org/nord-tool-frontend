@@ -15,6 +15,7 @@ import { itensDoBloco, type FiltroBloco, type ItemBloco } from "@/react-app/util
 // A planilha (Fortune-sheet) é grande: só carrega quando uma planilha é aberta.
 const EditorPlanilha = lazy(() => import("@/react-app/components/bloco/planilha/EditorPlanilha"));
 const Conversor = lazy(() => import("@/react-app/components/bloco/conversor/Conversor"));
+const EditorImagem = lazy(() => import("@/react-app/components/imagem/EditorImagem"));
 
 const mensagem = (e: unknown, padrao: string) => (e instanceof Error && e.message ? e.message : padrao);
 const quando = (iso: string) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -103,11 +104,15 @@ function RenomearModal({ item, onSalvar, onFechar }: { item: ItemBloco; onSalvar
 }
 
 /** Botão grande do "Criar" da central. */
-function Atalho({ icone: Icone, titulo, texto, cor, onClick, desligado, rotulo }: {
+function Atalho({ icone: Icone, titulo, texto, cor, onClick, desligado, rotulo, onSoltarArquivo }: {
   icone: LucideIcon; titulo: string; texto: string; cor: string; onClick?: () => void; desligado?: boolean; rotulo?: string;
+  /** Arquivo arrastado e solto em cima do atalho. */
+  onSoltarArquivo?: (f: File) => void;
 }) {
   return (
     <button type="button" onClick={onClick} disabled={desligado} aria-label={rotulo ?? titulo}
+      onDragOver={onSoltarArquivo ? e => e.preventDefault() : undefined}
+      onDrop={onSoltarArquivo ? e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) onSoltarArquivo(f); } : undefined}
       className="group flex min-w-0 flex-col items-start gap-2 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 sm:gap-3 sm:p-4">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white sm:h-10 sm:w-10" style={{ background: cor }}><Icone className="h-5 w-5" /></span>
       <span className="min-w-0">
@@ -125,7 +130,7 @@ const ICONE: Record<ItemBloco["tipo"], LucideIcon> = { CADERNO: NotebookPen, PLA
 const NOME_TIPO: Record<ItemBloco["tipo"], string> = { CADERNO: "Caderno", PLANILHA: "Planilha", DOCUMENTO: "Documento" };
 const CHAVE_FILTRO = "@NordTool:bloco-notas:filtro";
 
-type Aberto = { tipo: ItemBloco["tipo"]; id: number } | { tipo: "CONVERSOR" } | null;
+type Aberto = { tipo: ItemBloco["tipo"]; id: number } | { tipo: "CONVERSOR" } | { tipo: "IMAGEM"; arquivo: File | null } | null;
 
 /**
  * Bloco de notas (v3): a central dos arquivos da pessoa. Em "Criar" ficam caderno (à mão, PDF), planilha (estilo Google
@@ -271,6 +276,13 @@ export default function BlocoNotasPage() {
       </div>
     );
   }
+  if (aberto?.tipo === "IMAGEM") {
+    return (
+      <Suspense fallback={<div className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Abrindo o editor…</div>}>
+        <EditorImagem arquivoInicial={aberto.arquivo} onFechar={voltar} onAbrirNoCaderno={arquivo => { setAberto(null); void importar(arquivo); }} />
+      </Suspense>
+    );
+  }
   if (aberto?.tipo === "CONVERSOR") {
     return (
       <Suspense fallback={<div className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Abrindo o conversor…</div>}>
@@ -300,7 +312,7 @@ export default function BlocoNotasPage() {
           <Atalho icone={FileUp} titulo="Abrir arquivo" texto="PDF, imagem, Word, Excel, CSV ou texto" cor="#475569" rotulo="Abrir arquivo"
             desligado={importando !== null} onClick={() => arquivoPdf.current?.click()} />
           <Atalho icone={ArrowLeftRight} titulo="Converter" texto="Juntar, dividir, comprimir e converter arquivos" cor="#ea580c" rotulo="Converter arquivo" onClick={() => setAberto({ tipo: "CONVERSOR" })} />
-          <Atalho icone={ImageIcon} titulo="Editar imagem" texto="Em breve: editor de imagens" cor="#9333ea" rotulo="Editar imagem (em breve)" desligado />
+          <Atalho icone={ImageIcon} titulo="Editar imagem" texto="Camadas, cores, texto e recorte; solte a imagem aqui" cor="#9333ea" rotulo="Editar imagem" onClick={() => setAberto({ tipo: "IMAGEM", arquivo: null })} onSoltarArquivo={f => setAberto({ tipo: "IMAGEM", arquivo: f })} />
         </div>
       </section>
 
