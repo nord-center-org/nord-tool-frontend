@@ -3,6 +3,7 @@ import { toBlob } from "html-to-image";
 import { PDFDocument } from "pdf-lib";
 import { Copy, Download, FileDown, ImagePlus, LayoutTemplate, Loader2, Pencil, Plus, Signpost, Trash2, X } from "lucide-react";
 
+import EditorImagemTelaCheia from "@/react-app/components/imagem/EditorImagemTelaCheia";
 import ImagensNaFolha from "@/react-app/components/placas/ImagensNaFolha";
 import PlacaVisual from "@/react-app/components/placas/PlacaVisual";
 import CabecalhoPagina from "@/react-app/components/ui/CabecalhoPagina";
@@ -145,6 +146,25 @@ function Miniatura({ config, valores, modelo, largura, editar }: {
   const soltas = useSoltas([config.imagens, valores.imagens]);
   const folha = FOLHA[config.orientacao];
   const escala = largura / folha.largura;
+  const [editando, setEditando] = useState<ImagemPlaca | null>(null);
+
+  /** A imagem editada é enviada como nova (PNG) e entra no lugar da antiga, com a mesma largura. */
+  const salvarEditada = async (blob: Blob): Promise<string | null> => {
+    if (!editando || !editar) return null;
+    try {
+      if (blob.size > 5 * 1024 * 1024) return "A imagem editada passou de 5 MB. Diminua o tamanho (Redimensionar) e salve de novo.";
+      const arquivo = new File([blob], "imagem-editada.png", { type: "image/png" });
+      const bmp = await createImageBitmap(blob);
+      const proporcao = bmp.height / bmp.width;
+      bmp.close();
+      const id = await placaService.enviarImagemSolta(arquivo, arquivo.name);
+      cacheSoltas.set(id, paraDataUrl(arquivo));
+      editar.onMudar(editar.imagens.map(i => (i.id === editando.id ? { ...i, img: id, h: Math.round(i.w * proporcao) } : i)));
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : "Não deu para salvar a imagem.";
+    }
+  };
   return (
     <div style={{ width: largura, height: folha.altura * escala }} className="relative rounded-lg shadow-sm ring-1 ring-slate-200">
       <div className="h-full w-full overflow-hidden rounded-lg">
@@ -152,7 +172,11 @@ function Miniatura({ config, valores, modelo, largura, editar }: {
           <PlacaVisual config={config} valores={valores} fundo={imgs.fundo} logo={imgs.logo} soltas={soltas} />
         </div>
       </div>
-      {editar && <ImagensNaFolha folha={folha} escala={escala} imagens={editar.imagens} onMudar={editar.onMudar} />}
+      {editar && <ImagensNaFolha folha={folha} escala={escala} imagens={editar.imagens} onMudar={editar.onMudar} onEditar={setEditando} />}
+      {editando && (
+        <EditorImagemTelaCheia titulo="Imagem da placa" formatoSalvar="png" onFechar={() => setEditando(null)} onSalvar={salvarEditada}
+          carregar={async () => { const u = await urlSolta(editando.img); if (!u) throw new Error("sem imagem"); return (await fetch(u)).blob(); }} />
+      )}
     </div>
   );
 }
