@@ -56,6 +56,7 @@ export const DESCRICAO_DAS_TELAS: Record<string, string> = {
   "/mapeamentos/conferencias": "Contagens de campo e quantitativos (projeto × medido × solicitado).",
   "/mapeamentos/pendencias": EM_BREVE,
   "/mapeamentos/bloco-notas": "Cadernos para escrever à mão (caneta com pressão, marca-texto, formas, texto e imagens), anotar PDFs e exportar em PDF.",
+  "/mapeamentos/cubicagem": "Volume de concreto (m³) das peças de um projeto em PDF: busque a peça pelo código, meça no desenho e veja os totais por tipo, com descontos e perda.",
   "/mapeamentos/placas": "Placas de aviso da obra a partir de modelos (fundo com marca d'água, logo, texto e rodapé), em PNG ou PDF para imprimir.",
   "/mapeamentos/relatorio-fotografico": "Fotos organizadas por item, com edição e PDF pronto no padrão da obra.",
   "/organizacional/rte": EM_BREVE,
@@ -233,6 +234,28 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       {
         titulo: "Texto e documento",
         texto: "Na caixa de texto, a barra de cima formata o que estiver selecionado (negrito, itálico, sublinhado, tamanho, cor) e alinha a caixa; a alça da direita muda a largura. Em “Texto” fica o documento do caderno, no estilo do Word, em páginas ou contínuo; “Lado a lado” mostra o documento e o desenho juntos. O botão de girar vira a página atual.",
+      },
+    ],
+  },
+  "/mapeamentos/cubicagem": {
+    titulo: "Cubicagem",
+    passos: [
+      {
+        titulo: "Suas cubicagens",
+        texto: "Crie uma cubicagem por projeto ou pavimento. Só você vê as suas, e tudo é salvo sozinho.",
+        alvo: { css: "button", texto: "Nova cubicagem" },
+      },
+      {
+        titulo: "Busque a peça pelo código",
+        texto: "Abra o PDF do projeto (ele fica só no seu aparelho) e escreva o código: V12, P5, L3… A peça é achada no desenho com a seção (14x50, Ø40, h=12); confira e toque em “Adicionar”.",
+      },
+      {
+        titulo: "Comprimento e área",
+        texto: "Digite o comprimento ou a área, ou toque na régua ao lado do campo e marque no desenho. A escala da folha é lida do PDF (ESC. 1:50); se não tiver, informe ou calibre por uma cota conhecida.",
+      },
+      {
+        titulo: "Volume, descontos e perda",
+        texto: "Cada peça mostra o volume em m³. “Descontar” abate trechos (ex.: viga dentro do pilar). Os totais saem por tipo de peça, com a perda em % por cima, e “Baixar planilha” gera o Excel.",
       },
     ],
   },
