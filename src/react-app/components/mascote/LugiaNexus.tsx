@@ -6,12 +6,16 @@ import "./LugiaNexus.css";
 import imgAnunciando from "@/react-app/assets/lugia-nexus/anunciando.webp";
 import imgNotebook from "@/react-app/assets/lugia-nexus/notebook.webp";
 import imgParado from "@/react-app/assets/lugia-nexus/parado.webp";
+import Avatar from "@/react-app/components/avatar/Avatar";
 import { useAuth } from "@/react-app/hooks/useAuth";
+import { avatarService, type AvatarUsuario } from "@/react-app/services/AvatarService";
+import { lerAvatar, temaDoAvatar } from "@/react-app/utils/avatar";
+import { hojeSaoPaulo } from "@/react-app/utils/caixinha";
 import { dataCurta, lerUltimaVista, marcarVista, naoVistas, NOVIDADES, type Novidade } from "@/react-app/utils/novidades";
 import { menosMovimento } from "@/react-app/utils/movimento";
 import { podeAbrirRota } from "@/react-app/utils/sessao";
 import { jaViuTutorial } from "@/react-app/utils/tutorial";
-import { ESPIADA_MS, VISITA_MS, falaDaEspiada, intervaloEspiada, ladoDaEspiada, type LadoEspiada } from "@/react-app/utils/nexus";
+import { ESPIADA_MS, VISITA_MS, falaDaEspiada, intervaloEspiada, ladoDaEspiada, nomeDoPortaVoz, oQueSegura, type LadoEspiada } from "@/react-app/utils/nexus";
 
 const armazenamento = () => (typeof window === "undefined" ? undefined : window.localStorage);
 const PIXEL = "font-['Press_Start_2P'] leading-[1.6]";
@@ -37,6 +41,9 @@ function useDigitacao(texto: string, ativo: boolean): string {
 type Fase = "fora" | "presente" | "espiando";
 
 /**
+ * v3 do avatar: quem anuncia é o avatar do dono do NordTool (o porta-voz que o backend indica), com o primeiro nome
+ * no balão e um cafezinho ou o rádio na mão. Sem porta-voz (ou com o backend fora), continua o Lugia Nexus.
+ *
  * Lugia Nexus: mascote no canto da tela inicial que conta as últimas atualizações do NordTool.
  * Com novidade que a pessoa ainda não viu (depois do tour inicial), aparece já com o balão. Sem novidade,
  * dá uma passadinha e vai embora. Escondido, de vez em quando espia pelo canto e volta se ninguém clicar;
@@ -52,6 +59,15 @@ export default function LugiaNexus() {
   const [fala, setFala] = useState("");
   const [mouseEmCima, setMouseEmCima] = useState(false);
   const refMascote = useRef<HTMLButtonElement>(null);
+  // undefined: ainda buscando (não mostra nada, para não trocar de figura na frente da pessoa); null: Lugia Nexus.
+  const [voz, setVoz] = useState<AvatarUsuario | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!usuario) return;
+    let vivo = true;
+    avatarService.portaVoz().then(v => vivo && setVoz(v ?? null)).catch(() => vivo && setVoz(null));
+    return () => { vivo = false; };
+  }, [usuario]);
 
   useEffect(() => {
     if (!usuario) return;
@@ -99,7 +115,14 @@ export default function LugiaNexus() {
   const principal = mostrando[0];
   const digitado = useDigitacao(principal?.texto ?? "", aberto && !historico);
 
-  if (!usuario || !principal) return null;
+  if (!usuario || !principal || voz === undefined) return null;
+
+  const nome = voz ? nomeDoPortaVoz(voz.nmNome) : "Lugia Nexus";
+  const configVoz = voz ? lerAvatar(voz.dsConfig, voz.idUsuario, voz.nmCargo) : null;
+  const segura = oQueSegura(new Date().getHours());
+  const figura = (className: string) => (configVoz
+    ? <Avatar config={configVoz} tema={temaDoAvatar(configVoz, hojeSaoPaulo())} segurando={segura} semFundo animado={!semAnimacao()} className={className} />
+    : null);
 
   const fechar = () => {
     marcarVista(armazenamento(), usuario.id, NOVIDADES[0].id);
@@ -134,7 +157,7 @@ export default function LugiaNexus() {
       {aberto && fase === "presente" && (
         <section role="status" aria-label="Novidades do NordTool" className="pointer-events-auto relative mb-5 mr-1 w-80 max-w-[calc(100vw-2.5rem)] animate-surgir">
           <div className="nt-nexus-caixa relative px-4 pb-4 pt-6">
-            <span className={`nt-nexus-rotulo absolute -top-3 left-3 px-2 py-1 text-[9px] ${PIXEL}`}>Lugia Nexus</span>
+            <span className={`nt-nexus-rotulo absolute -top-3 left-3 px-2 py-1 text-[9px] ${PIXEL}`}>{nome}</span>
             <button type="button" onClick={fechar} aria-label="Fechar novidades"
               className={`absolute right-2 top-2 px-1.5 py-0.5 text-[10px] text-slate-500 hover:text-slate-900 ${PIXEL}`}>
               X
@@ -188,20 +211,24 @@ export default function LugiaNexus() {
       <button ref={refMascote} type="button" onClick={() => (aberto ? fechar() : chamar())}
         onMouseEnter={() => { setMouseEmCima(true); if (fase === "presente") setAnunciando(true); }}
         onMouseLeave={() => { setMouseEmCima(false); setAnunciando(false); }}
-        aria-label={aberto ? "Fechar novidades do Lugia Nexus" : "Ver as últimas atualizações com o Lugia Nexus"} aria-expanded={aberto}
+        aria-label={aberto ? `Fechar novidades de ${nome}` : `Ver as últimas atualizações com ${nome}`} aria-expanded={aberto}
         aria-hidden={fase === "fora"} tabIndex={fase === "fora" ? -1 : 0}
         className={`nt-nexus-mascote relative p-1 ${fase === "fora" ? "nt-nexus-fora" : fase === "espiando" ? `nt-nexus-espiando nt-nexus-espiando-${lado} pointer-events-auto` : "pointer-events-auto"}`}>
-        <img src={imagem} alt="" width={75} height={88} draggable={false}
-          className="h-[72px] w-auto select-none animate-flutuar drop-shadow-[0_6px_10px_rgba(37,99,235,0.35)] sm:h-[88px]" />
+        {figura("h-[76px] w-[76px] select-none animate-flutuar drop-shadow-[0_6px_10px_rgba(37,99,235,0.35)] sm:h-[92px] sm:w-[92px]") ?? (
+          <img src={imagem} alt="" width={75} height={88} draggable={false}
+            className="h-[72px] w-auto select-none animate-flutuar drop-shadow-[0_6px_10px_rgba(37,99,235,0.35)] sm:h-[88px]" />
+        )}
         {fase === "espiando" && (
           <span aria-hidden="true" className={`nt-nexus-psiu nt-nexus-rotulo absolute px-1.5 py-1 text-[8px] ${PIXEL}`}>{fala}</span>
         )}
       </button>
     </div>
     {fase !== "presente" && (
-      <button type="button" onClick={chamar} data-sem-print aria-label="Chamar o Lugia Nexus (últimas atualizações)" title="Lugia Nexus"
+      <button type="button" onClick={chamar} data-sem-print aria-label={`Chamar ${nome} (últimas atualizações)`} title={nome}
         className={`nt-nexus-mini fixed bottom-3 right-3 z-30 flex h-10 w-10 items-center justify-center overflow-hidden bg-[#f4f8ff] sm:bottom-5 sm:right-5 ${fase === "espiando" ? "pointer-events-none opacity-0" : "opacity-100"}`}>
-        <img src={imgParado} alt="" width={73} height={88} draggable={false} className="h-[54px] w-auto max-w-none translate-y-[9px] select-none" />
+        {figura("h-[50px] w-[50px] max-w-none translate-y-[8px] select-none") ?? (
+          <img src={imgParado} alt="" width={73} height={88} draggable={false} className="h-[54px] w-auto max-w-none translate-y-[9px] select-none" />
+        )}
         {pendentes.length > 0 && <span aria-hidden="true" className="absolute right-0.5 top-0.5 h-2.5 w-2.5 bg-red-500 shadow-[0_0_0_2px_#1e2963]" />}
       </button>
     )}

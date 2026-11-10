@@ -10,4 +10,6 @@ export const avatarService = {
   meu: () => apiFetch<AvatarUsuario>(`${BASE}/meu`),
   salvar: (dsConfig: string) => apiFetch<AvatarUsuario>(`${BASE}/meu`, { method: "PUT", body: JSON.stringify({ dsConfig }) }),
   equipe: async () => (await apiFetch<AvatarUsuario[]>(`${BASE}/equipe`)) ?? [],
+  /** v3: quem anuncia as novidades (primeiro nome e avatar); null = o mascote Lugia Nexus. */
+  portaVoz: () => apiFetch<AvatarUsuario | null>(`${BASE}/porta-voz`),
 };

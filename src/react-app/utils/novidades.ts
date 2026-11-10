@@ -1,5 +1,5 @@
 /**
- * Novidades anunciadas pelo Lugia Nexus, o mascote da tela inicial.
+ * Novidades anunciadas na tela inicial pelo avatar do dono do NordTool (sem ele, pelo mascote Lugia Nexus).
  * Toda entrega publicada acrescenta uma entrada NO TOPO desta lista (a mais recente primeiro), com id único.
  */
 
@@ -16,6 +16,13 @@ export interface Novidade {
 }
 
 export const NOVIDADES: Novidade[] = [
+  {
+    id: "2026-11-10-novidades-com-avatar",
+    data: "2026-11-10",
+    titulo: "Novidades com a cara do chefe",
+    texto: "Quem conta as novidades agora é o avatar do dono do NordTool, às vezes com um cafezinho na mão e às vezes com o rádio. Toque nele no canto da tela inicial para ver as últimas atualizações.",
+    onde: { rotulo: "Tela inicial", caminho: "/" },
+  },
   {
     id: "2026-11-10-chat-dos-cadernos",
     data: "2026-11-10",

@@ -20,3 +20,9 @@ export const ladoDaEspiada = (sorteio: () => number): LadoEspiada => (sorteio() 
 export const FALAS_ESPIADA = ["Psiu!", "...", "Oi?", "!", "Novidades?"];
 export const falaDaEspiada = (sorteio: () => number): string =>
   FALAS_ESPIADA[Math.min(FALAS_ESPIADA.length - 1, Math.floor(Math.max(0, sorteio()) * FALAS_ESPIADA.length))];
+
+/** v3: o porta-voz das novidades segura um cafezinho nas horas pares e o rádio nas ímpares. */
+export const oQueSegura = (hora: number): "cafe" | "radio" => (((Math.floor(hora) % 2) + 2) % 2 === 0 ? "cafe" : "radio");
+
+/** v3: primeiro nome para o balão; sem nome, "Novidades". */
+export const nomeDoPortaVoz = (nome: string | null | undefined): string => (nome ?? "").trim().split(/\s+/)[0]?.slice(0, 20) || "Novidades";
