@@ -40,6 +40,14 @@ export const placaService = {
   },
   removerImagem: (id: number, tipo: TipoImagemPlaca) => apiFetch<ModeloPlaca>(`${BASE}/modelos/${id}/imagens/${tipo}`, { method: "DELETE" }),
 
+  /** v2: imagem solta para pôr na folha; devolve o id que o modelo/a placa guarda. */
+  enviarImagemSolta: async (imagem: Blob, nome: string) => {
+    const corpo = new FormData();
+    corpo.append("arquivo", imagem, nome);
+    return (await apiFetch<number>(`${BASE}/imagens`, { method: "POST", body: corpo })) ?? 0;
+  },
+  imagemSolta: (id: number) => apiBlob(`${BASE}/imagens/${id}`),
+
   listar: async () => (await apiFetch<Placa[]>(BASE)) ?? [],
   criar: (f: { idModelo: number; nmTitulo: string; valores: unknown }) => apiFetch<Placa>(BASE, { method: "POST", body: json(f) }),
   alterar: (id: number, f: { idModelo: number; nmTitulo: string; valores: unknown }) => apiFetch<Placa>(`${BASE}/${id}`, { method: "PUT", body: json(f) }),
