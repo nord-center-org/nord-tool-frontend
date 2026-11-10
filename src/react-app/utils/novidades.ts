@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-10-conversor-arquivos",
+    data: "2026-11-10",
+    titulo: "Converter arquivos, como no ILovePDF",
+    texto: "No bloco de notas, “Converter” junta, divide e organiza PDFs, transforma imagem, Word e Excel em PDF, PDF em imagem, comprime, numera páginas, põe marca d'água e troca o formato de imagens, tudo no seu aparelho.",
+    onde: { rotulo: "Mapeamentos → Bloco de notas", caminho: "/mapeamentos/bloco-notas" },
+  },
+  {
     id: "2026-11-10-bloco-notas-planilhas",
     data: "2026-11-10",
     titulo: "Bloco de notas: planilhas e documentos",

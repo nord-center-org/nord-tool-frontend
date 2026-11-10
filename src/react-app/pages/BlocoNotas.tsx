@@ -14,6 +14,7 @@ import { itensDoBloco, type FiltroBloco, type ItemBloco } from "@/react-app/util
 
 // A planilha (Fortune-sheet) é grande: só carrega quando uma planilha é aberta.
 const EditorPlanilha = lazy(() => import("@/react-app/components/bloco/planilha/EditorPlanilha"));
+const Conversor = lazy(() => import("@/react-app/components/bloco/conversor/Conversor"));
 
 const mensagem = (e: unknown, padrao: string) => (e instanceof Error && e.message ? e.message : padrao);
 const quando = (iso: string) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -124,7 +125,7 @@ const ICONE: Record<ItemBloco["tipo"], LucideIcon> = { CADERNO: NotebookPen, PLA
 const NOME_TIPO: Record<ItemBloco["tipo"], string> = { CADERNO: "Caderno", PLANILHA: "Planilha", DOCUMENTO: "Documento" };
 const CHAVE_FILTRO = "@NordTool:bloco-notas:filtro";
 
-type Aberto = { tipo: ItemBloco["tipo"]; id: number } | null;
+type Aberto = { tipo: ItemBloco["tipo"]; id: number } | { tipo: "CONVERSOR" } | null;
 
 /**
  * Bloco de notas (v3): a central dos arquivos da pessoa. Em "Criar" ficam caderno (à mão, PDF), planilha (estilo Google
@@ -270,6 +271,13 @@ export default function BlocoNotasPage() {
       </div>
     );
   }
+  if (aberto?.tipo === "CONVERSOR") {
+    return (
+      <Suspense fallback={<div className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Abrindo o conversor…</div>}>
+        <Conversor onVoltar={voltar} onAbrirNoCaderno={arquivo => { setAberto(null); void importar(arquivo); }} />
+      </Suspense>
+    );
+  }
   if (aberto?.tipo === "PLANILHA") {
     return (
       <Suspense fallback={<div className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Abrindo a planilha…</div>}>
@@ -291,7 +299,7 @@ export default function BlocoNotasPage() {
           <Atalho icone={FileText} titulo="Documento" texto="Texto formatado, como no Word" cor="#1d4ed8" rotulo="Novo documento" onClick={() => void novoArquivo("DOCUMENTO")} />
           <Atalho icone={FileUp} titulo="Abrir arquivo" texto="PDF, imagem, Word, Excel, CSV ou texto" cor="#475569" rotulo="Abrir arquivo"
             desligado={importando !== null} onClick={() => arquivoPdf.current?.click()} />
-          <Atalho icone={ArrowLeftRight} titulo="Converter" texto="Em breve: juntar, dividir e converter PDFs" cor="#ea580c" rotulo="Converter arquivo (em breve)" desligado />
+          <Atalho icone={ArrowLeftRight} titulo="Converter" texto="Juntar, dividir, comprimir e converter arquivos" cor="#ea580c" rotulo="Converter arquivo" onClick={() => setAberto({ tipo: "CONVERSOR" })} />
           <Atalho icone={ImageIcon} titulo="Editar imagem" texto="Em breve: editor de imagens" cor="#9333ea" rotulo="Editar imagem (em breve)" desligado />
         </div>
       </section>
