@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-11-cronograma-periodo",
+    data: "2026-11-11",
+    titulo: "Cronograma: atividade de vários dias",
+    texto: "Agora a demanda tem dia de início e dia de fim e aparece na Rotina em todos os dias do período. Na Rotina, toque em “Selecionar dias” e depois no primeiro e no último dia no calendário.",
+    onde: { rotulo: "Organizacional → Cronograma semanal → Rotina", caminho: "/organizacional/cronograma" },
+  },
+  {
     id: "2026-11-11-planilha-em-portugues",
     data: "2026-11-11",
     titulo: "Planilha em português, com mais funções",

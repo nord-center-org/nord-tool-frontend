@@ -546,7 +546,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Nova demanda",
-        texto: "Crie uma demanda com categoria, prazo e observação. Dá para compartilhar com outras pessoas da obra.",
+        texto: "Crie uma demanda com categoria, prazo e observação. Dá para compartilhar com outras pessoas da obra. Uma demanda pode durar vários dias: preencha “Começa em” e “Termina em”, ou na Rotina toque em “Selecionar dias” e depois no primeiro e no último dia no calendário.",
         alvo: { css: "button", texto: "Nova demanda" },
       },
       {
