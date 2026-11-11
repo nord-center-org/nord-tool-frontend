@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-11-relatorio-sem-contorno",
+    data: "2026-11-11",
+    titulo: "Relatório: fotos sem contorno",
+    texto: "No PDF do relatório fotográfico as fotos não têm mais a linha cinza em volta; o tamanho delas continua o mesmo.",
+    onde: { rotulo: "Mapeamentos → Relatório fotográfico", caminho: "/mapeamentos/relatorio-fotografico" },
+  },
+  {
     id: "2026-11-11-editor-imagens-varinha",
     data: "2026-11-11",
     titulo: "Editor de imagens: varinha mágica",
