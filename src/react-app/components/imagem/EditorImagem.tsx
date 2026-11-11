@@ -2,15 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import {
   ArrowDown, ArrowLeft, ArrowUp, Brush, Circle, Copy, Crop, Download, Eraser, Eye, EyeOff, FlipHorizontal, FlipVertical, Hand, ImagePlus, Layers,
   Loader2, Merge, Minus, NotebookPen, PaintBucket, Pipette, Plus, Redo2, RotateCcw, RotateCw, Save, Scaling, SlidersHorizontal, Square, SquareDashed,
-  Trash2, Type, Undo2, Upload, X, ZoomIn, ZoomOut, type LucideIcon,
+  Trash2, Type, Undo2, Upload, WandSparkles, X, ZoomIn, ZoomOut, type LucideIcon, ArrowLeftRight, Scissors,
 } from "lucide-react";
 
 import { baixarArquivo, nomeDeArquivo } from "@/react-app/utils/baixarArquivo";
 import {
   AJUSTES, Historico, aplicarAjuste, corParaHex, hexParaCor, preencher, redimensionarProporcional, retanguloDe, type TipoAjuste,
 } from "@/react-app/utils/editorImagem";
+import {
+  MODOS_SELECAO, apagarNaMascara, caixaDa, combinar, desenhoDaSelecao, inverter, mascaraDoRetangulo, preencherNaMascara, recortarMascara, restaurarFora,
+  suavizar, varinhaMagica, type Mascara, type ModoSelecao,
+} from "@/react-app/utils/varinhaMagica";
 
-type Ferramenta = "mao" | "pincel" | "borracha" | "linha" | "retangulo" | "elipse" | "texto" | "balde" | "contagotas" | "selecao";
+type Ferramenta = "mao" | "pincel" | "borracha" | "linha" | "retangulo" | "elipse" | "texto" | "balde" | "contagotas" | "selecao" | "varinha";
 interface Camada { id: string; nome: string; visivel: boolean; opacidade: number; canvas: HTMLCanvasElement }
 interface Foto { id: string; nome: string; visivel: boolean; opacidade: number; dados: ImageData }
 interface Estado { largura: number; altura: number; camadas: Foto[]; ativa: string }
@@ -22,6 +26,7 @@ const CORES_RAPIDAS = ["#000000", "#ffffff", "#ef4444", "#f97316", "#eab308", "#
 const FERRAMENTAS: { id: Ferramenta; rotulo: string; icone: LucideIcon; tecla: string }[] = [
   { id: "mao", rotulo: "Mão (rolar)", icone: Hand, tecla: "h" },
   { id: "selecao", rotulo: "Seleção retangular", icone: SquareDashed, tecla: "s" },
+  { id: "varinha", rotulo: "Varinha mágica", icone: WandSparkles, tecla: "w" },
   { id: "pincel", rotulo: "Pincel", icone: Brush, tecla: "b" },
   { id: "borracha", rotulo: "Borracha", icone: Eraser, tecla: "e" },
   { id: "linha", rotulo: "Linha", icone: Minus, tecla: "l" },
@@ -81,6 +86,11 @@ export default function EditorImagem({ carregar, arquivoInicial, titulo, onSalva
   const [tolerancia, setTolerancia] = useState(20);
   const [zoom, setZoom] = useState(1);
   const [selecao, setSelecao] = useState<Ret | null>(null);
+  /** Seleção pela varinha mágica (um byte por pixel); null quando a seleção é só o retângulo. */
+  const [mascara, setMascara] = useState<Mascara | null>(null);
+  const [modoSelecao, setModoSelecao] = useState<ModoSelecao>("nova");
+  const [varinhaGlobal, setVarinhaGlobal] = useState(false);
+  const [bordaSuave, setBordaSuave] = useState(1);
   const [texto, setTexto] = useState<{ p: Ponto; valor: string } | null>(null);
   const [ajuste, setAjuste] = useState<{ tipo: TipoAjuste; valor: number } | null>(null);
   const [redim, setRedim] = useState<{ largura: number; altura: number; proporcao: boolean } | null>(null);
@@ -94,6 +104,14 @@ export default function EditorImagem({ carregar, arquivoInicial, titulo, onSalva
   const arrasto = useRef<{ inicio: Ponto; ultimo: Ponto; antes: ImageData | null } | null>(null);
   const preview = useRef<((ctx: CanvasRenderingContext2D) => void) | null>(null);
   const original = useRef<ImageData | null>(null);
+
+  /** Véu e contorno da seleção da varinha, prontos para desenhar por cima da imagem. */
+  const desenhoMascara = useMemo(() => {
+    if (!mascara || !tamanho || mascara.length !== tamanho.w * tamanho.h) return null;
+    const c = criarCanvas(tamanho.w, tamanho.h);
+    ctxDe(c).putImageData(new ImageData(desenhoDaSelecao(mascara, tamanho.w, tamanho.h), tamanho.w, tamanho.h), 0, 0);
+    return c;
+  }, [mascara, tamanho]);
 
   const camadaAtiva = () => camadas.current.find(c => c.id === ativa) ?? camadas.current[camadas.current.length - 1];
 
@@ -118,7 +136,8 @@ export default function EditorImagem({ carregar, arquivoInicial, titulo, onSalva
     const ctx = t.getContext("2d");
     if (!ctx) return;
     preview.current?.(ctx);
-    if (selecao && selecao.w > 0 && selecao.h > 0) {
+    if (desenhoMascara) ctx.drawImage(desenhoMascara, 0, 0);
+    else if (selecao && selecao.w > 0 && selecao.h > 0) {
       ctx.save();
       const lw = Math.max(1, 1.5 / zoom);
       ctx.lineWidth = lw;
@@ -127,7 +146,7 @@ export default function EditorImagem({ carregar, arquivoInicial, titulo, onSalva
       ctx.lineDashOffset = 6 / zoom; ctx.strokeStyle = "#fff"; ctx.strokeRect(selecao.x, selecao.y, selecao.w, selecao.h);
       ctx.restore();
     }
-  }, [compor, selecao, tamanho, zoom]);
+  }, [compor, desenhoMascara, selecao, tamanho, zoom]);
   useEffect(() => { pintarTela(); });
 
   const caberNaTela = useCallback(() => {
@@ -136,6 +155,28 @@ export default function EditorImagem({ carregar, arquivoInicial, titulo, onSalva
     setZoom(Math.max(0.05, Math.min(4, (caixa.clientWidth - 32) / tamanho.w, (caixa.clientHeight - 32) / tamanho.h)));
   }, [tamanho]);
   useEffect(() => { if (ajustarZoom && tamanho && area.current) { caberNaTela(); setAjustarZoom(false); } }, [ajustarZoom, tamanho, caberNaTela]);
+
+  // ---------- seleção ----------
+  function limparSelecao() { setSelecao(null); setMascara(null); }
+  /** Troca a seleção pela máscara (vazia = sem seleção); a caixa dela vira o retângulo usado por Recortar. */
+  const definirMascara = (m: Mascara | null) => {
+    const caixa = m && tamanho ? caixaDa(m, tamanho.w, tamanho.h) : null;
+    if (!m || !caixa) { limparSelecao(); return; }
+    setMascara(m);
+    setSelecao(caixa);
+  };
+  /** A seleção atual como máscara (o retângulo também vira máscara). */
+  const mascaraAtual = (): Mascara | null => {
+    if (!tamanho) return null;
+    if (mascara) return mascara;
+    return selecao && selecao.w > 0 && selecao.h > 0 ? mascaraDoRetangulo(selecao, tamanho.w, tamanho.h) : null;
+  };
+  const inverterSelecao = () => {
+    if (!tamanho) return;
+    const m = mascaraAtual();
+    definirMascara(m ? inverter(m) : null);
+  };
+  const selecionarTudo = () => { if (tamanho) { setMascara(null); setSelecao({ x: 0, y: 0, w: tamanho.w, h: tamanho.h }); } };
 
   // ---------- abrir ----------
   const abrirBitmap = useCallback((bmp: ImageBitmap | HTMLCanvasElement, nomeArquivo?: string) => {
@@ -147,7 +188,7 @@ export default function EditorImagem({ carregar, arquivoInicial, titulo, onSalva
     camadas.current = [{ id: novoId(), nome: "Fundo", visivel: true, opacidade: 1, canvas: c }];
     setAtiva(camadas.current[0].id);
     setTamanho({ w, h });
-    setSelecao(null);
+    limparSelecao();
     historico.current.limpar();
     if (nomeArquivo) setNome(nomeArquivo.replace(/\.[^.]+$/, ""));
     setAviso(reduziu ? `A imagem era grande e foi reduzida para ${w} × ${h} px para editar com folga.` : null);
@@ -246,10 +287,19 @@ export default function EditorImagem({ carregar, arquivoInicial, titulo, onSalva
       return;
     }
     if (ferramenta === "texto") { setTexto({ p, valor: "" }); return; }
+    if (ferramenta === "varinha") {
+      const dados = ctxDe(c.canvas).getImageData(0, 0, tamanho.w, tamanho.h);
+      const nova = varinhaMagica({ data: dados.data, width: tamanho.w, height: tamanho.h }, p.x, p.y, tolerancia, varinhaGlobal);
+      const modo: ModoSelecao = e.altKey || e.button === 2 ? "tirar" : e.shiftKey ? "somar" : modoSelecao;
+      definirMascara(combinar(mascaraAtual(), nova, modo));
+      return;
+    }
     e.currentTarget.setPointerCapture(e.pointerId);
-    if (ferramenta === "selecao") { arrasto.current = { inicio: p, ultimo: p, antes: null }; setSelecao(null); return; }
+    if (ferramenta === "selecao") { arrasto.current = { inicio: p, ultimo: p, antes: null }; limparSelecao(); return; }
     guardar();
-    arrasto.current = { inicio: p, ultimo: p, antes: null };
+    // Com a seleção da varinha, o traço fica preso à caixa dela e, ao soltar, o que caiu fora volta a ser como era.
+    const comMascara = mascara && (ferramenta === "pincel" || ferramenta === "borracha");
+    arrasto.current = { inicio: p, ultimo: p, antes: comMascara ? ctxDe(c.canvas).getImageData(0, 0, tamanho.w, tamanho.h) : null };
     if (ferramenta === "pincel" || ferramenta === "borracha") {
       const ctx = ctxDe(c.canvas);
       ctx.save();
@@ -294,6 +344,12 @@ export default function EditorImagem({ carregar, arquivoInicial, titulo, onSalva
       const ctx = ctxDe(camadaAtiva().canvas);
       ctx.save(); desenharForma(ctx, a.inicio, a.ultimo); ctx.restore();
     }
+    if (a.antes && mascara && tamanho) {
+      const ctx = ctxDe(camadaAtiva().canvas);
+      const depois = ctx.getImageData(0, 0, tamanho.w, tamanho.h);
+      restaurarFora({ data: depois.data, width: tamanho.w, height: tamanho.h }, { data: a.antes.data, width: tamanho.w, height: tamanho.h }, mascara);
+      ctx.putImageData(depois, 0, 0);
+    }
     if (ferramenta === "selecao" && tamanho) { const s = retanguloDe(a.inicio, a.ultimo, tamanho.w, tamanho.h); setSelecao(s.w > 1 && s.h > 1 ? s : null); }
     redesenhar();
   };
@@ -320,7 +376,7 @@ export default function EditorImagem({ carregar, arquivoInicial, titulo, onSalva
     guardar();
     camadas.current = camadas.current.map(c => { const n = criarCanvas(novoW, novoH); const ctx = ctxDe(n); ctx.imageSmoothingQuality = "high"; desenhar(ctx, c.canvas); return { ...c, canvas: n }; });
     setTamanho({ w: novoW, h: novoH });
-    setSelecao(null);
+    limparSelecao();
     redesenhar();
   };
   const girar = (graus: 90 | -90 | 180) => {
@@ -333,18 +389,39 @@ export default function EditorImagem({ carregar, arquivoInicial, titulo, onSalva
     transformar(tamanho.w, tamanho.h, (ctx, o) => { ctx.translate(horizontal ? o.width : 0, horizontal ? 0 : o.height); ctx.scale(horizontal ? -1 : 1, horizontal ? 1 : -1); ctx.drawImage(o, 0, 0); });
   };
   const recortar = () => {
-    if (!selecao) return;
+    if (!selecao || !tamanho) return;
     const s = selecao;
-    transformar(s.w, s.h, (ctx, o) => ctx.drawImage(o, -s.x, -s.y));
+    // Na seleção da varinha, o que fica fora dela (dentro da caixa) vira transparente, em todas as camadas.
+    const fora = mascara ? inverter(suavizar(recortarMascara(mascara, tamanho.w, s), s.w, s.h, bordaSuave)) : null;
+    transformar(s.w, s.h, (ctx, o) => {
+      ctx.drawImage(o, -s.x, -s.y);
+      if (!fora) return;
+      const d = ctx.getImageData(0, 0, s.w, s.h);
+      apagarNaMascara({ data: d.data, width: s.w, height: s.h }, fora);
+      ctx.putImageData(d, 0, 0);
+    });
     setAjustarZoom(true);
   };
-  const naSelecao = (acao: "apagar" | "preencher") => {
-    if (!selecao) return;
+  const naSelecao = (acao: "apagar" | "preencher", m: Mascara | null = mascara) => {
+    if (!selecao || !tamanho) return;
     guardar();
     const ctx = ctxDe(camadaAtiva().canvas);
-    if (acao === "apagar") ctx.clearRect(selecao.x, selecao.y, selecao.w, selecao.h);
+    if (m) {
+      const d = ctx.getImageData(0, 0, tamanho.w, tamanho.h);
+      const px = { data: d.data, width: tamanho.w, height: tamanho.h };
+      const suave = suavizar(m, tamanho.w, tamanho.h, bordaSuave);
+      if (acao === "apagar") apagarNaMascara(px, suave); else preencherNaMascara(px, suave, hexParaCor(cor));
+      ctx.putImageData(d, 0, 0);
+    } else if (acao === "apagar") ctx.clearRect(selecao.x, selecao.y, selecao.w, selecao.h);
     else { ctx.fillStyle = cor; ctx.fillRect(selecao.x, selecao.y, selecao.w, selecao.h); }
     redesenhar();
+  };
+  /** Fica só com o que está selecionado: apaga todo o resto da camada (o jeito de tirar o fundo de um objeto). */
+  const apagarResto = () => {
+    const m = mascaraAtual();
+    if (!m || !tamanho) return;
+    const resto = inverter(m);
+    naSelecao("apagar", resto);
   };
 
   // ---------- ajustes ----------
@@ -452,7 +529,9 @@ export default function EditorImagem({ carregar, arquivoInicial, titulo, onSalva
       const ctrl = e.ctrlKey || e.metaKey;
       if (ctrl && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) refazer(); else desfazer(); return; }
       if (ctrl && e.key.toLowerCase() === "y") { e.preventDefault(); refazer(); return; }
-      if (e.key === "Escape") { setSelecao(null); setTexto(null); return; }
+      if (ctrl && e.key.toLowerCase() === "i") { e.preventDefault(); inverterSelecao(); return; }
+      if (ctrl && e.key.toLowerCase() === "a") { e.preventDefault(); selecionarTudo(); return; }
+      if (e.key === "Escape") { limparSelecao(); setTexto(null); return; }
       if (e.key === "Delete" && selecao) { naSelecao("apagar"); return; }
       if (ctrl || e.altKey) return;
       const f = FERRAMENTAS.find(x => x.tecla === e.key.toLowerCase());
@@ -560,9 +639,11 @@ export default function EditorImagem({ carregar, arquivoInicial, titulo, onSalva
         {selecao && <>
           <span className="mx-1 h-6 w-px shrink-0 bg-slate-200" />
           <button type="button" className={`${botao} shrink-0 whitespace-nowrap`} onClick={recortar}><Crop className="h-3.5 w-3.5" />Recortar</button>
-          <button type="button" className={`${botao} shrink-0 whitespace-nowrap`} onClick={() => naSelecao("apagar")}><Trash2 className="h-3.5 w-3.5" />Apagar</button>
+          <button type="button" className={`${botao} shrink-0 whitespace-nowrap`} onClick={() => naSelecao("apagar")} title="Apagar a seleção (Delete)"><Trash2 className="h-3.5 w-3.5" />Apagar</button>
+          <button type="button" className={`${botao} shrink-0 whitespace-nowrap`} onClick={apagarResto} title="Apaga tudo o que está fora da seleção"><Scissors className="h-3.5 w-3.5" />Apagar o resto</button>
+          <button type="button" className={`${botao} shrink-0 whitespace-nowrap`} onClick={inverterSelecao} title="Inverter a seleção (Ctrl+I)"><ArrowLeftRight className="h-3.5 w-3.5" />Inverter</button>
           <button type="button" className={`${botao} shrink-0 whitespace-nowrap`} onClick={() => naSelecao("preencher")}><PaintBucket className="h-3.5 w-3.5" />Preencher</button>
-          <button type="button" className={`${botao} shrink-0 whitespace-nowrap`} onClick={() => setSelecao(null)}><X className="h-3.5 w-3.5" />Tirar seleção</button>
+          <button type="button" className={`${botao} shrink-0 whitespace-nowrap`} onClick={limparSelecao}><X className="h-3.5 w-3.5" />Tirar seleção</button>
         </>}
       </div>
 
@@ -583,6 +664,7 @@ export default function EditorImagem({ carregar, arquivoInicial, titulo, onSalva
           style={{ backgroundColor: "#e2e8f0", backgroundImage: "linear-gradient(45deg,#cbd5e1 25%,transparent 25%),linear-gradient(-45deg,#cbd5e1 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#cbd5e1 75%),linear-gradient(-45deg,transparent 75%,#cbd5e1 75%)", backgroundSize: "16px 16px", backgroundPosition: "0 0,0 8px,8px -8px,-8px 0" }}>
           <div className="relative m-4 inline-block" style={{ width: tamanho.w * zoom, height: tamanho.h * zoom }}>
             <canvas ref={tela} aria-label="Imagem em edição" onPointerDown={baixar} onPointerMove={mover} onPointerUp={soltar} onPointerCancel={soltar}
+              onContextMenu={e => { if (ferramenta === "varinha") e.preventDefault(); }}
               className="block shadow-lg" style={{ width: tamanho.w * zoom, height: tamanho.h * zoom, touchAction: desenhando ? "none" : "auto", cursor: desenhando ? "crosshair" : "grab", imageRendering: zoom > 2 ? "pixelated" : "auto" }} />
             {texto && (
               <div className="absolute z-10 flex flex-col gap-1" style={{ left: texto.p.x * zoom, top: texto.p.y * zoom }}>
@@ -620,6 +702,25 @@ export default function EditorImagem({ carregar, arquivoInicial, titulo, onSalva
           {ferramenta === "texto" && (
             <label className="block"><span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Tamanho do texto: {tamanhoTexto}px</span>
               <input type="range" min={10} max={300} value={tamanhoTexto} onChange={e => setTamanhoTexto(Number(e.target.value))} aria-label="Tamanho do texto" className="w-full" /></label>
+          )}
+          {ferramenta === "varinha" && (
+            <div className="space-y-2">
+              <p className="text-[11px] leading-snug text-slate-500">Toque numa cor para selecionar a área parecida. Para tirar o fundo: toque no fundo e use <b>Apagar</b>, ou toque no objeto e use <b>Apagar o resto</b>. Baixe em PNG para manter o fundo transparente.</p>
+              <div>
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Modo</p>
+                <div className="grid grid-cols-4 gap-1" role="group" aria-label="Modo da seleção">
+                  {MODOS_SELECAO.map(m => (
+                    <button key={m.id} type="button" aria-pressed={modoSelecao === m.id} title={m.dica} onClick={() => setModoSelecao(m.id)}
+                      className={`rounded-lg border px-1 py-1 text-[11px] font-bold ${modoSelecao === m.id ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>{m.rotulo}</button>
+                  ))}
+                </div>
+              </div>
+              <label className="block"><span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Tolerância: {tolerancia}%</span>
+                <input type="range" min={0} max={100} value={tolerancia} onChange={e => setTolerancia(Number(e.target.value))} aria-label="Tolerância da varinha" className="w-full" /></label>
+              <label className="flex items-center gap-2 text-xs text-slate-600"><input type="checkbox" checked={varinhaGlobal} onChange={e => setVarinhaGlobal(e.target.checked)} />Pegar a cor na imagem toda</label>
+              <label className="block"><span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Borda suave: {bordaSuave}px</span>
+                <input type="range" min={0} max={10} value={bordaSuave} onChange={e => setBordaSuave(Number(e.target.value))} aria-label="Borda suave" className="w-full" /></label>
+            </div>
           )}
           {ferramenta === "balde" && (
             <label className="block"><span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Tolerância: {tolerancia}%</span>
