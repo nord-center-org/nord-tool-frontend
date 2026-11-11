@@ -16,6 +16,8 @@ export interface CronogramaSemanalItem {
   dtFinalizacao?: string | null;
   nmTag?: string;
   dtAgendamento?: string | null;
+  /** v3: último dia da demanda pontual que dura vários dias (nulo = um dia só). */
+  dtFimAgendamento?: string | null;
   flFixo: boolean;
   /** Cronograma pessoal (vêm do backend). */
   idDono?: number | null;
@@ -113,6 +115,7 @@ export const CronogramaSemanalService = {
         dtPrazo: paraDataHoraBackend(item.dtPrazo),
         dtFinalizacao: paraDataHoraBackend(item.dtFinalizacao),
         dtAgendamento: paraDataHoraBackend(item.dtAgendamento),
+        dtFimAgendamento: item.flFixo ? undefined : paraDataHoraBackend(item.dtFimAgendamento),
       }),
     });
   },
@@ -126,6 +129,7 @@ export const CronogramaSemanalService = {
         dtPrazo: paraDataHoraBackend(item.dtPrazo),
         dtFinalizacao: paraDataHoraBackend(item.dtFinalizacao),
         dtAgendamento: paraDataHoraBackend(item.dtAgendamento),
+        dtFimAgendamento: item.flFixo ? undefined : paraDataHoraBackend(item.dtFimAgendamento),
       }),
     });
   },

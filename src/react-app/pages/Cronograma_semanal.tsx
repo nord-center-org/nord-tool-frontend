@@ -1,6 +1,6 @@
-import { DragEvent, useEffect, useMemo, useState } from "react";
+import { DragEvent, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CalendarDays, LayoutGrid, List, CalendarClock, Search, PlusCircle, X, Lock, Share2, Bot, Users, ChevronsDownUp, ChevronsUpDown, Sparkles, ImageDown, FilterX } from "lucide-react";
+import { CalendarDays, CalendarRange, LayoutGrid, List, CalendarClock, Search, PlusCircle, X, Lock, Share2, Bot, Users, ChevronsDownUp, ChevronsUpDown, Sparkles, ImageDown, FilterX } from "lucide-react";
 import {
   CronogramaSemanalService,
   type CronogramaEquipe,
@@ -19,6 +19,7 @@ import { donosDasDemandas, passaFiltroPessoas, type FiltroPessoas as Filtro } fr
 import FiltroPessoas from "../components/cronograma/FiltroPessoas";
 import EquipesModal from "../components/cronograma/EquipesModal";
 import { useObra } from "../hooks/useObra";
+import { emOrdem, posicaoNoPeriodo, rotuloDoPeriodo } from "../utils/periodoAgenda";
 import { alternarDia, planejarDias } from "../utils/rotinaDias";
 import { podeAcessar } from "../utils/sessao";
 import { useAuth } from "../hooks/useAuth";
@@ -266,8 +267,27 @@ export default function NordToolDashboard() {
     }
   };
 
-  const abrirNovo = (dataAgendamento?: Date) => {
-    setDraft(dataAgendamento ? { ...vazio(), dtAgendamento: `${ymd(dataAgendamento)}T09:00` } : vazio());
+  // v3: escolher no calendário o primeiro e o último dia da demanda (toque em um, depois no outro).
+  const [selecaoDias, setSelecaoDias] = useState<{ inicio: string | null } | null>(null);
+  const tocarDia = (data: Date) => {
+    if (!selecaoDias) return;
+    const dia = ymd(data);
+    if (!selecaoDias.inicio) { setSelecaoDias({ inicio: dia }); return; }
+    const [inicio, fim] = emOrdem(selecaoDias.inicio, dia);
+    setSelecaoDias(null);
+    const [a, m, d] = inicio.split("-").map(Number);
+    abrirNovo(new Date(a, m - 1, d), fim === inicio ? undefined : fim);
+  };
+  const propsDia = (data: Date) => selecaoDias ? {
+    role: "button" as const, tabIndex: 0, "aria-label": `Escolher ${data.toLocaleDateString("pt-BR")}`,
+    onClick: () => tocarDia(data),
+    onKeyDown: (e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tocarDia(data); } },
+  } : {};
+  const classeSelecao = (data: Date) => !selecaoDias ? "" : selecaoDias.inicio === ymd(data)
+    ? " cursor-pointer ring-2 ring-violet-600 bg-violet-100" : " cursor-pointer hover:ring-2 hover:ring-violet-300";
+
+  const abrirNovo = (dataAgendamento?: Date, fim?: string) => {
+    setDraft(dataAgendamento ? { ...vazio(), dtAgendamento: `${ymd(dataAgendamento)}T09:00`, dtFimAgendamento: fim ?? null } : vazio());
     setDiasFixos([]);
     setErroModal(null);
     setCriando(true);
@@ -286,20 +306,27 @@ export default function NordToolDashboard() {
     return Array.from({ length: 42 }, (_, i) => { const d = new Date(inicio); d.setDate(inicio.getDate() + i); return d; });
   }, [dataCalendario]);
 
-  const horarioNoDia = (item: CronogramaSemanalItem, chave: string) =>
-    item.flFixo ? item.nmHorario ?? "" : (item.dtAgendamento && paraIso(item.dtAgendamento) === chave ? item.dtAgendamento.split(" ")[1] ?? "" : "");
+  // v3: a demanda pontual pode durar vários dias (do agendamento ao fim).
+  const posicaoDoItem = (item: CronogramaSemanalItem, chave: string) => posicaoNoPeriodo(paraIso(item.dtAgendamento), paraIso(item.dtFimAgendamento), chave);
 
-  const rotuloNoDia = (item: CronogramaSemanalItem, chave: string) =>
-    item.flFixo ? `📌 ${item.nmHorario ?? ""}`
-      : item.dtAgendamento && paraIso(item.dtAgendamento) === chave ? `◷ ${item.dtAgendamento.split(" ")[1]?.slice(0, 5) ?? ""}`
-      : "🗓 Prazo";
+  const horarioNoDia = (item: CronogramaSemanalItem, chave: string) => {
+    if (item.flFixo) return item.nmHorario ?? "";
+    const posicao = posicaoDoItem(item, chave);
+    return posicao === "unico" || posicao === "inicio" ? item.dtAgendamento?.split(" ")[1] ?? "" : posicao ? "00:00" : "";
+  };
+
+  const rotuloNoDia = (item: CronogramaSemanalItem, chave: string) => {
+    if (item.flFixo) return `📌 ${item.nmHorario ?? ""}`;
+    const posicao = posicaoDoItem(item, chave);
+    return posicao ? rotuloDoPeriodo(posicao, paraIso(item.dtAgendamento) as string, paraIso(item.dtFimAgendamento), item.dtAgendamento?.split(" ")[1]?.slice(0, 5) ?? "") : "🗓 Prazo";
+  };
 
   const itensDoDia = (data: Date) => {
     const diaSemana = nomeDiaSemana(data);
     const chave = ymd(data);
     const fixos = items.filter(item => item.flFixo && item.nmDiaSemana === diaSemana);
-    // Demanda aparece no dia agendado e também no dia do prazo (a data marcada na demanda).
-    const pontuais = items.filter(item => !item.flFixo && ((item.dtAgendamento && paraIso(item.dtAgendamento) === chave) || (item.dtPrazo && paraIso(item.dtPrazo) === chave)));
+    // Demanda aparece em todos os dias do período agendado (ou só no dia, sem fim) e também no dia do prazo.
+    const pontuais = items.filter(item => !item.flFixo && (posicaoDoItem(item, chave) !== null || (item.dtPrazo && paraIso(item.dtPrazo) === chave)));
     return [...fixos, ...pontuais]
       .filter(item => (!categoriasRotina.length || categoriasRotina.includes(item.nmCategoria)) && passaBusca(item))
       .sort((a, b) => horarioNoDia(a, chave).localeCompare(horarioNoDia(b, chave)));
@@ -372,8 +399,10 @@ export default function NordToolDashboard() {
   );
 
   const abrirEdicao = (item: CronogramaSemanalItem) => {
+    // Escolhendo dias no calendário, o toque na demanda vale como toque no dia.
+    if (selecaoDias) return;
     setEditando(item);
-    setDraft({ ...item, dtPrazo: paraIso(item.dtPrazo), dtAgendamento: item.dtAgendamento ? paraDatetimeLocal(item.dtAgendamento) : null });
+    setDraft({ ...item, dtPrazo: paraIso(item.dtPrazo), dtAgendamento: item.dtAgendamento ? paraDatetimeLocal(item.dtAgendamento) : null, dtFimAgendamento: paraIso(item.dtFimAgendamento) });
     setDiasFixos(item.flFixo && item.idDiaSemana ? [item.idDiaSemana] : []);
     setErroModal(null);
   };
@@ -392,6 +421,10 @@ export default function NordToolDashboard() {
     }
     if (draft.flFixo && diasFixos.length === 0) {
       setErroModal("Escolha ao menos um dia da semana.");
+      return;
+    }
+    if (!draft.flFixo && draft.dtFimAgendamento && draft.dtAgendamento && draft.dtFimAgendamento < draft.dtAgendamento.slice(0, 10)) {
+      setErroModal("O dia de fim não pode ser antes do dia de início.");
       return;
     }
     setSalvando(true);
@@ -756,11 +789,24 @@ export default function NordToolDashboard() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
               {botaoExportar(visaoCalendario)}
+              <button onClick={() => setSelecaoDias(s => (s ? null : { inicio: null }))} aria-pressed={!!selecaoDias}
+                className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition-colors ${selecaoDias ? "border-violet-600 bg-violet-100 text-violet-800" : "border-violet-200 text-violet-700 hover:bg-violet-50"}`}>
+                <CalendarRange size={16} /> Selecionar dias
+              </button>
               <button onClick={() => abrirNovo(dataCalendario)} className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
                 <PlusCircle size={16} /> Novo compromisso
               </button>
               </div>
             </div>
+
+            {selecaoDias && (
+              <div role="status" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm text-violet-900">
+                <span>{selecaoDias.inicio
+                  ? <>Início: <strong>{selecaoDias.inicio.split("-").reverse().join("/")}</strong>. Agora toque no último dia (ou no mesmo, para um dia só).</>
+                  : "Toque no primeiro dia da demanda no calendário."}</span>
+                <button type="button" onClick={() => setSelecaoDias(null)} className="font-bold text-violet-700 hover:underline">Cancelar</button>
+              </div>
+            )}
 
             <div className="relative mb-3">
               <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
@@ -795,7 +841,7 @@ export default function NordToolDashboard() {
                 {semanaAtual.map(data => {
                   const itens = itensDoDia(data);
                   return (
-                    <section key={data.toISOString()} className={`flex flex-col gap-2 rounded-2xl border p-3 ${ymd(data) === hoje() ? "border-violet-600 bg-violet-50/60" : "border-slate-200"}`}>
+                    <section key={data.toISOString()} {...propsDia(data)} className={`flex flex-col gap-2 rounded-2xl border p-3 ${ymd(data) === hoje() ? "border-violet-600 bg-violet-50/60" : "border-slate-200"}${classeSelecao(data)}`}>
                       <header className="flex items-center justify-between px-1">
                         <span className="text-[10px] font-bold uppercase text-slate-500">{nomeDiaSemana(data).replace("-Feira", "")}</span>
                         <strong className="text-sm text-slate-800">{data.getDate()}</strong>
@@ -837,7 +883,7 @@ export default function NordToolDashboard() {
                   const itens = itensDoDia(data);
                   const foraDoMes = data.getMonth() !== dataCalendario.getMonth();
                   return (
-                    <section key={data.toISOString()} className={`min-h-[90px] rounded-xl border p-2 ${foraDoMes ? "border-slate-200 opacity-40" : "border-slate-200"} ${ymd(data) === hoje() ? "border-violet-600" : ""}`}>
+                    <section key={data.toISOString()} {...propsDia(data)} className={`min-h-[90px] rounded-xl border p-2 ${foraDoMes ? "border-slate-200 opacity-40" : "border-slate-200"} ${ymd(data) === hoje() ? "border-violet-600" : ""}${classeSelecao(data)}`}>
                       <header className="mb-1 text-[10px] font-bold text-slate-500">{data.getDate()}</header>
                       <div className="flex flex-col gap-1">
                         {itens.slice(0, 3).map(item => (
@@ -1024,16 +1070,36 @@ export default function NordToolDashboard() {
                 </label>
               </fieldset>
             ) : (
-              <label className="mb-3 block text-xs font-semibold text-slate-500">
-                Agendar na Rotina (data e horário)
-                <input
-                  type="datetime-local"
-                  value={paraDatetimeLocal(draft.dtAgendamento)}
-                  onChange={e => setDraft({ ...draft, dtAgendamento: e.target.value || null })}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-violet-600"
-                />
-                <span className="mt-1 block font-normal normal-case text-slate-500">Opcional — deixe em branco para a demanda ficar só no Kanban/Lista.</span>
-              </label>
+              <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="block text-xs font-semibold text-slate-500">
+                  Começa em (dia e horário)
+                  <input
+                    type="datetime-local"
+                    value={paraDatetimeLocal(draft.dtAgendamento)}
+                    onChange={e => {
+                      const inicio = e.target.value || null;
+                      // Sem início não há fim; fim antes do novo início é descartado.
+                      const fim = inicio && draft.dtFimAgendamento && draft.dtFimAgendamento >= inicio.slice(0, 10) ? draft.dtFimAgendamento : null;
+                      setDraft({ ...draft, dtAgendamento: inicio, dtFimAgendamento: fim });
+                    }}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-violet-600"
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-slate-500">
+                  Termina em (dia)
+                  <input
+                    type="date"
+                    value={draft.dtFimAgendamento ?? ""}
+                    min={draft.dtAgendamento ? draft.dtAgendamento.slice(0, 10) : undefined}
+                    disabled={!draft.dtAgendamento}
+                    onChange={e => setDraft({ ...draft, dtFimAgendamento: e.target.value || null })}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-violet-600 disabled:bg-slate-50"
+                  />
+                </label>
+                <span className="block text-xs font-normal normal-case text-slate-500 sm:col-span-2">
+                  Opcional. Sem início, a demanda fica só no Kanban/Lista; sem fim, vale só o dia do início. Com os dois, ela aparece na Rotina em todos os dias do período.
+                </span>
+              </div>
             )}
 
             </fieldset>
