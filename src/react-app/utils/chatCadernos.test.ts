@@ -76,7 +76,7 @@ test("linhas viram abas: números, fórmulas em português, cabeçalho em negrit
   assert.equal(cel(1, 1)?.v, 30.5);
   assert.equal(cel(1, 1)?.m, "30,5");
   assert.equal(cel(2, 1)?.v, 2);
-  assert.equal(cel(3, 1)?.f, "=SUM(B2:B3)");
+  assert.equal(cel(3, 1)?.f, "=SOMA(B2:B3)");
   assert.equal(cel(4, 0)?.m, "VERDADEIRO");
   assert.equal(cel(4, 1), undefined);
   assert.equal(aba.row, 100);

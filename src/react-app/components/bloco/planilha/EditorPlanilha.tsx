@@ -9,7 +9,9 @@ import { aplicarPortugues } from "@/react-app/components/bloco/planilha/idiomaPl
 import { baixarArquivo, nomeDeArquivo } from "@/react-app/utils/baixarArquivo";
 import { ApiError } from "@/react-app/services/apiClient";
 import { arquivosBlocoService as servico, type ArquivoBloco } from "@/react-app/services/BlocoNotasService";
-import { MAX_BYTES_PLANILHA, abasParaSalvar, abasParaXlsx, formulaParaIngles, lerPlanilha, numeroPtBr, temFormulaEmPortugues, type AbaFs } from "@/react-app/utils/planilha";
+import {
+  MAX_BYTES_PLANILHA, abasParaSalvar, abasParaXlsx, dataPtBr, lerPlanilha, normalizarFormula, numeroPtBr, precisaNormalizar, prepararAbas, textoNaTela, type AbaFs,
+} from "@/react-app/utils/planilha";
 
 aplicarPortugues();
 
@@ -41,7 +43,8 @@ export default function EditorPlanilha({ id, onVoltar, onAlterado, extra }: { id
     servico.abrir(id).then(a => {
       if (!vivo) return;
       setArquivo(a); setTitulo(a.nmTitulo); versao.current = a.nrVersao;
-      const abas = lerPlanilha(a.conteudo);
+      // Fórmulas em português (as de antes da v5 eram em inglês) e a lista das células com fórmula, para recalcular.
+      const abas = prepararAbas(lerPlanilha(a.conteudo));
       atual.current = abas;
       ultimoSalvo.current = JSON.stringify(abasParaSalvar(abas));
       setInicial(abas);
@@ -96,15 +99,36 @@ export default function EditorPlanilha({ id, onVoltar, onAlterado, extra }: { id
   useEffect(() => () => { if (timer.current) { window.clearTimeout(timer.current); void salvar(); } }, [salvar]);
 
   const hooks = useMemo(() => ({
-    // Fórmula em português: troca pela do editor e deixa a célula com a fórmula traduzida.
+    // O que se digita como no Sheets em português vira o que o editor entende.
     beforeUpdateCell: (r: number, c: number, valor: unknown) => {
-      // "30,5" e "1.234,56" são números, como no Sheets em português.
+      // "30,5" e "1.234,56" são números.
       const numero = numeroPtBr(valor);
       if (numero !== null) { window.setTimeout(() => wb.current?.setCellValue(r, c, numero), 0); return false; }
-      if (!temFormulaEmPortugues(valor)) return true;
-      const traduzida = formulaParaIngles(valor);
-      window.setTimeout(() => wb.current?.setCellValue(r, c, traduzida), 0);
+      // "11/11/2026" (e com hora) é data no formato brasileiro, não mês/dia.
+      const data = dataPtBr(valor);
+      if (data) {
+        window.setTimeout(() => {
+          wb.current?.setCellValue(r, c, data.iso);
+          wb.current?.setCellFormat(r, c, "ct", { fa: data.formato, t: "d" });
+        }, 0);
+        return false;
+      }
+      // Fórmula: nome em português, ";" e vírgula decimal (=SOMA(A1;B1*1,5)) ficam no formato que o editor guarda.
+      if (!precisaNormalizar(valor)) return true;
+      const formula = normalizarFormula(valor);
+      window.setTimeout(() => wb.current?.setCellValue(r, c, formula), 0);
       return false;
+    },
+    // Na tela, como no Sheets em português: vírgula decimal, ponto de milhar, VERDADEIRO/FALSO e #NOME?, #VALOR!…
+    beforeRenderCellArea: (_celulas: unknown, ctx: CanvasRenderingContext2D) => {
+      const tela = ctx as CanvasRenderingContext2D & { __ptBr?: boolean };
+      if (!tela.__ptBr) {
+        const escrever = tela.fillText.bind(tela);
+        tela.fillText = (texto: string, x: number, y: number, largura?: number) =>
+          largura === undefined ? escrever(textoNaTela(String(texto)), x, y) : escrever(textoNaTela(String(texto)), x, y, largura);
+        tela.__ptBr = true;
+      }
+      return true;
     },
   }), []);
 

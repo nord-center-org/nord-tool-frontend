@@ -229,7 +229,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Planilha",
-        texto: "Igual ao Google Sheets: várias páginas (abas embaixo), fórmulas, negrito, cores, bordas, mesclar, congelar linhas, filtro, classificar, comentários e links. No fim, “Baixar Excel” gera o .xlsx.",
+        texto: "Igual ao Google Sheets em português: várias páginas (abas embaixo), mais de 200 fórmulas com o nome em português (=SOMA, =SE, =PROCV, =PROCX, =CONT.SE, =UNIRTEXTO…), com ; entre os argumentos e vírgula nos números, datas dd/mm/aaaa, negrito, cores, bordas, mesclar, congelar linhas, filtro, classificar, comentários e links. No fim, “Baixar Excel” gera o .xlsx.",
         alvo: { css: "button", texto: "como no Google Sheets" },
       },
       {
