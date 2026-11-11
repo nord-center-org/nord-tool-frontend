@@ -116,3 +116,12 @@ export function combinaBusca(r: { nmTitulo: string; nmLocal?: string | null; nmM
     .toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   return termos.every(t => alvo.includes(t));
 }
+
+/** v3: o mesmo critério do servidor para "o relatório já tem este item": sem maiúsculas e espaços sobrando. */
+export const chaveDoItem = (nome: string | null | undefined): string => (nome ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
+
+/** v3: itens do modelo que ainda não estão no relatório (entram no fim ao trocar o modelo), sem repetir. */
+export function itensQueEntram(nomesNoRelatorio: string[], nomesDoModelo: string[]): string[] {
+  const vistos = new Set(nomesNoRelatorio.map(chaveDoItem));
+  return nomesDoModelo.filter(n => { const k = chaveDoItem(n); if (vistos.has(k)) return false; vistos.add(k); return true; });
+}

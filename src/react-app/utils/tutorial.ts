@@ -497,7 +497,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Seus relatórios",
-        texto: "Abra um relatório para continuar. Toque numa foto para ampliar, cortar, girar e riscar (setas, círculos, quadrados e cores). Cada item começa numa página nova do PDF.",
+        texto: "Abra um relatório para continuar. Toque numa foto para ampliar, cortar, girar e riscar (setas, círculos, quadrados e cores). Cada item começa numa página nova do PDF. Para trocar o modelo depois, toque no nome do modelo (com o lápis) no alto do relatório: nada do que já foi preenchido se perde.",
         alvo: { css: 'ul[aria-label="Relatórios"]' },
       },
       ajudaNoCanto("Relatório fotográfico"),
