@@ -4,6 +4,8 @@
  */
 import * as XLSX from "xlsx";
 
+import { FUNCOES } from "./funcoesPlanilha.ts";
+
 /** Célula do Fortune-sheet (só o que usamos aqui). */
 export interface CelulaFs {
   v?: string | number | boolean | null;
@@ -64,25 +66,38 @@ export function abasParaSalvar(abas: AbaFs[]): AbaFs[] {
 
 // ---------- fórmulas em português ----------
 
-/** Nomes do Google Sheets / Excel em português → nomes do editor (inglês). */
-export const FUNCOES_PT: Record<string, string> = {
-  "SOMA": "SUM", "SOMASE": "SUMIF", "SOMASES": "SUMIFS", "SOMARPRODUTO": "SUMPRODUCT", "MÉDIA": "AVERAGE", "MEDIA": "AVERAGE",
-  "MÉDIASE": "AVERAGEIF", "MEDIASE": "AVERAGEIF", "MÁXIMO": "MAX", "MAXIMO": "MAX", "MÍNIMO": "MIN", "MINIMO": "MIN",
-  "CONT.NÚM": "COUNT", "CONT.NUM": "COUNT", "CONT.VALORES": "COUNTA", "CONTAR.VAZIO": "COUNTBLANK", "CONT.SE": "COUNTIF",
-  "CONT.SES": "COUNTIFS", "SE": "IF", "SEERRO": "IFERROR", "E": "AND", "OU": "OR", "NÃO": "NOT", "NAO": "NOT",
-  "ARRED": "ROUND", "ARREDONDAR.PARA.CIMA": "ROUNDUP", "ARREDONDAR.PARA.BAIXO": "ROUNDDOWN", "TRUNCAR": "TRUNC", "INT": "INT",
-  "ABS": "ABS", "RAIZ": "SQRT", "POTÊNCIA": "POWER", "POTENCIA": "POWER", "MOD": "MOD", "PRODUTO": "PRODUCT",
-  "PROCV": "VLOOKUP", "PROCH": "HLOOKUP", "ÍNDICE": "INDEX", "INDICE": "INDEX", "CORRESP": "MATCH",
-  "CONCATENAR": "CONCATENATE", "ESQUERDA": "LEFT", "DIREITA": "RIGHT", "EXT.TEXTO": "MID", "NÚM.CARACT": "LEN", "NUM.CARACT": "LEN",
-  "MAIÚSCULA": "UPPER", "MAIUSCULA": "UPPER", "MINÚSCULA": "LOWER", "MINUSCULA": "LOWER", "ARRUMAR": "TRIM", "TEXTO": "TEXT",
-  "VALOR": "VALUE", "SUBSTITUIR": "SUBSTITUTE", "HOJE": "TODAY", "AGORA": "NOW", "DATA": "DATE", "DIA": "DAY", "MÊS": "MONTH",
-  "MES": "MONTH", "ANO": "YEAR", "DIATRABALHOTOTAL": "NETWORKDAYS", "DIA.DA.SEMANA": "WEEKDAY", "MAIOR": "LARGE", "MENOR": "SMALL",
-  "MED": "MEDIAN", "DESVPAD": "STDEV", "ÉCÉL.VAZIA": "ISBLANK", "ÉNÚM": "ISNUMBER", "PI": "PI", "ALEATÓRIO": "RAND",
-};
+/**
+ * v5: português de verdade. A célula guarda a fórmula com o nome em português (=SOMA(A1,B1)); o motor do editor só
+ * entende inglês, então ela é traduzida na hora do cálculo (formulaParaMotor). A pessoa pode digitar como no Sheets em
+ * português, com ";" entre os argumentos e vírgula decimal: =SE(A1>1,5;"sim";"não"). O separador gravado continua a
+ * vírgula, porque o editor só acha as células usadas (e recalcula) separando por vírgula.
+ */
+const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-const nomesPorTamanho = Object.keys(FUNCOES_PT).sort((a, b) => b.length - a.length);
+/** Nome em português (com e sem acento, e os nomes antigos) → nome do motor. */
+export const FUNCOES_PT: Record<string, string> = (() => {
+  const m: Record<string, string> = {
+    PRODUTO: "PRODUCT", DESVPAD: "STDEV", "DESVPAD.A": "STDEV.S", "DESVPAD.P": "STDEV.P", MODO: "MODE.SNGL", "ORDEM": "RANK.EQ",
+    PERCENTIL: "PERCENTILE.INC", QUARTIL: "QUARTILE.INC", VAR: "VAR.S", "PROCURAR.TEXTO": "FIND",
+  };
+  for (const [motor, [pt]] of Object.entries(FUNCOES)) { m[pt] = motor; m[semAcento(pt)] = motor; }
+  return m;
+})();
+
+/** Nome do motor → nome em português (só as funções que têm nome em português). */
+export const FUNCOES_EN: Record<string, string> = Object.fromEntries(Object.entries(FUNCOES).map(([motor, [pt]]) => [motor, pt]));
+
 const escapar = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const reFuncao = new RegExp(`(^|[^A-Za-zÀ-ÿ0-9_.])(${nomesPorTamanho.map(escapar).join("|")})\\s*\\(`, "gi");
+const reNomes = (nomes: string[]) =>
+  new RegExp(`(^|[^A-Za-zÀ-ÿ0-9_.])(${[...nomes].sort((a, b) => b.length - a.length).map(escapar).join("|")})(?=\\s*\\()`, "gi");
+const rePt = reNomes(Object.keys(FUNCOES_PT));
+/**
+ * VERDADEIRO e FALSO soltos (valores), fora de nomes de células e páginas. O motor só entende TRUE() e FALSE() (com
+ * parênteses): TRUE sozinho dá #NOME?.
+ */
+const reLogicoPt = /(^|[^A-Za-zÀ-ÿ0-9_.$!'])(VERDADEIRO|FALSO|TRUE|FALSE)(?![A-Za-zÀ-ÿ0-9_.(!])/gi;
+const reLogicoEn = /(^|[^A-Za-zÀ-ÿ0-9_.$!'])(TRUE|FALSE|VERDADEIRO|FALSO)(\s*\(\s*\))?(?![A-Za-zÀ-ÿ0-9_.(!])/gi;
+const reEn = reNomes(Object.keys(FUNCOES_EN));
 
 /** Aplica f só fora das aspas da fórmula. */
 function foraDasAspas(formula: string, f: (trecho: string) => string): string {
@@ -90,23 +105,104 @@ function foraDasAspas(formula: string, f: (trecho: string) => string): string {
 }
 
 /**
- * Fórmula como se escreve no Sheets em português (=SOMA(A1:A3); =SE(B2>10;"sim";"não"); =A1*1,5) para a do editor
- * (=SUM(A1:A3); =IF(B2>10,"sim","não"); =A1*1.5). Com ";" de separador, a vírgula dos números vira ponto. Sem fórmula, volta igual.
+ * Fórmula da célula (ou como a pessoa digitou) → a do motor: =SOMA(A1:A3) → =SUM(A1:A3); =SE(B2>10;"sim";"não") →
+ * =IF(B2>10,"sim","não"); =ARRED(A1*1,5;2) → =ROUND(A1*1.5,2). Com ";" de separador, a vírgula dos números vira ponto.
+ * Nomes em inglês passam iguais. Sem "=", volta igual.
  */
-export function formulaParaIngles(valor: string): string {
+export function formulaParaMotor(valor: string): string {
   if (!valor.startsWith("=")) return valor;
   let usaPontoEVirgula = false;
   foraDasAspas(valor, t => { if (t.includes(";")) usaPontoEVirgula = true; return t; });
   return foraDasAspas(valor, t => {
-    let s = t.replace(reFuncao, (_m, antes: string, nome: string) => `${antes}${FUNCOES_PT[nome.toUpperCase()] ?? nome}(`);
+    let s = t.replace(rePt, (_m, antes: string, nome: string) => `${antes}${FUNCOES_PT[nome.toUpperCase()] ?? FUNCOES_PT[semAcento(nome.toUpperCase())] ?? nome}`)
+      .replace(reLogicoPt, (_m, antes: string, v: string) => `${antes}${/^(FALSO|FALSE)$/i.test(v) ? "FALSE" : "TRUE"}()`);
     if (usaPontoEVirgula) s = s.replace(/(\d),(\d)/g, "$1.$2").replace(/;/g, ",");
     return s;
   });
 }
 
-/** Precisa traduzir? (só fórmulas com nome em português ou ";"). */
+/** Nome antigo (v3): continua valendo. */
+export const formulaParaIngles = formulaParaMotor;
+
+/** Fórmula do motor (ou do Excel) → como fica na célula: nomes em português, mesmos separadores. */
+export function formulaParaPortugues(valor: string): string {
+  if (!valor.startsWith("=")) return valor;
+  return foraDasAspas(valor, t => t.replace(reLogicoEn, (_m, antes: string, v: string) => `${antes}${/^(FALSE|FALSO)$/i.test(v) ? "FALSO" : "VERDADEIRO"}`)
+    .replace(reEn, (_m, antes: string, nome: string) => `${antes}${FUNCOES_EN[nome.toUpperCase()] ?? nome}`));
+}
+
+/** O que a pessoa digitou → o que fica na célula: nomes em português, ";" vira "," e "1,5" vira 1.5. */
+export const normalizarFormula = (valor: string): string => formulaParaPortugues(formulaParaMotor(valor));
+
+/** Precisa mexer no que foi digitado? (fórmula com ";", vírgula decimal ou nome em inglês). */
+export const precisaNormalizar = (valor: unknown): valor is string =>
+  typeof valor === "string" && valor.startsWith("=") && normalizarFormula(valor) !== valor;
+
+/** Nome antigo (v3). */
 export const temFormulaEmPortugues = (valor: unknown): valor is string =>
-  typeof valor === "string" && valor.startsWith("=") && formulaParaIngles(valor) !== valor;
+  typeof valor === "string" && valor.startsWith("=") && formulaParaMotor(valor) !== valor;
+
+/**
+ * Abas prontas para o editor: fórmulas em português, cada aba com id e a lista das células com fórmula (calcChain).
+ * Sem essa lista o editor não refaz as contas quando um valor muda (a lista não é salva; é montada ao abrir).
+ */
+export function prepararAbas(abas: AbaFs[]): AbaFs[] {
+  const usados = new Set<string>();
+  return abasEmPortugues(abas).map((a, i) => {
+    let id = typeof a.id === "string" && a.id && !usados.has(a.id) ? a.id : `p${i + 1}`;
+    while (usados.has(id)) id = `${id}x`;
+    usados.add(id);
+    const calcChain = (a.celldata ?? []).filter(c => typeof c.v?.f === "string" && c.v.f.startsWith("=")).map(c => ({ r: c.r, c: c.c, id }));
+    return { ...a, id, calcChain };
+  });
+}
+
+/** As fórmulas das abas no formato da célula (abrir planilhas antigas, em inglês, e o Excel). */
+export function abasEmPortugues(abas: AbaFs[]): AbaFs[] {
+  return abas.map(a => ({
+    ...a,
+    celldata: (a.celldata ?? []).map(c => (c.v?.f ? { ...c, v: { ...c.v, f: formulaParaPortugues(c.v.f) } } : c)),
+  }));
+}
+
+/** Valores lógicos e erros como o Sheets em português mostra. */
+const NA_TELA: Record<string, string> = {
+  TRUE: "VERDADEIRO", FALSE: "FALSO", "#NAME?": "#NOME?", "#VALUE!": "#VALOR!", "#N/A": "#N/D", "#NUM!": "#NÚM!", "#NULL!": "#NULO!", "#ERROR!": "#ERRO!",
+};
+
+/** O que o editor vai desenhar numa célula, em português: números, VERDADEIRO/FALSO e erros. */
+export const textoNaTela = (texto: string): string => NA_TELA[texto] ?? numeroNaTela(texto);
+
+/**
+ * Data digitada no jeito brasileiro ("11/11/2026", "5/3/26", "11/11/2026 14:30") → data ISO para o editor e o formato
+ * para mostrar de volta. Data que não existe (31/02) ou outro texto → null.
+ */
+export function dataPtBr(valor: unknown): { iso: string; formato: string } | null {
+  if (typeof valor !== "string") return null;
+  const m = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?\s*$/.exec(valor);
+  if (!m) return null;
+  const dia = Number(m[1]), mes = Number(m[2]);
+  const ano = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+  const d = new Date(Date.UTC(ano, mes - 1, dia));
+  if (d.getUTCFullYear() !== ano || d.getUTCMonth() !== mes - 1 || d.getUTCDate() !== dia) return null;
+  const dois = (n: number | string) => String(n).padStart(2, "0");
+  const data = `${ano}-${dois(mes)}-${dois(dia)}`;
+  if (m[4] === undefined) return { iso: data, formato: "dd/MM/yyyy" };
+  const hora = Number(m[4]), minuto = Number(m[5]), segundo = m[6] === undefined ? null : Number(m[6]);
+  if (hora > 23 || minuto > 59 || (segundo !== null && segundo > 59)) return null;
+  return segundo === null
+    ? { iso: `${data} ${dois(hora)}:${dois(minuto)}`, formato: "dd/MM/yyyy hh:mm" }
+    : { iso: `${data} ${dois(hora)}:${dois(minuto)}:${dois(segundo)}`, formato: "dd/MM/yyyy hh:mm:ss" };
+}
+
+/**
+ * Número como aparece na tela, no jeito brasileiro: "1,234.5" → "1.234,5", "R$1,200.09" → "R$1.200,09", "12.5%" →
+ * "12,5%". Só mexe no que é número (com moeda, sinal, parênteses e %); o resto volta igual.
+ */
+export function numeroNaTela(texto: string): string {
+  if (!/^[-+(]?(R\$\s?|\$\s?)?[-+(]?(\d{1,3}(,\d{3})+|\d+)(\.\d+)?%?\)?$/.test(texto) || !/[.,]/.test(texto)) return texto;
+  return texto.replace(/[.,]/g, c => (c === "." ? "," : "."));
+}
 
 // ---------- Excel ----------
 
@@ -128,7 +224,7 @@ export function xlsxParaAbas(wb: XLSX.WorkBook): AbaFs[] {
           const cel = ws[XLSX.utils.encode_cell({ r, c })] as XLSX.CellObject | undefined;
           if (!cel || (cel.v === undefined && !cel.f)) continue;
           const v: CelulaFs = { v: (cel.v as string | number | boolean | undefined) ?? null, m: cel.w ?? (cel.v == null ? "" : String(cel.v)), ct: { fa: cel.z ? String(cel.z) : "General", t: letraNum(cel.v) } };
-          if (cel.f) v.f = `=${cel.f}`;
+          if (cel.f) v.f = formulaParaPortugues(`=${cel.f}`);
           celldata.push({ r, c, v });
         }
       }
@@ -165,7 +261,7 @@ export function abasParaXlsx(abas: AbaFs[]): XLSX.WorkBook {
       const valor = v.v ?? (v.m != null ? v.m : null);
       if (valor == null && !v.f) continue;
       const cel: XLSX.CellObject = typeof valor === "number" ? { t: "n", v: valor } : typeof valor === "boolean" ? { t: "b", v: valor } : { t: "s", v: valor == null ? "" : String(valor) };
-      if (v.f) cel.f = v.f.replace(/^=/, "");
+      if (v.f) cel.f = formulaParaMotor(v.f).replace(/^=/, "");
       ws[XLSX.utils.encode_cell({ r, c })] = cel;
       maxR = Math.max(maxR, r); maxC = Math.max(maxC, c);
     }

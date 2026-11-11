@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-11-planilha-em-portugues",
+    data: "2026-11-11",
+    titulo: "Planilha em português, com mais funções",
+    texto: "As fórmulas agora têm nome em português, como no Google Sheets (=SOMA, =PROCV, =CONT.SE…), com ; e vírgula nos números, e chegaram PROCX, UNIRTEXTO, MÁXIMOSES e MÍNIMOSES. Datas em dd/mm/aaaa, números com vírgula e todos os menus em português.",
+    onde: { rotulo: "Mapeamentos → Bloco de notas → Planilha", caminho: "/mapeamentos/bloco-notas" },
+  },
+  {
     id: "2026-11-10-novidades-com-avatar",
     data: "2026-11-10",
     titulo: "Novidades com a cara do chefe",

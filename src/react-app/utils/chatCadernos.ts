@@ -3,7 +3,7 @@
  * para fazer algo, termina a resposta com um bloco ```nordtool-acoes``` (lista JSON). Aqui: separar o texto das
  * ações, validar cada uma e descrever para o botão "Fazer". Nada é executado sem a pessoa confirmar.
  */
-import { formulaParaIngles, numeroPtBr, planilhaVazia, type AbaFs, type CelulaComPosicao } from "./planilha.ts";
+import { normalizarFormula, numeroPtBr, planilhaVazia, type AbaFs, type CelulaComPosicao } from "./planilha.ts";
 
 export type TipoItem = "caderno" | "planilha" | "documento";
 
@@ -131,7 +131,7 @@ export function linhasParaAbas(linhas: (string | number | boolean | null)[][]): 
     if (valor === null || valor === "") return;
     colunas = Math.max(colunas, c + 1);
     if (typeof valor === "string" && valor.startsWith("=")) {
-      celldata.push({ r, c, v: { f: formulaParaIngles(valor), v: null, m: "" } });
+      celldata.push({ r, c, v: { f: normalizarFormula(valor), v: null, m: "" } });
       return;
     }
     const numero = typeof valor === "number" ? valor : numeroPtBr(valor);

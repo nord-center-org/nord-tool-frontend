@@ -1,9 +1,16 @@
 /**
  * O Fortune-sheet não tem português: os textos da barra, do menu do botão direito, das abas e das janelas são trocados
- * no objeto de idioma inglês (o mesmo que o editor lê), uma vez só. As fórmulas continuam com o nome em inglês no
- * editor; escritas em português (=SOMA) elas são traduzidas na hora (utils/planilha.ts).
+ * no objeto de idioma inglês (o mesmo que o editor lê), uma vez só. v5: as funções também ficam em português (lista,
+ * ajuda e célula); o motor recebe a fórmula traduzida na hora do cálculo e ganha as funções que não tinha.
  */
-import { locale } from "@fortune-sheet/core";
+import { FormulaCache, locale } from "@fortune-sheet/core";
+import { Parser } from "@fortune-sheet/formula-parser";
+
+import { EXTRAS } from "@/react-app/utils/funcoesExtras";
+import { listaEmPortugues, type ItemLista } from "@/react-app/utils/funcoesPlanilha";
+import { formulaParaMotor } from "@/react-app/utils/planilha";
+
+import SECOES, { DATAS_PT, LINKS_PT } from "./idiomaPlanilhaMais";
 
 type Textos = Record<string, unknown>;
 
@@ -128,9 +135,18 @@ export function aplicarPortugues(): void {
   if (aplicado) return;
   aplicado = true;
   const en = locale({ lang: "en" } as Parameters<typeof locale>[0]) as unknown as Record<string, Textos>;
-  for (const [secao, textos] of Object.entries(PT)) {
-    if (en[secao] && typeof en[secao] === "object") Object.assign(en[secao], textos);
+  for (const fonte of [PT, SECOES]) {
+    for (const [secao, textos] of Object.entries(fonte)) {
+      if (en[secao] && typeof en[secao] === "object") Object.assign(en[secao], textos);
+    }
   }
+  // v5: lista de funções (autocompletar e "Mais funções") em português, formatos de data e tipos de link.
+  const listas = en as unknown as { functionlist: ItemLista[]; dateFmtList: unknown[]; linkTypeList: unknown[] };
+  listas.functionlist.splice(0, listas.functionlist.length, ...listaEmPortugues(listas.functionlist));
+  listas.dateFmtList.splice(0, listas.dateFmtList.length, ...DATAS_PT);
+  listas.linkTypeList.splice(0, listas.linkTypeList.length, ...LINKS_PT);
+  ensinarPortuguesAoMotor();
+  protegerCursorDaFormula();
   // Fonte padrão do Google Sheets (a primeira da lista é a padrão do editor).
   const fontes = ["Arial", "Times New Roman", "Tahoma", "Verdana"];
   (en as unknown as { fontarray: string[] }).fontarray.splice(0, 4, ...fontes);
@@ -138,11 +154,62 @@ export function aplicarPortugues(): void {
   // Nomes dos formatos de número.
   const alvo = en as unknown as { defaultFmt: (moeda: string) => { text: string }[] };
   const original = alvo.defaultFmt;
-  alvo.defaultFmt = (moeda: string) => original(moeda).map(f => ({ ...f, text: FORMATOS[f.text] ?? f.text }));
+  alvo.defaultFmt = (moeda: string) => original(moeda).map(f => ({ ...f, ...(BRASIL[f.text] ?? {}), text: FORMATOS[f.text] ?? f.text }));
+}
+
+/** Formatos no jeito brasileiro (data dia/mês/ano, hora 24 h); o exemplo aparece no menu. */
+const BRASIL: Record<string, { value: string; example: string }> = {
+  Number: { value: "#,##0.00", example: "1.000,12" }, Percent: { value: "0.00%", example: "12,21%" },
+  Accounting: { value: "R$ #,##0.00;(R$ #,##0.00)", example: "(R$ 1.200,09)" }, Currency: { value: "R$ #,##0.00", example: "R$ 1.200,09" },
+  Date: { value: "dd/MM/yyyy", example: "29/11/2017" }, Time: { value: "hh:mm", example: "15:00" }, "Time 24H": { value: "hh:mm:ss", example: "15:00:00" },
+  "Date time": { value: "dd/MM/yyyy hh:mm", example: "29/11/2017 15:00" }, "Date time 24 H": { value: "dd/MM/yyyy hh:mm:ss", example: "29/11/2017 15:00:00" },
+};
+
+/**
+ * Defeito do editor: digitando uma fórmula com nome que ele não conhece seguido de aspas (=VLOOKUP("…), ele se perde na
+ * posição do cursor e, para se recuperar, usa um campo interno (rangeResizeTo) que nunca é preenchido, derrubando a
+ * tela inteira. O campo passa a apontar para a caixa de edição em foco, e o cursor só vai para o fim do texto.
+ */
+function protegerCursorDaFormula(): void {
+  const proto = FormulaCache.prototype as unknown as Record<string, unknown>;
+  if (Object.getOwnPropertyDescriptor(proto, "rangeResizeTo")) return;
+  const guardado = new WeakMap<object, unknown>();
+  Object.defineProperty(proto, "rangeResizeTo", {
+    configurable: true,
+    get(this: object) {
+      const valor = guardado.get(this);
+      if (valor) return valor;
+      const ativo = document.activeElement;
+      return [ativo instanceof HTMLElement && ativo.isContentEditable ? ativo : document.querySelector("[contenteditable=true]") ?? document.body];
+    },
+    set(this: object, valor: unknown) { guardado.set(this, valor); },
+  });
+}
+
+let motorEnsinado = false;
+
+/**
+ * O motor de fórmulas só conhece os nomes em inglês: cada fórmula é traduzida antes do cálculo (=SOMA(A1;B1) vira
+ * =SUM(A1,B1)), e as funções que ele não tem (PROCX, UNIRTEXTO, MÁXIMOSES…) são atendidas por funcoesExtras.
+ */
+function ensinarPortuguesAoMotor(): void {
+  if (motorEnsinado) return;
+  motorEnsinado = true;
+  const proto = Parser.prototype;
+  const calcular = proto.parse;
+  proto.parse = function (this: Parser, expressao: string, opcoes?: unknown) {
+    return calcular.call(this, formulaParaMotor(`=${expressao}`).slice(1), opcoes);
+  };
+  const chamar = proto._callFunction;
+  proto._callFunction = function (this: Parser, nome: string, params: unknown[] = []) {
+    const extra = EXTRAS[nome.toUpperCase()];
+    return extra ? extra(params as Parameters<typeof extra>[0]) : chamar.call(this, nome, params);
+  };
 }
 
 const FORMATOS: Record<string, string> = {
   Automatic: "Automático", "Plain text": "Texto simples", Number: "Número", Percent: "Porcentagem", Scientific: "Científico",
   Accounting: "Contábil", Currency: "Moeda", Date: "Data", Time: "Hora", "Date time": "Data e hora", Duration: "Duração",
-  Financial: "Financeiro", "More formats": "Mais formatos", "Rounded currency": "Moeda arredondada",
+  Financial: "Financeiro", "More formats": "Mais formatos", "Rounded currency": "Moeda arredondada", "Time 24H": "Hora com segundos",
+  "Date time 24 H": "Data e hora com segundos", "Custom formats": "Formatos personalizados",
 };
