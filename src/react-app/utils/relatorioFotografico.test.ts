@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   LAYOUTS, celulas, combinaBusca, fotosDoLayout, layoutPorCodigo, legendaImpressa, nomeArquivoPdf, paginarFotos, progresso, type ItemRelatorio,
+  chaveDoItem, itensQueEntram,
 } from "./relatorioFotografico.ts";
 
 const foto = (id: number, idItem: number, nrOrdem: number, txLegenda: string | null = null) => ({ id, idItem, nrOrdem, txLegenda });
@@ -74,4 +75,12 @@ test("busca por título, local, fase ou autor, sem acento", () => {
   assert.ok(combinaBusca(r, "nord bloco"));
   assert.ok(!combinaBusca(r, "cobertura"));
   assert.ok(combinaBusca(r, "  "));
+});
+
+test("v3: itens do modelo que entram ao trocar o modelo", () => {
+  assert.deepEqual(itensQueEntram(["Norte", " cobertura "], [" norte ", "Sul", "Cobertura", "Leste", "sul"]), ["Sul", "Leste"]);
+  assert.deepEqual(itensQueEntram([], ["A"]), ["A"]);
+  assert.deepEqual(itensQueEntram(["A"], []), []);
+  assert.equal(chaveDoItem("  Fachada   NORTE "), "fachada norte");
+  assert.equal(chaveDoItem(null), "");
 });

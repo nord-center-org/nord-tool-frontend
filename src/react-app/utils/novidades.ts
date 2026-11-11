@@ -24,6 +24,13 @@ export const NOVIDADES: Novidade[] = [
     onde: { rotulo: "Organizacional → Cronograma semanal → Rotina", caminho: "/organizacional/cronograma" },
   },
   {
+    id: "2026-11-11-relatorio-trocar-modelo",
+    data: "2026-11-11",
+    titulo: "Relatório: trocar o modelo depois",
+    texto: "No relatório fotográfico, toque no nome do modelo (com o lápis) para trocar por outro ou ficar sem modelo. Dá para trazer os itens que faltam e o layout do modelo novo, sem perder nada do que já foi preenchido.",
+    onde: { rotulo: "Mapeamentos → Relatório fotográfico", caminho: "/mapeamentos/relatorio-fotografico" },
+  },
+  {
     id: "2026-11-11-planilha-em-portugues",
     data: "2026-11-11",
     titulo: "Planilha em português, com mais funções",
