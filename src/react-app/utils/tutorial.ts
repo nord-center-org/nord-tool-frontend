@@ -254,7 +254,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Editar imagem",
-        texto: "Um editor como o Paint.net: camadas, pincel, borracha, formas, texto, balde de tinta, conta-gotas, seleção para recortar, girar, espelhar, redimensionar e ajustes (brilho, contraste, saturação, desfoque, preto e branco…). Solte a imagem no botão ou cole com Ctrl+V. Fotos do relatório e imagens das placas também abrem nele.",
+        texto: "Um editor como o Paint.net: camadas, pincel, borracha, formas, texto, balde de tinta, conta-gotas, seleção para recortar, varinha mágica (toque no fundo e em Apagar para tirar o fundo; baixe em PNG), girar, espelhar, redimensionar e ajustes (brilho, contraste, saturação, desfoque, preto e branco…). Solte a imagem no botão ou cole com Ctrl+V. Fotos do relatório e imagens das placas também abrem nele.",
         alvo: { css: "button", texto: "solte a imagem aqui" },
       },
       {
