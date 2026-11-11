@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDown, ArrowLeft, ArrowUp, Camera, CheckCircle2, FileDown, ImagePlus, Loader2, Lock, Plus, RotateCcw, Save, Trash2, X,
-  Eye, Share2,
+  Eye, Pencil, Share2,
 } from "lucide-react";
 
 import ImagemAutenticada from "@/react-app/components/ImagemAutenticada";
@@ -9,6 +9,7 @@ import CompartilharItem, { type FonteCompartilhamento } from "@/react-app/compon
 import CapturaFoto from "@/react-app/components/relatorio/CapturaFoto";
 import EditorFoto from "@/react-app/components/relatorio/EditorFoto";
 import SeletorLayout from "@/react-app/components/relatorio/SeletorLayout";
+import TrocarModeloModal, { type TrocaModelo } from "@/react-app/components/relatorio/TrocarModeloModal";
 import PreviaPdf from "@/react-app/components/ui/PreviaPdf";
 import { ApiError } from "@/react-app/services/apiClient";
 import {
@@ -62,6 +63,7 @@ export default function EditorRelatorio({ id, podeEditar: podeEditarModulo, ehAd
   const [enviando, setEnviando] = useState<Record<string, number>>({});
   const [fotoAberta, setFotoAberta] = useState<{ chaveItem: string; foto: FotoRelatorio } | null>(null);
   const [captura, setCaptura] = useState<{ chaveItem: string; arquivo: File } | null>(null);
+  const [trocandoModelo, setTrocandoModelo] = useState(false);
   const novos = useRef(0);
   // A captura e o novo item rodam depois de awaits: leem a lista mais recente por aqui.
   const itensRef = useRef<ItemLocal[]>([]);
@@ -149,6 +151,26 @@ export default function EditorRelatorio({ id, podeEditar: podeEditarModulo, ehAd
       return null;
     } finally {
       setOcupado(null);
+    }
+  };
+
+  /** v3: troca o modelo. Salva antes o que estiver pendente; devolve a mensagem de erro (ou null). */
+  const trocarModelo = async (troca: TrocaModelo): Promise<string | null> => {
+    let base = rel;
+    if (sujo) {
+      const salvo = await salvar();
+      if (!salvo) return "Não foi possível salvar as alterações antes de trocar o modelo.";
+      base = salvo;
+    }
+    try {
+      const r = await servico.trocarModelo(id, { ...troca, nrVersao: base.nrVersao });
+      if (r) { aplicar(r); onAlterado(r); }
+      setTrocandoModelo(false);
+      setAviso(troca.idModelo === null ? "Relatório sem modelo." : `Modelo trocado para ${r?.nmModelo ?? "o novo modelo"}.`);
+      return null;
+    } catch (e) {
+      if (await tratar409(e)) { setTrocandoModelo(false); return null; }
+      return mensagem(e, "Não foi possível trocar o modelo.");
     }
   };
 
@@ -372,7 +394,12 @@ export default function EditorRelatorio({ id, podeEditar: podeEditarModulo, ehAd
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-semibold">
           <span className={`rounded-full px-2.5 py-1 ${concluido ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{ROTULO_STATUS[rel.cdStatus]}</span>
           {rel.nmFase && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{rel.nmFase}</span>}
-          {rel.nmModelo && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{rel.nmModelo}</span>}
+          {editavel ? (
+            <button type="button" onClick={() => setTrocandoModelo(true)} title="Trocar o modelo deste relatório"
+              className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 hover:bg-blue-50 hover:text-blue-700">
+              {rel.nmModelo ? <>Modelo: {rel.nmModelo}</> : "Sem modelo"} <Pencil className="h-3 w-3" aria-hidden="true" /><span className="sr-only">(trocar modelo)</span>
+            </button>
+          ) : rel.nmModelo && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{rel.nmModelo}</span>}
           <span className="text-slate-400">{respondidos} de {total} itens respondidos</span>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -465,6 +492,10 @@ export default function EditorRelatorio({ id, podeEditar: podeEditarModulo, ehAd
         </button>
       )}
 
+      {trocandoModelo && (
+        <TrocarModeloModal relatorio={rel} nomesItens={itens.map(i => i.nmItem)} modelos={modelos}
+          onTrocar={trocarModelo} onFechar={() => setTrocandoModelo(false)} />
+      )}
       {fotoAberta && (() => {
         const item = itens.find(i => i.chave === fotoAberta.chaveItem);
         const foto = item?.fotos.find(f => f.id === fotoAberta.foto.id) ?? fotoAberta.foto;

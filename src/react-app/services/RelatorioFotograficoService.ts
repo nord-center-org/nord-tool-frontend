@@ -51,6 +51,9 @@ export const relatorioFotograficoService = {
   pessoas: async () => (await apiFetch<PessoaCompartilhavel[]>(`${BASE}/pessoas`)) ?? [],
   equipes: async () => (await apiFetch<EquipeCompartilhavel[]>(`${BASE}/equipes`)) ?? [],
   alterar: (id: number, f: RelatorioForm) => apiFetch<RelatorioFotografico>(`${BASE}/${id}`, { method: "PUT", body: json(f) }),
+  /** v3: troca o modelo (idModelo nulo = sem modelo); itens e layout do modelo se pedido. */
+  trocarModelo: (id: number, troca: { idModelo: number | null; nrVersao: number; inAdicionarItens: boolean; inUsarLayout: boolean }) =>
+    apiFetch<RelatorioFotografico>(`${BASE}/${id}/modelo`, { method: "PUT", body: json(troca) }),
   alterarStatus: (id: number, cdStatus: StatusRelatorio, nrVersao: number) =>
     apiFetch<RelatorioFotografico>(`${BASE}/${id}/status`, { method: "PUT", body: json({ cdStatus, nrVersao }) }),
   excluir: async (id: number, nrVersao: number) => { await apiFetch(`${BASE}/${id}?nrVersao=${nrVersao}`, { method: "DELETE" }); },
