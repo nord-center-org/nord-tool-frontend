@@ -174,7 +174,6 @@ export async function gerarPdfRelatorio(
         const larguraFoto = celula.w * 0.58;
         const caixa = { x: celula.x, y: celula.y, w: larguraFoto, h: celula.h };
         const ajuste = ajustar(imagem.width, imagem.height, caixa);
-        pagina.drawRectangle({ x: caixa.x, y: caixa.y, width: caixa.w, height: caixa.h, borderColor: LINHA, borderWidth: 0.5 });
         pagina.drawImage(imagem, { x: ajuste.x, y: ajuste.y, width: ajuste.width, height: ajuste.height });
         const xt = celula.x + larguraFoto + 12;
         const lt = celula.w - larguraFoto - 12;
@@ -198,7 +197,6 @@ export async function gerarPdfRelatorio(
       } else {
         const caixa = { x: celula.x, y: celula.y + ALTURA_LEGENDA, w: celula.w, h: celula.h - ALTURA_LEGENDA };
         const ajuste = ajustar(imagem.width, imagem.height, caixa);
-        pagina.drawRectangle({ x: caixa.x, y: caixa.y, width: caixa.w, height: caixa.h, borderColor: LINHA, borderWidth: 0.5 });
         pagina.drawImage(imagem, { x: ajuste.x, y: ajuste.y, width: ajuste.width, height: ajuste.height });
         const legenda = linhas(fonte, legendaImpressa(f), celula.w, 8).slice(0, 2);
         legenda.forEach((l, n) => pagina.drawText(l, { x: celula.x, y: celula.y + ALTURA_LEGENDA - 11 - n * 10, size: 8, font: fonte, color: TINTA }));
