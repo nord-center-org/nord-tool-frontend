@@ -24,6 +24,13 @@ export const NOVIDADES: Novidade[] = [
     onde: { rotulo: "Mapeamentos → Relatório fotográfico", caminho: "/mapeamentos/relatorio-fotografico" },
   },
   {
+    id: "2026-11-11-editor-imagens-varinha",
+    data: "2026-11-11",
+    titulo: "Editor de imagens: varinha mágica",
+    texto: "Toque numa cor e a varinha seleciona sozinha a área parecida. Para tirar o fundo de uma foto, toque no fundo e em “Apagar”, ou toque no objeto e em “Apagar o resto”, e baixe em PNG.",
+    onde: { rotulo: "Mapeamentos → Bloco de notas → Editar imagem", caminho: "/mapeamentos/bloco-notas" },
+  },
+  {
     id: "2026-11-11-cronograma-periodo",
     data: "2026-11-11",
     titulo: "Cronograma: atividade de vários dias",
