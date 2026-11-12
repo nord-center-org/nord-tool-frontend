@@ -38,6 +38,7 @@ const Sac = lazy(() => import("@/react-app/pages/Sac"));
 const Placas = lazy(() => import("@/react-app/pages/Placas"));
 const BlocoNotas = lazy(() => import("@/react-app/pages/BlocoNotas"));
 const Cubicagem = lazy(() => import("@/react-app/pages/Cubicagem"));
+const Repertorio = lazy(() => import("@/react-app/pages/Repertorio"));
 
 function CarregandoTela() {
   return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-600" aria-label="Carregando" /></div>;
@@ -89,7 +90,7 @@ export default function App() {
             {/* Gestão Individual */}
             <Route path="gestao/financeiro" element={<FinanceiroPage />} />
             <Route path="gestao/treinos" element={<TreinosPage />} />
-            <Route path="gestao/repertorio" element={<ConcretagemInProgress />} />
+            <Route path="gestao/repertorio" element={<Suspense fallback={<CarregandoTela />}><Repertorio /></Suspense>} />
             <Route path="gestao/academico" element={<ConcretagemInProgress />} />
             <Route path="gestao/casamento" element={<CasamentoPage />} />
             <Route path="gestao/caixinha" element={<CaixinhaPage />} />

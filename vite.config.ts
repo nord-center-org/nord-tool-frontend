@@ -15,6 +15,8 @@ function cspDoBuild(origens: string): Plugin {
     "font-src 'self' data:",
     `connect-src 'self' ${origens}`.trim(),
     "worker-src 'self' blob:",
+    // áudio do Repertório (arquivos do aparelho e faixas separadas tocam por blob:)
+    "media-src 'self' blob:",
     "frame-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
