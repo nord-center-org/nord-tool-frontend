@@ -11,8 +11,9 @@ test("notas e nomes", () => {
   assert.equal(nomeMidi(40), "E2");
   assert.equal(nomeMidi(61, true), "Db4");
   assert.equal(nomeDaNota(36), "C");
-  assert.equal(nomeDaNota(42, "solfejo"), "Fá#");
-  assert.equal(nomeDaNota(-3, "solfejo"), "Lá");
+  assert.equal(nomeDaNota(42), "F#");
+  assert.equal(nomeDaNota(70, true), "Bb");
+  assert.equal(nomeDaNota(-3), "A");
 });
 
 test("lê acordes de cifra e recusa palavras", () => {

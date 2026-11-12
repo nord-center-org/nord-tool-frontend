@@ -51,4 +51,18 @@ test("análise completa: tom, BPM, acordes e baixo", () => {
   const baixoEm = (t: number) => { const n = r.notasBaixo.find(x => t >= x.inicio && t < x.fim); return n ? `${NOMES[n.midi % 12]}${Math.floor(n.midi / 12) - 1}` : null; };
   assert.deepEqual([0.1, 2.1, 4.1, 6.1].map(baixoEm), ["C2", "G2", "A2", "F2"]);
   assert.ok(r.notasBaixo.length > 40, `colcheias viram notas separadas (${r.notasBaixo.length})`);
+  const certas = r.notasBaixo.filter(n => { const bar = Math.floor(((n.inicio + n.fim) / 2) / 2) % 4; return n.midi === [36, 43, 45, 41][bar]; });
+  assert.ok(certas.length / r.notasBaixo.length > 0.95, `quase todas as notas do baixo certas (${certas.length}/${r.notasBaixo.length})`);
+});
+
+test("bateria sozinha não vira nota de baixo", () => {
+  const sr = 11025, s = new Float32Array(sr * 8);
+  let semente = 3;
+  const rnd = () => { semente = (semente * 16807) % 2147483647; return semente / 2147483647 - 0.5; };
+  for (let i = 0; i < s.length; i++) {
+    const t = i / sr, tk = t % 0.5, tc = (t + 0.25) % 1;
+    s[i] = 0.6 * Math.exp(-tk * 25) * Math.sin(2 * Math.PI * 55 * tk * (1 + 2 * Math.exp(-tk * 40))) + 0.3 * Math.exp(-tc * 30) * rnd();
+  }
+  const r = analisar(s, sr);
+  assert.ok(r.notasBaixo.length <= 2, `notas inventadas: ${r.notasBaixo.length}`);
 });

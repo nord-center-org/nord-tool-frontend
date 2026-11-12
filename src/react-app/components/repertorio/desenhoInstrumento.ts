@@ -14,8 +14,8 @@ export interface Cena {
   /** Segundos que cabem na área de queda. */
   janela: number;
   escuro: boolean;
-  /** Nome das notas: "C D E" (cifra) ou "Dó Ré Mi" (solfejo). */
-  nomes: "cifra" | "solfejo";
+  /** Escreve as notas com bemol (como a cifra no tom atual). */
+  bemol: boolean;
 }
 
 /** Quanto antes de chegar a próxima nota já aparece marcada (vazada) no braço. */
@@ -38,7 +38,7 @@ export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, ce
   ctx.fillRect(0, 0, w, h);
   const teclado = ins.id === "teclado";
   const altura = (e: EventoQueda) => (teclado ? e.midi ?? 0 : ins.cordas[e.corda ?? 0] + (e.casa ?? 0));
-  const nome = (m: number) => nomeDaNota(m, cena.nomes);
+  const nome = (m: number) => nomeDaNota(m, cena.bemol);
   // em telas baixas o braço ganha mais espaço (6 cordas precisam caber com o nome de cada nota)
   const altBase = teclado ? Math.min(h * 0.32, 110) : Math.min(h * (h < 300 ? 0.58 : 0.42), 30 * ins.cordas.length + 26);
   const topoBase = h - altBase;
