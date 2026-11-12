@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-12-repertorio-todas-notas",
+    data: "2026-11-12",
+    titulo: "Repertório: todas as notas no braço",
+    texto: "Ligue “Todas as notas” no instrumento: o braço (ou o teclado) mostra o nome de cada nota em cinza, e a que está tocando acende na cor da corda. A escolha fica salva neste aparelho.",
+    onde: { rotulo: "Gestão Individual → Repertório", caminho: "/gestao/repertorio" },
+  },
+  {
     id: "2026-11-12-repertorio-nomes-notas",
     data: "2026-11-12",
     titulo: "Repertório: nome das notas e baixo mais limpo",
