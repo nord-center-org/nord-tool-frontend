@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { classeDaNota, distanciaEntreTons, lerAcorde, lerTom, nomeDoTom, nomeMidi, notasDoAcorde, transporAcorde } from "./teoria.ts";
+import { classeDaNota, nomeDaNota, distanciaEntreTons, lerAcorde, lerTom, nomeDoTom, nomeMidi, notasDoAcorde, transporAcorde } from "./teoria.ts";
 
 test("notas e nomes", () => {
   assert.equal(classeDaNota("F#"), 6);
@@ -10,6 +10,9 @@ test("notas e nomes", () => {
   assert.equal(classeDaNota("H"), null);
   assert.equal(nomeMidi(40), "E2");
   assert.equal(nomeMidi(61, true), "Db4");
+  assert.equal(nomeDaNota(36), "C");
+  assert.equal(nomeDaNota(42, "solfejo"), "Fá#");
+  assert.equal(nomeDaNota(-3, "solfejo"), "Lá");
 });
 
 test("lê acordes de cifra e recusa palavras", () => {

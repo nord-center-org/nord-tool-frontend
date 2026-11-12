@@ -86,6 +86,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const arrastando = useRef(false);
 
   const { semitons, andamento, instrumento: idIns, semitonsCifra } = musica.ajustes;
+  const nomesNotas = musica.ajustes.nomesNotas ?? "cifra";
   const analise = musica.analise;
   const ins = instrumento(idIns);
 
@@ -150,8 +151,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const acordes = useMemo(() => (analise?.acordes ?? []).filter(a => a.acorde !== "N").map(a => ({ ...a, nome: transporAcorde(a.acorde, semitons) })), [analise, semitons]);
 
   // ---------- quadro a quadro ----------
-  const estado = useRef({ eventos, acordes, ins, casas, janela, atual });
-  estado.current = { eventos, acordes, ins, casas, janela, atual };
+  const estado = useRef({ eventos, acordes, ins, casas, janela, atual, nomesNotas });
+  estado.current = { eventos, acordes, ins, casas, janela, atual, nomesNotas };
   useEffect(() => {
     let id = 0, quadro = 0;
     const loop = () => {
@@ -169,7 +170,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           const i = s.acordes.findIndex(a => t >= a.inicio && t < a.fim);
           const prox = s.acordes.find(a => a.inicio > t);
           desenhar(ctx, c.width / dpr, c.height / dpr, {
-            instrumento: s.ins, eventos: s.eventos, casas: s.casas, janela: s.janela, escuro: document.documentElement.classList.contains("nt-escuro"),
+            instrumento: s.ins, eventos: s.eventos, casas: s.casas, janela: s.janela, escuro: document.documentElement.classList.contains("nt-escuro"), nomes: s.nomesNotas,
             acordeAtual: i >= 0 ? s.acordes[i].nome : null, proximoAcorde: prox?.nome ?? null,
           }, t);
         }
@@ -398,10 +399,16 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
             )}
           </div>
         </section>
-        <section className="flex h-[30vh] min-h-[180px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white md:h-auto md:w-[46%]">
+        <section className="flex h-[36vh] min-h-[220px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white md:h-auto md:w-[46%]">
           <div className="flex items-center gap-2 border-b border-slate-100 px-2 py-1.5">
             <b className="mr-auto text-sm text-slate-700">{ins.nome}</b>
-            <span className="text-[11px] text-slate-500">{ins.fonte === "baixo" ? "linha do baixo" : "acordes"}</span>
+            <span className="hidden text-[11px] text-slate-500 sm:inline">{ins.fonte === "baixo" ? "linha do baixo" : "acordes"}</span>
+            <div className="flex overflow-hidden rounded-lg border border-slate-200 text-[11px] font-bold" role="group" aria-label="Nome das notas">
+              {([["cifra", "C D E"], ["solfejo", "Dó Ré Mi"]] as const).map(([id, txt]) => (
+                <button key={id} type="button" aria-pressed={nomesNotas === id} onClick={() => ajustar({ nomesNotas: id })}
+                  className={`px-1.5 py-0.5 ${nomesNotas === id ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}>{txt}</button>
+              ))}
+            </div>
             <label className="flex items-center gap-1 text-[11px] text-slate-500" title="Quanto tempo as notas levam para descer">
               Queda<input type="range" min={1.5} max={6} step={0.5} value={janela} onChange={e => setJanela(Number(e.target.value))} aria-label="Velocidade da queda" className="w-16" />
             </label>

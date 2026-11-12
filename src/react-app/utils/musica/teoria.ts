@@ -22,6 +22,9 @@ export function classeDaNota(nome: string): number | null {
   return mod12(c);
 }
 
+/** Nome da nota sem oitava, como cifra ("C#") ou solfejo ("Dó#"). */
+export const nomeDaNota = (midi: number, estilo: "cifra" | "solfejo" = "cifra") => (estilo === "solfejo" ? NOMES_SOLFEJO : NOTAS_SUSTENIDO)[mod12(midi)];
+
 /** Nome da nota com oitava (ex.: 40 → "E2"). */
 export const nomeMidi = (m: number, bemol = false) => `${(bemol ? NOTAS_BEMOL : NOTAS_SUSTENIDO)[mod12(m)]}${Math.floor(m / 12) - 1}`;
 

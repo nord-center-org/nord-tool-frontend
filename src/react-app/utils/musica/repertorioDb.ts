@@ -12,6 +12,8 @@ export interface AjustesMusica {
   instrumento: IdInstrumento;
   /** Transposição só da cifra (para casar uma cifra escrita em outro tom com o áudio). */
   semitonsCifra: number;
+  /** Nome das notas no instrumento: "C D E" ou "Dó Ré Mi" (músicas antigas não têm: vale "cifra"). */
+  nomesNotas?: "cifra" | "solfejo";
 }
 
 export interface Musica {
@@ -30,7 +32,7 @@ export interface Musica {
   ajustes: AjustesMusica;
 }
 
-export const AJUSTES_PADRAO: AjustesMusica = { semitons: 0, andamento: 1, instrumento: "baixo4", semitonsCifra: 0 };
+export const AJUSTES_PADRAO: AjustesMusica = { semitons: 0, andamento: 1, instrumento: "baixo4", semitonsCifra: 0, nomesNotas: "cifra" };
 
 const BANCO = "nordtool-repertorio", LOJA = "musicas", ARQUIVOS = "arquivos";
 

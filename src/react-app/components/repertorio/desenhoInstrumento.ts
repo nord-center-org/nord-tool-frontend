@@ -3,7 +3,7 @@
  * teclado), acendem no lugar onde se toca. O braço fica deitado, com a corda mais grave embaixo, como na tablatura.
  */
 import { ehPreta, type EventoQueda, type Instrumento } from "@/react-app/utils/musica/instrumentos";
-import { NOTAS_SUSTENIDO } from "@/react-app/utils/musica/teoria";
+import { nomeDaNota } from "@/react-app/utils/musica/teoria";
 
 export interface Cena {
   instrumento: Instrumento;
@@ -14,7 +14,12 @@ export interface Cena {
   /** Segundos que cabem na área de queda. */
   janela: number;
   escuro: boolean;
+  /** Nome das notas: "C D E" (cifra) ou "Dó Ré Mi" (solfejo). */
+  nomes: "cifra" | "solfejo";
 }
+
+/** Quanto antes de chegar a próxima nota já aparece marcada (vazada) no braço. */
+const ANTECIPA = 0.8;
 
 const CORES = ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ec4899"];
 
@@ -32,12 +37,15 @@ export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, ce
   ctx.fillStyle = fundo;
   ctx.fillRect(0, 0, w, h);
   const teclado = ins.id === "teclado";
-  const altBase = teclado ? Math.min(h * 0.32, 110) : Math.min(h * 0.42, 30 * ins.cordas.length + 26);
+  const altura = (e: EventoQueda) => (teclado ? e.midi ?? 0 : ins.cordas[e.corda ?? 0] + (e.casa ?? 0));
+  const nome = (m: number) => nomeDaNota(m, cena.nomes);
+  // em telas baixas o braço ganha mais espaço (6 cordas precisam caber com o nome de cada nota)
+  const altBase = teclado ? Math.min(h * 0.32, 110) : Math.min(h * (h < 300 ? 0.58 : 0.42), 30 * ins.cordas.length + 26);
   const topoBase = h - altBase;
 
   // ---------- onde cada evento cai (x, largura) e a linha da corda ----------
   let xDe: (e: EventoQueda) => { x: number; l: number };
-  let desenharBase: (ativos: EventoQueda[]) => void;
+  let desenharBase: (ativos: EventoQueda[], proximos: EventoQueda[]) => void;
   if (teclado) {
     const [ini, fim] = ins.faixa;
     const brancas: number[] = [];
@@ -50,6 +58,10 @@ export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, ce
     xDe = e => xTecla(e.midi ?? ini);
     desenharBase = ativos => {
       const acesas = new Set(ativos.map(e => e.midi));
+      const rotular = (m: number, x: number, l: number, alto: number) => {
+        ctx.fillStyle = "#fff"; ctx.font = `bold ${Math.max(9, Math.min(13, l * 0.5))}px sans-serif`; ctx.textAlign = "center";
+        ctx.fillText(nome(m), x + l / 2, topoBase + alto - 8);
+      };
       for (const m of brancas) {
         const { x, l } = xTecla(m);
         ctx.fillStyle = acesas.has(m) ? "#3b82f6" : "#ffffff";
@@ -62,7 +74,9 @@ export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, ce
         const { x, l } = xTecla(m);
         ctx.fillStyle = acesas.has(m) ? "#60a5fa" : "#1e293b";
         ctx.fillRect(x, topoBase, l, altBase * 0.62);
+        if (acesas.has(m)) rotular(m, x, l, altBase * 0.62);
       }
+      for (const m of brancas) if (acesas.has(m)) { const { x, l } = xTecla(m); rotular(m, x, l, altBase - 14); }
     };
   } else {
     const n = ins.cordas.length;
@@ -76,7 +90,7 @@ export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, ce
       const l = c === 0 ? 20 : Math.max(10, (xTraste(c) - xTraste(c - 1)) * 0.8);
       return { x: xCasa(c) - l / 2, l };
     };
-    desenharBase = ativos => {
+    desenharBase = (ativos, proximos) => {
       ctx.fillStyle = escuro ? "#3f2a1d" : "#7c4a2d";
       ctx.fillRect(x0, topoBase + 4, larg, altBase - 22);
       // marcações
@@ -101,21 +115,30 @@ export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, ce
         ctx.fillStyle = CORES[c % CORES.length]; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center";
         ctx.fillText(ins.nomesCordas[c], 10, y + 4);
       }
-      // notas tocando agora
+      const raio = Math.max(6, Math.min(12, ((altBase - 30) / Math.max(1, n - 1)) * 0.48));
+      // próximas notas: círculo vazado com o nome, onde o dedo vai
+      for (const e of proximos) {
+        const c = e.corda ?? 0, x = xCasa(e.casa ?? 0), y = yCorda(c);
+        ctx.fillStyle = escuro ? "rgba(15,23,42,0.85)" : "rgba(255,255,255,0.9)";
+        ctx.strokeStyle = CORES[c % CORES.length]; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(x, y, raio, 0, 7); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = CORES[c % CORES.length]; ctx.font = `bold ${raio}px sans-serif`; ctx.textAlign = "center"; ctx.fillText(nome(altura(e)), x, y + raio * 0.36);
+      }
+      // notas tocando agora: círculo cheio com o nome
       for (const e of ativos) {
         const c = e.corda ?? 0, x = xCasa(e.casa ?? 0), y = yCorda(c);
         ctx.save();
         ctx.shadowColor = CORES[c % CORES.length]; ctx.shadowBlur = 14;
         ctx.fillStyle = CORES[c % CORES.length];
-        ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y, raio + 1, 0, 7); ctx.fill();
         ctx.restore();
-        ctx.fillStyle = "#fff"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center"; ctx.fillText(String(e.casa ?? 0), x, y + 3.5);
+        ctx.fillStyle = "#fff"; ctx.font = `bold ${raio}px sans-serif`; ctx.textAlign = "center"; ctx.fillText(nome(altura(e)), x, y + raio * 0.36);
       }
     };
   }
 
   // ---------- notas caindo ----------
-  const ativos: EventoQueda[] = [];
+  const ativos: EventoQueda[] = [], proximos: EventoQueda[] = [];
   const pxPorSeg = topoBase / janela;
   ctx.save();
   ctx.beginPath(); ctx.rect(0, 0, w, topoBase); ctx.clip();
@@ -128,26 +151,33 @@ export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, ce
     if (e.inicio > t + janela) break;
     if (e.fim < t) continue;
     if (e.inicio <= t) ativos.push(e);
+    else if (e.inicio - t <= ANTECIPA && !proximos.some(p => p.corda === e.corda && p.casa === e.casa)) proximos.push(e);
     const yBase = topoBase - (e.inicio - t) * pxPorSeg;
     const yTopo = topoBase - (e.fim - t) * pxPorSeg;
     const { x, l } = xDe(e);
     const cor = teclado ? (ehPreta(e.midi ?? 0) ? "#60a5fa" : "#3b82f6") : CORES[(e.corda ?? 0) % CORES.length];
-    const alt = Math.max(8, yBase - yTopo);
+    const alt = Math.max(16, yBase - yTopo);
     ctx.fillStyle = cor;
     ctx.globalAlpha = e.inicio <= t ? 1 : 0.88;
     arredondado(ctx, x, yBase - alt, l, alt, Math.min(6, l / 2));
     ctx.fill();
     ctx.globalAlpha = 1;
-    if (alt >= 14 && l >= 14) {
-      ctx.fillStyle = "#fff"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center";
-      ctx.fillText(teclado ? NOTAS_SUSTENIDO[(e.midi ?? 0) % 12] : String(e.casa ?? 0), x + l / 2, yBase - 4);
+    // nome da nota (e, no braço, a casa) dentro do bloco
+    const fonte = Math.max(8, Math.min(13, l * 0.55));
+    ctx.fillStyle = "#fff"; ctx.textAlign = "center";
+    ctx.font = `bold ${fonte}px sans-serif`;
+    ctx.fillText(nome(altura(e)), x + l / 2, yBase - 4);
+    if (!teclado && alt >= fonte * 2 + 10) {
+      ctx.globalAlpha = 0.85; ctx.font = `${Math.max(8, fonte - 3)}px sans-serif`;
+      ctx.fillText(e.casa ? `casa ${e.casa}` : "solta", x + l / 2, yBase - fonte - 7);
+      ctx.globalAlpha = 1;
     }
   }
   ctx.restore();
   // linha de chegada
   ctx.fillStyle = escuro ? "#38bdf8" : "#0ea5e9";
   ctx.fillRect(0, topoBase - 2, w, 2);
-  desenharBase(ativos);
+  desenharBase(ativos, proximos.filter(p => !ativos.some(a => a.corda === p.corda && a.casa === p.casa)));
 
   // acorde atual e o próximo
   if (cena.acordeAtual) {
