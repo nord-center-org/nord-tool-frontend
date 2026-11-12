@@ -1,4 +1,4 @@
-/** Demanda montada pela Lugia no chat do cronograma: vira o item do formulário e um resumo de quando acontece. */
+/** Demanda montada no chat do cronograma: vira o item do formulário e um resumo de quando acontece. */
 import type { CronogramaSemanalItem, RascunhoDemanda } from "../services/CronogramaSemanalService";
 
 const CURTO: Record<number, string> = { 1: "seg", 2: "ter", 3: "qua", 4: "qui", 5: "sex", 7: "sáb" };
@@ -20,6 +20,7 @@ export function itemDoRascunho(r: RascunhoDemanda): { item: CronogramaSemanalIte
       idDiaSemana: dias[0] ?? null,
       nmHorario: dias.length ? r.nmHorario ?? "" : undefined,
       dtAgendamento: dias.length ? null : r.dtAgendamento ?? null,
+      dtFimAgendamento: dias.length || !r.dtAgendamento ? null : r.dtFimAgendamento ?? null,
     },
     dias,
   };
@@ -33,7 +34,7 @@ export function quandoDoRascunho(r: RascunhoDemanda): string {
     const nomes = dias.join(",") === "1,2,3,4,5" ? "Dias úteis" : dias.join(",") === "1,2,3,4,5,7" ? "Seg a sáb" : `Toda ${dias.map(d => CURTO[d]).join(", ")}`;
     partes.push(r.nmHorario ? `${nomes} às ${r.nmHorario}` : nomes);
   } else if (r.dtAgendamento) {
-    partes.push(`${dataBr(r.dtAgendamento)} às ${r.dtAgendamento.slice(11, 16)}`);
+    partes.push(r.dtFimAgendamento ? `${dataBr(r.dtAgendamento)} a ${dataBr(r.dtFimAgendamento)}, começa às ${r.dtAgendamento.slice(11, 16)}` : `${dataBr(r.dtAgendamento)} às ${r.dtAgendamento.slice(11, 16)}`);
   }
   if (r.dtPrazo) partes.push(`Prazo ${dataBr(r.dtPrazo)}`);
   return partes.join(" · ");

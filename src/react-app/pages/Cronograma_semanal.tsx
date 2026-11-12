@@ -523,9 +523,9 @@ export default function NordToolDashboard() {
             className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
             <Users size={16} /> Equipes
           </button>}
-          {pode.mover && <button onClick={() => setChatAberto(true)} title="Escreva o que quer programar e a Lugia monta a demanda"
+          {pode.mover && <button onClick={() => setChatAberto(true)} title="Escreva o que quer programar e a demanda sai montada (sem IA, na hora)"
             className="flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700">
-            <Sparkles size={16} /> Criar com a Lugia
+            <Sparkles size={16} /> Criar pelo chat
           </button>}
           {pode.relatorioIA && <button onClick={() => setRelatorioIA(true)} title="Link para o Gemini ou outro assistente ler o seu cronograma"
             className="flex items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-100">

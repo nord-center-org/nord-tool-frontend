@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { CalendarClock, CheckCircle2, Loader2, Pencil, Send, Sparkles, X } from "lucide-react";
 
-import { CronogramaSemanalService, type RascunhoDemanda } from "../../services/CronogramaSemanalService";
+import type { RascunhoDemanda } from "../../services/CronogramaSemanalService";
+import { interpretarDemanda } from "../../utils/interpretadorDemanda";
 import { quandoDoRascunho } from "../../utils/rascunhoDemanda";
 
 interface ChatDemandaProps {
@@ -27,36 +28,31 @@ const EXEMPLOS = [
 ];
 
 /**
- * Chat da Lugia no cronograma: a pessoa escreve o que quer programar e recebe a demanda montada (título, categoria,
- * dias, horário, prazo) para criar com um clique ou revisar no formulário. Mensagens seguintes ajustam o pedido.
+ * Chat do cronograma: a pessoa escreve o que quer programar e recebe a demanda montada (título, categoria, dias,
+ * horário, prazo) para criar com um clique ou revisar no formulário. Mensagens seguintes ajustam o pedido. Sem IA:
+ * o texto é lido no aparelho (utils/interpretadorDemanda), na hora e sem internet.
  */
 export default function ChatDemanda({ hoje, onFechar, onCriar, onRevisar }: ChatDemandaProps) {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [texto, setTexto] = useState("");
-  const [pensando, setPensando] = useState(false);
   const [criadas, setCriadas] = useState<Set<RascunhoDemanda>>(new Set());
   const [criando, setCriando] = useState<RascunhoDemanda | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const fim = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { fim.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [mensagens, pensando]);
+  useEffect(() => { fim.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [mensagens]);
 
-  const enviar = async (pedido: string) => {
+  const enviar = (pedido: string) => {
     const limpo = pedido.trim();
-    if (!limpo || pensando) return;
-    const anteriores = mensagens.filter(m => m.papel === "eu").map(m => m.texto).slice(-6);
+    if (!limpo) return;
+    // ajustes ("muda para quinta") valem para as demandas da última resposta que ainda não foram criadas
+    const ultima = [...mensagens].reverse().find(m => m.papel === "lugia" && m.demandas?.length);
+    const anteriores = (ultima?.demandas ?? []).filter(d => !criadas.has(d));
     setMensagens(l => [...l, { papel: "eu", texto: limpo }]);
     setTexto("");
     setErro(null);
-    setPensando(true);
-    try {
-      const r = await CronogramaSemanalService.interpretar(limpo, anteriores, hoje);
-      setMensagens(l => [...l, { papel: "lugia", texto: r.mensagem, demandas: r.demandas }]);
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : "A Lugia não respondeu agora. Tente de novo.");
-    } finally {
-      setPensando(false);
-    }
+    const r = interpretarDemanda(limpo, hoje, anteriores);
+    setMensagens(l => [...l, { papel: "lugia", texto: r.mensagem, demandas: r.demandas }]);
   };
 
   const criar = async (r: RascunhoDemanda) => {
@@ -84,8 +80,8 @@ export default function ChatDemanda({ hoje, onFechar, onCriar, onRevisar }: Chat
           <div className="flex items-center gap-2">
             <span className="rounded-xl bg-violet-600 p-2 text-white"><Sparkles size={16} /></span>
             <div>
-              <h2 id="titulo-chat-demanda" className="text-base font-bold text-slate-800">Criar com a Lugia</h2>
-              <p className="text-xs text-slate-500">Escreva o que quer programar; ela monta a demanda.</p>
+              <h2 id="titulo-chat-demanda" className="text-base font-bold text-slate-800">Criar pelo chat</h2>
+              <p className="text-xs text-slate-500">Escreva o que quer programar e a demanda sai montada na hora.</p>
             </div>
           </div>
           <button onClick={onFechar} aria-label="Fechar" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X size={18} /></button>
@@ -94,9 +90,9 @@ export default function ChatDemanda({ hoje, onFechar, onCriar, onRevisar }: Chat
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
           {!mensagens.length && (
             <div className="space-y-2">
-              <p className="text-sm text-slate-600">Pode escrever do seu jeito: o que é, quando, se repete toda semana, prazo, para quem…</p>
+              <p className="text-sm text-slate-600">Escreva o que é e quando: dia ou data (amanhã, sexta que vem, 20/11), horário (9h, 14:30), se repete (toda segunda e quarta, dias úteis), prazo (até dia 15), detalhes entre parênteses e #tag. Uma demanda por linha.</p>
               {EXEMPLOS.map(e => (
-                <button key={e} onClick={() => void enviar(e)}
+                <button key={e} onClick={() => enviar(e)}
                   className="block w-full rounded-xl border border-slate-200 px-3 py-2 text-left text-sm text-slate-600 hover:border-violet-300 hover:bg-violet-50">
                   {e}
                 </button>
@@ -106,7 +102,7 @@ export default function ChatDemanda({ hoje, onFechar, onCriar, onRevisar }: Chat
 
           {mensagens.map((m, i) => (
             <div key={i} className={m.papel === "eu" ? "flex justify-end" : ""}>
-              <div className={m.papel === "eu" ? "max-w-[85%] rounded-2xl rounded-br-sm bg-violet-600 px-3 py-2 text-sm text-white" : "space-y-2"}>
+              <div className={m.papel === "eu" ? "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-violet-600 px-3 py-2 text-sm text-white" : "space-y-2"}>
                 {m.papel === "eu" ? m.texto : (
                   <>
                     <p className="max-w-[85%] rounded-2xl rounded-bl-sm bg-slate-100 px-3 py-2 text-sm text-slate-700">{m.texto}</p>
@@ -153,18 +149,17 @@ export default function ChatDemanda({ hoje, onFechar, onCriar, onRevisar }: Chat
             </div>
           ))}
 
-          {pensando && <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={14} className="animate-spin" /> A Lugia está montando…</p>}
           {erro && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
           <div ref={fim} />
         </div>
 
-        <form className="flex items-end gap-2 border-t border-slate-100 px-4 py-3" onSubmit={e => { e.preventDefault(); void enviar(texto); }}>
+        <form className="flex items-end gap-2 border-t border-slate-100 px-4 py-3" onSubmit={e => { e.preventDefault(); enviar(texto); }}>
           <label htmlFor="pedido-demanda" className="sr-only">O que você quer programar?</label>
           <textarea id="pedido-demanda" value={texto} onChange={e => setTexto(e.target.value)} rows={2} maxLength={2000} autoFocus
-            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void enviar(texto); } }}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(texto); } }}
             placeholder={mensagens.length ? "Ajuste ou peça outra demanda…" : "O que você quer programar?"}
             className="min-h-[44px] flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-violet-600" />
-          <button type="submit" disabled={!texto.trim() || pensando} aria-label="Enviar"
+          <button type="submit" disabled={!texto.trim()} aria-label="Enviar"
             className="rounded-xl bg-violet-600 p-3 text-white hover:bg-violet-700 disabled:opacity-50"><Send size={16} /></button>
         </form>
       </aside>
