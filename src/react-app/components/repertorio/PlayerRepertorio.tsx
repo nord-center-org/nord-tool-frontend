@@ -6,13 +6,13 @@ import {
 import { desenhar } from "@/react-app/components/repertorio/desenhoInstrumento";
 import CifraRolando, { type ControleCifra } from "@/react-app/components/repertorio/CifraRolando";
 import { MotorAudio, decodificar, reamostrar, type FaixaAudio } from "@/react-app/components/repertorio/motorAudio";
-import type { ResultadoAnalise } from "@/react-app/utils/musica/analise";
+import { analiseDesatualizada, type ResultadoAnalise } from "@/react-app/utils/musica/analise";
 import { blocosComTempo, cifraDosAcordes, lerCifra } from "@/react-app/utils/musica/cifra";
 import { INSTRUMENTOS, eventosParaTocar, instrumento, type IdInstrumento } from "@/react-app/utils/musica/instrumentos";
 import type { Musica } from "@/react-app/utils/musica/repertorioDb";
 import { FAIXAS, NOME_FAIXA } from "@/react-app/utils/musica/separacao";
 import { blocoNoTempo, sincronizar } from "@/react-app/utils/musica/sincronia";
-import { nomeDoTom, transporAcorde, transporTom } from "@/react-app/utils/musica/teoria";
+import { mod12, nomeDoTom, transporAcorde, transporTom, usaBemol } from "@/react-app/utils/musica/teoria";
 
 const botao = "inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40";
 const quadrado = "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40";
@@ -88,6 +88,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const { semitons, andamento, instrumento: idIns, semitonsCifra } = musica.ajustes;
   const analise = musica.analise;
   const ins = instrumento(idIns);
+  // notas e acordes escritos como na cifra do tom que está tocando (bemol em F, Bb, Eb, Dm, Gm…)
+  const bemol = analise ? usaBemol(mod12(analise.tom.tonica + semitons), analise.tom.menor) : false;
 
   const atualizar = useCallback((parcial: Partial<Musica> | ((m: Musica) => Partial<Musica>)) => {
     setMusica(m => {
@@ -107,7 +109,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
     (async () => {
       try {
         let a = inicial.analise;
-        if (!a) {
+        // sem análise, ou feita por uma versão anterior do analisador (ex.: a linha do baixo antiga): refaz
+        if (analiseDesatualizada(a)) {
           a = await analisarNoWorker(arquivo, (p, etapa) => vivo && setOcupado({ texto: etapa, p }));
           if (!vivo) return;
           const r = a;
@@ -147,11 +150,11 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const [larguraTela, setLarguraTela] = useState(800);
   const casas = ins.id === "teclado" ? 0 : larguraTela < 560 ? 12 : ins.casas;
   const eventos = useMemo(() => (analise ? eventosParaTocar(ins, analise.notasBaixo, analise.acordes, semitons, casas || ins.casas) : []), [analise, ins, semitons, casas]);
-  const acordes = useMemo(() => (analise?.acordes ?? []).filter(a => a.acorde !== "N").map(a => ({ ...a, nome: transporAcorde(a.acorde, semitons) })), [analise, semitons]);
+  const acordes = useMemo(() => (analise?.acordes ?? []).filter(a => a.acorde !== "N").map(a => ({ ...a, nome: transporAcorde(a.acorde, semitons, bemol) })), [analise, semitons, bemol]);
 
   // ---------- quadro a quadro ----------
-  const estado = useRef({ eventos, acordes, ins, casas, janela, atual });
-  estado.current = { eventos, acordes, ins, casas, janela, atual };
+  const estado = useRef({ eventos, acordes, ins, casas, janela, atual, bemol });
+  estado.current = { eventos, acordes, ins, casas, janela, atual, bemol };
   useEffect(() => {
     let id = 0, quadro = 0;
     const loop = () => {
@@ -169,7 +172,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           const i = s.acordes.findIndex(a => t >= a.inicio && t < a.fim);
           const prox = s.acordes.find(a => a.inicio > t);
           desenhar(ctx, c.width / dpr, c.height / dpr, {
-            instrumento: s.ins, eventos: s.eventos, casas: s.casas, janela: s.janela, escuro: document.documentElement.classList.contains("nt-escuro"),
+            instrumento: s.ins, eventos: s.eventos, casas: s.casas, janela: s.janela, escuro: document.documentElement.classList.contains("nt-escuro"), bemol: s.bemol,
             acordeAtual: i >= 0 ? s.acordes[i].nome : null, proximoAcorde: prox?.nome ?? null,
           }, t);
         }
@@ -229,6 +232,17 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
       setFaixas(lista);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não deu para separar as faixas.");
+    } finally {
+      setOcupado(null);
+    }
+  };
+  const refazerAnalise = async () => {
+    setErro(null);
+    try {
+      const r = await analisarNoWorker(arquivo, (p, etapa) => setOcupado({ texto: etapa, p }));
+      atualizar({ analise: r, duracao: r.duracao });
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não deu para analisar o áudio.");
     } finally {
       setOcupado(null);
     }
@@ -398,10 +412,12 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
             )}
           </div>
         </section>
-        <section className="flex h-[30vh] min-h-[180px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white md:h-auto md:w-[46%]">
+        <section className="flex h-[36vh] min-h-[220px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white md:h-auto md:w-[46%]">
           <div className="flex items-center gap-2 border-b border-slate-100 px-2 py-1.5">
             <b className="mr-auto text-sm text-slate-700">{ins.nome}</b>
-            <span className="text-[11px] text-slate-500">{ins.fonte === "baixo" ? "linha do baixo" : "acordes"}</span>
+            <button type="button" className="rounded-lg px-1.5 py-0.5 text-[11px] font-bold text-slate-500 hover:bg-slate-100 disabled:opacity-40" disabled={!pronto || !!ocupado}
+              onClick={() => void refazerAnalise()} title="Analisa o áudio de novo (tom, BPM, acordes e baixo)">Refazer análise</button>
+            <span className="hidden text-[11px] text-slate-500 sm:inline">{ins.fonte === "baixo" ? "linha do baixo" : "acordes"}</span>
             <label className="flex items-center gap-1 text-[11px] text-slate-500" title="Quanto tempo as notas levam para descer">
               Queda<input type="range" min={1.5} max={6} step={0.5} value={janela} onChange={e => setJanela(Number(e.target.value))} aria-label="Velocidade da queda" className="w-16" />
             </label>

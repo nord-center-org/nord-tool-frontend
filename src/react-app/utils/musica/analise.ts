@@ -297,90 +297,189 @@ function magEm(mag: Float32Array, f: number, sr: number, janela: number) {
   return mag[i] + (mag[i + 1] - mag[i]) * (b - i);
 }
 
+/** Força de ataque no grave (35–250 Hz) com janela curta, para saber onde cada nota do baixo começa. */
+export function ataquesNoGrave(sinal: Float32Array, sr: number, salto = 128): { forca: Float32Array; energia: Float32Array; porSegundo: number; tempo: (i: number) => number } {
+  const J = 1024;
+  const w = hann(J);
+  const n = Math.max(1, Math.ceil(sinal.length / salto));
+  const b0 = Math.max(1, Math.floor((35 * J) / sr)), b1 = Math.ceil((250 * J) / sr);
+  const re = new Float64Array(J), im = new Float64Array(J);
+  const ant = new Float64Array(b1 + 1);
+  const forca = new Float32Array(n), energia = new Float32Array(n);
+  for (let q = 0; q < n; q++) {
+    const ini = q * salto - J / 2;
+    for (let i = 0; i < J; i++) { const k = ini + i; re[i] = k >= 0 && k < sinal.length ? sinal[k] * w[i] : 0; im[i] = 0; }
+    fft(re, im);
+    let f = 0, e = 0;
+    for (let b = b0; b <= b1; b++) {
+      const m = Math.hypot(re[b], im[b]);
+      e += m * m;
+      const v = Math.log1p(100 * m);
+      if (q > 0 && v > ant[b]) f += v - ant[b];
+      ant[b] = v;
+    }
+    forca[q] = f;
+    energia[q] = Math.sqrt(e);
+  }
+  return { forca, energia, porSegundo: sr / salto, tempo: i => (i * salto) / sr };
+}
+
+/** Picos da força de ataque acima de média + k·desvio (janela de ~1 s), com distância mínima entre eles. */
+export function picos(forca: Float32Array, porSegundo: number, k = 1.2, minimoSeg = 0.09): number[] {
+  const n = forca.length, r = Math.round(porSegundo / 2), dist = Math.round(minimoSeg * porSegundo);
+  const r2: number[] = [];
+  let ult = -Infinity;
+  for (let i = 1; i < n - 1; i++) {
+    if (forca[i] < forca[i - 1] || forca[i] < forca[i + 1]) continue;
+    let soma = 0, soma2 = 0, c = 0;
+    for (let j = Math.max(0, i - r); j < Math.min(n, i + r); j++) { soma += forca[j]; soma2 += forca[j] * forca[j]; c++; }
+    const media = soma / c, desvio = Math.sqrt(Math.max(0, soma2 / c - media * media));
+    if (forca[i] < media + k * desvio || forca[i] <= 0) continue;
+    if (i - ult < dist) { if (forca[i] > forca[ult]) { r2[r2.length - 1] = i; ult = i; } continue; }
+    r2.push(i); ult = i;
+  }
+  return r2;
+}
+
 /**
- * Notas do baixo: em cada quadro, a nota de E1 a G3 (MIDI 28–55) com mais força somando os harmônicos, com bônus
- * para as notas do acorde do momento; depois junta quadros iguais em notas e corta onde há ataque no grave.
+ * Notas do baixo, em três passos:
+ * 1. onde cada nota começa: picos do ataque no grave (janela curta, ~12 ms);
+ * 2. qual é a nota de cada trecho: votação no miolo do trecho, somando a força de E1 a E3 (MIDI 28–52) pela
+ *    fundamental e pelos primeiros harmônicos (janela longa, que separa bem as notas graves); a nota do acorde do
+ *    momento ganha bônus e, se outra nota ganha por pouco, fica a do acorde;
+ * 3. limpeza: trecho fraco ou sem uma nota clara é descartado, e repetições sem ataque forte (só o bumbo) se juntam.
  */
 export function linhaDoBaixo(
   quadros: Float32Array[], sr: number, janela: number, salto: number,
   notasDoMomento?: (t: number) => number[] | null, raizDoMomento?: (t: number) => number | null,
-  grade?: number[],
+  grade?: number[], ataques?: { inicios: number[]; forca: number[]; energia?: Float32Array; porSegundo?: number },
 ): Nota[] {
-  const MIN = 28, MAX = 55;
-  const freqs = Array.from({ length: MAX - MIN + 1 }, (_, i) => midiParaFrequencia(MIN + i));
+  const MIN = 28, MAX = 52;
+  const nc = MAX - MIN + 1;
+  const freqs = Array.from({ length: nc }, (_, i) => midiParaFrequencia(MIN + i));
   const n = quadros.length;
-  const alturas = new Int16Array(n).fill(-1);
-  const energia = new Float32Array(n);
-  const binLim = Math.ceil((300 * janela) / sr);
-  for (let q = 0; q < n; q++) {
-    const mag = quadros[q];
-    let e = 0;
-    for (let b = Math.floor((35 * janela) / sr); b <= binLim; b++) e += mag[b] * mag[b];
-    energia[q] = Math.sqrt(e);
-  }
-  const ord = Float32Array.from(energia).sort();
-  const limite = ord[Math.floor(n * 0.6)] * 0.25;
   const tempo = (q: number) => (q * salto) / sr;
+  // só a parte que sustenta: mediana no tempo (9 quadros, ~0,4 s) por raia tira bumbo, caixa e palhetadas
+  const bA = Math.floor((35 * janela) / sr), bB = Math.ceil((300 * janela) / sr);
+  const bMax = Math.min(quadros[0]?.length ?? 0, Math.ceil((3.2 * freqs[nc - 1] * janela) / sr) + 2);
+  const harmonico = sustentado(quadros, bMax, 4);
+  // força de cada nota candidata em cada quadro, e a energia do grave
+  const saliencia: Float32Array[] = [];
+  const energia = new Float32Array(n);
   for (let q = 0; q < n; q++) {
-    if (energia[q] < limite) continue;
-    const mag = quadros[q];
-    const t = tempo(q);
-    const notas = notasDoMomento?.(t) ?? null, raiz = raizDoMomento?.(t) ?? null;
-    let melhor = -1, melhorV = 0;
-    for (let i = 0; i < freqs.length; i++) {
+    const mag = harmonico[q];
+    let e = 0;
+    for (let b = bA; b <= bB; b++) e += mag[b] * mag[b];
+    energia[q] = Math.sqrt(e);
+    const v = new Float32Array(nc);
+    for (let i = 0; i < nc; i++) {
       const f = freqs[i];
-      const f1 = magEm(mag, f, sr, janela);
-      let v = f1 * 1.0 + magEm(mag, 2 * f, sr, janela) * 0.6 + magEm(mag, 3 * f, sr, janela) * 0.4 + magEm(mag, 4 * f, sr, janela) * 0.25;
-      // a fundamental precisa existir (evita a oitava de baixo "fantasma")
-      v *= Math.min(1, (f1 * 3) / (magEm(mag, 2 * f, sr, janela) + 1e-9));
-      const pc = mod12(MIN + i);
-      if (raiz !== null && pc === raiz) v *= 1.35;
-      else if (notas?.includes(pc)) v *= 1.12;
-      if (v > melhorV) { melhorV = v; melhor = MIN + i; }
+      const f1 = magEm(mag, f, sr, janela), f2 = magEm(mag, 2 * f, sr, janela), f3 = magEm(mag, 3 * f, sr, janela);
+      // a fundamental precisa existir (sem ela, é harmônico de outra coisa: guitarra, teclado) e precisa ter
+      // harmônicos (seno puro e grave é bumbo, não corda)
+      v[i] = f1 < 0.2 * f2 || f2 + f3 < 0.12 * f1 ? 0 : f1 + 0.5 * f2 + 0.25 * f3;
     }
-    alturas[q] = melhor;
+    saliencia.push(v);
   }
-  // mediana de 5 quadros (tira saltos de um quadro)
-  const lisa = new Int16Array(n).fill(-1);
-  for (let q = 0; q < n; q++) {
-    const viz: number[] = [];
-    for (let k = q - 2; k <= q + 2; k++) if (k >= 0 && k < n) viz.push(alturas[k]);
-    viz.sort((a, b) => a - b);
-    lisa[q] = alturas[q] < 0 ? -1 : viz[viz.length >> 1] < 0 ? alturas[q] : viz[viz.length >> 1];
-  }
-  // ataques no grave: cortam notas repetidas
-  const ataque = forcaDeAtaque(quadros, binLim);
-  const corte = new Uint8Array(n);
-  for (let q = 1; q < n - 1; q++) if (ataque[q] > 0.25 && ataque[q] >= ataque[q - 1] && ataque[q] >= ataque[q + 1]) corte[q] = 1;
-  const notas: Nota[] = [];
-  let ini = -1;
-  const fechar = (q: number) => {
-    if (ini < 0) return;
-    const ti = tempo(ini), tf = tempo(q);
-    if (tf - ti >= 0.09) {
-      let e = 0;
-      for (let k = ini; k < q; k++) e = Math.max(e, energia[k]);
-      notas.push({ inicio: ti, fim: tf, midi: lisa[ini], forca: e });
+  const ordE = Float32Array.from(energia).sort();
+  const energiaRef = ordE[Math.floor(n * 0.9)] || 1;
+  // inícios: ataques no grave (ou, sem eles, as mudanças de nota quadro a quadro)
+  const duracao = tempo(n);
+  let inicios = ataques?.inicios.slice() ?? [];
+  const forcaAtaque = ataques?.forca.slice() ?? [];
+  if (!inicios.length) {
+    let ant = -1;
+    for (let q = 0; q < n; q++) {
+      let m = -1, mv = 0;
+      saliencia[q].forEach((x, i) => { if (x > mv) { mv = x; m = i; } });
+      if (energia[q] > energiaRef * 0.15 && m !== ant) { inicios.push(tempo(q)); forcaAtaque.push(1); }
+      ant = energia[q] > energiaRef * 0.15 ? m : -1;
     }
-    ini = -1;
+  }
+  // a primeira nota pode começar junto com a música (não há "subida" no quadro 0)
+  if (!inicios.length || inicios[0] > 0.05) { inicios.unshift(0); forcaAtaque.unshift(Infinity); }
+  inicios = inicios.filter(t => t < duracao);
+  // sustentação no grave (janela curta): bumbo e caixa somem em ~0,1 s, a nota do baixo continua
+  const envelope = ataques?.energia, ps = ataques?.porSegundo ?? 1;
+  const refCurta = envelope ? Float32Array.from(envelope).sort()[Math.floor(envelope.length * 0.9)] || 1 : 1;
+  const sustenta = (ini: number, fim: number) => {
+    if (!envelope) return true;
+    const a = ini + Math.min(0.12, (fim - ini) * 0.5), b = Math.min(fim, ini + 0.3);
+    let soma = 0, c = 0;
+    for (let i = Math.floor(a * ps); i <= Math.ceil(b * ps) && i < envelope.length; i++) { soma += envelope[i]; c++; }
+    return c > 0 && soma / c >= refCurta * 0.2;
   };
-  for (let q = 0; q < n; q++) {
-    if (lisa[q] < 0) { fechar(q); continue; }
-    if (ini >= 0 && (lisa[q] !== lisa[ini] || corte[q])) fechar(q);
-    if (ini < 0) ini = q;
+  const notas: Nota[] = [];
+  for (let k = 0; k < inicios.length; k++) {
+    const ini = inicios[k];
+    const fim = Math.min(k + 1 < inicios.length ? inicios[k + 1] : duracao, ini + 4);
+    if (fim - ini < 0.08) continue;
+    // miolo do trecho (a janela longa borra as pontas); trecho curto usa o meio
+    const meio = (ini + fim) / 2;
+    const a = fim - ini > 0.3 ? ini + 0.12 : meio - 0.02, b = fim - ini > 0.3 ? fim - 0.08 : meio + 0.02;
+    const voto = new Float64Array(nc);
+    let e = 0, cont = 0;
+    for (let q = Math.max(0, Math.floor((a * sr) / salto)); q <= Math.min(n - 1, Math.ceil((b * sr) / salto)); q++) {
+      const v = saliencia[q];
+      for (let i = 0; i < nc; i++) voto[i] += v[i];
+      e += energia[q]; cont++;
+    }
+    if (!cont) continue;
+    e /= cont;
+    if (e < energiaRef * 0.12) continue; // silêncio ou só resto de outra coisa
+    if (!sustenta(ini, fim)) continue; // batida (bumbo, caixa), não nota
+    const notasAcorde = notasDoMomento?.(meio) ?? null, raiz = raizDoMomento?.(meio) ?? null;
+    let melhor = -1, mv = 0, segundo = 0, melhorAcorde = -1, mvAcorde = 0;
+    for (let i = 0; i < nc; i++) {
+      const pc = mod12(MIN + i);
+      let v = voto[i];
+      if (raiz !== null && pc === raiz) v *= 1.3;
+      else if (notasAcorde?.includes(pc)) v *= 1.1;
+      if (v > mv) { segundo = mv; mv = v; melhor = i; } else if (v > segundo) segundo = v;
+      if (notasAcorde?.includes(pc) && v > mvAcorde) { mvAcorde = v; melhorAcorde = i; }
+    }
+    if (melhor < 0 || mv <= 0) continue;
+    // fora do acorde só se ganhar com folga (nota de passagem de verdade); senão fica a do acorde
+    if (notasAcorde && !notasAcorde.includes(mod12(MIN + melhor)) && melhorAcorde >= 0 && mv < mvAcorde * 1.35) melhor = melhorAcorde;
+    // sem nota clara (várias empatadas) e fraco: é ruído
+    if (segundo > mv * 0.92 && e < energiaRef * 0.3) continue;
+    notas.push({ inicio: ini, fim, midi: MIN + melhor, forca: Math.min(1, e / energiaRef) });
   }
-  fechar(n);
-  // força 0–1 e encaixe leve na grade de colcheias
-  const maxE = notas.reduce((m, x) => Math.max(m, x.forca), 0) || 1;
+  // repetição sem ataque forte (bumbo por cima da mesma nota) vira uma nota só
+  const fA = [...forcaAtaque].sort((x, y) => x - y);
+  const ataqueForte = fA[Math.floor(fA.length * 0.2)] ?? 0;
+  const juntas: Nota[] = [];
   for (const x of notas) {
-    x.forca = Math.round((x.forca / maxE) * 100) / 100;
-    if (grade?.length) {
-      const g = maisPerto(grade, x.inicio);
-      if (Math.abs(g - x.inicio) < 0.07) x.inicio = g;
+    const ult = juntas[juntas.length - 1];
+    const idx = inicios.indexOf(x.inicio);
+    const forte = idx >= 0 && idx < forcaAtaque.length ? forcaAtaque[idx] >= ataqueForte : true;
+    if (ult && ult.midi === x.midi && Math.abs(ult.fim - x.inicio) < 0.02 && !forte) { ult.fim = x.fim; ult.forca = Math.max(ult.forca, x.forca); continue; }
+    juntas.push({ ...x });
+  }
+  for (const x of juntas) {
+    x.forca = Math.round(x.forca * 100) / 100;
+    if (grade?.length) { const g = maisPerto(grade, x.inicio); if (Math.abs(g - x.inicio) < 0.05) x.inicio = g; }
+    // nota que soa até a próxima: corta um respiro para os blocos não grudarem
+    x.fim = Math.max(x.inicio + 0.06, x.fim - 0.02);
+  }
+  for (let i = 0; i + 1 < juntas.length; i++) if (juntas[i].fim > juntas[i + 1].inicio) juntas[i].fim = juntas[i + 1].inicio;
+  return juntas.filter(x => x.fim - x.inicio >= 0.06);
+}
+
+/** Mediana no tempo (2·meio+1 quadros) de cada raia até `bMax`: o que sustenta fica, o que é batida some. */
+function sustentado(quadros: Float32Array[], bMax: number, meio: number): Float32Array[] {
+  const n = quadros.length;
+  const out = quadros.map(() => new Float32Array(bMax));
+  const tmp: number[] = [];
+  for (let b = 0; b < bMax; b++) {
+    for (let q = 0; q < n; q++) {
+      tmp.length = 0;
+      for (let k = Math.max(0, q - meio); k <= Math.min(n - 1, q + meio); k++) tmp.push(quadros[k][b]);
+      tmp.sort((x, y) => x - y);
+      out[q][b] = Math.min(quadros[q][b], tmp[tmp.length >> 1]);
     }
   }
-  for (let i = 0; i + 1 < notas.length; i++) if (notas[i].fim > notas[i + 1].inicio) notas[i].fim = notas[i + 1].inicio;
-  return notas.filter(x => x.fim - x.inicio > 0.05);
+  return out;
 }
 
 function maisPerto(ordenado: number[], v: number) {
@@ -402,7 +501,18 @@ export function gradeDeColcheias(batidas: number[]) {
 
 // ---------------------------------------------------------------- tudo junto
 
+/**
+ * Versão do analisador. Suba sempre que a análise mudar de um jeito que valha refazer as músicas já guardadas
+ * (o player refaz sozinho quando a versão guardada é menor). 2 = nova linha do baixo (Repertório v2).
+ */
+export const VERSAO_ANALISE = 2;
+
+/** A análise guardada é de uma versão anterior do analisador? */
+export const analiseDesatualizada = (a: { versao?: number } | null | undefined) => !a || (a.versao ?? 1) < VERSAO_ANALISE;
+
 export interface ResultadoAnalise {
+  /** Versão do analisador que gerou (as da v1 não têm: valem 1). */
+  versao?: number;
   duracao: number;
   tom: Tom & { confianca: number };
   bpm: number;
@@ -437,12 +547,15 @@ export function analisar(sinal: Float32Array, sr: number, progresso?: (p: number
   const acordes = detectarAcordes(croma, tempoDoQuadro, tempos, energia, tom);
   progresso?.(0.8, "Tirando as notas do baixo");
   const acordeEm = (t: number) => acordes.find(a => t >= a.inicio && t < a.fim) ?? null;
+  const grave = ataquesNoGrave(sinal, sr);
+  const iPicos = picos(grave.forca, sr / 128, 0.6);
   const notasBaixo = linhaDoBaixo(quadros, sr, J, S,
     t => { const a = acordeEm(t); return a && a.acorde !== "N" ? notasDeNome(a.acorde) : null; },
     t => { const a = acordeEm(t); return a && a.acorde !== "N" ? notasDeNome(a.acorde)[0] : null; },
-    gradeDeColcheias(batidas));
+    gradeDeColcheias(batidas),
+    { inicios: iPicos.map(grave.tempo), forca: iPicos.map(i => grave.forca[i]), energia: grave.energia, porSegundo: grave.porSegundo });
   progresso?.(1, "Pronto");
-  return { duracao, tom, bpm, batidas, acordes, notasBaixo };
+  return { versao: VERSAO_ANALISE, duracao, tom, bpm, batidas, acordes, notasBaixo };
 }
 
 /** Classes das notas de um acorde simples reconhecido ("C", "F#m", "Bbm"): [raiz, terça, quinta]. */
