@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-12-repertorio",
+    data: "2026-11-12",
+    titulo: "Repertório: toque junto com a música",
+    texto: "Envie uma música e eu reconheço o tom, o BPM, os acordes e o baixo. Mude o tom e o andamento, separe voz, baixo e bateria e acompanhe a cifra rolando com o baixo, o violão ou o teclado mostrando onde tocar.",
+    onde: { rotulo: "Gestão Individual → Repertório", caminho: "/gestao/repertorio" },
+  },
+  {
     id: "2026-11-11-relatorio-sem-contorno",
     data: "2026-11-11",
     titulo: "Relatório: fotos sem contorno",

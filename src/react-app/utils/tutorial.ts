@@ -71,7 +71,7 @@ export const DESCRICAO_DAS_TELAS: Record<string, string> = {
   "/organizacional/medicoes": "Os boletins de medição dos contratos, com status e valores.",
   "/gestao/financeiro": "Quanto sobra no mês, extrato, gráficos e investimentos.",
   "/gestao/treinos": "Fichas de treino, o treino do dia e o histórico do que você fez.",
-  "/gestao/repertorio": EM_BREVE,
+  "/gestao/repertorio": "Envie uma música: tom, BPM, acordes e o baixo reconhecidos; mude o tom e o andamento, separe as faixas e toque junto com a cifra rolando e o instrumento ao lado.",
   "/gestao/academico": EM_BREVE,
   "/gestao/casamento": "Fornecedores, convidados e marcos do casamento, tudo num lugar só.",
   "/gestao/caixinha": "As despesas da caixinha: quem gastou, o que foi pago e os comprovantes.",
@@ -626,6 +626,26 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         alvo: { css: '[aria-label="Histórico"]' },
       },
       ajudaNoCanto("Treinos"),
+    ],
+  },
+  "/gestao/repertorio": {
+    titulo: "Repertório",
+    passos: [
+      cabecalho("Repertório", "Suas músicas para tocar junto, guardadas neste aparelho."),
+      {
+        titulo: "Enviar uma música",
+        texto: "Escolha ou arraste um MP3, WAV, M4A, OGG ou FLAC. Ao abrir, reconheço o tom, o BPM, os acordes e as notas do baixo.",
+        alvo: { css: "button", texto: "Enviar uma música" },
+      },
+      {
+        titulo: "No player",
+        texto: "Mude o tom (− e +) e o andamento sem um mexer no outro; em \"Separar faixas\" saem voz, baixo, bateria e outros, com volume, mudo e solo. Escolha o instrumento: as notas descem e acendem no braço (ou no teclado) na hora de tocar.",
+      },
+      {
+        titulo: "Letra e cifra",
+        texto: "Cole a cifra como no Cifra Club: a linha atual fica em destaque e a letra rola sozinha. Se a hora de alguma linha não bater, use \"Marcar linhas\" e toque Enter quando cada uma começar.",
+      },
+      ajudaNoCanto("Repertório"),
     ],
   },
   "/gestao/casamento": {
