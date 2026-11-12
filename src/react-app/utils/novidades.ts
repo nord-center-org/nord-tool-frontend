@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-12-planilha-mover-ajustar",
+    data: "2026-11-12",
+    titulo: "Planilha: mover linhas e colunas e ajustar a largura",
+    texto: "Na planilha do bloco de notas, use “Mover” (ou Alt+Shift+setas) para trocar a linha ou coluna selecionada de lugar, com as fórmulas acompanhando. Dois cliques na borda do cabeçalho ajustam a coluna ao texto, e Shift + rodinha do mouse rola para os lados.",
+    onde: { rotulo: "Mapeamentos → Bloco de notas → Planilha", caminho: "/mapeamentos/bloco-notas" },
+  },
+  {
     id: "2026-11-12-cronograma-chat-sem-ia",
     data: "2026-11-12",
     titulo: "Cronograma: chat de demandas sem IA",
