@@ -550,6 +550,11 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         alvo: { css: "button", texto: "Nova demanda" },
       },
       {
+        titulo: "Criar pelo chat",
+        texto: "Escreva do seu jeito e a demanda sai montada na hora, sem IA: “Reunião de obra toda segunda e quarta às 9h”, “Ligar para o fornecedor amanhã às 14h”, “Pagar a conta até dia 15”, “Férias de 15 a 20/12”. Uma por linha; detalhes entre parênteses e #tag. Depois é só Criar, Revisar ou escrever um ajuste (“muda para quinta às 10h”).",
+        alvo: { css: "button", texto: "Criar pelo chat" },
+      },
+      {
         titulo: "O kanban",
         texto: "Arraste os cartões entre as colunas para mudar o status. Clique num cartão para editar. Os de outra pessoa aparecem com cadeado.",
         alvo: { css: "section" },

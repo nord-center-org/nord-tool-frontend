@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-12-cronograma-chat-sem-ia",
+    data: "2026-11-12",
+    titulo: "Cronograma: chat de demandas sem IA",
+    texto: "O “Criar pelo chat” agora monta a demanda na hora, sem IA e sem esperar: entende dias da semana, datas (amanhã, sexta que vem, 20/11), horários, prazo (até dia 15), período (de 15 a 20/12), #tag e uma demanda por linha. Ajustes como “muda para quinta às 10h” continuam valendo.",
+    onde: { rotulo: "Organizacional → Cronograma semanal", caminho: "/organizacional/cronograma" },
+  },
+  {
     id: "2026-11-12-repertorio-todas-notas",
     data: "2026-11-12",
     titulo: "Repertório: todas as notas no braço",
