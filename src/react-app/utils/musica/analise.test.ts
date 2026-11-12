@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { analisar, detectarTom, fft, notasDeNome } from "./analise.ts";
+import { VERSAO_ANALISE, analiseDesatualizada, analisar, detectarTom, fft, notasDeNome } from "./analise.ts";
 
 const NOMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -44,6 +44,10 @@ test("tom pelos perfis", () => {
 test("análise completa: tom, BPM, acordes e baixo", () => {
   const sr = 11025;
   const r = analisar(musicaDeTeste(sr, 16), sr);
+  assert.equal(r.versao, VERSAO_ANALISE);
+  assert.equal(analiseDesatualizada(r), false);
+  assert.equal(analiseDesatualizada({ ...r, versao: undefined }), true, "análise antiga (v1, sem versão) é refeita");
+  assert.equal(analiseDesatualizada(null), true);
   assert.equal(r.tom.tonica, 0); assert.equal(r.tom.menor, false);
   assert.ok(Math.abs(r.bpm - 120) < 3, `bpm ${r.bpm}`);
   const em = (t: number) => r.acordes.find(a => t >= a.inicio && t < a.fim)?.acorde;

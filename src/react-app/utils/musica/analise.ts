@@ -501,7 +501,18 @@ export function gradeDeColcheias(batidas: number[]) {
 
 // ---------------------------------------------------------------- tudo junto
 
+/**
+ * Versão do analisador. Suba sempre que a análise mudar de um jeito que valha refazer as músicas já guardadas
+ * (o player refaz sozinho quando a versão guardada é menor). 2 = nova linha do baixo (Repertório v2).
+ */
+export const VERSAO_ANALISE = 2;
+
+/** A análise guardada é de uma versão anterior do analisador? */
+export const analiseDesatualizada = (a: { versao?: number } | null | undefined) => !a || (a.versao ?? 1) < VERSAO_ANALISE;
+
 export interface ResultadoAnalise {
+  /** Versão do analisador que gerou (as da v1 não têm: valem 1). */
+  versao?: number;
   duracao: number;
   tom: Tom & { confianca: number };
   bpm: number;
@@ -544,7 +555,7 @@ export function analisar(sinal: Float32Array, sr: number, progresso?: (p: number
     gradeDeColcheias(batidas),
     { inicios: iPicos.map(grave.tempo), forca: iPicos.map(i => grave.forca[i]), energia: grave.energia, porSegundo: grave.porSegundo });
   progresso?.(1, "Pronto");
-  return { duracao, tom, bpm, batidas, acordes, notasBaixo };
+  return { versao: VERSAO_ANALISE, duracao, tom, bpm, batidas, acordes, notasBaixo };
 }
 
 /** Classes das notas de um acorde simples reconhecido ("C", "F#m", "Bbm"): [raiz, terça, quinta]. */

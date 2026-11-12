@@ -6,7 +6,7 @@ import {
 import { desenhar } from "@/react-app/components/repertorio/desenhoInstrumento";
 import CifraRolando, { type ControleCifra } from "@/react-app/components/repertorio/CifraRolando";
 import { MotorAudio, decodificar, reamostrar, type FaixaAudio } from "@/react-app/components/repertorio/motorAudio";
-import type { ResultadoAnalise } from "@/react-app/utils/musica/analise";
+import { analiseDesatualizada, type ResultadoAnalise } from "@/react-app/utils/musica/analise";
 import { blocosComTempo, cifraDosAcordes, lerCifra } from "@/react-app/utils/musica/cifra";
 import { INSTRUMENTOS, eventosParaTocar, instrumento, type IdInstrumento } from "@/react-app/utils/musica/instrumentos";
 import type { Musica } from "@/react-app/utils/musica/repertorioDb";
@@ -109,7 +109,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
     (async () => {
       try {
         let a = inicial.analise;
-        if (!a) {
+        // sem análise, ou feita por uma versão anterior do analisador (ex.: a linha do baixo antiga): refaz
+        if (analiseDesatualizada(a)) {
           a = await analisarNoWorker(arquivo, (p, etapa) => vivo && setOcupado({ texto: etapa, p }));
           if (!vivo) return;
           const r = a;
@@ -231,6 +232,17 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
       setFaixas(lista);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não deu para separar as faixas.");
+    } finally {
+      setOcupado(null);
+    }
+  };
+  const refazerAnalise = async () => {
+    setErro(null);
+    try {
+      const r = await analisarNoWorker(arquivo, (p, etapa) => setOcupado({ texto: etapa, p }));
+      atualizar({ analise: r, duracao: r.duracao });
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não deu para analisar o áudio.");
     } finally {
       setOcupado(null);
     }
@@ -403,6 +415,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
         <section className="flex h-[36vh] min-h-[220px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white md:h-auto md:w-[46%]">
           <div className="flex items-center gap-2 border-b border-slate-100 px-2 py-1.5">
             <b className="mr-auto text-sm text-slate-700">{ins.nome}</b>
+            <button type="button" className="rounded-lg px-1.5 py-0.5 text-[11px] font-bold text-slate-500 hover:bg-slate-100 disabled:opacity-40" disabled={!pronto || !!ocupado}
+              onClick={() => void refazerAnalise()} title="Analisa o áudio de novo (tom, BPM, acordes e baixo)">Refazer análise</button>
             <span className="hidden text-[11px] text-slate-500 sm:inline">{ins.fonte === "baixo" ? "linha do baixo" : "acordes"}</span>
             <label className="flex items-center gap-1 text-[11px] text-slate-500" title="Quanto tempo as notas levam para descer">
               Queda<input type="range" min={1.5} max={6} step={0.5} value={janela} onChange={e => setJanela(Number(e.target.value))} aria-label="Velocidade da queda" className="w-16" />
