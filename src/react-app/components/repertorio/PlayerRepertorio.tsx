@@ -9,6 +9,7 @@ import { MotorAudio, decodificar, reamostrar, type FaixaAudio } from "@/react-ap
 import { analiseDesatualizada, type ResultadoAnalise } from "@/react-app/utils/musica/analise";
 import { blocosComTempo, cifraDosAcordes, lerCifra } from "@/react-app/utils/musica/cifra";
 import { INSTRUMENTOS, eventosParaTocar, instrumento, type IdInstrumento } from "@/react-app/utils/musica/instrumentos";
+import { gravarPreferencias, lerPreferencias } from "@/react-app/utils/musica/preferenciasRepertorio";
 import type { Musica } from "@/react-app/utils/musica/repertorioDb";
 import { FAIXAS, NOME_FAIXA } from "@/react-app/utils/musica/separacao";
 import { blocoNoTempo, sincronizar } from "@/react-app/utils/musica/sincronia";
@@ -76,6 +77,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const [seguir, setSeguir] = useState(true);
   const [fonte, setFonte] = useState(15);
   const [janela, setJanela] = useState(3);
+  const [todasNotas, setTodasNotas] = useState(() => lerPreferencias(typeof localStorage === "undefined" ? undefined : localStorage).todasNotas);
+  const alternarTodasNotas = () => setTodasNotas(v => { gravarPreferencias(localStorage, { todasNotas: !v }); return !v; });
   const [editandoCifra, setEditandoCifra] = useState(false);
   const [marcando, setMarcando] = useState<number | null>(null);
   const tela = useRef<HTMLCanvasElement>(null);
@@ -153,8 +156,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const acordes = useMemo(() => (analise?.acordes ?? []).filter(a => a.acorde !== "N").map(a => ({ ...a, nome: transporAcorde(a.acorde, semitons, bemol) })), [analise, semitons, bemol]);
 
   // ---------- quadro a quadro ----------
-  const estado = useRef({ eventos, acordes, ins, casas, janela, atual, bemol });
-  estado.current = { eventos, acordes, ins, casas, janela, atual, bemol };
+  const estado = useRef({ eventos, acordes, ins, casas, janela, atual, bemol, todasNotas });
+  estado.current = { eventos, acordes, ins, casas, janela, atual, bemol, todasNotas };
   useEffect(() => {
     let id = 0, quadro = 0;
     const loop = () => {
@@ -172,7 +175,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           const i = s.acordes.findIndex(a => t >= a.inicio && t < a.fim);
           const prox = s.acordes.find(a => a.inicio > t);
           desenhar(ctx, c.width / dpr, c.height / dpr, {
-            instrumento: s.ins, eventos: s.eventos, casas: s.casas, janela: s.janela, escuro: document.documentElement.classList.contains("nt-escuro"), bemol: s.bemol,
+            instrumento: s.ins, eventos: s.eventos, casas: s.casas, janela: s.janela, escuro: document.documentElement.classList.contains("nt-escuro"), bemol: s.bemol, todasNotas: s.todasNotas,
             acordeAtual: i >= 0 ? s.acordes[i].nome : null, proximoAcorde: prox?.nome ?? null,
           }, t);
         }
@@ -413,8 +416,10 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           </div>
         </section>
         <section className="flex h-[36vh] min-h-[220px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white md:h-auto md:w-[46%]">
-          <div className="flex items-center gap-2 border-b border-slate-100 px-2 py-1.5">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-slate-100 px-2 py-1.5">
             <b className="mr-auto text-sm text-slate-700">{ins.nome}</b>
+            <button type="button" aria-pressed={todasNotas} onClick={alternarTodasNotas} title="Mostrar todas as notas em cinza; a que toca acende na cor"
+              className={`rounded-lg border px-1.5 py-0.5 text-[11px] font-bold ${todasNotas ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>Todas as notas</button>
             <button type="button" className="rounded-lg px-1.5 py-0.5 text-[11px] font-bold text-slate-500 hover:bg-slate-100 disabled:opacity-40" disabled={!pronto || !!ocupado}
               onClick={() => void refazerAnalise()} title="Analisa o áudio de novo (tom, BPM, acordes e baixo)">Refazer análise</button>
             <span className="hidden text-[11px] text-slate-500 sm:inline">{ins.fonte === "baixo" ? "linha do baixo" : "acordes"}</span>

@@ -16,6 +16,8 @@ export interface Cena {
   escuro: boolean;
   /** Escreve as notas com bemol (como a cifra no tom atual). */
   bemol: boolean;
+  /** Mostra todas as notas do braço (ou do teclado) em cinza; a que toca acende na cor. */
+  todasNotas: boolean;
 }
 
 /** Quanto antes de chegar a próxima nota já aparece marcada (vazada) no braço. */
@@ -67,6 +69,7 @@ export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, ce
         ctx.fillStyle = acesas.has(m) ? "#3b82f6" : "#ffffff";
         ctx.fillRect(x + 0.5, topoBase, l - 1, altBase);
         ctx.strokeStyle = "#94a3b8"; ctx.strokeRect(x + 0.5, topoBase, l - 1, altBase);
+        if (cena.todasNotas && !acesas.has(m)) { ctx.fillStyle = "#94a3b8"; ctx.font = `${Math.max(8, Math.min(12, l * 0.45))}px sans-serif`; ctx.textAlign = "center"; ctx.fillText(nome(m), x + l / 2, topoBase + altBase - 20); }
         if (m % 12 === 0) { ctx.fillStyle = acesas.has(m) ? "#fff" : "#64748b"; ctx.font = `${Math.max(9, lb * 0.4)}px sans-serif`; ctx.textAlign = "center"; ctx.fillText(`C${Math.floor(m / 12) - 1}`, x + l / 2, h - 6); }
       }
       for (let m = ini; m <= fim; m++) {
@@ -74,6 +77,7 @@ export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, ce
         const { x, l } = xTecla(m);
         ctx.fillStyle = acesas.has(m) ? "#60a5fa" : "#1e293b";
         ctx.fillRect(x, topoBase, l, altBase * 0.62);
+        if (cena.todasNotas && !acesas.has(m)) { ctx.fillStyle = "#94a3b8"; ctx.font = `${Math.max(7, Math.min(10, l * 0.55))}px sans-serif`; ctx.textAlign = "center"; ctx.fillText(nome(m), x + l / 2, topoBase + altBase * 0.62 - 6); }
         if (acesas.has(m)) rotular(m, x, l, altBase * 0.62);
       }
       for (const m of brancas) if (acesas.has(m)) { const { x, l } = xTecla(m); rotular(m, x, l, altBase - 14); }
@@ -116,6 +120,23 @@ export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, ce
         ctx.fillText(ins.nomesCordas[c], 10, y + 4);
       }
       const raio = Math.max(6, Math.min(12, ((altBase - 30) / Math.max(1, n - 1)) * 0.48));
+      // todas as notas do braço em cinza (a que toca acende por cima, na cor da corda)
+      if (cena.todasNotas) {
+        for (let c = 0; c < n; c++) {
+          for (let f = 0; f <= cena.casas; f++) {
+            const largCasa = f === 0 ? 22 : xTraste(f) - xTraste(f - 1);
+            const r = Math.min(raio * 0.9, largCasa * 0.42);
+            if (r < 4) continue;
+            const x = xCasa(f), y = yCorda(c);
+            ctx.fillStyle = escuro ? "#475569" : "#cbd5e1";
+            ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+            const txt = nome(ins.cordas[c] + f);
+            ctx.fillStyle = escuro ? "#e2e8f0" : "#334155";
+            ctx.font = `bold ${Math.max(6, Math.min(r * (txt.length > 1 ? 0.95 : 1.1), 11))}px sans-serif`; ctx.textAlign = "center";
+            ctx.fillText(txt, x, y + r * 0.36);
+          }
+        }
+      }
       // próximas notas: círculo vazado com o nome, onde o dedo vai
       for (const e of proximos) {
         const c = e.corda ?? 0, x = xCasa(e.casa ?? 0), y = yCorda(c);

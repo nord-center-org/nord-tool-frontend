@@ -639,7 +639,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "No player",
-        texto: "Mude o tom (− e +) e o andamento sem um mexer no outro; em \"Separar faixas\" saem voz, baixo, bateria e outros, com volume, mudo e solo. Escolha o instrumento: as notas descem com o nome (como na cifra: C, G, F#, Bb…) e a casa, e acendem no braço (ou no teclado) na hora de tocar; a próxima já aparece marcada.",
+        texto: "Mude o tom (− e +) e o andamento sem um mexer no outro; em \"Separar faixas\" saem voz, baixo, bateria e outros, com volume, mudo e solo. Escolha o instrumento: as notas descem com o nome (como na cifra: C, G, F#, Bb…) e a casa, e acendem no braço (ou no teclado) na hora de tocar; a próxima já aparece marcada. Em \"Todas as notas\", o braço mostra todas em cinza e só a que toca muda de cor.",
       },
       {
         titulo: "Letra e cifra",
