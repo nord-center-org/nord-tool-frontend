@@ -11,6 +11,7 @@ import { useObra } from "@/react-app/hooks/useObra";
 import { podeAbrirRota } from "@/react-app/utils/sessao";
 import NovidadesSacProvider from "@/react-app/components/sac/NovidadesSacProvider";
 import SeloSac from "@/react-app/components/sac/SeloSac";
+import BotaoSac from "@/react-app/components/sac/BotaoSac";
 import CapturaLugiaProvider from "@/react-app/components/lugia/CapturaLugiaProvider";
 import BotaoPrintLugia from "@/react-app/components/lugia/BotaoPrintLugia";
 import { EVENTO_DAVI, criarContadorToques } from "@/react-app/utils/segredo";
@@ -377,6 +378,7 @@ export default function Layout() {
         </div>
       </main>
       <GatinhoSecreto />
+      <BotaoSac />
       {tutorial && <Tutorial key={location.pathname} tutorial={tutorial} raiz={raizDoTutorial} onPasso={prepararPasso} onFechar={fecharTutorial} />}
     </div>
     </NovidadesSacProvider>
