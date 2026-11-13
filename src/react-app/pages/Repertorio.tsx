@@ -1,10 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import { Loader2, Music, Piano, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Cloud, CloudOff, Loader2, Music, Piano, Trash2, Upload } from "lucide-react";
 
+import { AJUSTES_PADRAO, salvarArquivo, salvarMusica, tituloDoArquivo, type Musica } from "@/react-app/utils/musica/repertorioDb";
 import {
-  AJUSTES_PADRAO, excluirMusica, lerArquivo, listarMusicas, salvarArquivo, salvarMusica, tituloDoArquivo, type Musica,
-} from "@/react-app/utils/musica/repertorioDb";
+  abrirMusica, enviarMusica, excluirMusica, guardarNaConta, sincronizarMusicas, subirPendentes, usoDaConta, type SituacaoConta,
+} from "@/react-app/components/repertorio/sincronizacao";
+import { MAX_AUDIO_CONTA, textoDoUso } from "@/react-app/utils/musica/repertorioConta";
 import { nomeDoTom } from "@/react-app/utils/musica/teoria";
 
 const PlayerRepertorio = lazy(() => import("@/react-app/components/repertorio/PlayerRepertorio"));
@@ -24,6 +26,13 @@ export default function RepertorioPage() {
   const [aberta, setAberta] = useState<{ musica: Musica; arquivo: Blob } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  // v7: onde cada música está (conta ou só aqui), se há conexão com a conta e o espaço usado nela
+  const [situacao, setSituacao] = useState<Map<string, SituacaoConta>>(() => new Map());
+  const [semConta, setSemConta] = useState(false);
+  const [uso, setUso] = useState<string | null>(null);
+  const [abrindo, setAbrindo] = useState<string | null>(null);
+  const mudarSituacao = useCallback((id: string, s: SituacaoConta) => setSituacao(m => new Map(m).set(id, s)), []);
+  const atualizarUso = useCallback(() => { void usoDaConta().then(u => setUso(textoDoUso(u.bytesUsados, u.bytesCota))).catch(() => setUso(null)); }, []);
   const entrada = useRef<HTMLInputElement>(null);
   // v6: sub-abas "Músicas" e "Criar" (na URL, para o link das novidades abrir direto) e o instrumento online
   const [busca, setBusca] = useSearchParams();
@@ -32,8 +41,19 @@ export default function RepertorioPage() {
   const [instrumentoOnline, setInstrumentoOnline] = useState(false);
 
   const carregar = useCallback(async () => {
-    try { setMusicas(await listarMusicas()); } catch (e) { setErro(e instanceof Error ? e.message : "Não deu para ler o repertório."); setMusicas([]); }
-  }, []);
+    try {
+      const r = await sincronizarMusicas();
+      setMusicas(r.musicas);
+      setSituacao(r.situacao);
+      setSemConta(r.semConta);
+      if (!r.semConta) {
+        atualizarUso();
+        if (r.pendentes.length) void subirPendentes(r.pendentes, mudarSituacao).then(atualizarUso);
+      }
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não deu para ler o repertório."); setMusicas([]);
+    }
+  }, [atualizarUso, mudarSituacao]);
   useEffect(() => { void carregar(); }, [carregar]);
 
   const enviar = async (f: File) => {
@@ -49,9 +69,13 @@ export default function RepertorioPage() {
         analise: null, cifra: "", tempos: null, ajustes: { ...AJUSTES_PADRAO },
       };
       await salvarArquivo(m.id, f);
-      await salvarMusica(m);
-      setAberta({ musica: m, arquivo: f });
-      void carregar();
+      const salva = await salvarMusica(m);
+      setAberta({ musica: salva, arquivo: f });
+      // vai para a conta em segundo plano (o áudio só se couber)
+      if (!semConta) {
+        mudarSituacao(m.id, f.size > MAX_AUDIO_CONTA ? "so-aparelho" : "enviando");
+        void enviarMusica(salva, true).then(s => { mudarSituacao(m.id, s); atualizarUso(); }).catch(() => mudarSituacao(m.id, "falhou"));
+      }
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não deu para guardar a música no aparelho.");
     } finally {
@@ -61,12 +85,17 @@ export default function RepertorioPage() {
 
   const abrir = async (m: Musica) => {
     setErro(null);
-    const arquivo = await lerArquivo(m.id).catch(() => undefined);
-    if (!arquivo) { setErro("O áudio dessa música não está mais neste aparelho. Exclua e envie de novo."); return; }
-    setAberta({ musica: m, arquivo });
+    setAbrindo(m.id);
+    try { setAberta(await abrirMusica(m, semConta)); }
+    catch (e) { setErro(e instanceof Error ? e.message : "Não deu para abrir a música."); }
+    finally { setAbrindo(null); }
   };
 
-  const salvar = useCallback(async (m: Musica) => { await salvarMusica(m).catch(() => undefined); }, []);
+  // cada mudança: no aparelho na hora e na conta logo depois
+  const salvar = useCallback(async (m: Musica) => {
+    const salva = await salvarMusica(m).catch(() => null);
+    if (salva) guardarNaConta(salva);
+  }, []);
 
   if (aberta) {
     return (
@@ -103,11 +132,14 @@ export default function RepertorioPage() {
         className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white p-8 text-center hover:bg-slate-50 disabled:opacity-60">
         {enviando ? <Loader2 className="h-9 w-9 animate-spin text-slate-400" /> : <Upload className="h-9 w-9 text-slate-400" />}
         <span className="text-base font-bold text-slate-700">Enviar uma música</span>
-        <span className="max-w-md text-xs text-slate-500">MP3, WAV, M4A, OGG ou FLAC, até {LIMITE_MB} MB. Reconheço o tom, o BPM, os acordes e o baixo; dá para mudar o tom e o andamento, separar as faixas e tocar junto com a cifra. Fica guardada só neste aparelho.</span>
+        <span className="max-w-md text-xs text-slate-500">MP3, WAV, M4A, OGG ou FLAC, até {LIMITE_MB} MB. Reconheço o tom, o BPM, os acordes e o baixo; dá para mudar o tom e o andamento, separar as faixas e tocar junto com a cifra. Fica na sua conta (até 15 MB por música) e abre em qualquer aparelho.</span>
       </button>
       {erro && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
-      <h2 className="mb-2 mt-6 text-[10px] font-bold uppercase tracking-wider text-slate-400">Músicas neste aparelho</h2>
+      {semConta && <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">Sem conexão com a conta agora: mostrando só as músicas deste aparelho.</p>}
+      <h2 className="mb-2 mt-6 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Minhas músicas
+        {uso && <span className="font-normal normal-case tracking-normal text-slate-400">· na conta: {uso}</span>}
+      </h2>
       {musicas === null ? (
         <p className="flex items-center gap-2 p-4 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Carregando…</p>
       ) : musicas.length === 0 ? (
@@ -118,7 +150,7 @@ export default function RepertorioPage() {
             <li key={m.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 hover:border-blue-300">
               <button type="button" onClick={() => void abrir(m)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Abrir ${m.titulo}`}>
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-red-500 text-sm font-bold text-white">
-                  {m.analise ? nomeDoTom(m.analise.tom).cifra : <Music className="h-5 w-5" />}
+                  {abrindo === m.id ? <Loader2 className="h-5 w-5 animate-spin" /> : m.analise ? nomeDoTom(m.analise.tom).cifra : <Music className="h-5 w-5" />}
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-bold text-slate-800">{m.titulo}</span>
@@ -127,8 +159,9 @@ export default function RepertorioPage() {
                   </span>
                 </span>
               </button>
+              <SeloConta situacao={situacao.get(m.id)} />
               <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Excluir ${m.titulo}`}
-                onClick={async () => { if (window.confirm(`Excluir "${m.titulo}" deste aparelho?`)) { await excluirMusica(m.id).catch(() => undefined); void carregar(); } }}>
+                onClick={async () => { if (window.confirm(`Excluir "${m.titulo}"? Ela sai deste aparelho e da sua conta.`)) { await excluirMusica(m.id); void carregar(); } }}>
                 <Trash2 className="h-4 w-4" />
               </button>
             </li>
@@ -138,4 +171,13 @@ export default function RepertorioPage() {
       </>)}
     </div>
   );
+}
+
+/** Onde a música está guardada. */
+function SeloConta({ situacao }: { situacao: SituacaoConta | undefined }) {
+  if (!situacao) return null;
+  if (situacao === "na-conta") return <span title="Na sua conta: abre em qualquer aparelho" className="p-1 text-emerald-600"><Cloud className="h-4 w-4" aria-label="Na conta" /></span>;
+  if (situacao === "enviando") return <span title="Enviando para a sua conta" className="p-1 text-blue-500"><Loader2 className="h-4 w-4 animate-spin" aria-label="Enviando para a conta" /></span>;
+  if (situacao === "so-aparelho") return <span title="Só neste aparelho: o áudio passa de 15 MB" className="p-1 text-amber-600"><CloudOff className="h-4 w-4" aria-label="Só neste aparelho" /></span>;
+  return <span title="Não deu para enviar para a conta; tento de novo na próxima vez" className="p-1 text-red-500"><AlertTriangle className="h-4 w-4" aria-label="Falhou ao enviar" /></span>;
 }

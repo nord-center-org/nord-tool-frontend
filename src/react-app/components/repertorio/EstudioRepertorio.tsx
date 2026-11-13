@@ -10,7 +10,8 @@ import {
   novaFaixa, novoProjeto, temposDoProjeto, timbre as dadosTimbre, type Faixa, type NotaEstudio, type Projeto, type Timbre,
 } from "@/react-app/utils/musica/estudio";
 import { corDaNota, ehPreta } from "@/react-app/utils/musica/instrumentos";
-import { AJUSTES_PADRAO, excluirProjeto, listarProjetos, salvarArquivo, salvarMusica, salvarProjeto, type Musica } from "@/react-app/utils/musica/repertorioDb";
+import { AJUSTES_PADRAO, salvarArquivo, salvarMusica, type Musica } from "@/react-app/utils/musica/repertorioDb";
+import { abrirProjeto, enviarMusica, excluirProjeto, guardarProjeto, sincronizarProjetos } from "@/react-app/components/repertorio/sincronizacao";
 import { nomeDaNota } from "@/react-app/utils/musica/teoria";
 
 const botao = "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40";
@@ -29,9 +30,12 @@ export default function EstudioRepertorio({ onMandado }: { onMandado: (m: Musica
   const [projetos, setProjetos] = useState<Projeto[] | null>(null);
   const [aberto, setAberto] = useState<Projeto | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [semConta, setSemConta] = useState(false);
 
+  // v7: as criações da conta (de qualquer aparelho) junto com as deste aparelho
   const carregar = useCallback(async () => {
-    try { setProjetos(await listarProjetos()); } catch (e) { setErro(e instanceof Error ? e.message : "Não deu para ler os projetos."); setProjetos([]); }
+    try { const r = await sincronizarProjetos(); setProjetos(r.projetos); setSemConta(r.semConta); }
+    catch (e) { setErro(e instanceof Error ? e.message : "Não deu para ler os projetos."); setProjetos([]); }
   }, []);
   useEffect(() => { void carregar(); }, [carregar]);
 
@@ -39,8 +43,7 @@ export default function EstudioRepertorio({ onMandado }: { onMandado: (m: Musica
     const p = novoProjeto(`Música ${((projetos?.length ?? 0) + 1)}`);
     // começa com bateria e baixo, a base mais comum; dá para tirar ou trocar
     p.faixas = [novaFaixa("bateria"), novaFaixa("baixo")];
-    await salvarProjeto(p).catch(() => undefined);
-    setAberto(p);
+    setAberto(await guardarProjeto(p).catch(() => p));
   };
 
   if (aberto) return <EditorProjeto inicial={aberto} onVoltar={() => { setAberto(null); void carregar(); }} onMandado={onMandado} />;
@@ -51,9 +54,10 @@ export default function EstudioRepertorio({ onMandado }: { onMandado: (m: Musica
         className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white p-6 text-center hover:bg-slate-50">
         <Plus className="h-8 w-8 text-slate-400" />
         <span className="text-base font-bold text-slate-700">Criar uma música</span>
-        <span className="max-w-md text-xs text-slate-500">Adicione as faixas uma por uma (bateria, baixo, teclado, violão, sintetizador), escreva as notas na grade ou grave tocando. Fica guardada só neste aparelho.</span>
+        <span className="max-w-md text-xs text-slate-500">Adicione as faixas uma por uma (bateria, baixo, teclado, violão, sintetizador), escreva as notas na grade ou grave tocando. Fica guardada na sua conta: abre em qualquer aparelho.</span>
       </button>
       {erro && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+      {semConta && <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">Sem conexão com a conta agora: mostrando só as criações deste aparelho.</p>}
       <h2 className="mb-2 mt-6 text-[10px] font-bold uppercase tracking-wider text-slate-400">Minhas criações</h2>
       {projetos === null ? (
         <p className="flex items-center gap-2 p-4 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Carregando…</p>
@@ -63,7 +67,7 @@ export default function EstudioRepertorio({ onMandado }: { onMandado: (m: Musica
         <ul className="grid gap-2 sm:grid-cols-2" aria-label="Criações">
           {projetos.map(p => (
             <li key={p.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 hover:border-violet-300">
-              <button type="button" onClick={() => setAberto(p)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Abrir ${p.titulo}`}>
+              <button type="button" onClick={async () => setAberto((await abrirProjeto(p.id, semConta).catch(() => null)) ?? p)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Abrir ${p.titulo}`}>
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white"><Music className="h-5 w-5" /></span>
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-bold text-slate-800">{p.titulo}</span>
@@ -71,7 +75,7 @@ export default function EstudioRepertorio({ onMandado }: { onMandado: (m: Musica
                 </span>
               </button>
               <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Excluir ${p.titulo}`}
-                onClick={async () => { if (window.confirm(`Excluir "${p.titulo}" deste aparelho?`)) { await excluirProjeto(p.id).catch(() => undefined); void carregar(); } }}>
+                onClick={async () => { if (window.confirm(`Excluir "${p.titulo}"? Ela sai deste aparelho e da sua conta.`)) { await excluirProjeto(p.id); void carregar(); } }}>
                 <Trash2 className="h-4 w-4" />
               </button>
             </li>
@@ -129,7 +133,8 @@ function EditorProjeto({ inicial, onVoltar, onMandado }: { inicial: Projeto; onV
   useEffect(() => { tocador.current?.atualizar(p); }, [p, tocadorPronto]);
   useEffect(() => { if (tocador.current) { tocador.current.laco = laco && !gravando; tocador.current.metronomo = metronomo; } }, [laco, metronomo, gravando, tocadorPronto]);
   // salva sozinho
-  useEffect(() => { const t = window.setTimeout(() => void salvarProjeto(p).catch(() => setAviso("Não deu para salvar no aparelho.")), 500); return () => window.clearTimeout(t); }, [p]);
+  // salva sozinho: no aparelho e, logo depois, na conta
+  useEffect(() => { const t = window.setTimeout(() => void guardarProjeto(p).catch(() => setAviso("Não deu para salvar no aparelho.")), 500); return () => window.clearTimeout(t); }, [p]);
 
   const terminarGravacao = useCallback(() => {
     if (!gravando && !gravadas.current.length) return;
@@ -199,9 +204,12 @@ function EditorProjeto({ inicial, onVoltar, onMandado }: { inicial: Projeto; onV
         const m: Musica = {
           id: `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`, titulo: p.titulo, artista: "Criada no NordTool", criadaEm: agora, atualizadaEm: agora,
           nomeArquivo: `${p.titulo}.wav`, tamanho: wav.size, duracao: 0, analise: null, cifra: "", tempos: null, ajustes: { ...AJUSTES_PADRAO },
+          // v7: na conta vai só a referência à criação; o áudio é refeito dela em outro aparelho
+          projeto: p.id,
         };
+        await guardarProjeto(p);
         await salvarArquivo(m.id, wav);
-        await salvarMusica(m);
+        void enviarMusica(await salvarMusica(m), false).catch(() => undefined);
         tocador.current?.parar();
         onMandado(m, wav);
       } else {

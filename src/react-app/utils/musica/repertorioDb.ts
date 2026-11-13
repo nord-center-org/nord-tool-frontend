@@ -29,6 +29,10 @@ export interface Musica {
   /** Início (s) de cada bloco da cifra; null = calcula pelos acordes. */
   tempos: (number | null)[] | null;
   ajustes: AjustesMusica;
+  /** v7: música gerada no estúdio (chave da criação): o áudio é refeito a partir dela em outro aparelho. */
+  projeto?: string;
+  /** v7: já esteve na conta. Se sumir de lá, foi excluída em outro aparelho (e sai deste também). */
+  sincronizada?: boolean;
 }
 
 export const AJUSTES_PADRAO: AjustesMusica = { semitons: 0, andamento: 1, instrumento: "baixo4", semitonsCifra: 0 };
@@ -68,12 +72,22 @@ async function operar<T>(modo: IDBTransactionMode, fazer: (loja: IDBObjectStore)
 
 export const listarMusicas = async () => (await operar<Musica[]>("readonly", l => l.getAll() as IDBRequest<Musica[]>)).sort((a, b) => b.atualizadaEm.localeCompare(a.atualizadaEm));
 export const lerMusica = (id: string) => operar<Musica | undefined>("readonly", l => l.get(id) as IDBRequest<Musica | undefined>);
-export const salvarMusica = (m: Musica) => operar("readwrite", l => l.put({ ...m, atualizadaEm: new Date().toISOString() }));
+/** Salva e devolve a música salva (com a data nova; `manterData` guarda como veio, ex.: trazida da conta). */
+export async function salvarMusica(m: Musica, manterData = false): Promise<Musica> {
+  // a marca "já esteve na conta" é do aparelho: quem salva sem saber dela (o player) não a apaga
+  const marca = m.sincronizada ?? (await lerMusica(m.id).catch(() => undefined))?.sincronizada;
+  const base = marca ? { ...m, sincronizada: true } : m;
+  const salva = manterData ? base : { ...base, atualizadaEm: new Date().toISOString() };
+  await operar("readwrite", l => l.put(salva));
+  return salva;
+}
 export async function excluirMusica(id: string) {
   await operar("readwrite", l => l.delete(id));
   await operar("readwrite", l => l.delete(id), ARQUIVOS);
 }
 export const salvarArquivo = (id: string, arquivo: Blob) => operar("readwrite", l => l.put(arquivo, id), ARQUIVOS);
+/** v7: quais músicas têm o áudio neste aparelho. */
+export const idsComArquivo = async () => new Set((await operar<IDBValidKey[]>("readonly", l => l.getAllKeys(), ARQUIVOS)).map(String));
 export const lerArquivo = (id: string) => operar<Blob | undefined>("readonly", l => l.get(id) as IDBRequest<Blob | undefined>, ARQUIVOS);
 
 /** Título e artista a partir do nome do arquivo ("Artista - Música.mp3"). */
@@ -88,5 +102,12 @@ export function tituloDoArquivo(nome: string): { titulo: string; artista: string
 
 export const listarProjetos = async () => (await operar<unknown[]>("readonly", l => l.getAll(), PROJETOS))
   .flatMap(b => { const p = lerProjeto(b); return p ? [p] : []; }).sort((a, b) => b.atualizadoEm.localeCompare(a.atualizadoEm));
-export const salvarProjeto = (p: Projeto) => operar("readwrite", l => l.put({ ...p, atualizadoEm: new Date().toISOString() }), PROJETOS);
+export async function salvarProjeto(p: Projeto, manterData = false): Promise<Projeto> {
+  const marca = p.sincronizado ?? (await lerProjetoLocal(p.id).catch(() => null))?.sincronizado;
+  const base = marca ? { ...p, sincronizado: true } : p;
+  const salvo = manterData ? base : { ...base, atualizadoEm: new Date().toISOString() };
+  await operar("readwrite", l => l.put(salvo), PROJETOS);
+  return salvo;
+}
+export const lerProjetoLocal = async (id: string) => lerProjeto(await operar<unknown>("readonly", l => l.get(id), PROJETOS));
 export const excluirProjeto = (id: string) => operar("readwrite", l => l.delete(id), PROJETOS);

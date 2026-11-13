@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-13-repertorio-conta",
+    data: "2026-11-13",
+    titulo: "Repertório em qualquer aparelho",
+    texto: "As músicas do Repertório (com a cifra, os ajustes e a análise) e as criações da aba Criar agora ficam na sua conta: abra no celular o que você subiu no computador. As que já estavam neste aparelho sobem sozinhas (até 15 MB cada).",
+    onde: { rotulo: "Gestão Individual → Repertório", caminho: "/gestao/repertorio" },
+  },
+  {
     id: "2026-11-13-repertorio-criar",
     data: "2026-11-13",
     titulo: "Repertório: instrumento online e aba Criar",

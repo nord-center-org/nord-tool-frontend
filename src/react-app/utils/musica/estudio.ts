@@ -56,6 +56,8 @@ export interface Projeto {
   faixas: Faixa[];
   criadoEm: string;
   atualizadoEm: string;
+  /** v7: já esteve na conta (se sumir de lá, foi excluída em outro aparelho). */
+  sincronizado?: boolean;
 }
 
 export const TEMPOS_POR_COMPASSO = 4;
@@ -223,5 +225,6 @@ export function lerProjeto(bruto: unknown): Projeto | null {
     id: o.id, titulo: typeof o.titulo === "string" && o.titulo.trim() ? o.titulo.slice(0, 80) : "Música nova",
     bpm: limitar(Math.round(num(o.bpm, 100)), LIMITES.bpmMin, LIMITES.bpmMax), compassos, faixas,
     criadoEm: typeof o.criadoEm === "string" ? o.criadoEm : agora, atualizadoEm: typeof o.atualizadoEm === "string" ? o.atualizadoEm : agora,
+    ...(o.sincronizado === true ? { sincronizado: true } : {}),
   };
 }
