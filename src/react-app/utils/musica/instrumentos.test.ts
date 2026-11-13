@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { INSTRUMENTOS, digitar, eventosParaTocar, formaDoAcorde, instrumento, naFaixa, posicoes, vozesNoTeclado } from "./instrumentos.ts";
+import { INSTRUMENTOS, corDaNota, digitar, janelaDoMapa, eventosParaTocar, formaDoAcorde, instrumento, naFaixa, posicoes, vozesNoTeclado } from "./instrumentos.ts";
 
 const BAIXO = instrumento("baixo4");
 
@@ -38,4 +38,20 @@ test("o que cai na tela segue o instrumento e o tom", () => {
   assert.equal(violao.length, 5, "C aberto: 5 cordas");
   const teclado = eventosParaTocar(instrumento("teclado"), notas, acordes, 0);
   assert.deepEqual(teclado.map(e => e.midi), [48, 60, 64, 67]);
+});
+
+test("v4: cor da nota pela letra, o sustenido na cor da letra", () => {
+  assert.equal(corDaNota("C").fundo, corDaNota("C#").fundo);
+  assert.equal(corDaNota("Db").fundo, corDaNota("D").fundo);
+  assert.notEqual(corDaNota("C").fundo, corDaNota("D").fundo);
+  assert.equal(new Set(["C", "D", "E", "F", "G", "A", "B"].map(l => corDaNota(l).fundo)).size, 7);
+  assert.equal(corDaNota("E").texto, "#3b2a00", "texto escuro no amarelo");
+});
+
+test("v4: janela de casas do mapa acompanha a nota tocando", () => {
+  assert.deepEqual(janelaDoMapa(20, 12, []), { inicio: 1, n: 12 });
+  assert.deepEqual(janelaDoMapa(20, 12, [5, 0]), { inicio: 1, n: 12 });
+  assert.deepEqual(janelaDoMapa(20, 12, [15]), { inicio: 4, n: 12 });
+  assert.deepEqual(janelaDoMapa(20, 12, [20]), { inicio: 9, n: 12 });
+  assert.deepEqual(janelaDoMapa(12, 30, [12]), { inicio: 1, n: 12 });
 });

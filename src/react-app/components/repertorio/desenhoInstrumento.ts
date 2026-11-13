@@ -2,7 +2,7 @@
  * Desenho do instrumento no canvas, no estilo dos vídeos de piano: as notas descem e, quando chegam ao braço (ou ao
  * teclado), acendem no lugar onde se toca. O braço fica deitado, com a corda mais grave embaixo, como na tablatura.
  */
-import { ehPreta, type EventoQueda, type Instrumento } from "@/react-app/utils/musica/instrumentos";
+import { corDaNota, ehPreta, janelaDoMapa, type EventoQueda, type Instrumento } from "@/react-app/utils/musica/instrumentos";
 import { nomeDaNota } from "@/react-app/utils/musica/teoria";
 
 export interface Cena {
@@ -217,4 +217,130 @@ function arredondado(ctx: CanvasRenderingContext2D, x: number, y: number, w: num
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
+}
+
+// ---------------------------------------------------------------- v4: mapa do braço
+
+/** Notas tocando agora e as que chegam em seguida (no máximo uma por corda/casa). */
+function notasDoMomento(eventos: EventoQueda[], t: number) {
+  const ativos: EventoQueda[] = [], proximos: EventoQueda[] = [];
+  for (let i = primeiroVisivel(eventos, t, 10); i < eventos.length; i++) {
+    const e = eventos[i];
+    if (e.inicio > t + ANTECIPA) break;
+    if (e.fim < t) continue;
+    if (e.inicio <= t) ativos.push(e);
+    else if (!proximos.some(p => p.corda === e.corda && p.casa === e.casa)) proximos.push(e);
+  }
+  return { ativos, proximos: proximos.filter(p => !ativos.some(a => a.corda === p.corda && a.casa === p.casa)) };
+}
+
+/**
+ * Mapa do braço em pé, como os mapas de notas impressos: a pestana em cima com o nome das cordas (a mais grave à
+ * esquerda), as casas descendo e, em cada uma, a nota numa bolinha com a cor da letra. Tocando, a nota da vez cresce e
+ * ganha um anel branco; a próxima ganha um anel tracejado. Só para instrumentos de corda.
+ */
+export function desenharMapa(ctx: CanvasRenderingContext2D, w: number, h: number, cena: Cena, t: number) {
+  const { instrumento: ins, escuro } = cena;
+  const fundo = escuro ? "#0f172a" : "#ffffff", tinta = escuro ? "#e2e8f0" : "#334155";
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = fundo;
+  ctx.fillRect(0, 0, w, h);
+  const n = ins.cordas.length;
+  if (!n) return;
+  const nome = (m: number) => nomeDaNota(m, cena.bemol);
+  const { ativos, proximos } = notasDoMomento(cena.eventos, t);
+
+  // acorde da vez em cima
+  const topoAcorde = 26;
+  if (cena.acordeAtual) {
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#f97316"; ctx.font = "bold 18px sans-serif"; ctx.fillText(cena.acordeAtual, 8, 19);
+    const lg = ctx.measureText(cena.acordeAtual).width;
+    if (cena.proximoAcorde) { ctx.fillStyle = tinta; ctx.globalAlpha = 0.6; ctx.font = "bold 12px sans-serif"; ctx.fillText(`→ ${cena.proximoAcorde}`, 16 + lg, 18); ctx.globalAlpha = 1; }
+  }
+
+  // geometria: braço centralizado, colunas iguais por corda, a pestana e as casas
+  const margemNumero = 22;
+  const largBraco = Math.min(w - margemNumero * 2 - 8, n * 58);
+  const x0 = (w - largBraco) / 2;
+  const coluna = largBraco / n;
+  const xCorda = (c: number) => x0 + coluna * (c + 0.5);
+  const altPestana = 30;
+  const yPestana = topoAcorde;
+  const yCasas = yPestana + altPestana;
+  const linhaMin = 24;
+  const cabem = Math.max(1, Math.floor((h - yCasas - 4) / linhaMin));
+  const emUso = [...ativos, ...proximos].map(e => e.casa ?? 0);
+  const { inicio, n: mostradas } = janelaDoMapa(cena.casas, cabem, emUso);
+  const linha = (h - yCasas - 4) / mostradas;
+  const yCasa = (f: number) => yCasas + (f - inicio + 0.5) * linha;
+  const raio = Math.max(7, Math.min(coluna * 0.36, linha * 0.42, 20));
+
+  // madeira do braço e a pestana (ou a casa de cima, quando a janela desce)
+  ctx.fillStyle = escuro ? "#1e293b" : "#f8fafc";
+  ctx.fillRect(x0, yCasas, largBraco, linha * mostradas);
+  ctx.fillStyle = escuro ? "#7c5a35" : "#e9c48f";
+  ctx.fillRect(x0 - 6, yPestana, largBraco + 12, altPestana);
+  ctx.fillStyle = escuro ? "#e2e8f0" : "#ffffff";
+  ctx.fillRect(x0 - 6, yCasas - 3, largBraco + 12, inicio === 1 ? 4 : 1);
+
+  // trastes e números das casas
+  ctx.textAlign = "right";
+  for (let k = 0; k <= mostradas; k++) {
+    const y = yCasas + k * linha;
+    ctx.fillStyle = escuro ? "#475569" : "#1f2937";
+    ctx.fillRect(x0, y - 0.75, largBraco, 1.5);
+    if (k < mostradas) { ctx.fillStyle = tinta; ctx.globalAlpha = 0.7; ctx.font = "10px sans-serif"; ctx.fillText(String(inicio + k), x0 - 8, y + linha / 2 + 3); ctx.globalAlpha = 1; }
+  }
+  // marcações (3, 5, 7, 9, 12…) entre as cordas do meio
+  ctx.fillStyle = escuro ? "#64748b" : "#475569";
+  for (let f = inicio; f < inicio + mostradas; f++) {
+    if (![3, 5, 7, 9, 12, 15, 17, 19, 21].includes(f)) continue;
+    const y = yCasa(f), meio = x0 + largBraco / 2;
+    const r = Math.max(3, Math.min(6, linha * 0.14));
+    if (f === 12) { ctx.beginPath(); ctx.arc(meio - coluna, y, r, 0, 7); ctx.arc(meio + coluna, y, r, 0, 7); ctx.fill(); }
+    else { ctx.beginPath(); ctx.arc(meio + (n % 2 ? coluna / 2 : 0), y, r, 0, 7); ctx.fill(); }
+  }
+  // cordas (mais grossas no grave) e o nome de cada uma na pestana
+  for (let c = 0; c < n; c++) {
+    const x = xCorda(c);
+    ctx.strokeStyle = escuro ? "#94a3b8" : "#6b7280"; ctx.lineWidth = 1 + (n - c) * 0.45;
+    ctx.beginPath(); ctx.moveTo(x, yCasas - 2); ctx.lineTo(x, yCasas + linha * mostradas); ctx.stroke();
+  }
+
+  const ativo = (c: number, f: number) => ativos.some(e => (e.corda ?? 0) === c && (e.casa ?? 0) === f);
+  const proximo = (c: number, f: number) => proximos.some(e => (e.corda ?? 0) === c && (e.casa ?? 0) === f);
+  const bolinha = (x: number, y: number, r: number, txt: string, acesa: boolean, vem: boolean) => {
+    const cor = corDaNota(txt);
+    ctx.save();
+    if (acesa) { ctx.shadowColor = cor.fundo; ctx.shadowBlur = 18; }
+    ctx.globalAlpha = acesa || vem || !ativos.length ? 1 : 0.8;
+    ctx.fillStyle = cor.fundo;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    ctx.restore();
+    if (acesa) { ctx.strokeStyle = escuro ? "#f8fafc" : "#111827"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, r + 2.5, 0, 7); ctx.stroke(); }
+    else if (vem) { ctx.strokeStyle = cor.fundo; ctx.lineWidth = 2; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.arc(x, y, r + 4, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+    ctx.fillStyle = cor.texto;
+    ctx.font = `bold ${Math.max(8, Math.min(r * (txt.length > 1 ? 0.85 : 1.05), 15))}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(txt, x, y + r * 0.34);
+  };
+
+  // pestana: as cordas soltas
+  for (let c = 0; c < n; c++) {
+    const txt = nome(ins.cordas[c]);
+    const acesa = ativo(c, 0), vem = proximo(c, 0);
+    if (acesa || vem) bolinha(xCorda(c), yPestana + altPestana / 2, Math.min(raio, altPestana * 0.42), txt, acesa, vem);
+    else {
+      ctx.fillStyle = escuro ? "#fde68a" : "#7c4a2d"; ctx.font = "bold 13px sans-serif"; ctx.textAlign = "center";
+      ctx.fillText(txt, xCorda(c), yPestana + altPestana / 2 + 4.5);
+    }
+  }
+  // todas as casas
+  for (let f = inicio; f < inicio + mostradas; f++) {
+    for (let c = 0; c < n; c++) {
+      const acesa = ativo(c, f);
+      bolinha(xCorda(c), yCasa(f), acesa ? raio * 1.15 : raio, nome(ins.cordas[c] + f), acesa, proximo(c, f));
+    }
+  }
 }
