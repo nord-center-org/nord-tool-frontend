@@ -645,7 +645,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       cabecalho("Repertório", "Suas músicas para tocar junto, guardadas neste aparelho."),
       {
         titulo: "Enviar uma música",
-        texto: "Escolha ou arraste um MP3, WAV, M4A, OGG ou FLAC. Ao abrir, reconheço o tom, o BPM, os acordes e as notas do baixo.",
+        texto: "Escolha ou arraste um MP3, WAV, M4A, OGG ou FLAC. Ao abrir, reconheço o tom, o BPM, os acordes e as notas do baixo. A música vai para a sua conta (até 15 MB cada) e abre em qualquer aparelho, com a cifra e os ajustes; a nuvem verde mostra o que já está na conta.",
         alvo: { css: "button", texto: "Enviar uma música" },
       },
       {
