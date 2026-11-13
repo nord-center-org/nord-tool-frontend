@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-13-repertorio-mapa-braco",
+    data: "2026-11-13",
+    titulo: "Repertório: mapa do braço com as notas coloridas",
+    texto: "No baixo (4 ou 5 cordas) e no violão, toque em “Mapa do braço” para ver o braço em pé com todas as notas, cada uma na cor da letra (C verde, D vermelho, E amarelo…). Tocando a música, a nota da vez acende com um anel e a próxima fica tracejada.",
+    onde: { rotulo: "Gestão Individual → Repertório", caminho: "/gestao/repertorio" },
+  },
+  {
     id: "2026-11-13-caderno-zoom-pdf",
     data: "2026-11-13",
     titulo: "Caderno: zoom de projeto, rodinha do mouse e PDF na barra",

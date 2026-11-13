@@ -191,3 +191,35 @@ export function eventosParaTocar(ins: Instrumento, notasBaixo: Nota[], acordes: 
   }
   return ev.sort((a, b) => a.inicio - b.inicio);
 }
+
+// ---------------------------------------------------------------- mapa do braço (v4)
+
+/**
+ * v4: cor de cada nota no mapa do braço, pela letra (como nos mapas de notas impressos): C verde, D vermelho, E
+ * amarelo, F azul, G rosa, A marrom, B grafite. O sustenido fica na cor da letra dele (C# verde); com bemol, na letra
+ * escrita (Db vermelho), para a cor bater com o nome que aparece.
+ */
+export const CORES_DAS_LETRAS: Record<string, { fundo: string; texto: string }> = {
+  C: { fundo: "#5fa83a", texto: "#ffffff" },
+  D: { fundo: "#d83a34", texto: "#ffffff" },
+  E: { fundo: "#f5bf1f", texto: "#3b2a00" },
+  F: { fundo: "#2f8fc7", texto: "#ffffff" },
+  G: { fundo: "#b5406f", texto: "#ffffff" },
+  A: { fundo: "#8a5a3c", texto: "#ffffff" },
+  B: { fundo: "#3f4247", texto: "#ffffff" },
+};
+
+export function corDaNota(nome: string) {
+  return CORES_DAS_LETRAS[nome.charAt(0).toUpperCase()] ?? CORES_DAS_LETRAS.B;
+}
+
+/**
+ * Quais casas o mapa mostra quando nem todas cabem: começa na 1 e só anda para baixo se uma nota tocando (ou a
+ * próxima) cair além da última que cabe, deixando-a na última linha. Devolve a primeira casa e quantas mostrar.
+ */
+export function janelaDoMapa(casasTotal: number, cabem: number, casasEmUso: number[]) {
+  const n = Math.max(1, Math.min(casasTotal, cabem));
+  const maior = Math.max(0, ...casasEmUso);
+  const inicio = maior > n ? Math.min(casasTotal - n + 1, maior - n + 1) : 1;
+  return { inicio, n };
+}
