@@ -8,11 +8,15 @@ export interface PreferenciasRepertorio {
   todasNotas: boolean;
   /** v4: como o instrumento aparece — as notas caindo ou o mapa do braço com todas as notas coloridas. */
   vista: VistaInstrumento;
+  /** v5: o sintetizador toca as notas do instrumento junto com a música. */
+  sintetizador: boolean;
+  /** v5: volume do sintetizador (0 a 1,5). */
+  volumeSintetizador: number;
 }
 
 export type VistaInstrumento = "queda" | "mapa";
 
-export const PREFERENCIAS_PADRAO: PreferenciasRepertorio = { todasNotas: false, vista: "queda" };
+export const PREFERENCIAS_PADRAO: PreferenciasRepertorio = { todasNotas: false, vista: "queda", sintetizador: false, volumeSintetizador: 0.7 };
 export const CHAVE_PREFERENCIAS = "@NordTool:repertorio";
 
 export function lerPreferencias(storage: Pick<Storage, "getItem"> | undefined): PreferenciasRepertorio {
@@ -24,6 +28,9 @@ export function lerPreferencias(storage: Pick<Storage, "getItem"> | undefined): 
     return {
       todasNotas: typeof o.todasNotas === "boolean" ? o.todasNotas : PREFERENCIAS_PADRAO.todasNotas,
       vista: o.vista === "mapa" || o.vista === "queda" ? o.vista : PREFERENCIAS_PADRAO.vista,
+      sintetizador: typeof o.sintetizador === "boolean" ? o.sintetizador : PREFERENCIAS_PADRAO.sintetizador,
+      volumeSintetizador: typeof o.volumeSintetizador === "number" && Number.isFinite(o.volumeSintetizador)
+        ? Math.max(0, Math.min(1.5, o.volumeSintetizador)) : PREFERENCIAS_PADRAO.volumeSintetizador,
     };
   } catch {
     return { ...PREFERENCIAS_PADRAO };
