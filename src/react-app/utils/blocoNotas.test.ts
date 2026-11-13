@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  acrescentarPonto, adensar, alturaTexto, apagarItens, apagarParcial, caixaDoItem, compactar, dentroDoPoligono, duplicarItens, escalarItens,
+  ZOOM_MAX, ZOOM_MIN, acrescentarPonto, correcaoDaRolagem, limitarZoom, zoomDaRoda, adensar, alturaTexto, apagarItens, apagarParcial, caixaDoItem, compactar, dentroDoPoligono, duplicarItens, escalarItens,
   formaDoArrasto, itemNoPonto, itensNoLaco, larguraNaPressao, lerConteudo, linhasDoFundo, linhasDoTexto, moverItens, nomeArquivoCaderno,
   pintarItens, pontasDaSeta, pontosDoFundo, pressao, registrar, tamanhoDaPaginaPdf, tituloDoPdf, tocaItem, type Item, type Traco,
 } from "./blocoNotas.ts";
@@ -292,4 +292,21 @@ test("v2: planilha vira tabelas com o cabeçalho repetido", () => {
   assert.ok(html.startsWith("<h3>Plan&lt;1&gt;</h3>"));
   assert.match(planilhaParaHtml("p", [["a"], ["b"], ["c"]], 10, 2), /mais 1 linha/);
   assert.equal(planilhaParaHtml("p", []), "");
+});
+
+test("v6: zoom vai de 10% a 1600% e a rodinha muda proporcional ao giro", () => {
+  assert.equal(limitarZoom(40), ZOOM_MAX);
+  assert.equal(limitarZoom(0.01), ZOOM_MIN);
+  assert.equal(limitarZoom(Number.NaN), 1);
+  assert.ok(zoomDaRoda(1, -100) > 1 && zoomDaRoda(1, 100) < 1, "para cima aproxima, para baixo afasta");
+  assert.ok(Math.abs(zoomDaRoda(zoomDaRoda(1, -100), 100) - 1) < 1e-9, "ida e volta voltam ao mesmo zoom");
+  assert.equal(zoomDaRoda(1, -100000), 2, "um evento muda no máximo 2×");
+  assert.equal(zoomDaRoda(1, 3, 1), zoomDaRoda(1, 48, 0), "rodinha em linhas vira px");
+  assert.equal(zoomDaRoda(15, -1000), ZOOM_MAX);
+});
+
+test("v6: o ponto embaixo do cursor fica embaixo dele depois do zoom", () => {
+  // folha a 100 px da borda, ponto (200, 50) da folha; com zoom 3 ele iria para 100 + 600 = 700; cursor em 300
+  assert.deepEqual(correcaoDaRolagem({ left: 100, top: 20 }, { x: 200, y: 50 }, 3, { x: 300, y: 120 }), { dx: 400, dy: 50 });
+  assert.deepEqual(correcaoDaRolagem({ left: 0, top: 0 }, { x: 10, y: 10 }, 1, { x: 10, y: 10 }), { dx: 0, dy: 0 });
 });

@@ -27,6 +27,8 @@ export interface ConfigFerramenta {
   tamanhoTexto: number;
   /** Só a caneta (stylus) desenha; o dedo rola a página. */
   soCaneta: boolean;
+  /** v6: a rodinha do mouse dá zoom (como no CAD); desligado, ela rola e o zoom é com Ctrl. */
+  rodaZoom: boolean;
 }
 
 interface Props {
@@ -238,18 +240,21 @@ export default function PaginaVista({ pagina, numero, itens, zoom, config, selec
     setTexto(t);
   };
 
+  /** v6: os itens como ficaram ao fechar a caixa de texto (o gesto que a fechou continua a partir deles). */
+  const depoisDoTexto = useRef<Item[] | null>(null);
   const fecharTexto = (t: Texto | null) => {
     setTexto(null);
     if (!t || !itens) return;
     const existe = itens.some(i => i.id === t.id);
     const vazio = !t.txt.trim();
     if (vazio) {
-      if (existe) onItens(itens.filter(i => i.id !== t.id));
+      if (existe) { depoisDoTexto.current = itens.filter(i => i.id !== t.id); onItens(depoisDoTexto.current); }
       return;
     }
     const antigo = itens.find(i => i.id === t.id) as Texto | undefined;
     if (antigo && JSON.stringify(antigo) === JSON.stringify(t)) return;
-    onItens(existe ? itens.map(i => (i.id === t.id ? t : i)) : [...itens, t]);
+    depoisDoTexto.current = existe ? itens.map(i => (i.id === t.id ? t : i)) : [...itens, t];
+    onItens(depoisDoTexto.current);
   };
 
   const aoDescer = (e: PE<HTMLCanvasElement>) => {
@@ -258,26 +263,35 @@ export default function PaginaVista({ pagina, numero, itens, zoom, config, selec
     e.currentTarget.setPointerCapture(e.pointerId);
     const p = ponto(e);
     const f = config.ferramenta;
-    if (texto) { editorTexto.current?.terminar(); return; }
+    // v6: tocar fora da caixa de texto fecha o texto e o toque já vale para a ferramenta (antes ele só fechava a
+    // caixa e o primeiro traço se perdia). Com a ferramenta Texto, o toque fora só fecha.
+    let base = itens;
+    if (texto) {
+      depoisDoTexto.current = null;
+      editorTexto.current?.terminar();
+      if (f === "texto") return;
+      base = depoisDoTexto.current ?? base;
+    }
+    if (!base) return;
     if (f === "caneta" || f === "marca") {
       const marca = f === "marca";
       gesto.current = { tipo: "traco", item: { t: "tr", id: novoId(), c: marca ? config.corMarca : config.cor, w: marca ? config.espessuraMarca : config.espessura, ...(marca ? { marca: true } : {}), p: [p.x, p.y, pressao(e.pointerType, e.pressure)] } };
       onSelecao(new Set());
     } else if (f === "borracha") {
-      const atual = config.borracha === "parcial" ? apagarParcial(itens, p.x, p.y, config.raioBorracha) : apagarItens(itens, p.x, p.y, config.raioBorracha);
-      gesto.current = { tipo: "borracha", inicio: itens, atual };
+      const atual = config.borracha === "parcial" ? apagarParcial(base, p.x, p.y, config.raioBorracha) : apagarItens(base, p.x, p.y, config.raioBorracha);
+      gesto.current = { tipo: "borracha", inicio: base, atual };
       setTrabalho(atual);
     } else if (f === "forma") {
       gesto.current = { tipo: "forma", inicio: p, fim: p, reta: e.shiftKey };
     } else if (f === "texto") {
-      const tocado = itemNoPonto(itens, p.x, p.y, 2);
+      const tocado = itemNoPonto(base, p.x, p.y, 2);
       if (tocado?.t === "tx") abrirTexto(tocado);
       else abrirTexto({ t: "tx", id: novoId(), x: p.x, y: p.y - config.tamanhoTexto * 0.6, w: Math.min(360, pagina.nrLargura - p.x - 16), s: config.tamanhoTexto, c: config.cor, txt: "" });
     } else if (f === "laco") {
       const cx = caixaSelecao;
       const alca = cx ? Math.hypot(p.x - (cx.x + cx.w), p.y - (cx.y + cx.h)) <= 14 / zoom + 4 : false;
-      if (cx && alca) gesto.current = { tipo: "escalar", inicio: itens, origem: { x: cx.x, y: cx.y }, largura0: Math.max(1, cx.w), atual: itens };
-      else if (cx && dentroDaCaixa(p.x, p.y, cx, 6 / zoom)) gesto.current = { tipo: "mover", inicio: itens, de: p, atual: itens };
+      if (cx && alca) gesto.current = { tipo: "escalar", inicio: base, origem: { x: cx.x, y: cx.y }, largura0: Math.max(1, cx.w), atual: base };
+      else if (cx && dentroDaCaixa(p.x, p.y, cx, 6 / zoom)) gesto.current = { tipo: "mover", inicio: base, de: p, atual: base };
       else { onSelecao(new Set()); gesto.current = { tipo: "laco", pontos: [p] }; }
     }
     desenharTopo();

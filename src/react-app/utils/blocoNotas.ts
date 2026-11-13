@@ -714,3 +714,32 @@ export function planilhaParaHtml(nome: string, linhas: unknown[][], porTabela = 
   if (linhas.length > maxLinhas) partes.push(`<p>… e mais ${linhas.length - maxLinhas} linha(s) que não couberam.</p>`);
   return partes.join("");
 }
+
+// ---------------------------------------------------------------- zoom (v6)
+
+/**
+ * v6: limites do zoom em valor absoluto (1 = 96 dpi, o tamanho real da folha). Antes o máximo era 4× o "caber na
+ * largura", o que numa prancha A0 dava pouco mais de 100%; agora vai a 1600% em qualquer folha.
+ */
+export const ZOOM_MIN = 0.1;
+export const ZOOM_MAX = 16;
+export const limitarZoom = (z: number) => (Number.isFinite(z) ? Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z)) : 1);
+
+/**
+ * Zoom depois de um giro da rodinha (ou do gesto de pinça do touchpad, que chega como Ctrl + roda). Proporcional ao
+ * giro, para a rodinha "de cliques" e o touchpad ficarem igualmente suaves; um evento muda no máximo 2×.
+ */
+export function zoomDaRoda(zoom: number, deltaY: number, deltaMode = 0): number {
+  const px = deltaMode === 1 ? deltaY * 16 : deltaMode === 2 ? deltaY * 400 : deltaY;
+  const fator = Math.min(2, Math.max(0.5, Math.exp(-px * 0.0015)));
+  return limitarZoom(zoom * fator);
+}
+
+/**
+ * Quanto rolar para o ponto da folha que estava embaixo do cursor continuar embaixo dele depois do zoom. Recebe onde
+ * a folha ficou (na tela, já com o zoom novo), o ponto na folha (px da folha) e onde está o cursor; devolve o
+ * acréscimo de rolagem (positivo = rolar para a direita/baixo).
+ */
+export function correcaoDaRolagem(folha: { left: number; top: number }, ponto: { x: number; y: number }, zoom: number, cursor: { x: number; y: number }) {
+  return { dx: folha.left + ponto.x * zoom - cursor.x, dy: folha.top + ponto.y * zoom - cursor.y };
+}
