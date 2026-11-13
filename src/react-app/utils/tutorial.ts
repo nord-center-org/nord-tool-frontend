@@ -650,7 +650,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "No player",
-        texto: "Mude o tom (− e +) e o andamento sem um mexer no outro; em \"Separar faixas\" saem voz, baixo, bateria e outros, com volume, mudo e solo. Escolha o instrumento: as notas descem com o nome (como na cifra: C, G, F#, Bb…) e a casa, e acendem no braço (ou no teclado) na hora de tocar; a próxima já aparece marcada. Em \"Todas as notas\", o braço mostra todas em cinza e só a que toca muda de cor. No baixo e no violão, \"Mapa do braço\" mostra o braço em pé com todas as notas coloridas pela letra (C verde, D vermelho, E amarelo…), e a que toca acende com um anel.",
+        texto: "Mude o tom (− e +) e o andamento sem um mexer no outro; em \"Separar faixas\" saem voz, baixo, bateria e outros, com volume, mudo e solo. Escolha o instrumento: as notas descem com o nome (como na cifra: C, G, F#, Bb…) e a casa, e acendem no braço (ou no teclado) na hora de tocar; a próxima já aparece marcada. Em \"Todas as notas\", o braço mostra todas em cinza e só a que toca muda de cor. No baixo e no violão, \"Mapa do braço\" mostra o braço em pé com todas as notas coloridas pela letra (C verde, D vermelho, E amarelo…), e a que toca acende com um anel. \"Sintetizador\" toca essas notas com som do instrumento escolhido junto com a música (no tom e no andamento escolhidos), com volume próprio.",
       },
       {
         titulo: "Letra e cifra",

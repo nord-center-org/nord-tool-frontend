@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-13-repertorio-sintetizador",
+    data: "2026-11-13",
+    titulo: "Repertório: sintetizador do instrumento",
+    texto: "Ligue “Sintetizador” no painel do instrumento: as notas que aparecem (a linha do baixo, os acordes do violão ou do teclado) tocam com som do instrumento junto com a música, no tom e no andamento escolhidos, nas notas caindo e no mapa do braço.",
+    onde: { rotulo: "Gestão Individual → Repertório", caminho: "/gestao/repertorio" },
+  },
+  {
     id: "2026-11-13-repertorio-mapa-braco",
     data: "2026-11-13",
     titulo: "Repertório: mapa do braço com as notas coloridas",

@@ -51,6 +51,10 @@ export class MotorAudio {
   aoMudar?: () => void;
 
   get estaTocando() { return this.tocando; }
+  /** v5: o andamento (1 = normal), para o sintetizador acompanhar. */
+  get velocidade() { return this.andamento; }
+  /** v5: o contexto de áudio (o sintetizador toca nele, no mesmo relógio da música). */
+  audio(): AudioContext { return this.contexto(); }
   get tom() { return this.semitons; }
 
   private contexto() {

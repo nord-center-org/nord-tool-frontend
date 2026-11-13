@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, Check, Loader2, Minus, Music2, Pause, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Timer, Volume2, VolumeX, Wand2,
+  ArrowLeft, Check, Loader2, Minus, Music2, Pause, Piano, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Timer, Volume2, VolumeX, Wand2,
 } from "lucide-react";
 
 import { desenhar, desenharMapa } from "@/react-app/components/repertorio/desenhoInstrumento";
+import { Sintetizador } from "@/react-app/components/repertorio/sintetizador";
+import { alturaDoEvento, passoDaAgenda, type Agenda } from "@/react-app/utils/musica/sintese";
 import CifraRolando, { type ControleCifra } from "@/react-app/components/repertorio/CifraRolando";
 import { MotorAudio, decodificar, reamostrar, type FaixaAudio } from "@/react-app/components/repertorio/motorAudio";
 import { analiseDesatualizada, type ResultadoAnalise } from "@/react-app/utils/musica/analise";
@@ -80,6 +82,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const [prefs, setPrefs] = useState(() => lerPreferencias(typeof localStorage === "undefined" ? undefined : localStorage));
   const mudarPrefs = (m: Partial<PreferenciasRepertorio>) => setPrefs(p => { const n = { ...p, ...m }; gravarPreferencias(localStorage, n); return n; });
   const todasNotas = prefs.todasNotas;
+  const volumeSint = useRef(prefs.volumeSintetizador);
+  volumeSint.current = prefs.volumeSintetizador;
   const alternarTodasNotas = () => mudarPrefs({ todasNotas: !todasNotas });
   const [editandoCifra, setEditandoCifra] = useState(false);
   const [marcando, setMarcando] = useState<number | null>(null);
@@ -160,8 +164,17 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   // ---------- quadro a quadro ----------
   // v4: o mapa do braço só existe nos instrumentos de corda
   const mapa = prefs.vista === "mapa" && ins.cordas.length > 0;
-  const estado = useRef({ eventos, acordes, ins, casas, janela, atual, bemol, todasNotas, mapa });
-  estado.current = { eventos, acordes, ins, casas, janela, atual, bemol, todasNotas, mapa };
+  const sintetizar = prefs.sintetizador;
+  const estado = useRef({ eventos, acordes, ins, casas, janela, atual, bemol, todasNotas, mapa, sintetizar });
+  estado.current = { eventos, acordes, ins, casas, janela, atual, bemol, todasNotas, mapa, sintetizar };
+
+  // ---------- v5: sintetizador do instrumento ----------
+  const sint = useRef<Sintetizador | null>(null);
+  const agenda = useRef<Agenda | null>(null);
+  // trocar instrumento, tom ou desligar: corta o que soa e recomeça a agenda
+  useEffect(() => { sint.current?.calar(); agenda.current = null; }, [eventos, sintetizar]);
+  useEffect(() => { if (sint.current) sint.current.volume = prefs.volumeSintetizador; }, [prefs.volumeSintetizador]);
+  useEffect(() => () => { sint.current?.fechar(); sint.current = null; }, []);
   useEffect(() => {
     let id = 0, quadro = 0;
     const loop = () => {
@@ -171,6 +184,18 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
       const t = m.tempo();
       if (++quadro % 15 === 0 && m.estaTocando) m.sincronizar();
       const s = estado.current;
+      if (s.sintetizar) {
+        if (!sint.current) { sint.current = new Sintetizador(m.audio()); sint.current.volume = volumeSint.current; }
+        const passo = passoDaAgenda(s.eventos, agenda.current, t, m.velocidade, m.estaTocando);
+        if (passo.reiniciar) sint.current.calar();
+        agenda.current = passo.agenda;
+        let anterior = -1, indice = 0;
+        for (const n of passo.notas) {
+          indice = n.evento.inicio === anterior ? indice + 1 : 0;
+          anterior = n.evento.inicio;
+          sint.current.tocar(s.ins.id, alturaDoEvento(s.ins, n.evento), n.daqui, n.dura, indice);
+        }
+      }
       if (c) {
         const ctx = c.getContext("2d");
         if (ctx) {
@@ -433,6 +458,15 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
             )}
             {!mapa && <button type="button" aria-pressed={todasNotas} onClick={alternarTodasNotas} title="Mostrar todas as notas em cinza; a que toca acende na cor"
               className={`rounded-lg border px-1.5 py-0.5 text-[11px] font-bold ${todasNotas ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>Todas as notas</button>}
+            <button type="button" aria-pressed={sintetizar} onClick={() => mudarPrefs({ sintetizador: !sintetizar })}
+              title={`O sintetizador toca as notas do ${ins.nome.toLowerCase()} junto com a música (no tom e no andamento escolhidos)`}
+              className={`inline-flex items-center gap-1 rounded-lg border px-1.5 py-0.5 text-[11px] font-bold ${sintetizar ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+              <Piano className="h-3 w-3" aria-hidden="true" />Sintetizador
+            </button>
+            {sintetizar && (
+              <input type="range" min={0} max={1.5} step={0.05} value={prefs.volumeSintetizador} onChange={e => mudarPrefs({ volumeSintetizador: Number(e.target.value) })}
+                aria-label="Volume do sintetizador" title="Volume do sintetizador" className="w-16" />
+            )}
             <button type="button" className="rounded-lg px-1.5 py-0.5 text-[11px] font-bold text-slate-500 hover:bg-slate-100 disabled:opacity-40" disabled={!pronto || !!ocupado}
               onClick={() => void refazerAnalise()} title="Analisa o áudio de novo (tom, BPM, acordes e baixo)">Refazer análise</button>
             <span className="hidden text-[11px] text-slate-500 sm:inline">{ins.fonte === "baixo" ? "linha do baixo" : "acordes"}</span>
