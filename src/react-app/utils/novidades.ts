@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-13-repertorio-selecionar-copiar",
+    data: "2026-11-13",
+    titulo: "Criar: um quadradinho por clique e copiar e colar notas",
+    texto: "Na aba Criar, o clique na grade agora marca um quadradinho só (arraste para esticar a nota). No modo \u201cSelecionar\u201d, arraste um retângulo sobre as notas para copiar, recortar, colar (inclusive em outra faixa), duplicar, apagar ou mover com as setas. Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+D e Ctrl+A também funcionam.",
+    onde: { rotulo: "Gestão Individual → Repertório → Criar", caminho: "/gestao/repertorio?aba=criar" },
+  },
+  {
     id: "2026-11-13-repertorio-timbres-ferramentas",
     data: "2026-11-13",
     titulo: "Repertório: timbres e ferramentas para tocar",

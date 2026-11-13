@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, Circle, Copy, Download, Eraser, Loader2, Music, Play, Plus, Repeat, Send, Square, Timer, Trash2, Undo2, Volume2, VolumeX,
+  ArrowLeft, BoxSelect, Circle, ClipboardPaste, Copy, CopyPlus, Download, Eraser, Loader2, Music, Pencil, Play, Plus, Repeat, Scissors, Send, Square, Timer, Trash2, Undo2,
+  Volume2, VolumeX,
 } from "lucide-react";
 
 import InstrumentoOnline from "@/react-app/components/repertorio/InstrumentoOnline";
 import { TocadorEstudio, renderizarProjeto } from "@/react-app/components/repertorio/tocadorEstudio";
 import {
-  LIMITES, PASSOS_POR_TEMPO, PECAS_BATERIA, TEMPOS_POR_COMPASSO, TIMBRES, alternarNota, duplicarCompassos, juntarGravacao, mudarCompassos,
+  LIMITES, PASSOS_POR_TEMPO, PECAS_BATERIA, TEMPOS_POR_COMPASSO, TIMBRES, apagarNotas, chaveNota, colarNotas, copiarNotas, duplicarCompassos, esticarNota,
+  juntarGravacao, moverNotas, mudarCompassos, notasNoRetangulo, porNota, type Recorte,
   novaFaixa, novoProjeto, temposDoProjeto, timbre as dadosTimbre, type Faixa, type NotaEstudio, type Projeto, type Timbre,
 } from "@/react-app/utils/musica/estudio";
 import { corDaNota, ehPreta } from "@/react-app/utils/musica/instrumentos";
@@ -18,7 +20,6 @@ const botao = "inline-flex items-center gap-1.5 rounded-lg border border-slate-2
 const quadrado = "inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40";
 /** Botão quadrado de liga/desliga (sem misturar fundo branco e azul nas classes). */
 const alternador = (ligado: boolean) => `inline-flex h-7 w-7 items-center justify-center rounded-lg border ${ligado ? "border-blue-600 bg-blue-600 text-white hover:bg-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`;
-const DURACOES: Array<[number, string]> = [[0.25, "1/16"], [0.5, "1/8"], [1, "1 tempo"], [2, "2 tempos"], [4, "1 compasso"]];
 const CORES_BATERIA: Record<number, string> = { 49: "#eab308", 46: "#84cc16", 42: "#22c55e", 48: "#06b6d4", 43: "#3b82f6", 39: "#a855f7", 38: "#ef4444", 36: "#f97316" };
 
 /**
@@ -96,7 +97,11 @@ function EditorProjeto({ inicial, onVoltar, onMandado }: { inicial: Projeto; onV
   const [gravando, setGravando] = useState(false);
   const [laco, setLaco] = useState(false);
   const [metronomo, setMetronomo] = useState(true);
-  const [dur, setDur] = useState(1);
+  // v9: pôr notas ou selecionar (copiar, colar, mover); a seleção é da faixa aberta e o recorte serve a qualquer faixa
+  const [modo, setModo] = useState<"por" | "selecionar">("por");
+  const [selNotas, setSelNotas] = useState<Set<string>>(() => new Set());
+  const [cursor, setCursor] = useState(0);
+  const [recorte, setRecorte] = useState<Recorte | null>(null);
   const [grade, setGrade] = useState(true);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -122,6 +127,9 @@ function EditorProjeto({ inicial, onVoltar, onMandado }: { inicial: Projeto; onV
   }, []);
   const mudarFaixa = (id: string, m: Partial<Faixa>, guardar = true) => mudar(x => ({ ...x, faixas: x.faixas.map(f => (f.id === id ? { ...f, ...m } : f)) }), guardar);
   const desfazer = () => setHistorico(h => { if (!h.length) return h; setP(h[h.length - 1]); return h.slice(0, -1); });
+  const atualP = useRef(p);
+  atualP.current = p;
+  const guardarPasso = () => setHistorico(h => [...h.slice(-49), atualP.current]);
 
   projetoAtual.current = p;
   useEffect(() => {
@@ -238,10 +246,66 @@ function EditorProjeto({ inicial, onVoltar, onMandado }: { inicial: Projeto; onV
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
       if (e.key === " ") { e.preventDefault(); void tocarRef.current(); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); desfazerRef.current(); }
+      else if (acoesRef.current(e)) e.preventDefault();
     };
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
   }, []);
+
+  // ---------- v9: seleção, copiar, colar, mover ----------
+  useEffect(() => { setSelNotas(new Set()); }, [faixa?.id]);
+  const copiar = (recortar = false) => {
+    if (!faixa) return;
+    const r = copiarNotas(faixa.notas, selNotas);
+    if (!r) { setAviso("Selecione as notas primeiro (modo Selecionar)."); return; }
+    setRecorte(r);
+    if (recortar) { mudarFaixa(faixa.id, { notas: apagarNotas(faixa.notas, selNotas) }); setSelNotas(new Set()); }
+    setAviso(`${r.notas.length} nota${r.notas.length > 1 ? "s" : ""} ${recortar ? "recortada" : "copiada"}${r.notas.length > 1 ? "s" : ""}. Clique onde quer colar (ponto azul) e toque em Colar.`);
+  };
+  const colar = (em = cursor) => {
+    if (!faixa || !recorte) return;
+    const r = colarNotas(faixa.notas, recorte, em, total);
+    mudarFaixa(faixa.id, { notas: r.notas });
+    setSelNotas(r.sel);
+    setCursor(Math.min(total - 1 / PASSOS_POR_TEMPO, em + recorte.duracao));
+  };
+  const duplicar = () => {
+    if (!faixa) return;
+    const r = copiarNotas(faixa.notas, selNotas);
+    if (!r) return;
+    const ini = Math.min(...faixa.notas.filter(n => selNotas.has(chaveNota(n))).map(n => n.inicio));
+    // logo depois do trecho, arredondado para o próximo tempo
+    const em = Math.ceil((ini + r.duracao) * 1 - 1e-9);
+    setRecorte(r);
+    const c = colarNotas(faixa.notas, r, em, total);
+    mudarFaixa(faixa.id, { notas: c.notas });
+    setSelNotas(c.sel);
+  };
+  const apagar = () => { if (faixa && selNotas.size) { mudarFaixa(faixa.id, { notas: apagarNotas(faixa.notas, selNotas) }); setSelNotas(new Set()); } };
+  const mover = (dt: number, dm: number) => {
+    if (!faixa || !selNotas.size) return;
+    const r = moverNotas(faixa.notas, selNotas, dt, dm, total);
+    if (r.notas !== faixa.notas) { mudarFaixa(faixa.id, { notas: r.notas }); setSelNotas(r.sel); }
+  };
+  const acoes = (e: KeyboardEvent): boolean => {
+    const ctrl = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+    if (ctrl && k === "c") { copiar(); return true; }
+    if (ctrl && k === "x") { copiar(true); return true; }
+    if (ctrl && k === "v") { colar(); return true; }
+    if (ctrl && k === "d") { duplicar(); return true; }
+    if (ctrl && k === "a" && faixa) { setModo("selecionar"); setSelNotas(new Set(faixa.notas.map(chaveNota))); return true; }
+    if (!selNotas.size) return false;
+    if (e.key === "Delete" || e.key === "Backspace") { apagar(); return true; }
+    const passo = e.shiftKey ? 1 : 1 / PASSOS_POR_TEMPO;
+    if (e.key === "ArrowLeft") { mover(-passo, 0); return true; }
+    if (e.key === "ArrowRight") { mover(passo, 0); return true; }
+    if (e.key === "ArrowUp") { mover(0, e.shiftKey ? 12 : 1); return true; }
+    if (e.key === "ArrowDown") { mover(0, e.shiftKey ? -12 : -1); return true; }
+    if (e.key === "Escape") { setSelNotas(new Set()); return true; }
+    return false;
+  };
+  const acoesRef = useRef(acoes);
+  acoesRef.current = acoes;
 
   const adicionar = (t: Timbre) => {
     if (p.faixas.length >= LIMITES.faixasMax) { setAviso(`No máximo ${LIMITES.faixasMax} faixas.`); return; }
@@ -317,25 +381,44 @@ function EditorProjeto({ inicial, onVoltar, onMandado }: { inicial: Projeto; onV
         <div className="rounded-xl border border-slate-200 bg-white p-2">
           <div className="flex flex-wrap items-center gap-1.5 pb-1.5">
             <b className="mr-auto text-sm text-slate-700">{faixa.nome} <span className="font-normal text-slate-400">· {dadosTimbre(faixa.timbre).nome}</span></b>
-            {faixa.timbre !== "bateria" && (
-              <label className="flex items-center gap-1 text-[11px] text-slate-600">Nota nova
-                <select value={dur} onChange={e => setDur(Number(e.target.value))} aria-label="Duração da nota nova" className="rounded-lg border border-slate-200 px-1.5 py-1 text-[11px]">
-                  {DURACOES.map(([v, r]) => <option key={v} value={v}>{r}</option>)}
-                </select>
-              </label>
+            <div className="flex rounded-lg border border-slate-200 p-0.5" role="radiogroup" aria-label="O que o clique na grade faz">
+              {([["por", "Pôr notas", Pencil], ["selecionar", "Selecionar", BoxSelect]] as const).map(([id, r, Icone]) => (
+                <button key={id} type="button" role="radio" aria-checked={modo === id} onClick={() => setModo(id)}
+                  title={id === "por" ? "Clique põe (ou tira) uma nota de um quadradinho; arraste para o lado para esticar" : "Clique numa nota ou arraste um retângulo para selecionar; arraste a seleção para mover"}
+                  className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold ${modo === id ? "bg-slate-800 text-white" : "text-slate-600 hover:bg-slate-100"}`}><Icone className="h-3.5 w-3.5" />{r}</button>
+              ))}
+            </div>
+            {modo === "selecionar" && (
+              <div className="flex flex-wrap items-center gap-1" role="toolbar" aria-label="Seleção">
+                <button type="button" className={botao} onClick={() => copiar()} disabled={!selNotas.size} title="Copiar (Ctrl+C)"><Copy className="h-3.5 w-3.5" />Copiar</button>
+                <button type="button" className={botao} onClick={() => copiar(true)} disabled={!selNotas.size} title="Recortar (Ctrl+X)"><Scissors className="h-3.5 w-3.5" />Recortar</button>
+                <button type="button" className={botao} onClick={() => colar()} disabled={!recorte} title="Colar no ponto azul (Ctrl+V); serve também em outra faixa"><ClipboardPaste className="h-3.5 w-3.5" />Colar</button>
+                <button type="button" className={botao} onClick={duplicar} disabled={!selNotas.size} title="Repetir logo depois (Ctrl+D)"><CopyPlus className="h-3.5 w-3.5" />Duplicar</button>
+                <button type="button" className={botao} onClick={apagar} disabled={!selNotas.size} title="Apagar (Delete)"><Trash2 className="h-3.5 w-3.5" />Apagar</button>
+                <span className="text-[11px] text-slate-500">{selNotas.size ? `${selNotas.size} selecionada${selNotas.size > 1 ? "s" : ""} · setas movem` : "Arraste um retângulo"}</span>
+              </div>
             )}
             <label className="flex items-center gap-1 text-[11px] text-slate-600" title="Na gravação, encaixa as notas na grade (semicolcheias)"><input type="checkbox" checked={grade} onChange={e => setGrade(e.target.checked)} />Encaixar na grade</label>
             <button type="button" className={botao} onClick={() => mudarFaixa(faixa.id, { notas: [] })} disabled={!faixa.notas.length}><Eraser className="h-3.5 w-3.5" />Limpar</button>
           </div>
           <div ref={rolagem} className="relative max-h-[42vh] overflow-auto rounded-lg border border-slate-200">
-            <Grade faixa={faixa} total={total} cabeca={cabeca}
-              onCelula={(midi, inicio) => {
-                const d = faixa.timbre === "bateria" ? 1 / PASSOS_POR_TEMPO : dur;
-                const notas = alternarNota(faixa.notas, midi, inicio, d, total);
-                mudarFaixa(faixa.id, { notas });
+            <Grade faixa={faixa} total={total} cabeca={cabeca} modo={modo} sel={selNotas} cursor={cursor}
+              onPor={(midi, inicio) => {
+                const r = porNota(faixa.notas, midi, inicio, inicio, total);
+                mudarFaixa(faixa.id, { notas: r.notas });
                 // ouvir a nota que entrou
-                if (notas.length > faixa.notas.length) tocador.current?.sint.tocar(faixa.timbre, midi, 0, Math.min(0.5, d * 0.6), 0, 0.85, tocador.current.ganhoDaFaixa(faixa.id), faixa.variante);
-              }} />
+                if (r.entrou) tocador.current?.sint.tocar(faixa.timbre, midi, 0, 0.3, 0, 0.85, tocador.current.ganhoDaFaixa(faixa.id), faixa.variante);
+                return r.entrou && faixa.timbre !== "bateria";
+              }}
+              onEsticar={(midi, inicio, ate) => mudarFaixa(faixa.id, { notas: esticarNota(atualP.current.faixas.find(f => f.id === faixa.id)?.notas ?? [], midi, inicio, ate, total) }, false)}
+              onRetangulo={(t0, t1, m0, m1, somar) => {
+                const novas = notasNoRetangulo(faixa.notas, t0, t1, m0, m1);
+                setSelNotas(s => (somar ? new Set([...s, ...novas]) : novas));
+              }}
+              onClicarNota={(chave, somar) => setSelNotas(s => { if (somar) { const n = new Set(s); if (n.has(chave)) n.delete(chave); else n.add(chave); return n; } return s.has(chave) ? s : new Set([chave]); })}
+              onCursor={t => { setCursor(t); setSelNotas(new Set()); }}
+              onArrastoInicio={guardarPasso}
+              onArrasto={(base, selBase, dt, dm) => { const r = moverNotas(base, selBase, dt, dm, total); mudarFaixa(faixa.id, { notas: r.notas }, false); setSelNotas(r.sel); }} />
           </div>
           {tocadorPronto && (
             <div className="mt-2">
@@ -372,8 +455,28 @@ function linhasDaFaixa(f: Faixa): Array<{ midi: number; rotulo: string; preta: b
   return r;
 }
 
-function Grade({ faixa, total, cabeca, onCelula }: { faixa: Faixa; total: number; cabeca: React.RefObject<HTMLDivElement | null>; onCelula: (midi: number, inicio: number) => void }) {
+interface PropsGrade {
+  faixa: Faixa; total: number; cabeca: React.RefObject<HTMLDivElement | null>;
+  modo: "por" | "selecionar"; sel: Set<string>; cursor: number;
+  /** Põe ou tira a nota; devolve se entrou uma que dá para esticar arrastando. */
+  onPor: (midi: number, inicio: number) => boolean;
+  onEsticar: (midi: number, inicio: number, ate: number) => void;
+  onRetangulo: (t0: number, t1: number, m0: number, m1: number, somar: boolean) => void;
+  onClicarNota: (chave: string, somar: boolean) => void;
+  onCursor: (t: number) => void;
+  onArrastoInicio: () => void;
+  onArrasto: (base: NotaEstudio[], sel: Set<string>, dt: number, dm: number) => void;
+}
+
+type Gesto =
+  | { tipo: "esticar"; midi: number; inicio: number }
+  | { tipo: "retangulo"; x0: number; y0: number; x1: number; y1: number; somar: boolean }
+  | { tipo: "mover"; passo0: number; linha0: number; base: NotaEstudio[]; sel: Set<string>; moveu: boolean };
+
+function Grade({ faixa, total, cabeca, modo, sel, cursor, onPor, onEsticar, onRetangulo, onClicarNota, onCursor, onArrastoInicio, onArrasto }: PropsGrade) {
   const tela = useRef<HTMLCanvasElement>(null);
+  const gesto = useRef<Gesto | null>(null);
+  const [caixa, setCaixa] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const linhas = useMemo(() => linhasDaFaixa(faixa), [faixa]);
   const altLinha = faixa.timbre === "bateria" ? 28 : 18;
   const passos = total * PASSOS_POR_TEMPO;
@@ -395,11 +498,10 @@ function Grade({ faixa, total, cabeca, onCelula }: { faixa: Faixa; total: number
     });
     for (let s = 0; s <= passos; s++) {
       const forte = s % (PASSOS_POR_TEMPO * TEMPOS_POR_COMPASSO) === 0, tempo = s % PASSOS_POR_TEMPO === 0;
-      ctx.fillStyle = forte ? (escuro ? "#64748b" : "#64748b") : tempo ? (escuro ? "#334155" : "#cbd5e1") : (escuro ? "#1e293b" : "#eef2f7");
+      ctx.fillStyle = forte ? "#64748b" : tempo ? (escuro ? "#334155" : "#cbd5e1") : (escuro ? "#1e293b" : "#eef2f7");
       ctx.fillRect(s * LARG_PASSO - (forte ? 1 : 0.5), 0, forte ? 2 : 1, alt);
     }
-    // números dos compassos
-    ctx.fillStyle = escuro ? "#94a3b8" : "#94a3b8"; ctx.font = "9px sans-serif"; ctx.textAlign = "left";
+    ctx.fillStyle = "#94a3b8"; ctx.font = "9px sans-serif"; ctx.textAlign = "left";
     for (let b = 0; b < total / TEMPOS_POR_COMPASSO; b++) ctx.fillText(String(b + 1), b * TEMPOS_POR_COMPASSO * PASSOS_POR_TEMPO * LARG_PASSO + 3, 9);
     const linhaDe = new Map(linhas.map((l, i) => [l.midi, i]));
     for (const n of faixa.notas) {
@@ -410,14 +512,32 @@ function Grade({ faixa, total, cabeca, onCelula }: { faixa: Faixa; total: number
       ctx.fillStyle = cor; ctx.globalAlpha = 0.5 + n.vel * 0.5;
       ctx.beginPath(); ctx.roundRect(x + 1, y, w, h, 4); ctx.fill();
       ctx.globalAlpha = 1;
+      // selecionada: contorno escuro e grosso
+      if (sel.has(chaveNota(n))) { ctx.strokeStyle = escuro ? "#f8fafc" : "#0f172a"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.roundRect(x + 1, y, w, h, 4); ctx.stroke(); }
     }
-  }, [faixa, linhas, larg, alt, altLinha, passos, total, escuro]);
+    // ponto de colar (modo selecionar)
+    if (modo === "selecionar") {
+      const x = cursor * PASSOS_POR_TEMPO * LARG_PASSO;
+      ctx.fillStyle = "#2563eb"; ctx.fillRect(x - 1, 0, 2, alt);
+      ctx.beginPath(); ctx.arc(x, 6, 5, 0, 7); ctx.fill();
+    }
+  }, [faixa, linhas, larg, alt, altLinha, passos, total, escuro, sel, modo, cursor]);
 
   // começa mostrando o meio da extensão (melódicos)
   useEffect(() => {
     const r = tela.current?.closest(".overflow-auto") as HTMLElement | null;
     if (r && faixa.timbre !== "bateria") r.scrollTop = Math.max(0, alt / 2 - r.clientHeight / 2);
   }, [faixa.id, faixa.timbre, alt]);
+
+  const celula = (e: React.PointerEvent) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    return { x, y, passo: Math.max(0, Math.min(passos - 1, Math.floor(x / LARG_PASSO))), linha: Math.max(0, Math.min(linhas.length - 1, Math.floor(y / altLinha))) };
+  };
+  const notaEm = (passo: number, linha: number) => {
+    const l = linhas[linha], t = passo / PASSOS_POR_TEMPO;
+    return l ? faixa.notas.find(n => n.midi === l.midi && t >= n.inicio - 1e-6 && t < n.inicio + n.dur - 1e-6) : undefined;
+  };
 
   return (
     <div className="flex w-max" style={{ minWidth: "100%" }}>
@@ -427,14 +547,58 @@ function Grade({ faixa, total, cabeca, onCelula }: { faixa: Faixa; total: number
         ))}
       </div>
       <div className="relative">
-        <canvas ref={tela} style={{ width: larg, height: alt }} aria-label={`Grade de notas de ${faixa.nome}`} role="img" className="cursor-pointer"
+        <canvas ref={tela} style={{ width: larg, height: alt, touchAction: "none" }} aria-label={`Grade de notas de ${faixa.nome}`} role="img"
+          className={modo === "por" ? "cursor-cell" : "cursor-default"}
           onPointerDown={e => {
-            const r = e.currentTarget.getBoundingClientRect();
-            const passo = Math.floor((e.clientX - r.left) / LARG_PASSO), linha = Math.floor((e.clientY - r.top) / altLinha);
-            const l = linhas[linha];
-            if (!l || passo < 0 || passo >= passos) return;
-            onCelula(l.midi, passo / PASSOS_POR_TEMPO);
-          }} />
+            const c = celula(e);
+            const l = linhas[c.linha];
+            if (!l) return;
+            e.currentTarget.setPointerCapture(e.pointerId);
+            const t = c.passo / PASSOS_POR_TEMPO;
+            if (modo === "por") {
+              if (onPor(l.midi, t)) gesto.current = { tipo: "esticar", midi: l.midi, inicio: t };
+              return;
+            }
+            const n = notaEm(c.passo, c.linha);
+            if (n) {
+              const chave = chaveNota(n);
+              onClicarNota(chave, e.shiftKey || e.ctrlKey || e.metaKey);
+              const selAtual = e.shiftKey || e.ctrlKey || e.metaKey ? new Set([...sel, chave]) : sel.has(chave) ? sel : new Set([chave]);
+              gesto.current = { tipo: "mover", passo0: c.passo, linha0: c.linha, base: faixa.notas, sel: selAtual, moveu: false };
+            } else {
+              gesto.current = { tipo: "retangulo", x0: c.x, y0: c.y, x1: c.x, y1: c.y, somar: e.shiftKey || e.ctrlKey || e.metaKey };
+            }
+          }}
+          onPointerMove={e => {
+            const g = gesto.current;
+            if (!g) return;
+            const c = celula(e);
+            if (g.tipo === "esticar") onEsticar(g.midi, g.inicio, c.passo / PASSOS_POR_TEMPO);
+            else if (g.tipo === "retangulo") {
+              g.x1 = c.x; g.y1 = c.y;
+              setCaixa({ x: Math.min(g.x0, g.x1), y: Math.min(g.y0, g.y1), w: Math.abs(g.x1 - g.x0), h: Math.abs(g.y1 - g.y0) });
+            } else {
+              const dt = (c.passo - g.passo0) / PASSOS_POR_TEMPO, dm = linhas[g.linha0].midi - linhas[c.linha].midi;
+              if (!dt && !dm && !g.moveu) return;
+              if (!g.moveu) { g.moveu = true; onArrastoInicio(); }
+              onArrasto(g.base, g.sel, dt, dm);
+            }
+          }}
+          onPointerUp={e => {
+            const g = gesto.current;
+            gesto.current = null;
+            setCaixa(null);
+            if (!g || g.tipo !== "retangulo") return;
+            const c = celula(e);
+            // um clique (sem arrastar) no vazio marca o ponto de colar e solta a seleção
+            if (Math.abs(g.x1 - g.x0) < 4 && Math.abs(g.y1 - g.y0) < 4) { onCursor(c.passo / PASSOS_POR_TEMPO); return; }
+            const p0 = Math.floor(Math.min(g.x0, g.x1) / LARG_PASSO), p1 = Math.floor(Math.max(g.x0, g.x1) / LARG_PASSO) + 1;
+            const l0 = Math.floor(Math.min(g.y0, g.y1) / altLinha), l1 = Math.floor(Math.max(g.y0, g.y1) / altLinha);
+            const mAlto = linhas[Math.max(0, l0)]?.midi ?? 127, mBaixo = linhas[Math.min(linhas.length - 1, l1)]?.midi ?? 0;
+            onRetangulo(p0 / PASSOS_POR_TEMPO, p1 / PASSOS_POR_TEMPO, mBaixo, mAlto, g.somar);
+          }}
+          onPointerCancel={() => { gesto.current = null; setCaixa(null); }} />
+        {caixa && <div className="pointer-events-none absolute border-2 border-dashed border-blue-500 bg-blue-500/10" style={{ left: caixa.x, top: caixa.y, width: caixa.w, height: caixa.h }} aria-hidden="true" />}
         <div ref={cabeca} className="pointer-events-none absolute bottom-0 left-0 top-0 w-0.5 bg-red-500" aria-hidden="true" />
       </div>
     </div>
