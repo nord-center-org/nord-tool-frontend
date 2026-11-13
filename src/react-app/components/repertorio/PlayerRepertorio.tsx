@@ -17,6 +17,7 @@ import { FAIXAS, NOME_FAIXA } from "@/react-app/utils/musica/separacao";
 import { blocoNoTempo, sincronizar } from "@/react-app/utils/musica/sincronia";
 import { mod12, nomeDoTom, transporAcorde, transporTom, usaBemol } from "@/react-app/utils/musica/teoria";
 
+const botaoAzul = "inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-40";
 const botao = "inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40";
 const quadrado = "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40";
 const rotulo = "text-[10px] font-bold uppercase tracking-wide text-slate-400";
@@ -403,7 +404,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
             <b className="mr-auto text-sm text-slate-700">Letra e cifra</b>
             {marcando !== null ? (
               <>
-                <button type="button" className={`${botao} border-blue-600 bg-blue-600 text-white hover:bg-blue-700`} onClick={marcar}><Check className="h-3.5 w-3.5" />Marcar linha (Enter)</button>
+                <button type="button" className={botaoAzul} onClick={marcar}><Check className="h-3.5 w-3.5" />Marcar linha (Enter)</button>
                 <button type="button" className={botao} onClick={() => setMarcando(null)}>Parar</button>
               </>
             ) : (
@@ -511,7 +512,7 @@ function EditorCifra({ texto, onSalvar, onFechar }: { texto: string; onSalvar: (
           placeholder={"Tom: G\n\n[Intro] G  D  Em  C\n\n[Primeira Parte]\nG              D\n  Escreva aqui a letra\nEm             C\n  com os acordes em cima"} />
         <div className="mt-3 flex justify-end gap-2">
           <button type="button" className={botao} onClick={onFechar}>Cancelar</button>
-          <button type="button" className={`${botao} border-blue-600 bg-blue-600 text-white hover:bg-blue-700`} onClick={() => onSalvar(valor.slice(0, 50_000))}>Salvar cifra</button>
+          <button type="button" className={botaoAzul} onClick={() => onSalvar(valor.slice(0, 50_000))}>Salvar cifra</button>
         </div>
       </div>
     </div>

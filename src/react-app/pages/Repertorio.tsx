@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Music, Trash2, Upload } from "lucide-react";
+import { useSearchParams } from "react-router";
+import { Loader2, Music, Piano, Trash2, Upload } from "lucide-react";
 
 import {
   AJUSTES_PADRAO, excluirMusica, lerArquivo, listarMusicas, salvarArquivo, salvarMusica, tituloDoArquivo, type Musica,
@@ -7,6 +8,8 @@ import {
 import { nomeDoTom } from "@/react-app/utils/musica/teoria";
 
 const PlayerRepertorio = lazy(() => import("@/react-app/components/repertorio/PlayerRepertorio"));
+const EstudioRepertorio = lazy(() => import("@/react-app/components/repertorio/EstudioRepertorio"));
+const PainelInstrumentoOnline = lazy(() => import("@/react-app/components/repertorio/PainelInstrumentoOnline"));
 
 const LIMITE_MB = 60;
 const relogio = (s: number) => { const t = Math.max(0, Math.floor(s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
@@ -22,6 +25,11 @@ export default function RepertorioPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const entrada = useRef<HTMLInputElement>(null);
+  // v6: sub-abas "Músicas" e "Criar" (na URL, para o link das novidades abrir direto) e o instrumento online
+  const [busca, setBusca] = useSearchParams();
+  const aba = busca.get("aba") === "criar" ? "criar" : "musicas";
+  const mudarAba = (a: "musicas" | "criar") => setBusca(b => { const n = new URLSearchParams(b); if (a === "criar") n.set("aba", "criar"); else n.delete("aba"); return n; }, { replace: true });
+  const [instrumentoOnline, setInstrumentoOnline] = useState(false);
 
   const carregar = useCallback(async () => {
     try { setMusicas(await listarMusicas()); } catch (e) { setErro(e instanceof Error ? e.message : "Não deu para ler o repertório."); setMusicas([]); }
@@ -70,10 +78,24 @@ export default function RepertorioPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className={`mx-auto ${aba === "criar" ? "max-w-6xl" : "max-w-4xl"}`}>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="mr-auto flex items-center gap-2 text-xl font-bold text-slate-800"><Music className="h-5 w-5 text-orange-500" />Repertório</h1>
+        <button type="button" onClick={() => setInstrumentoOnline(true)}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-100"><Piano className="h-4 w-4" />Instrumento online</button>
       </div>
+      <div className="mb-4 flex gap-1 rounded-xl border border-slate-200 bg-white p-1" role="tablist" aria-label="Repertório">
+        {([["musicas", "Músicas"], ["criar", "Criar"]] as const).map(([a, r]) => (
+          <button key={a} type="button" role="tab" aria-selected={aba === a} onClick={() => mudarAba(a)}
+            className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-bold ${aba === a ? "bg-slate-800 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{r}</button>
+        ))}
+      </div>
+      {instrumentoOnline && <Suspense fallback={null}><PainelInstrumentoOnline onFechar={() => setInstrumentoOnline(false)} /></Suspense>}
+      {aba === "criar" ? (
+        <Suspense fallback={<p className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Abrindo o estúdio…</p>}>
+          <EstudioRepertorio onMandado={(m, arquivo) => { mudarAba("musicas"); setAberta({ musica: m, arquivo }); }} />
+        </Suspense>
+      ) : (<>
       <input ref={entrada} type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac,.opus" className="hidden" aria-label="Música para enviar"
         onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void enviar(f); }} />
       <button type="button" onClick={() => entrada.current?.click()} disabled={enviando}
@@ -113,6 +135,7 @@ export default function RepertorioPage() {
           ))}
         </ul>
       )}
+      </>)}
     </div>
   );
 }

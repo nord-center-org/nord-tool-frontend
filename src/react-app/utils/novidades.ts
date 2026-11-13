@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-13-repertorio-criar",
+    data: "2026-11-13",
+    titulo: "Repertório: instrumento online e aba Criar",
+    texto: "Toque baixo, teclado, violão, sintetizador ou bateria direto na tela (ou no teclado do computador) em “Instrumento online”. Na nova aba Criar, monte uma música faixa por faixa: escreva as notas na grade ou grave tocando, com metrônomo, e mande para o player ou baixe em WAV.",
+    onde: { rotulo: "Gestão Individual → Repertório → Criar", caminho: "/gestao/repertorio?aba=criar" },
+  },
+  {
     id: "2026-11-13-repertorio-sintetizador",
     data: "2026-11-13",
     titulo: "Repertório: sintetizador do instrumento",
