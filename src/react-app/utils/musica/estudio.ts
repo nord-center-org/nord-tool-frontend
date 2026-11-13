@@ -231,3 +231,75 @@ export function lerProjeto(bruto: unknown): Projeto | null {
     ...(o.sincronizado === true ? { sincronizado: true } : {}),
   };
 }
+
+// ---------------------------------------------------------------- v9: selecionar, copiar, colar e mover notas
+
+/** Identidade de uma nota na faixa (não há duas notas iguais no mesmo lugar). */
+export const chaveNota = (n: Pick<NotaEstudio, "inicio" | "midi">) => `${Math.round(n.inicio * 1000)}:${n.midi}`;
+
+/** Notas que encostam no retângulo (tempos [t0, t1), alturas [m0, m1]), em qualquer ordem dos cantos. */
+export function notasNoRetangulo(notas: NotaEstudio[], ta: number, tb: number, ma: number, mb: number): Set<string> {
+  const t0 = Math.min(ta, tb), t1 = Math.max(ta, tb), m0 = Math.min(ma, mb), m1 = Math.max(ma, mb);
+  return new Set(notas.filter(n => n.midi >= m0 && n.midi <= m1 && n.inicio < t1 && n.inicio + n.dur > t0).map(chaveNota));
+}
+
+export interface Recorte { notas: NotaEstudio[]; duracao: number }
+
+/** Copia as notas escolhidas, com o início relativo à primeira (para colar em outro lugar ou outra faixa). */
+export function copiarNotas(notas: NotaEstudio[], sel: Set<string>): Recorte | null {
+  const escolhidas = notas.filter(n => sel.has(chaveNota(n)));
+  if (!escolhidas.length) return null;
+  const ini = Math.min(...escolhidas.map(n => n.inicio)), fim = Math.max(...escolhidas.map(n => n.inicio + n.dur));
+  return { notas: escolhidas.map(n => ({ ...n, inicio: n.inicio - ini })), duracao: fim - ini };
+}
+
+/**
+ * Cola o recorte a partir de `inicio` (opcionalmente transposto): o que passaria do fim da música é cortado, nota
+ * igual no mesmo lugar não duplica. Devolve as notas e a seleção das coladas.
+ */
+export function colarNotas(notas: NotaEstudio[], recorte: Recorte, inicio: number, fim: number, transpor = 0): { notas: NotaEstudio[]; sel: Set<string> } {
+  const novas: NotaEstudio[] = [];
+  for (const n of recorte.notas) {
+    const ini = n.inicio + inicio, midi = n.midi + transpor;
+    if (ini < 0 || ini >= fim || midi < 0 || midi > 127) continue;
+    const c: NotaEstudio = { ...n, inicio: ini, midi, dur: Math.min(n.dur, fim - ini) };
+    if (notas.some(o => chaveNota(o) === chaveNota(c)) || novas.some(o => chaveNota(o) === chaveNota(c))) continue;
+    novas.push(c);
+  }
+  return { notas: ordenar([...notas, ...novas]).slice(0, LIMITES.notasMax), sel: new Set(novas.map(chaveNota)) };
+}
+
+/**
+ * Move as notas escolhidas `dt` tempos e `dm` semitons. Se alguma sairia da música (antes do início, depois do fim
+ * ou fora de 0–127), nada se move. As que caem em cima de uma igual não escolhida a substituem.
+ */
+export function moverNotas(notas: NotaEstudio[], sel: Set<string>, dt: number, dm: number, fim: number): { notas: NotaEstudio[]; sel: Set<string> } {
+  const escolhidas = notas.filter(n => sel.has(chaveNota(n)));
+  if (!escolhidas.length || escolhidas.some(n => n.inicio + dt < -1e-9 || n.inicio + dt >= fim || n.midi + dm < 0 || n.midi + dm > 127)) return { notas, sel };
+  const movidas = escolhidas.map(n => ({ ...n, inicio: Math.max(0, n.inicio + dt), midi: n.midi + dm, dur: Math.min(n.dur, fim - (n.inicio + dt)) }));
+  const novasChaves = new Set(movidas.map(chaveNota));
+  const resto = notas.filter(n => !sel.has(chaveNota(n)) && !novasChaves.has(chaveNota(n)));
+  return { notas: ordenar([...resto, ...movidas]), sel: novasChaves };
+}
+
+export const apagarNotas = (notas: NotaEstudio[], sel: Set<string>) => notas.filter(n => !sel.has(chaveNota(n)));
+
+/**
+ * Clique na grade no modo "pôr": a nota que já está ali sai; senão entra uma de uma semicolcheia (um quadradinho)
+ * que se estica até `ate` quando a pessoa arrasta. Devolve as notas e se uma entrou.
+ */
+export function porNota(notas: NotaEstudio[], midi: number, inicio: number, ate: number, fim: number): { notas: NotaEstudio[]; entrou: boolean } {
+  const passo = 1 / PASSOS_POR_TEMPO;
+  const cobre = notas.find(n => n.midi === midi && inicio >= n.inicio - 1e-6 && inicio < n.inicio + n.dur - 1e-6);
+  if (cobre) return { notas: notas.filter(n => n !== cobre), entrou: false };
+  if (inicio < 0 || inicio >= fim) return { notas, entrou: false };
+  const dur = Math.max(passo, Math.min(fim - inicio, Math.ceil((Math.max(ate, inicio) - inicio) / passo + 1e-9) * passo || passo));
+  return { notas: ordenar([...notas, { inicio, dur, midi, vel: 0.85 }]), entrou: true };
+}
+
+/** Estica (ou encurta) a nota que começa em `inicio` até cobrir o passo `ate` (inclusive). */
+export function esticarNota(notas: NotaEstudio[], midi: number, inicio: number, ate: number, fim: number): NotaEstudio[] {
+  const passo = 1 / PASSOS_POR_TEMPO;
+  const dur = Math.max(passo, Math.min(fim - inicio, Math.floor((ate - inicio) / passo + 1e-9) * passo + passo));
+  return notas.map(n => (n.midi === midi && Math.abs(n.inicio - inicio) < 1e-6 ? { ...n, dur } : n));
+}
