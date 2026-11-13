@@ -4,7 +4,7 @@
  * "agente" é o agente Claude que executa pedidos no NordTool (modo Executar). "automatico" é a opção que troca
  * sozinha entre as IAs gratuitas; a resposta fica com o provedor que realmente respondeu.
  */
-export type ProvedorIa = "claude" | "openai" | "gemini" | "groq" | "openrouter" | "mistral" | "nvidia" | "automatico" | "agente";
+export type ProvedorIa = "claude" | "openai" | "gemini" | "groq" | "openrouter" | "mistral" | "nvidia" | "ollama" | "automatico" | "agente";
 
 export interface ModeloIa {
   provedor: ProvedorIa;
@@ -39,7 +39,7 @@ export interface EventoSse {
 
 export const ROTULO_PROVEDOR: Record<ProvedorIa, string> = {
   claude: "Claude", openai: "ChatGPT", gemini: "Gemini", groq: "Groq (gratuito)", openrouter: "OpenRouter (gratuito)",
-  mistral: "Mistral (gratuito)", nvidia: "NVIDIA (gratuito)", automatico: "Automático (gratuito)", agente: "Agente Claude",
+  mistral: "Mistral (gratuito)", nvidia: "NVIDIA (gratuito)", ollama: "Secretária local (sua máquina)", automatico: "Automático (gratuito)", agente: "Agente Claude",
 };
 
 /** Texto da opção no seletor: o id do modelo, ou uma explicação para o Automático. */
