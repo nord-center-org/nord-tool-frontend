@@ -71,7 +71,7 @@ export const DESCRICAO_DAS_TELAS: Record<string, string> = {
   "/organizacional/medicoes": "Os boletins de medição dos contratos, com status e valores.",
   "/gestao/financeiro": "Quanto sobra no mês, extrato, gráficos e investimentos.",
   "/gestao/treinos": "Fichas de treino, o treino do dia e o histórico do que você fez.",
-  "/gestao/repertorio": "Envie uma música: tom, BPM, acordes e o baixo reconhecidos; mude o tom e o andamento, separe as faixas e toque junto com a cifra rolando e o instrumento ao lado.",
+  "/gestao/repertorio": "Envie uma música: tom, BPM, acordes e o baixo reconhecidos; mude o tom e o andamento, separe as faixas e toque junto com a cifra rolando e o instrumento ao lado. Em Criar, monte músicas faixa por faixa; o instrumento online toca na tela.",
   "/gestao/academico": EM_BREVE,
   "/gestao/casamento": "Fornecedores, convidados e marcos do casamento, tudo num lugar só.",
   "/gestao/caixinha": "As despesas da caixinha: quem gastou, o que foi pago e os comprovantes.",
@@ -655,6 +655,16 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       {
         titulo: "Letra e cifra",
         texto: "Cole a cifra como no Cifra Club: a linha atual fica em destaque e a letra rola sozinha. Se a hora de alguma linha não bater, use \"Marcar linhas\" e toque Enter quando cada uma começar.",
+      },
+      {
+        titulo: "Instrumento online",
+        texto: "Toque baixo, teclado, violão, sintetizador ou bateria na tela (várias notas de uma vez) ou pelo teclado do computador: A S D F… são as teclas brancas, W E T Y U as pretas e Z/X mudam a oitava; na bateria, A é o bumbo e S a caixa.",
+        alvo: { css: "button", texto: "Instrumento online" },
+      },
+      {
+        titulo: "Criar",
+        texto: "Monte uma música faixa por faixa: escolha o BPM e os compassos, adicione bateria, baixo, teclado, violão ou sintetizador e escreva as notas clicando na grade, ou toque em \"Gravar\" e toque o instrumento com o metrônomo (um compasso de contagem antes). Cada faixa tem volume, mudo e solo; \"Dobrar\" repete a música, \"WAV\" baixa o áudio e \"Mandar para Músicas\" abre no player.",
+        alvo: { css: '[role="tab"]', texto: "Criar" },
       },
       ajudaNoCanto("Repertório"),
     ],

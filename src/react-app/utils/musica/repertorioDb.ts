@@ -4,6 +4,7 @@
  */
 import type { ResultadoAnalise } from "./analise.ts";
 import type { IdInstrumento } from "./instrumentos.ts";
+import { lerProjeto, type Projeto } from "./estudio.ts";
 
 export interface AjustesMusica {
   semitons: number;
@@ -32,16 +33,18 @@ export interface Musica {
 
 export const AJUSTES_PADRAO: AjustesMusica = { semitons: 0, andamento: 1, instrumento: "baixo4", semitonsCifra: 0 };
 
-const BANCO = "nordtool-repertorio", LOJA = "musicas", ARQUIVOS = "arquivos";
+const BANCO = "nordtool-repertorio", LOJA = "musicas", ARQUIVOS = "arquivos", PROJETOS = "projetos";
 
 function abrir(): Promise<IDBDatabase> {
   return new Promise((ok, erro) => {
     if (typeof indexedDB === "undefined") { erro(new Error("Este navegador não guarda arquivos no aparelho.")); return; }
-    const req = indexedDB.open(BANCO, 1);
+    const req = indexedDB.open(BANCO, 2);
     req.onupgradeneeded = () => {
       // os dados da música e o áudio ficam em lojas separadas: salvar um ajuste não regrava o arquivo
       if (!req.result.objectStoreNames.contains(LOJA)) req.result.createObjectStore(LOJA, { keyPath: "id" });
       if (!req.result.objectStoreNames.contains(ARQUIVOS)) req.result.createObjectStore(ARQUIVOS);
+      // v6: os projetos do estúdio ("Criar")
+      if (!req.result.objectStoreNames.contains(PROJETOS)) req.result.createObjectStore(PROJETOS, { keyPath: "id" });
     };
     req.onsuccess = () => ok(req.result);
     req.onerror = () => erro(req.error ?? new Error("Não deu para abrir o repertório no aparelho."));
@@ -80,3 +83,10 @@ export function tituloDoArquivo(nome: string): { titulo: string; artista: string
   if (partes.length >= 2) return { artista: partes[0].trim(), titulo: partes.slice(1).join(" - ").trim() };
   return { titulo: base || "Música", artista: "" };
 }
+
+// ---------------------------------------------------------------- v6: projetos do estúdio
+
+export const listarProjetos = async () => (await operar<unknown[]>("readonly", l => l.getAll(), PROJETOS))
+  .flatMap(b => { const p = lerProjeto(b); return p ? [p] : []; }).sort((a, b) => b.atualizadoEm.localeCompare(a.atualizadoEm));
+export const salvarProjeto = (p: Projeto) => operar("readwrite", l => l.put({ ...p, atualizadoEm: new Date().toISOString() }), PROJETOS);
+export const excluirProjeto = (id: string) => operar("readwrite", l => l.delete(id), PROJETOS);
