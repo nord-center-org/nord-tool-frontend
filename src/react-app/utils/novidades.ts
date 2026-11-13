@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-13-sac-botao-canto",
+    data: "2026-11-13",
+    titulo: "SAC no canto de todas as telas",
+    texto: "Um botãozinho no canto inferior direito abre uma janelinha para falar com o SAC: conte o problema ou a ideia e envie dali mesmo (a tela em que você está vai junto), ou tire um print dela antes de mandar.",
+    onde: { rotulo: "Botão do SAC no canto da tela", caminho: "/sac" },
+  },
+  {
     id: "2026-11-12-planilha-mover-ajustar",
     data: "2026-11-12",
     titulo: "Planilha: mover linhas e colunas e ajustar a largura",

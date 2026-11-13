@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  MAX_PRINTS, MAX_TITULO, classeStatus, nomeImagemExportada, nomeZipChamados, ordenarChamados, pendentes, problemaDoRascunho, rotuloStatus, textoExportacao,
+  MAX_PRINTS, MAX_TITULO, classeStatus, nomeImagemExportada, nomeZipChamados, ordenarChamados, pendentes, posicaoBotaoSac, primeiroNome, problemaDoRascunho, saudacaoSac, rotuloStatus, textoExportacao,
 } from "./sac.ts";
 
 test("rascunho do chamado precisa de título e descrição e cabe nos limites", () => {
@@ -47,4 +47,22 @@ test("exportação: um bloco por chamado com descrição, resposta e os prints d
   assert.match(texto, /!\[Print 1 do chamado #12\]\(imagens\/chamado-12-1\.png\)/);
   assert.match(texto, /imagens\/chamado-12-2\.jpg/);
   assert.equal(nomeZipChamados("2026-11-04"), "chamados-sac-2026-11-04.zip");
+});
+
+test("botão do SAC: saudação pela hora e com o primeiro nome", () => {
+  assert.equal(saudacaoSac("Ana Maria Souza", 9), "Bom dia, Ana!");
+  assert.equal(saudacaoSac("Ana", 14), "Boa tarde, Ana!");
+  assert.equal(saudacaoSac("Ana", 20), "Boa noite, Ana!");
+  assert.equal(saudacaoSac("Ana", 3), "Boa noite, Ana!");
+  assert.equal(saudacaoSac(null, 12), "Boa tarde!");
+  assert.equal(saudacaoSac("   ", 5), "Bom dia!");
+  assert.equal(primeiroNome("  Bruno   Lima "), "Bruno");
+});
+
+test("botão do SAC: some no próprio SAC e sobe no Início para não cobrir o mascote", () => {
+  assert.equal(posicaoBotaoSac("/sac"), "escondido");
+  assert.equal(posicaoBotaoSac("/sac/12"), "escondido");
+  assert.equal(posicaoBotaoSac("/"), "acima-do-mascote");
+  assert.equal(posicaoBotaoSac("/mapeamentos/bloco-notas"), "canto");
+  assert.equal(posicaoBotaoSac("/sacolas"), "canto");
 });
