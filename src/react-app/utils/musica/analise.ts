@@ -342,6 +342,20 @@ export function picos(forca: Float32Array, porSegundo: number, k = 1.2, minimoSe
 }
 
 /**
+ * Afina o início de uma nota: o fluxo espectral reage assim que o som novo entra na janela (~40 ms antes do ataque
+ * de verdade). O ataque é onde a energia do grave passa da metade da subida (o meio da janela, que é centrada).
+ */
+export function afinarInicio(energia: Float32Array, i: number, porSegundo: number): number {
+  const a = Math.max(0, i - Math.round(0.03 * porSegundo)), b = Math.min(energia.length - 1, i + Math.round(0.1 * porSegundo));
+  let min = Infinity, max = -Infinity, iMax = i;
+  for (let k = a; k <= b; k++) { if (energia[k] < min) min = energia[k]; if (energia[k] > max) { max = energia[k]; iMax = k; } }
+  if (!(max > min * 1.2)) return i;
+  const meio = min + (max - min) * 0.5;
+  for (let k = a; k <= iMax; k++) if (energia[k] >= meio) return k;
+  return i;
+}
+
+/**
  * Notas do baixo, em três passos:
  * 1. onde cada nota começa: picos do ataque no grave (janela curta, ~12 ms);
  * 2. qual é a nota de cada trecho: votação no miolo do trecho, somando a força de E1 a E3 (MIDI 28–52) pela
@@ -409,6 +423,23 @@ export function linhaDoBaixo(
     for (let i = Math.floor(a * ps); i <= Math.ceil(b * ps) && i < envelope.length; i++) { soma += envelope[i]; c++; }
     return c > 0 && soma / c >= refCurta * 0.2;
   };
+  /**
+   * O som do baixo caiu antes de `t` (fim de uma nota e começo de outra igual)? Compara o mínimo da energia do grave
+   * logo antes do ataque com o nível do corpo da nota anterior (mediana, que ignora as batidas por cima).
+   */
+  const caiuAntes = (ant: Nota, t: number) => {
+    if (!envelope) return true;
+    if (ant.fim - ant.inicio < 0.12) return false;
+    const corpo: number[] = [];
+    for (let i = Math.floor((ant.inicio + 0.04) * ps); i <= Math.ceil((ant.fim - 0.04) * ps) && i < envelope.length; i++) corpo.push(envelope[i]);
+    if (!corpo.length) return true;
+    corpo.sort((x, y) => x - y);
+    const nivel = corpo[corpo.length >> 1];
+    let minimo = Infinity;
+    for (let i = Math.floor((t - 0.08) * ps); i <= Math.ceil((t + 0.005) * ps) && i < envelope.length; i++) if (i >= 0) minimo = Math.min(minimo, envelope[i]);
+    // nota segurada fica perto de 1 (o bumbo por cima não derruba o grave); palhetada nova cai para ~0,7
+    return minimo < nivel * 0.85;
+  };
   const notas: Nota[] = [];
   for (let k = 0; k < inicios.length; k++) {
     const ini = inicios[k];
@@ -445,15 +476,13 @@ export function linhaDoBaixo(
     if (segundo > mv * 0.92 && e < energiaRef * 0.3) continue;
     notas.push({ inicio: ini, fim, midi: MIN + melhor, forca: Math.min(1, e / energiaRef) });
   }
-  // repetição sem ataque forte (bumbo por cima da mesma nota) vira uma nota só
-  const fA = [...forcaAtaque].sort((x, y) => x - y);
-  const ataqueForte = fA[Math.floor(fA.length * 0.2)] ?? 0;
+  // Mesma nota em seguida: só é uma nota nova se o som do baixo caiu antes do ataque (palhetada de novo). Se ele
+  // continuou (o bumbo ou a caixa bateram por cima, ou o ataque foi fraco), vira uma nota só; pedaço muito curto
+  // da mesma nota também se junta. Na dúvida, junta: nota única é melhor que nota picotada.
   const juntas: Nota[] = [];
   for (const x of notas) {
     const ult = juntas[juntas.length - 1];
-    const idx = inicios.indexOf(x.inicio);
-    const forte = idx >= 0 && idx < forcaAtaque.length ? forcaAtaque[idx] >= ataqueForte : true;
-    if (ult && ult.midi === x.midi && Math.abs(ult.fim - x.inicio) < 0.02 && !forte) { ult.fim = x.fim; ult.forca = Math.max(ult.forca, x.forca); continue; }
+    if (ult && ult.midi === x.midi && x.inicio - ult.fim < 0.2 && !caiuAntes(ult, x.inicio)) { ult.fim = x.fim; ult.forca = Math.max(ult.forca, x.forca); continue; }
     juntas.push({ ...x });
   }
   for (const x of juntas) {
@@ -503,9 +532,10 @@ export function gradeDeColcheias(batidas: number[]) {
 
 /**
  * Versão do analisador. Suba sempre que a análise mudar de um jeito que valha refazer as músicas já guardadas
- * (o player refaz sozinho quando a versão guardada é menor). 2 = nova linha do baixo (Repertório v2).
+ * (o player refaz sozinho quando a versão guardada é menor). 2 = nova linha do baixo (Repertório v2); 3 = a mesma
+ * nota em seguida só se separa se o som caiu antes do novo ataque (notas picotadas).
  */
-export const VERSAO_ANALISE = 2;
+export const VERSAO_ANALISE = 3;
 
 /** A análise guardada é de uma versão anterior do analisador? */
 export const analiseDesatualizada = (a: { versao?: number } | null | undefined) => !a || (a.versao ?? 1) < VERSAO_ANALISE;
@@ -539,7 +569,9 @@ export function analisar(sinal: Float32Array, sr: number, progresso?: (p: number
   const qps = sr / SA;
   const bpm = detectarBpm(ataque, qps);
   const batidasQ = acompanharBatidas(ataque, (60 * qps) / bpm);
-  const batidas = batidasQ.map(q => Math.round(((q * SA) / sr) * 1000) / 1000);
+  // o fluxo marca a batida quando o som entra na janela (~40 ms cedo): afina pela subida da energia
+  const energiaA = Float32Array.from(qa, m => { let e = 0; for (let k = 0; k < m.length; k++) e += m[k] * m[k]; return Math.sqrt(e); });
+  const batidas = batidasQ.map(q => Math.round(((afinarInicio(energiaA, q, qps) * SA) / sr) * 1000) / 1000);
   progresso?.(0.65, "Reconhecendo os acordes");
   const energia = new Float32Array(quadros.length);
   quadros.forEach((m, i) => { let e = 0; for (let k = 0; k < m.length; k++) e += m[k] * m[k]; energia[i] = Math.sqrt(e); });
@@ -553,7 +585,7 @@ export function analisar(sinal: Float32Array, sr: number, progresso?: (p: number
     t => { const a = acordeEm(t); return a && a.acorde !== "N" ? notasDeNome(a.acorde) : null; },
     t => { const a = acordeEm(t); return a && a.acorde !== "N" ? notasDeNome(a.acorde)[0] : null; },
     gradeDeColcheias(batidas),
-    { inicios: iPicos.map(grave.tempo), forca: iPicos.map(i => grave.forca[i]), energia: grave.energia, porSegundo: grave.porSegundo });
+    { inicios: iPicos.map(i => grave.tempo(afinarInicio(grave.energia, i, grave.porSegundo))), forca: iPicos.map(i => grave.forca[i]), energia: grave.energia, porSegundo: grave.porSegundo });
   progresso?.(1, "Pronto");
   return { versao: VERSAO_ANALISE, duracao, tom, bpm, batidas, acordes, notasBaixo };
 }
