@@ -102,7 +102,7 @@ export class TocadorEstudio {
     if (limite <= this.agendadoAte) return;
     const quando = (tempo: number) => this.t0 + (tempo - this.origem) * this.spb;
     for (const { faixa, nota, tempo } of notasNoIntervalo(p, Math.max(0, this.agendadoAte), limite, this.laco)) {
-      this.sint.tocarEm(faixa.timbre, nota.midi, quando(tempo), nota.dur * this.spb, nota.vel, this.ganhos.get(faixa.id));
+      this.sint.tocarEm(faixa.timbre, nota.midi, quando(tempo), nota.dur * this.spb, nota.vel, this.ganhos.get(faixa.id), faixa.variante);
     }
     if (this.metronomo || this.agendadoAte < 0) {
       for (let b = Math.ceil(this.agendadoAte - 1e-9); b < limite; b++) {
@@ -142,7 +142,7 @@ export async function renderizarProjeto(p: Projeto, sr = 44100): Promise<Blob> {
   const ganhos = new Map<string, GainNode>();
   for (const f of faixasAudiveis(p.faixas)) { const g = off.createGain(); g.gain.value = f.volume; g.connect(sint.entrada); ganhos.set(f.id, g); }
   for (const { faixa, nota, tempo } of notasNoIntervalo(p, 0, temposDoProjeto(p))) {
-    sint.tocarEm(faixa.timbre, nota.midi, tempo * spb, nota.dur * spb, nota.vel, ganhos.get(faixa.id));
+    sint.tocarEm(faixa.timbre, nota.midi, tempo * spb, nota.dur * spb, nota.vel, ganhos.get(faixa.id), faixa.variante);
   }
   const r = await off.startRendering();
   const L = r.getChannelData(0), R = r.numberOfChannels > 1 ? r.getChannelData(1) : L;

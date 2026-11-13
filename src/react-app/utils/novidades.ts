@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-13-repertorio-timbres-ferramentas",
+    data: "2026-11-13",
+    titulo: "Repertório: timbres e ferramentas para tocar",
+    texto: "No instrumento online e no estúdio: escolha o timbre (baixo dedo, palheta, slap, fretless; piano, órgão; guitarra limpa ou distorcida; pad, sino; bateria eletrônica), toque no braço do baixo ou do violão, sustente as notas, transponha, destaque uma escala, toque acordes com uma tecla e treine com metrônomo.",
+    onde: { rotulo: "Gestão Individual → Repertório → Instrumento online", caminho: "/gestao/repertorio" },
+  },
+  {
     id: "2026-11-13-repertorio-conta",
     data: "2026-11-13",
     titulo: "Repertório em qualquer aparelho",

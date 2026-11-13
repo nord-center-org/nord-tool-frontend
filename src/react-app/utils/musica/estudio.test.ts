@@ -96,3 +96,9 @@ test("v6: leitura segura do projeto guardado", () => {
   assert.equal(p.faixas.length, 1);
   assert.deepEqual(p.faixas[0].notas.map(n => [n.inicio, n.dur, n.vel]), [[1, 1, 0.85], [7, 1, 1]]);
 });
+
+test("v8: a faixa guarda a variação do timbre", () => {
+  const p = lerProjeto({ id: "p", faixas: [{ id: "f", timbre: "baixo", variante: "slap", notas: [] }, { id: "g", timbre: "baixo", variante: "<script>", notas: [] }] });
+  assert.equal(p?.faixas[0].variante, "slap");
+  assert.equal(p?.faixas[1].variante, undefined);
+});
