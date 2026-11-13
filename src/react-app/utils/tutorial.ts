@@ -663,7 +663,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Criar",
-        texto: "Monte uma música faixa por faixa: escolha o BPM e os compassos, adicione bateria, baixo, teclado, violão ou sintetizador e escreva as notas clicando na grade, ou toque em \"Gravar\" e toque o instrumento com o metrônomo (um compasso de contagem antes). Cada faixa tem volume, mudo e solo; \"Dobrar\" repete a música, \"WAV\" baixa o áudio e \"Mandar para Músicas\" abre no player.",
+        texto: "Monte uma música faixa por faixa: escolha o BPM e os compassos, adicione bateria, baixo, teclado, violão ou sintetizador e escreva as notas na grade (no modo \"Pôr notas\", um clique marca um quadradinho e arrastar estica; no modo \"Selecionar\", arraste um retângulo para copiar, colar em qualquer faixa, duplicar, apagar ou mover com as setas), ou toque em \"Gravar\" e toque o instrumento com o metrônomo (um compasso de contagem antes). Cada faixa tem volume, mudo e solo; \"Dobrar\" repete a música, \"WAV\" baixa o áudio e \"Mandar para Músicas\" abre no player.",
         alvo: { css: '[role="tab"]', texto: "Criar" },
       },
       ajudaNoCanto("Repertório"),

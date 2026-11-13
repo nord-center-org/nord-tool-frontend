@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  LIMITES, alternarNota, duplicarCompassos, duracaoEmSegundos, faixasAudiveis, juntarGravacao, lerProjeto, mudarCompassos, notaDaTecla, notasNoIntervalo,
+  LIMITES, alternarNota, apagarNotas, colarNotas, copiarNotas, esticarNota, moverNotas, notasNoRetangulo, porNota, duplicarCompassos, duracaoEmSegundos, faixasAudiveis, juntarGravacao, lerProjeto, mudarCompassos, notaDaTecla, notasNoIntervalo,
   novaFaixa, novoProjeto, pecaDaTecla, quantizar, teclaDaNota, type NotaEstudio, type Projeto,
 } from "./estudio.ts";
 
@@ -101,4 +101,40 @@ test("v8: a faixa guarda a variação do timbre", () => {
   const p = lerProjeto({ id: "p", faixas: [{ id: "f", timbre: "baixo", variante: "slap", notas: [] }, { id: "g", timbre: "baixo", variante: "<script>", notas: [] }] });
   assert.equal(p?.faixas[0].variante, "slap");
   assert.equal(p?.faixas[1].variante, undefined);
+});
+
+test("v9: clique põe um quadradinho só; arrastar estica", () => {
+  let r = porNota([], 60, 1, 1, 16);
+  assert.equal(r.entrou, true);
+  assert.equal(r.notas[0].dur, 0.25, "um quadradinho (semicolcheia)");
+  const n = esticarNota(r.notas, 60, 1, 1.75, 16);
+  assert.equal(n[0].dur, 1, "arrastou até o 4º quadradinho");
+  assert.equal(esticarNota(r.notas, 60, 1, 0.5, 16)[0].dur, 0.25, "para trás não encurta abaixo de um");
+  assert.equal(esticarNota(r.notas, 60, 1, 40, 16)[0].dur, 15, "corta no fim");
+  r = porNota(n, 60, 1.5, 1.5, 16);
+  assert.equal(r.entrou, false);
+  assert.equal(r.notas.length, 0, "clicar em cima tira");
+});
+
+test("v9: selecionar, copiar, colar, mover e apagar", () => {
+  const notas = [0, 1, 2, 3].map(i => ({ inicio: i, dur: 0.5, midi: 60 + i, vel: 0.8 }));
+  const sel = notasNoRetangulo(notas, 0.9, 2.1, 70, 50);
+  assert.deepEqual([...sel].sort(), ["1000:61", "2000:62"]);
+  assert.equal(notasNoRetangulo(notas, 0.6, 0.9, 0, 127).size, 0, "entre as notas não pega nada");
+  const rec = copiarNotas(notas, sel)!;
+  assert.deepEqual(rec.notas.map(n => [n.inicio, n.midi]), [[0, 61], [1, 62]]);
+  assert.equal(rec.duracao, 1.5);
+  assert.equal(copiarNotas(notas, new Set()), null);
+  const col = colarNotas(notas, rec, 8, 16);
+  assert.equal(col.notas.length, 6);
+  assert.deepEqual([...col.sel].sort(), ["8000:61", "9000:62"]);
+  assert.equal(colarNotas(notas, rec, 1, 16).notas.length, 4, "colar em cima das iguais não duplica");
+  assert.equal(colarNotas(notas, rec, 15.5, 16).notas.length, 5, "o que passa do fim fica de fora");
+  assert.deepEqual(colarNotas([], rec, 0, 16, 12).notas.map(n => n.midi), [73, 74], "colar transposto");
+  const mov = moverNotas(notas, sel, 0.25, 2, 16);
+  assert.deepEqual(mov.notas.map(n => [n.inicio, n.midi]), [[0, 60], [1.25, 63], [2.25, 64], [3, 63]]);
+  assert.deepEqual([...mov.sel].sort(), ["1250:63", "2250:64"]);
+  assert.equal(moverNotas(notas, sel, -5, 0, 16).notas, notas, "sairia da música: não move");
+  assert.equal(moverNotas(notas, new Set(["0:60"]), 3, 3, 16).notas.length, 3, "cair em cima de uma igual a substitui");
+  assert.deepEqual(apagarNotas(notas, sel).map(n => n.midi), [60, 63]);
 });
