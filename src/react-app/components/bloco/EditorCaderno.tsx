@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowDown, ArrowLeft, ArrowUp, Circle, Copy, Eraser, FileDown, FileUp, Hand, Highlighter, ImagePlus, Lasso, Loader2, Minus,
-  MoveUpRight, PenLine, PenTool, Plus, Redo2, Square, Trash2, Type, Undo2, X, ZoomIn, ZoomOut, Layers, CheckCircle2, AlertTriangle,
+  MoveUpRight, PenLine, PenTool, Plus, Redo2, Square, Trash2, Type, Undo2, X, ZoomIn, ZoomOut, Layers, Mouse, CheckCircle2, AlertTriangle,
   RotateCw, RotateCcw, FileText, Columns2, NotebookPen,
 } from "lucide-react";
 import DocumentoCaderno, { type ExibicaoDocumento } from "@/react-app/components/bloco/DocumentoCaderno";
@@ -15,6 +15,7 @@ import { blocoNotasService as servico, type Caderno, type PaginaBloco } from "@/
 import {
   CORES, CORES_MARCA, ESPESSURAS, ROTULO_FUNDO, compactar, girarItens, tipoDoArquivo, lerConteudo, nomeArquivoCaderno, novoId, proximoGiro, registrar,
   type Fundo, type Item, type Passo, type TipoForma,
+  correcaoDaRolagem, limitarZoom, zoomDaRoda,
 } from "@/react-app/utils/blocoNotas";
 import { prepararFoto } from "@/react-app/utils/imagem";
 
@@ -23,7 +24,7 @@ interface EstadoPagina { itens: Item[] | null; nrVersao: number; sujo: boolean; 
 const CHAVE_CONFIG = "@NordTool:bloco-notas";
 const CONFIG_PADRAO: ConfigFerramenta = {
   ferramenta: "caneta", cor: "#111827", espessura: 3, corMarca: "#facc15", espessuraMarca: 16,
-  borracha: "traco", raioBorracha: 10, forma: "linha", tamanhoTexto: 20, soCaneta: false,
+  borracha: "traco", raioBorracha: 10, forma: "linha", tamanhoTexto: 20, soCaneta: false, rodaZoom: true,
 };
 
 function lerConfig(): ConfigFerramenta {
@@ -133,7 +134,48 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
     obs.observe(el);
     return () => obs.disconnect();
   }, [larguraMax, caderno, modo]);
-  const zoom = ajuste * fator;
+  const zoom = limitarZoom(ajuste * fator);
+
+  /**
+   * v6: zoom ancorado. Antes de mudar o zoom guarda o ponto da folha que está embaixo do cursor (ou do meio da tela,
+   * nos botões); depois que a tela redesenha no zoom novo, rola para ele continuar no mesmo lugar — como no CAD.
+   */
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const ajusteRef = useRef(ajuste);
+  ajusteRef.current = ajuste;
+  const alvoZoom = useRef<number | null>(null);
+  const ancora = useRef<{ pagina: string; x: number; y: number; cx: number; cy: number } | null>(null);
+  const zoomPara = useCallback((novo: number, cx?: number, cy?: number) => {
+    const el = rolagemRef.current;
+    const z = limitarZoom(novo);
+    if (el) {
+      const v = el.getBoundingClientRect();
+      const ax = cx ?? v.left + el.clientWidth / 2, ay = cy ?? v.top + el.clientHeight / 2;
+      let melhor: { pg: HTMLElement; r: DOMRect } | null = null, dist = Infinity;
+      el.querySelectorAll<HTMLElement>("[data-pagina]").forEach(pg => {
+        const r = pg.getBoundingClientRect();
+        const d = ay < r.top ? r.top - ay : ay > r.bottom ? ay - r.bottom : 0;
+        if (d < dist) { dist = d; melhor = { pg, r }; }
+      });
+      const m = melhor as { pg: HTMLElement; r: DOMRect } | null;
+      if (m) ancora.current = { pagina: m.pg.dataset.pagina ?? "", x: (ax - m.r.left) / zoomRef.current, y: (ay - m.r.top) / zoomRef.current, cx: ax, cy: ay };
+    }
+    alvoZoom.current = z;
+    setFator(z / ajusteRef.current);
+  }, []);
+  useLayoutEffect(() => {
+    const a = ancora.current, el = rolagemRef.current;
+    ancora.current = null;
+    alvoZoom.current = null;
+    if (!a || !el) return;
+    const pg = el.querySelector(`[data-pagina="${a.pagina}"]`);
+    if (!pg) return;
+    const r = pg.getBoundingClientRect();
+    const { dx, dy } = correcaoDaRolagem(r, a, zoom, { x: a.cx, y: a.cy });
+    el.scrollLeft += dx;
+    el.scrollTop += dy;
+  }, [zoom]);
 
   const carregando = useRef(new Set<number>());
   const carregarPagina = useCallback(async (idPagina: number) => {
@@ -214,7 +256,9 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
       const alvo = e.target as HTMLElement | null;
-      if (alvo && (alvo.tagName === "TEXTAREA" || alvo.tagName === "INPUT")) return;
+      // v6: digitando (caixa de texto, documento, campos), as teclas são do texto, não do desenho.
+      if (alvo && (alvo.tagName === "TEXTAREA" || alvo.tagName === "INPUT" || alvo.tagName === "SELECT" || alvo.isContentEditable)) return;
+      if (modo === "texto") return;
       const ctrl = e.ctrlKey || e.metaKey;
       if (ctrl && e.key.toLowerCase() === "z") { e.preventDefault(); voltarPasso(e.shiftKey ? "refazer" : "desfazer"); }
       else if (ctrl && e.key.toLowerCase() === "y") { e.preventDefault(); voltarPasso("refazer"); }
@@ -229,20 +273,22 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
     };
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
-  }, [voltarPasso, selecao, aplicar]);
+  }, [voltarPasso, selecao, aplicar, modo]);
 
-  // Ctrl + roda do mouse: zoom.
+  // v6: a rodinha do mouse dá zoom no ponto do cursor (como no CAD); Shift + rodinha rola para os lados. Com a opção
+  // "rodinha rola" desligada, só Ctrl + rodinha (ou a pinça do touchpad) dá zoom.
+  const rodaZoom = config.rodaZoom;
   useEffect(() => {
     const el = rolagemRef.current;
     if (!el) return;
     const roda = (e: WheelEvent) => {
-      if (!e.ctrlKey) return;
+      if (!e.ctrlKey && (!rodaZoom || e.shiftKey)) return;
       e.preventDefault();
-      setFator(f => Math.min(4, Math.max(0.4, f * (e.deltaY < 0 ? 1.1 : 1 / 1.1))));
+      zoomPara(zoomDaRoda(alvoZoom.current ?? zoomRef.current, e.deltaY, e.deltaMode), e.clientX, e.clientY);
     };
     el.addEventListener("wheel", roda, { passive: false });
     return () => el.removeEventListener("wheel", roda);
-  }, [caderno, modo]);
+  }, [caderno, modo, rodaZoom, zoomPara]);
 
   const aoVisivel = useCallback((idPagina: number, fracao: number) => {
     visiveis.current.set(idPagina, fracao);
@@ -439,9 +485,9 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
         <div className="flex items-center gap-1">
           <button type="button" onClick={() => voltarPasso("desfazer")} disabled={!desfazer.length} title="Desfazer (Ctrl+Z)" aria-label="Desfazer" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30"><Undo2 className="h-4 w-4" /></button>
           <button type="button" onClick={() => voltarPasso("refazer")} disabled={!refazer.length} title="Refazer (Ctrl+Y)" aria-label="Refazer" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30"><Redo2 className="h-4 w-4" /></button>
-          <button type="button" onClick={() => setFator(x => Math.max(0.4, x / 1.25))} title="Diminuir" aria-label="Diminuir zoom" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><ZoomOut className="h-4 w-4" /></button>
+          <button type="button" onClick={() => zoomPara(zoom / 1.25)} title="Diminuir" aria-label="Diminuir zoom" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><ZoomOut className="h-4 w-4" /></button>
           <button type="button" onClick={() => setFator(1)} title="Caber na largura" className="w-12 rounded-lg py-1 text-xs font-bold text-slate-600 hover:bg-slate-100">{Math.round(zoom * 100)}%</button>
-          <button type="button" onClick={() => setFator(x => Math.min(4, x * 1.25))} title="Aumentar" aria-label="Aumentar zoom" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><ZoomIn className="h-4 w-4" /></button>
+          <button type="button" onClick={() => zoomPara(zoom * 1.25)} title="Aumentar" aria-label="Aumentar zoom" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><ZoomIn className="h-4 w-4" /></button>
           <button type="button" onClick={() => void girarPagina(atual)} disabled={modo === "texto"} title="Girar a página atual 90°" aria-label="Girar página" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30"><RotateCw className="h-4 w-4" /></button>
           <button type="button" onClick={() => setPainel(p => !p)} aria-expanded={painel} title="Páginas" className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100">
             <Layers className="h-4 w-4" /> {numeroAtual}/{paginas.length}
@@ -464,10 +510,19 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
           <button type="button" onClick={() => arquivoImagem.current?.click()} disabled={ocupado !== null} title="Inserir imagem" aria-label="Inserir imagem" className={botaoFerramenta(false)}>
             {ocupado === "imagem" ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
           </button>
+          {/* v6: PDF (ou outro arquivo) direto da barra, sem abrir o painel de páginas; entra depois da página atual. */}
+          <button type="button" onClick={() => arquivoPdf.current?.click()} disabled={ocupado !== null} title="Inserir PDF ou arquivo depois da página atual" aria-label="Inserir PDF" className={botaoFerramenta(false)}>
+            {ocupado === "pdf" ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileUp className="h-5 w-5" />}
+          </button>
           <span className="mx-1 h-6 w-px shrink-0 bg-slate-200" />
           <button type="button" onClick={() => mudar({ soCaneta: !config.soCaneta })} aria-pressed={config.soCaneta}
             title="Só a caneta (stylus) desenha; o dedo rola a página" className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold ${config.soCaneta ? "bg-violet-100 text-violet-700" : "text-slate-600 hover:bg-slate-100"}`}>
             <PenTool className="h-4 w-4" /> Só caneta
+          </button>
+          <button type="button" onClick={() => mudar({ rodaZoom: !config.rodaZoom })} aria-pressed={config.rodaZoom}
+            title={config.rodaZoom ? "A rodinha do mouse dá zoom onde está o cursor (Shift + rodinha rola para os lados; arraste com a rodinha apertada para mover). Toque para a rodinha rolar a página." : "A rodinha do mouse rola a página (Ctrl + rodinha dá zoom). Toque para a rodinha dar zoom."}
+            className={`hidden h-10 shrink-0 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold sm:inline-flex ${config.rodaZoom ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100"}`}>
+            <Mouse className="h-4 w-4" /> {config.rodaZoom ? "Rodinha: zoom" : "Rodinha: rolar"}
           </button>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto px-3 pb-2" aria-label="Opções da ferramenta">
@@ -526,7 +581,7 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
             </select>
           )}
           {f === "laco" && <span className="shrink-0 text-xs text-slate-500">Circule para selecionar; arraste para mover e puxe a bolinha para redimensionar.</span>}
-          {f === "mao" && <span className="shrink-0 text-xs text-slate-500">Arraste para rolar. Ctrl + roda do mouse muda o zoom.</span>}
+          {f === "mao" && <span className="shrink-0 text-xs text-slate-500">Arraste para rolar (ou arraste com a rodinha apertada, em qualquer ferramenta).</span>}
           {f === "nenhuma" && <span className="shrink-0 text-xs text-slate-500">Lápis solto: nada é desenhado. Toque numa ferramenta para voltar a escrever.</span>}
         </div>
       </div>
@@ -554,10 +609,12 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
         )}
         {modo !== "texto" && (
         <div ref={rolagemRef} data-rolagem className="min-h-0 min-w-0 flex-1 overflow-auto bg-slate-100 py-4"
+          onMouseDown={e => { if (e.button === 1) e.preventDefault(); /* sem a rolagem automática do botão do meio */ }}
           onPointerDown={e => {
             if (e.target === e.currentTarget) setSelecao(null);
-            // Mão com mouse: arrastar rola (no toque o navegador já rola sozinho).
-            if (f === "mao" && e.pointerType === "mouse" && rolagemRef.current) {
+            // Mão com mouse, ou a rodinha apertada com qualquer ferramenta (v6): arrastar rola. No toque o navegador já rola.
+            if (((f === "mao" && e.button === 0) || e.button === 1) && e.pointerType === "mouse" && rolagemRef.current) {
+              e.preventDefault();
               const el = rolagemRef.current, x0 = e.clientX, y0 = e.clientY, l0 = el.scrollLeft, t0 = el.scrollTop;
               const mover = (ev: PointerEvent) => { el.scrollLeft = l0 - (ev.clientX - x0); el.scrollTop = t0 - (ev.clientY - y0); };
               const soltar = () => { window.removeEventListener("pointermove", mover); window.removeEventListener("pointerup", soltar); };

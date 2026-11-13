@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-13-caderno-zoom-pdf",
+    data: "2026-11-13",
+    titulo: "Caderno: zoom de projeto, rodinha do mouse e PDF na barra",
+    texto: "No caderno, a rodinha do mouse dá zoom onde está o cursor e vai até 1600%, para ler cotas de prancha; arraste com a rodinha apertada para mover. O botão de inserir PDF agora fica na barra, e escrever num texto não desfaz mais o desenho com Ctrl+Z.",
+    onde: { rotulo: "Mapeamentos → Bloco de notas → Caderno", caminho: "/mapeamentos/bloco-notas" },
+  },
+  {
     id: "2026-11-12-planilha-mover-ajustar",
     data: "2026-11-12",
     titulo: "Planilha: mover linhas e colunas e ajustar a largura",
