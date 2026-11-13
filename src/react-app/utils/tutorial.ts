@@ -181,6 +181,12 @@ export function tutorialGeral({ nome, grupos, variasObras }: OpcoesTourGeral): T
       menu: "fechar",
     },
     {
+      titulo: "Falar com o SAC",
+      texto: "Este botãozinho no canto fica em todas as telas: toque nele para abrir um chamado ali mesmo (a tela em que você está vai junto) ou tirar um print dela. O número vermelho avisa quando responderam.",
+      alvo: { css: '[data-tutorial="sac-flutuante"]' },
+      menu: "fechar",
+    },
+    {
       titulo: "Tudo pronto!",
       texto: "Agora é com você. Qualquer dúvida, o ? está sempre no canto da tela. Bom trabalho!",
       menu: "fechar",

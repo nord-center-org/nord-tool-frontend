@@ -83,3 +83,25 @@ export function textoExportacao(chamados: ChamadoExportado[], imagens: Map<numbe
 
 /** Nome do ZIP: chamados-sac-2026-11-04.zip. */
 export const nomeZipChamados = (hoje: string) => `chamados-sac-${hoje}.zip`;
+
+// ---------------------------------------------------------------- botão do SAC (v3)
+
+/** Primeiro nome, para a saudação ("Ana Maria Souza" → "Ana"). */
+export const primeiroNome = (nome: string | null | undefined) => (nome ?? "").trim().split(/\s+/)[0]?.slice(0, 20) ?? "";
+
+/** "Bom dia, Ana!" / "Boa tarde!" pela hora (0–23). */
+export function saudacaoSac(nome: string | null | undefined, hora: number): string {
+  const periodo = hora >= 5 && hora < 12 ? "Bom dia" : hora >= 12 && hora < 18 ? "Boa tarde" : "Boa noite";
+  const n = primeiroNome(nome);
+  return n ? `${periodo}, ${n}!` : `${periodo}!`;
+}
+
+/**
+ * Onde o botão do SAC fica: escondido no próprio SAC; no Início, um pouco acima, para não cobrir o mascote das
+ * novidades (que fica no canto); nas outras telas, no canto inferior direito.
+ */
+export function posicaoBotaoSac(caminho: string): "escondido" | "acima-do-mascote" | "canto" {
+  if (caminho === "/sac" || caminho.startsWith("/sac/")) return "escondido";
+  if (caminho === "/") return "acima-do-mascote";
+  return "canto";
+}

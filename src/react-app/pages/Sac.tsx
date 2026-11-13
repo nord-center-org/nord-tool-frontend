@@ -15,13 +15,7 @@ import {
 import { criarZip, type EntradaZip } from "@/react-app/utils/zip";
 import { podeAcessar } from "@/react-app/utils/sessao";
 
-interface PrintLocal { chave: string; nome: string; blob: Blob; url: string; tela: string | null }
-
-/**
- * Rascunho do chamado guardado fora do componente: a pessoa sai do SAC para tirar o print de outra tela e,
- * quando volta, o título, a descrição e os prints continuam lá.
- */
-const rascunho: { titulo: string; descricao: string; prints: PrintLocal[] } = { titulo: "", descricao: "", prints: [] };
+import { rascunhoSac as rascunho, type PrintLocal } from "@/react-app/components/sac/rascunhoSac";
 
 const chave = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
