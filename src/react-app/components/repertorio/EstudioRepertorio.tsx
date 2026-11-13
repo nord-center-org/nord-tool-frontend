@@ -334,12 +334,13 @@ function EditorProjeto({ inicial, onVoltar, onMandado }: { inicial: Projeto; onV
                 const notas = alternarNota(faixa.notas, midi, inicio, d, total);
                 mudarFaixa(faixa.id, { notas });
                 // ouvir a nota que entrou
-                if (notas.length > faixa.notas.length) tocador.current?.sint.tocar(faixa.timbre, midi, 0, Math.min(0.5, d * 0.6), 0, 0.85, tocador.current.ganhoDaFaixa(faixa.id));
+                if (notas.length > faixa.notas.length) tocador.current?.sint.tocar(faixa.timbre, midi, 0, Math.min(0.5, d * 0.6), 0, 0.85, tocador.current.ganhoDaFaixa(faixa.id), faixa.variante);
               }} />
           </div>
           {tocadorPronto && (
             <div className="mt-2">
-              <InstrumentoOnline sint={tocadorPronto.sint} timbre={faixa.timbre} destino={tocadorPronto.ganhoDaFaixa(faixa.id)} aoTocar={aoTocar} />
+              <InstrumentoOnline sint={tocadorPronto.sint} timbre={faixa.timbre} destino={tocadorPronto.ganhoDaFaixa(faixa.id)} aoTocar={aoTocar}
+                variante={faixa.variante} onVariante={v => mudarFaixa(faixa.id, { variante: v })} />
             </div>
           )}
         </div>

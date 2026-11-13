@@ -658,7 +658,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Instrumento online",
-        texto: "Toque baixo, teclado, violão, sintetizador ou bateria na tela (várias notas de uma vez) ou pelo teclado do computador: A S D F… são as teclas brancas, W E T Y U as pretas e Z/X mudam a oitava; na bateria, A é o bumbo e S a caixa.",
+        texto: "Toque baixo, teclado, violão, sintetizador ou bateria na tela (várias notas de uma vez) ou pelo teclado do computador: A S D F… são as teclas brancas, W E T Y U as pretas, Z/X mudam a oitava e Shift segurado sustenta; na bateria, A é o bumbo e S a caixa. Escolha o timbre (baixo slap, piano, órgão, guitarra distorcida, pad…), toque no braço do baixo ou do violão e, em \"Mais ferramentas\", transponha, destaque uma escala, toque um acorde inteiro com uma tecla e ajuste a força. Tem metrônomo.",
         alvo: { css: "button", texto: "Instrumento online" },
       },
       {

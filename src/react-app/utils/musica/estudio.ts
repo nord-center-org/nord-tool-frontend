@@ -45,6 +45,8 @@ export interface Faixa {
   mudo: boolean;
   solo: boolean;
   notas: NotaEstudio[];
+  /** v8: variação do timbre (ex.: baixo "slap"); sem ela, a padrão do instrumento. */
+  variante?: string;
 }
 
 export interface Projeto {
@@ -218,6 +220,7 @@ export function lerProjeto(bruto: unknown): Projeto | null {
     return [{
       id: f.id, nome: typeof f.nome === "string" && f.nome.trim() ? f.nome.slice(0, 40) : timbre(f.timbre).nome, timbre: f.timbre,
       volume: limitar(num(f.volume, 0.8), 0, 1.5), mudo: f.mudo === true, solo: f.solo === true, notas: ordenar(notas).slice(0, LIMITES.notasMax),
+      ...(typeof f.variante === "string" && /^[a-z-]{1,20}$/.test(f.variante) ? { variante: f.variante } : {}),
     }];
   });
   const agora = new Date().toISOString();

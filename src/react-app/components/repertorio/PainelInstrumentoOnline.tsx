@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { Timer, X } from "lucide-react";
 
 import InstrumentoOnline from "@/react-app/components/repertorio/InstrumentoOnline";
 import { Sintetizador } from "@/react-app/components/repertorio/sintetizador";
@@ -17,6 +17,31 @@ export default function PainelInstrumentoOnline({ onFechar }: { onFechar: () => 
   const [timbre, setTimbre] = useState<Timbre>("teclado");
   const [volume, setVolume] = useState(0.8);
   useEffect(() => { if (sint) sint.volume = volume; }, [sint, volume]);
+  // v8: metrônomo para treinar (agenda os cliques um pouco à frente no relógio do áudio)
+  const [metronomo, setMetronomo] = useState(false);
+  const [bpm, setBpm] = useState(90);
+  useEffect(() => {
+    if (!sint || !metronomo) return;
+    const ctx = sint.contexto as AudioContext;
+    if (ctx.state === "suspended") void ctx.resume();
+    const passo = 60 / Math.min(240, Math.max(30, bpm));
+    let proximo = ctx.currentTime + 0.1, n = 0;
+    const agendar = () => {
+      while (proximo < ctx.currentTime + 0.15) {
+        const forte = n % 4 === 0, o = ctx.createOscillator(), g = ctx.createGain();
+        o.frequency.value = forte ? 1500 : 1000;
+        g.gain.setValueAtTime(0.0001, proximo);
+        g.gain.exponentialRampToValueAtTime(forte ? 0.35 : 0.2, proximo + 0.002);
+        g.gain.exponentialRampToValueAtTime(0.0001, proximo + 0.05);
+        o.connect(g).connect(ctx.destination);
+        o.start(proximo); o.stop(proximo + 0.06);
+        proximo += passo; n++;
+      }
+    };
+    agendar();
+    const t = window.setInterval(agendar, 25);
+    return () => window.clearInterval(t);
+  }, [sint, metronomo, bpm]);
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onFechar(); };
     window.addEventListener("keydown", esc);
@@ -35,6 +60,11 @@ export default function PainelInstrumentoOnline({ onFechar }: { onFechar: () => 
             ))}
           </div>
           <input type="range" min={0} max={1.5} step={0.05} value={volume} onChange={e => setVolume(Number(e.target.value))} aria-label="Volume" className="w-20" />
+          <button type="button" aria-pressed={metronomo} onClick={() => setMetronomo(m => !m)} title="Metrônomo"
+            className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-bold ${metronomo ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+            <Timer className="h-3.5 w-3.5" />Metrônomo
+          </button>
+          {metronomo && <input type="number" min={30} max={240} value={bpm} onChange={e => setBpm(Number(e.target.value) || 90)} aria-label="BPM do metrônomo" className="w-14 rounded-lg border border-slate-200 px-1.5 py-1 text-xs" />}
           <button type="button" onClick={onFechar} aria-label="Fechar" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>
         </div>
         {sint && <InstrumentoOnline sint={sint} timbre={timbre} />}

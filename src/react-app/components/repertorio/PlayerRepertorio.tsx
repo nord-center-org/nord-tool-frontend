@@ -4,7 +4,8 @@ import {
 } from "lucide-react";
 
 import { desenhar, desenharMapa } from "@/react-app/components/repertorio/desenhoInstrumento";
-import { Sintetizador } from "@/react-app/components/repertorio/sintetizador";
+import { Sintetizador, timbreDoInstrumento } from "@/react-app/components/repertorio/sintetizador";
+import { VARIANTES, gravarFerramentas, lerFerramentasDe, variante as varianteValida } from "@/react-app/utils/musica/ferramentas";
 import { alturaDoEvento, passoDaAgenda, type Agenda } from "@/react-app/utils/musica/sintese";
 import CifraRolando, { type ControleCifra } from "@/react-app/components/repertorio/CifraRolando";
 import { MotorAudio, decodificar, reamostrar, type FaixaAudio } from "@/react-app/components/repertorio/motorAudio";
@@ -166,8 +167,18 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   // v4: o mapa do braço só existe nos instrumentos de corda
   const mapa = prefs.vista === "mapa" && ins.cordas.length > 0;
   const sintetizar = prefs.sintetizador;
-  const estado = useRef({ eventos, acordes, ins, casas, janela, atual, bemol, todasNotas, mapa, sintetizar });
-  estado.current = { eventos, acordes, ins, casas, janela, atual, bemol, todasNotas, mapa, sintetizar };
+  // v8: timbre do sintetizador (o mesmo guardado pelo instrumento online)
+  const timbreSint = timbreDoInstrumento(ins.id);
+  const [variantes, setVariantes] = useState(() => lerFerramentasDe(typeof localStorage === "undefined" ? undefined : localStorage).variantes);
+  const varianteSint = varianteValida(timbreSint, variantes[timbreSint]);
+  const escolherVariante = (v: string) => {
+    const f = lerFerramentasDe(localStorage);
+    const novas = { ...f.variantes, [timbreSint]: v };
+    gravarFerramentas(localStorage, { ...f, variantes: novas });
+    setVariantes(novas);
+  };
+  const estado = useRef({ eventos, acordes, ins, casas, janela, atual, bemol, todasNotas, mapa, sintetizar, varianteSint });
+  estado.current = { eventos, acordes, ins, casas, janela, atual, bemol, todasNotas, mapa, sintetizar, varianteSint };
 
   // ---------- v5: sintetizador do instrumento ----------
   const sint = useRef<Sintetizador | null>(null);
@@ -194,7 +205,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
         for (const n of passo.notas) {
           indice = n.evento.inicio === anterior ? indice + 1 : 0;
           anterior = n.evento.inicio;
-          sint.current.tocar(s.ins.id, alturaDoEvento(s.ins, n.evento), n.daqui, n.dura, indice);
+          sint.current.tocar(s.ins.id, alturaDoEvento(s.ins, n.evento), n.daqui, n.dura, indice, 0.85, undefined, s.varianteSint);
         }
       }
       if (c) {
@@ -467,6 +478,12 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
             {sintetizar && (
               <input type="range" min={0} max={1.5} step={0.05} value={prefs.volumeSintetizador} onChange={e => mudarPrefs({ volumeSintetizador: Number(e.target.value) })}
                 aria-label="Volume do sintetizador" title="Volume do sintetizador" className="w-16" />
+            )}
+            {sintetizar && (
+              <select value={varianteSint} onChange={e => escolherVariante(e.target.value)} aria-label="Timbre do sintetizador" title="Timbre do sintetizador"
+                className="rounded-lg border border-slate-200 bg-white px-1 py-0.5 text-[11px] font-bold text-slate-700">
+                {VARIANTES[timbreSint].map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
+              </select>
             )}
             <button type="button" className="rounded-lg px-1.5 py-0.5 text-[11px] font-bold text-slate-500 hover:bg-slate-100 disabled:opacity-40" disabled={!pronto || !!ocupado}
               onClick={() => void refazerAnalise()} title="Analisa o áudio de novo (tom, BPM, acordes e baixo)">Refazer análise</button>
