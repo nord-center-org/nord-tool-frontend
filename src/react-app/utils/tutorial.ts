@@ -658,7 +658,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Escrever a cifra",
-        texto: "Em \"Escrever cifra\", cole a letra ou toque em \"Identificar letra\" (ouço a voz no aparelho e escrevo a letra) e depois em \"Escrever os acordes\". Clique na sílaba e toque no acorde (os do tom aparecem como botões, teclas 1 a 8, e o teclado de acordes tem as 12 notas com o tipo) para pô-lo em cima dela; arraste os acordes com o mouse para o lugar certo. O tempo de cada linha eu acho sozinho, e a cifra rola com a música. Escolhendo uma linha: \"Ouvir\" toca só ela e \"Cifra da linha\" ouve só aquele trecho e escreve os acordes. \"Tom da cifra\" − e + sobe ou desce a cifra sem mudar o áudio, e o instrumento segue a cifra.",
+        texto: "Em \"Escrever cifra\", cole a letra ou toque em \"Identificar letra\" e depois em \"Escrever os acordes\". A letra fica numa área grande e os acordes em pads embaixo, como na aba Criar: arraste um pad (ou um acorde já posto) e solte em cima da sílaba — uma marca mostra onde ele vai cair. Também dá para clicar na sílaba e tocar no pad (teclas 1 a 8). O tempo de cada linha eu acho sozinho, e a cifra rola com a música. Escolhendo uma linha: \"Ouvir\" toca só ela e \"Cifra da linha\" escreve os acordes daquele trecho.",
       },
       {
         titulo: "Instrumento online",
@@ -666,8 +666,8 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         alvo: { css: "button", texto: "Instrumento online" },
       },
       {
-        titulo: "Ouvir os acordes",
-        texto: "Clique no nome de um acorde na cifra para ouvir como o instrumento escolhido toca (no baixo a nota, no violão o acorde dedilhado, no teclado as notas juntas) e ver as notas acesas no braço ou no teclado.",
+        titulo: "Ouvir os acordes e as notas",
+        texto: "Clique no nome de um acorde na cifra para ouvir como o instrumento escolhido toca e ver as notas acesas no braço ou no teclado. Clicar numa nota do braço, do mapa do braço ou do teclado também toca o som dela. \"Instrumento online\", na barra de cima, abre o instrumento para tocar junto com a música. Quando algo está carregando (análise, separar faixas, identificar letra), aparece um aviso no canto com \"Cancelar\" e a tela continua livre.",
       },
       {
         titulo: "Compartilhar a cifra",
