@@ -8,7 +8,8 @@ import {
   type FerramentasTocar,
 } from "@/react-app/utils/musica/ferramentas";
 import { corDaNota, ehPreta } from "@/react-app/utils/musica/instrumentos";
-import { nomeDaNota } from "@/react-app/utils/musica/teoria";
+import { nomeDaNotaExibida } from "@/react-app/utils/musica/notacao";
+import { useNotacao } from "./useNotacao";
 
 interface Props {
   sint: Sintetizador;
@@ -25,7 +26,6 @@ interface Props {
 }
 
 const ler = (): FerramentasTocar => lerFerramentasDe(typeof localStorage === "undefined" ? undefined : localStorage);
-const NOMES_TONICA = Array.from({ length: 12 }, (_, i) => nomeDaNota(60 + i));
 const seletor = "rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-[11px] font-bold text-slate-700";
 const alternador = (ligado: boolean) => `rounded-lg border px-2 py-1 text-[11px] font-bold ${ligado ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`;
 
@@ -38,6 +38,10 @@ interface Tocando { base: number; paradas: Array<{ midi: number; parar: () => vo
  * sustentar, transpor, escala destacada, acorde com uma tecla e força.
  */
 export default function InstrumentoOnline({ sint, timbre, destino, aoTocar, teclado = true, variante, onVariante }: Props) {
+  // v15: os nomes das notas como a pessoa escolheu (sustenido ou bemol; C D E ou Dó Ré Mi)
+  const notacao = useNotacao();
+  const nomeDaNota = (m: number) => nomeDaNotaExibida(m, notacao);
+  const NOMES_TONICA = Array.from({ length: 12 }, (_, i) => nomeDaNota(60 + i));
   const [oitava, setOitava] = useState(OITAVA_PADRAO[timbre]);
   const [acesas, setAcesas] = useState<Set<number>>(() => new Set());
   const [ferr, setFerr] = useState<FerramentasTocar>(ler);

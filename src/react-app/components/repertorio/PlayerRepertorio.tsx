@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, Check, Share2, Loader2, Minus, Music2, Pause, Piano, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Timer, Volume2, VolumeX, Wand2,
+  ArrowLeft, Check, Share2, Loader2, Minus, Music2, Pause, Piano, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Settings2, Timer, Volume2, VolumeX, Wand2, X,
 } from "lucide-react";
 
 import { desenhar, desenharMapa, type AcharNota } from "@/react-app/components/repertorio/desenhoInstrumento";
@@ -24,7 +24,9 @@ import { gravarPreferencias, lerPreferencias, type PreferenciasRepertorio } from
 import type { Musica } from "@/react-app/utils/musica/repertorioDb";
 import { FAIXAS, NOME_FAIXA } from "@/react-app/utils/musica/separacao";
 import { blocoNoTempo, sincronizar } from "@/react-app/utils/musica/sincronia";
-import { lerAcorde, mod12, nomeDaNota, nomeDoTom, transporAcorde, transporTom, usaBemol } from "@/react-app/utils/musica/teoria";
+import { lerAcorde, nomeDoTom, transporAcorde, transporTom } from "@/react-app/utils/musica/teoria";
+import { acordeExibido, nomeDaNotaExibida, tomExibido } from "@/react-app/utils/musica/notacao";
+import { mudarNotacao, useNotacao } from "./useNotacao";
 
 const PainelInstrumentoOnline = lazy(() => import("@/react-app/components/repertorio/PainelInstrumentoOnline"));
 
@@ -132,6 +134,21 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const comecar = (texto: string) => { tarefa.current?.abort(); const c = new AbortController(); tarefa.current = c; setOcupado({ texto, p: 0 }); return c; };
   const terminar = (c: AbortController) => { if (tarefa.current === c) { tarefa.current = null; setOcupado(null); } };
   const [instrumentoOnline, setInstrumentoOnline] = useState(false);
+  // v15: as opções menos usadas ficam no ícone de ajustes, no canto
+  const [ajustesAbertos, setAjustesAbertos] = useState(false);
+  const painelAjustes = useRef<HTMLDivElement>(null);
+  const botaoAjustes = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!ajustesAbertos) return;
+    const fora = (e: PointerEvent) => {
+      const alvo = e.target as Node;
+      if (!painelAjustes.current?.contains(alvo) && !botaoAjustes.current?.contains(alvo)) setAjustesAbertos(false);
+    };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { setAjustesAbertos(false); botaoAjustes.current?.focus(); } };
+    window.addEventListener("pointerdown", fora);
+    window.addEventListener("keydown", esc);
+    return () => { window.removeEventListener("pointerdown", fora); window.removeEventListener("keydown", esc); };
+  }, [ajustesAbertos]);
   const acharNota = useRef<AcharNota | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [faixas, setFaixas] = useState<FaixaAudio[]>([]);
@@ -164,8 +181,9 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const { semitons, andamento, instrumento: idIns, semitonsCifra } = musica.ajustes;
   const analise = musica.analise;
   const ins = instrumento(idIns);
-  // notas e acordes escritos como na cifra do tom que está tocando (bemol em F, Bb, Eb, Dm, Gm…)
-  const bemol = analise ? usaBemol(mod12(analise.tom.tonica + semitons), analise.tom.menor) : false;
+  // v15: notas e acordes com sustenido (o comum) ou bemol, e em letras ou Dó/Ré/Mi, como a pessoa escolher
+  const notacao = useNotacao();
+  const bemol = notacao.acidente === "bemol";
 
   const atualizar = useCallback((parcial: Partial<Musica> | ((m: Musica) => Partial<Musica>)) => {
     setMusica(m => {
@@ -260,8 +278,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
     gravarFerramentas(localStorage, { ...f, variantes: novas });
     setVariantes(novas);
   };
-  const estado = useRef({ eventos, acordes, ins, casas, janela, atual, bemol, todasNotas, mapa, sintetizar, varianteSint });
-  estado.current = { eventos, acordes, ins, casas, janela, atual, bemol, todasNotas, mapa, sintetizar, varianteSint };
+  const estado = useRef({ eventos, acordes, ins, casas, janela, atual, notacao, todasNotas, mapa, sintetizar, varianteSint });
+  estado.current = { eventos, acordes, ins, casas, janela, atual, notacao, todasNotas, mapa, sintetizar, varianteSint };
 
   // ---------- v5: sintetizador do instrumento ----------
   const sint = useRef<Sintetizador | null>(null);
@@ -303,8 +321,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           const prox = s.acordes.find(a => a.inicio > t);
           const d = destaque.current && performance.now() < destaque.current.ateMs ? destaque.current : null;
           acharNota.current = (s.mapa ? desenharMapa : desenhar)(ctx, c.width / dpr, c.height / dpr, {
-            instrumento: s.ins, eventos: d ? d.eventos : s.eventos, casas: s.casas, janela: s.janela, escuro: document.documentElement.classList.contains("nt-escuro"), bemol: s.bemol, todasNotas: s.todasNotas,
-            acordeAtual: d ? d.nome : i >= 0 ? s.acordes[i].nome : null, proximoAcorde: d ? null : prox?.nome ?? null,
+            instrumento: s.ins, eventos: d ? d.eventos : s.eventos, casas: s.casas, janela: s.janela, escuro: document.documentElement.classList.contains("nt-escuro"), notacao: s.notacao, todasNotas: s.todasNotas,
+            acordeAtual: d ? d.nome : i >= 0 ? acordeExibido(s.acordes[i].nome, s.notacao) : null, proximoAcorde: d ? null : prox ? acordeExibido(prox.nome, s.notacao) : null,
           }, t);
         }
       }
@@ -438,7 +456,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
     const t = m.tempo();
     const ev: EventoQueda = { inicio: t, fim: t + 0.9, corda: n.corda, casa: n.casa, midi: n.midi, rotulo: String(n.midi) };
     const juntos = [...estado.current.eventos, ev].sort((a, b) => a.inicio - b.inicio);
-    destaque.current = { eventos: juntos, nome: nomeDaNota(n.midi, bemol), ateMs: performance.now() + 900 };
+    destaque.current = { eventos: juntos, nome: nomeDaNotaExibida(n.midi, notacao), ateMs: performance.now() + 900 };
   };
 
   // v11/v13: o som de um acorde (clicando nele na cifra) como o instrumento escolhido toca — no baixo a fundamental, no
@@ -453,7 +471,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
     evs.forEach((ev, k) => sint.current?.tocar(ins.id, alturaDoEvento(ins, ev), 0, 1.4, k, 0.85, undefined, varianteSint));
     // o desenho lê os eventos em ordem de início: junta (já ordenado) com os da música uma vez, no clique
     const juntos = [...estado.current.eventos, ...evs].sort((a, b) => a.inicio - b.inicio);
-    destaque.current = { eventos: juntos, nome, ateMs: performance.now() + 1500 };
+    destaque.current = { eventos: juntos, nome: acordeExibido(nome, notacao), ateMs: performance.now() + 1500 };
   };
 
   const separarFaixas = async () => {
@@ -525,15 +543,15 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
     return () => window.removeEventListener("keydown", tecla);
   });
 
-  const tomOriginal = analise ? nomeDoTom(analise.tom) : null;
-  const tomAtual = analise ? nomeDoTom(transporTom(analise.tom, semitons)) : null;
+  const tomOriginal = analise ? tomExibido(analise.tom, notacao) : null;
+  const tomAtual = analise ? tomExibido(transporTom(analise.tom, semitons), notacao) : null;
   // v12: o que se compartilha é a cifra como está na tela (no tom que se ouve)
   const infoCompartilhar = useMemo(() => {
     if (!compartilhando) return null;
     const texto = transporCifra(musica.cifra, semitons + semitonsCifra, analise ? transporTom(analise.tom, -semitonsCifra) : null).trim();
     const tomEscrito = lerCifra(texto).tom;
-    return { titulo: musica.titulo, artista: musica.artista, tom: tomEscrito ? nomeDoTom(tomEscrito).cifra : tomAtual?.cifra ?? null, texto };
-  }, [compartilhando, musica.cifra, musica.titulo, musica.artista, semitons, semitonsCifra, analise, tomAtual?.cifra]);
+    return { titulo: musica.titulo, artista: musica.artista, tom: tomEscrito ? nomeDoTom(tomEscrito).cifra : analise ? nomeDoTom(transporTom(analise.tom, semitons)).cifra : null, texto };
+  }, [compartilhando, musica.cifra, musica.titulo, musica.artista, semitons, semitonsCifra, analise]);
   // v10: escolher o que mostrar; escrevendo a cifra, ela sempre aparece
   const exibir = prefs.exibir;
   const verCifra = exibir !== "instrumento" || escrevendo;
@@ -541,7 +559,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const sugestaoCifra = auto && musica.cifra.trim() && auto.acerto >= 0.25 && auto.deslocamento !== 0 && semitonsCifra !== auto.deslocamento ? auto.deslocamento : null;
 
   return (
-    <div className="flex h-[calc(100dvh-5.5rem)] flex-col gap-2 md:h-[calc(100dvh-4rem)]">
+    <div className="relative flex h-[calc(100dvh-5.5rem)] flex-col gap-2 md:h-[calc(100dvh-4rem)]">
       {/* topo */}
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={botao} onClick={onVoltar}><ArrowLeft className="h-4 w-4" />Músicas</button>
@@ -553,10 +571,13 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
         </div>
         {analise && (
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="rounded-lg bg-orange-50 px-2 py-1 font-bold text-orange-700" title={`Tom reconhecido: ${tomOriginal?.extenso}`}>Tom: {tomAtual?.cifra} <span className="font-normal">({tomAtual?.extenso})</span></span>
+            <span className="rounded-lg bg-orange-50 px-2 py-1 font-bold text-orange-700" title={`Tom reconhecido: ${tomOriginal?.extenso}`}>Tom: {tomAtual?.cifra} <span className="hidden font-normal sm:inline">({tomAtual?.extenso})</span></span>
             <span className="rounded-lg bg-slate-100 px-2 py-1 font-bold text-slate-700">{Math.round(analise.bpm * andamento)} BPM</span>
           </div>
         )}
+        <button ref={botaoAjustes} type="button" className={`${quadrado} ${ajustesAbertos ? "border-slate-800 bg-slate-800 text-white hover:bg-slate-700" : ""}`}
+          aria-label="Ajustes" title="Ajustes: notação, o que mostrar, cifra e instrumento" aria-expanded={ajustesAbertos} aria-haspopup="dialog"
+          onClick={() => setAjustesAbertos(a => !a)}><Settings2 className="h-4 w-4" /></button>
       </div>
 
       {erro && <p role="alert" className="rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-700">{erro}</p>}
@@ -605,13 +626,9 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
       </div>
 
       {/* faixas */}
+      {faixas.length > 1 && (
       <div className="no-scrollbar flex items-center gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-white p-2" aria-label="Faixas">
-        {faixas.length <= 1 ? (
-          <>
-            <button type="button" className={`${botao} shrink-0`} onClick={() => void separarFaixas()} disabled={!pronto || !!ocupado}><Scissors className="h-3.5 w-3.5" />Separar faixas</button>
-            <span className="hidden text-[11px] leading-tight text-slate-500 sm:inline">Voz, baixo, bateria e outros, separados no aparelho (aproximado).</span>
-          </>
-        ) : faixas.map(f => (
+        {faixas.map(f => (
           <div key={f.id} className={`flex shrink-0 items-center gap-1 rounded-lg border px-1.5 py-1 ${f.solo ? "border-amber-400 bg-amber-50" : "border-slate-200"}`}>
             <button type="button" className="rounded p-1 text-slate-500 hover:bg-slate-100" aria-label={f.mudo ? `Ligar ${f.nome}` : `Silenciar ${f.nome}`} onClick={() => ajustarFaixa(f.id, { mudo: !f.mudo })}>
               {f.mudo ? <VolumeX className="h-3.5 w-3.5 text-red-500" /> : <Volume2 className="h-3.5 w-3.5" />}
@@ -622,17 +639,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           </div>
         ))}
       </div>
-
-      {/* o que mostrar (v10) */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className={rotulo}>Mostrar</span>
-        <div className="flex rounded-lg border border-slate-200 bg-white p-0.5" role="radiogroup" aria-label="O que mostrar">
-          {([["ambos", "Cifra e instrumento"], ["cifra", "Só a cifra"], ["instrumento", "Só o instrumento"]] as const).map(([v, r]) => (
-            <button key={v} type="button" role="radio" aria-checked={exibir === v} onClick={() => mudarPrefs({ exibir: v })}
-              className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${exibir === v ? "bg-slate-800 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{r}</button>
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* cifra + instrumento */}
       <div className="flex min-h-0 flex-1 flex-col-reverse gap-2 md:flex-row">
@@ -659,24 +666,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
                   title="Cole (ou identifique) a letra e ponha os acordes com o mouse em cima das sílabas"><Music2 className="h-3.5 w-3.5" />Escrever cifra</button>
                 <button type="button" className={botao} onClick={() => setEditandoCifra(true)}><PencilLine className="h-3.5 w-3.5" />{musica.cifra.trim() ? "Editar cifra" : "Colar cifra"}</button>
                 {musica.cifra.trim() && <button type="button" className={botao} onClick={() => setCompartilhando(true)} title="Mandar para alguém do NordTool ou gerar a imagem"><Share2 className="h-3.5 w-3.5" />Compartilhar</button>}
-                {musica.cifra.trim() && <button type="button" className={botao} onClick={() => void comecarMarcar()} disabled={!pronto} title="Toque em Marcar quando cada linha começar">Marcar linhas</button>}
-                {musica.tempos && <button type="button" className={botao} onClick={() => atualizar({ tempos: null })} title="Voltar aos tempos calculados pelos acordes">Automático</button>}
               </>
             )}
-            {musica.cifra.trim() && marcando === null && (
-              <div className="flex items-center gap-0.5" role="group" aria-label="Tom da cifra" title="Sobe ou desce o tom da cifra escrita (o áudio não muda)">
-                <span className="text-[10px] font-bold uppercase text-slate-400">Tom da cifra</span>
-                {([[-1, "Descer meio tom da cifra", Minus], [1, "Subir meio tom da cifra", Plus]] as const).map(([d, rot, Icone]) => (
-                  <button key={d} type="button" className={quadrado} aria-label={rot}
-                    onClick={() => atualizar(m => ({ cifra: transporCifra(m.cifra, d, analise ? transporTom(analise.tom, -semitonsCifra) : null) }))}><Icone className="h-3.5 w-3.5" /></button>
-                ))}
-              </div>
-            )}
-            <div className="flex items-center gap-0.5" role="group" aria-label="Tamanho da letra">
-              <button type="button" className={quadrado} aria-label="Letra menor" onClick={() => setFonte(f => Math.max(11, f - 1))}>A-</button>
-              <button type="button" className={quadrado} aria-label="Letra maior" onClick={() => setFonte(f => Math.min(26, f + 1))}>A+</button>
-            </div>
-            <label className="flex items-center gap-1 text-xs text-slate-600"><input type="checkbox" checked={seguir} onChange={e => setSeguir(e.target.checked)} />Rolar sozinha</label>
           </div>
           {sugestaoCifra !== null && (
             <p className="flex flex-wrap items-center gap-2 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
@@ -690,7 +681,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           )}
           <div className="min-h-0 flex-1">
             {musica.cifra.trim() ? (
-              <CifraRolando ref={cifraRef} cifra={cifra} tempos={tempos} atual={atual} semitons={semitons + semitonsCifra} seguir={seguir} marcando={marcando} tamanhoFonte={fonte}
+              <CifraRolando ref={cifraRef} cifra={cifra} tempos={tempos} atual={atual} semitons={semitons + semitonsCifra} seguir={seguir} marcando={marcando} tamanhoFonte={fonte} notacao={notacao}
                 onTocarLinha={i => { if (marcando !== null) return; const t = tempos[i]; if (t !== null && t !== undefined) motor.current?.irPara(t); }}
                 onTocarAcorde={marcando === null ? tocarAcorde : undefined} />
             ) : (
@@ -708,13 +699,6 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
         <section className={`min-h-[220px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white ${!verInstrumento ? "hidden" : etapa === "letra" ? "hidden md:flex" : "flex"} ${verCifra ? "h-[36vh] shrink-0 md:h-auto md:w-[46%]" : "min-h-0 flex-1"}`}>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-slate-100 px-2 py-1.5">
             <b className="mr-auto text-sm text-slate-700">{ins.nome}</b>
-            <div className="flex rounded-lg border border-slate-200 p-0.5" role="radiogroup" aria-label="O instrumento segue"
-              title={segmentosCifra.length ? "Cifra: as notas dos acordes que estão escritos; Áudio: o que reconheci na música" : "A cifra ainda não tem acordes com tempo: o instrumento segue o áudio"}>
-              {([["cifra", "Segue a cifra"], ["audio", "Segue o áudio"]] as const).map(([v, r]) => (
-                <button key={v} type="button" role="radio" aria-checked={(v === "cifra") === seguindoCifra} disabled={v === "cifra" && !segmentosCifra.length} onClick={() => mudarPrefs({ segue: v })}
-                  className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold disabled:opacity-40 ${(v === "cifra") === seguindoCifra ? "bg-orange-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{r}</button>
-              ))}
-            </div>
             {ins.cordas.length > 0 && (
               <div className="flex rounded-lg border border-slate-200 p-0.5" role="radiogroup" aria-label="Como ver o instrumento">
                 {([["queda", "Notas caindo"], ["mapa", "Mapa do braço"]] as const).map(([v, r]) => (
@@ -724,29 +708,11 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
                 ))}
               </div>
             )}
-            {!mapa && <button type="button" aria-pressed={todasNotas} onClick={alternarTodasNotas} title="Mostrar todas as notas em cinza; a que toca acende na cor"
-              className={`rounded-lg border px-1.5 py-0.5 text-[11px] font-bold ${todasNotas ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>Todas as notas</button>}
             <button type="button" aria-pressed={sintetizar} onClick={() => mudarPrefs({ sintetizador: !sintetizar })}
               title={`O sintetizador toca as notas do ${ins.nome.toLowerCase()} junto com a música (no tom e no andamento escolhidos)`}
               className={`inline-flex items-center gap-1 rounded-lg border px-1.5 py-0.5 text-[11px] font-bold ${sintetizar ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
               <Piano className="h-3 w-3" aria-hidden="true" />Sintetizador
             </button>
-            {sintetizar && (
-              <input type="range" min={0} max={1.5} step={0.05} value={prefs.volumeSintetizador} onChange={e => mudarPrefs({ volumeSintetizador: Number(e.target.value) })}
-                aria-label="Volume do sintetizador" title="Volume do sintetizador" className="w-16" />
-            )}
-            {sintetizar && (
-              <select value={varianteSint} onChange={e => escolherVariante(e.target.value)} aria-label="Timbre do sintetizador" title="Timbre do sintetizador"
-                className="rounded-lg border border-slate-200 bg-white px-1 py-0.5 text-[11px] font-bold text-slate-700">
-                {VARIANTES[timbreSint].map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
-              </select>
-            )}
-            <button type="button" className="rounded-lg px-1.5 py-0.5 text-[11px] font-bold text-slate-500 hover:bg-slate-100 disabled:opacity-40" disabled={!pronto || !!ocupado}
-              onClick={() => void refazerAnalise()} title="Analisa o áudio de novo (tom, BPM, acordes e baixo)">Refazer análise</button>
-            <span className="hidden text-[11px] text-slate-500 sm:inline">{ins.fonte === "baixo" ? "linha do baixo" : "acordes"}</span>
-            {!mapa && <label className="flex items-center gap-1 text-[11px] text-slate-500" title="Quanto tempo as notas levam para descer">
-              Queda<input type="range" min={1.5} max={6} step={0.5} value={janela} onChange={e => setJanela(Number(e.target.value))} aria-label="Velocidade da queda" className="w-16" />
-            </label>}
           </div>
           <div ref={caixaTela} className="relative min-h-0 flex-1">
             <canvas ref={tela} className="absolute inset-0 h-full w-full cursor-pointer touch-manipulation" aria-label={`${ins.nome}: clique numa nota para ouvir`} role="img"
@@ -763,6 +729,92 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
             {tarefa.current && <button type="button" onClick={() => tarefa.current?.abort()} className="rounded-md px-1.5 py-0.5 text-[11px] font-bold text-red-600 hover:bg-red-50">Cancelar</button>}
           </div>
           {ocupado.p < 1 && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-blue-600 transition-[width]" style={{ width: `${Math.round(ocupado.p * 100)}%` }} /></div>}
+        </div>
+      )}
+      {ajustesAbertos && (
+        <div ref={painelAjustes} role="dialog" aria-label="Ajustes"
+          className="fixed inset-x-0 bottom-0 z-[60] max-h-[75dvh] overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-3 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-2 sm:top-12 sm:w-[22rem] sm:rounded-2xl">
+          <div className="mb-2 flex items-center">
+            <b className="mr-auto text-sm text-slate-800">Ajustes</b>
+            <button type="button" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100" aria-label="Fechar os ajustes" onClick={() => setAjustesAbertos(false)}><X className="h-4 w-4" /></button>
+          </div>
+          <div className="space-y-3 text-xs">
+            <fieldset className="space-y-1.5">
+              <legend className={rotulo}>Notação</legend>
+              <Opcoes rotulo="Nomes das notas" valor={notacao.nomes} onEscolher={v => mudarNotacao({ nomes: v })}
+                opcoes={[["letras", "C, D, E…"], ["solfejo", "Dó, Ré, Mi…"]]} />
+              <Opcoes rotulo="Acidentes" valor={notacao.acidente} onEscolher={v => mudarNotacao({ acidente: v })}
+                opcoes={[["sustenido", "Sustenido (C#)"], ["bemol", "Bemol (Db)"]]} />
+              <p className="text-[11px] text-slate-500">Vale para a cifra, o braço, o teclado e o instrumento online. A cifra guardada não muda.</p>
+            </fieldset>
+            <fieldset className="space-y-1.5">
+              <legend className={rotulo}>Mostrar</legend>
+              <Opcoes rotulo="O que mostrar" valor={exibir} onEscolher={v => mudarPrefs({ exibir: v })}
+                opcoes={[["ambos", "Cifra e instrumento"], ["cifra", "Só a cifra"], ["instrumento", "Só o instrumento"]]} />
+            </fieldset>
+            <fieldset className="space-y-1.5">
+              <legend className={rotulo}>Cifra</legend>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-0.5" role="group" aria-label="Tamanho da letra">
+                  <span className="mr-1 text-slate-600">Letra</span>
+                  <button type="button" className={quadrado} aria-label="Letra menor" onClick={() => setFonte(f => Math.max(11, f - 1))}>A-</button>
+                  <button type="button" className={quadrado} aria-label="Letra maior" onClick={() => setFonte(f => Math.min(26, f + 1))}>A+</button>
+                </div>
+                <label className="flex items-center gap-1 text-slate-600"><input type="checkbox" checked={seguir} onChange={e => setSeguir(e.target.checked)} />Rolar sozinha</label>
+              </div>
+              {musica.cifra.trim() && (
+                <div className="flex items-center gap-0.5" role="group" aria-label="Tom da cifra" title="Sobe ou desce o tom da cifra escrita (o áudio não muda)">
+                  <span className="mr-1 text-slate-600">Tom da cifra</span>
+                  {([[-1, "Descer meio tom da cifra", Minus], [1, "Subir meio tom da cifra", Plus]] as const).map(([d, rot, Icone]) => (
+                    <button key={d} type="button" className={quadrado} aria-label={rot} disabled={marcando !== null}
+                      onClick={() => atualizar(m => ({ cifra: transporCifra(m.cifra, d, analise ? transporTom(analise.tom, -semitonsCifra) : null) }))}><Icone className="h-3.5 w-3.5" /></button>
+                  ))}
+                </div>
+              )}
+              {musica.cifra.trim() && marcando === null && (
+                <div className="flex flex-wrap gap-1.5">
+                  <button type="button" className={botao} onClick={() => { setAjustesAbertos(false); void comecarMarcar(); }} disabled={!pronto} title="Toque em Marcar quando cada linha começar">Marcar linhas</button>
+                  {musica.tempos && <button type="button" className={botao} onClick={() => atualizar({ tempos: null })} title="Voltar aos tempos calculados pelos acordes">Tempos automáticos</button>}
+                </div>
+              )}
+            </fieldset>
+            <fieldset className="space-y-1.5">
+              <legend className={rotulo}>Instrumento</legend>
+              <div className="flex rounded-lg border border-slate-200 p-0.5" role="radiogroup" aria-label="O instrumento segue"
+                title={segmentosCifra.length ? "Cifra: as notas dos acordes que estão escritos; Áudio: o que reconheci na música" : "A cifra ainda não tem acordes com tempo: o instrumento segue o áudio"}>
+                {([["cifra", "Segue a cifra"], ["audio", "Segue o áudio"]] as const).map(([v, r]) => (
+                  <button key={v} type="button" role="radio" aria-checked={(v === "cifra") === seguindoCifra} disabled={v === "cifra" && !segmentosCifra.length} onClick={() => mudarPrefs({ segue: v })}
+                    className={`flex-1 rounded-md px-2 py-1 text-[11px] font-bold disabled:opacity-40 ${(v === "cifra") === seguindoCifra ? "bg-orange-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{r}</button>
+                ))}
+              </div>
+              {!mapa && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-1 text-slate-600"><input type="checkbox" checked={todasNotas} onChange={alternarTodasNotas} />Todas as notas</label>
+                  <label className="flex items-center gap-1 text-slate-600" title="Quanto tempo as notas levam para descer">
+                    Queda<input type="range" min={1.5} max={6} step={0.5} value={janela} onChange={e => setJanela(Number(e.target.value))} aria-label="Velocidade da queda" className="w-20" />
+                  </label>
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-slate-600">Sintetizador</span>
+                <input type="range" min={0} max={1.5} step={0.05} value={prefs.volumeSintetizador} onChange={e => mudarPrefs({ volumeSintetizador: Number(e.target.value) })}
+                  aria-label="Volume do sintetizador" title="Volume do sintetizador" className="w-20" />
+                <select value={varianteSint} onChange={e => escolherVariante(e.target.value)} aria-label="Timbre do sintetizador" title="Timbre do sintetizador"
+                  className="rounded-lg border border-slate-200 bg-white px-1 py-0.5 text-[11px] font-bold text-slate-700">
+                  {VARIANTES[timbreSint].map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                </select>
+              </div>
+            </fieldset>
+            <fieldset className="space-y-1.5">
+              <legend className={rotulo}>Áudio</legend>
+              <div className="flex flex-wrap gap-1.5">
+                {faixas.length <= 1 && <button type="button" className={botao} onClick={() => { setAjustesAbertos(false); void separarFaixas(); }} disabled={!pronto || !!ocupado}
+                  title="Voz, baixo, bateria e outros, separados no aparelho (aproximado)"><Scissors className="h-3.5 w-3.5" />Separar faixas</button>}
+                <button type="button" className={botao} disabled={!pronto || !!ocupado} onClick={() => { setAjustesAbertos(false); void refazerAnalise(); }}
+                  title="Analisa o áudio de novo (tom, BPM, acordes e baixo)">Refazer análise</button>
+              </div>
+            </fieldset>
+          </div>
         </div>
       )}
       {instrumentoOnline && <Suspense fallback={null}><PainelInstrumentoOnline onFechar={() => setInstrumentoOnline(false)} /></Suspense>}
@@ -792,6 +844,18 @@ function EditorCifra({ texto, onSalvar, onFechar }: { texto: string; onSalvar: (
           <button type="button" className={botaoAzul} onClick={() => onSalvar(valor.slice(0, 50_000))}>Salvar cifra</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** v15: um grupo de escolhas (rádio) do painel de ajustes. */
+function Opcoes<T extends string>({ rotulo: nome, valor, opcoes, onEscolher }: { rotulo: string; valor: T; opcoes: ReadonlyArray<readonly [T, string]>; onEscolher: (v: T) => void }) {
+  return (
+    <div className="flex rounded-lg border border-slate-200 p-0.5" role="radiogroup" aria-label={nome}>
+      {opcoes.map(([v, r]) => (
+        <button key={v} type="button" role="radio" aria-checked={valor === v} onClick={() => onEscolher(v)}
+          className={`flex-1 rounded-md px-2 py-1 text-[11px] font-bold ${valor === v ? "bg-slate-800 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{r}</button>
+      ))}
     </div>
   );
 }

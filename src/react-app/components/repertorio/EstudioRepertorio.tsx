@@ -15,6 +15,8 @@ import { corDaNota, ehPreta } from "@/react-app/utils/musica/instrumentos";
 import { AJUSTES_PADRAO, salvarArquivo, salvarMusica, type Musica } from "@/react-app/utils/musica/repertorioDb";
 import { abrirProjeto, enviarMusica, excluirProjeto, guardarProjeto, sincronizarProjetos } from "@/react-app/components/repertorio/sincronizacao";
 import { nomeDaNota } from "@/react-app/utils/musica/teoria";
+import { nomeDaNotaExibida, type Notacao } from "@/react-app/utils/musica/notacao";
+import { useNotacao } from "./useNotacao";
 
 const botao = "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40";
 const quadrado = "inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40";
@@ -445,13 +447,13 @@ function EditorProjeto({ inicial, onVoltar, onMandado }: { inicial: Projeto; onV
 
 const LARG_PASSO = 22, ROTULO = 64;
 
-function linhasDaFaixa(f: Faixa): Array<{ midi: number; rotulo: string; preta: boolean }> {
+function linhasDaFaixa(f: Faixa, notacao: Notacao): Array<{ midi: number; rotulo: string; preta: boolean }> {
   if (f.timbre === "bateria") return PECAS_BATERIA.map(p => ({ midi: p.midi, rotulo: p.nome, preta: false }));
   // a extensão do instrumento, aumentada para caber as notas gravadas fora dela
   let [lo, hi] = dadosTimbre(f.timbre).faixa;
   for (const n of f.notas) { lo = Math.min(lo, n.midi); hi = Math.max(hi, n.midi); }
   const r: Array<{ midi: number; rotulo: string; preta: boolean }> = [];
-  for (let m = hi; m >= lo; m--) r.push({ midi: m, rotulo: `${nomeDaNota(m)}${Math.floor(m / 12) - 1}`, preta: ehPreta(m) });
+  for (let m = hi; m >= lo; m--) r.push({ midi: m, rotulo: `${nomeDaNotaExibida(m, notacao)}${Math.floor(m / 12) - 1}`, preta: ehPreta(m) });
   return r;
 }
 
@@ -477,7 +479,8 @@ function Grade({ faixa, total, cabeca, modo, sel, cursor, onPor, onEsticar, onRe
   const tela = useRef<HTMLCanvasElement>(null);
   const gesto = useRef<Gesto | null>(null);
   const [caixa, setCaixa] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
-  const linhas = useMemo(() => linhasDaFaixa(faixa), [faixa]);
+  const notacao = useNotacao();
+  const linhas = useMemo(() => linhasDaFaixa(faixa, notacao), [faixa, notacao]);
   const altLinha = faixa.timbre === "bateria" ? 28 : 18;
   const passos = total * PASSOS_POR_TEMPO;
   const larg = passos * LARG_PASSO, alt = linhas.length * altLinha;

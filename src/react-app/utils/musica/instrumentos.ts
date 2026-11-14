@@ -209,8 +209,13 @@ export const CORES_DAS_LETRAS: Record<string, { fundo: string; texto: string }> 
   B: { fundo: "#3f4247", texto: "#ffffff" },
 };
 
+/** v15: o nome em português também acha a cor ("Sol#" fica na cor do G). "sol" antes de "si" pelo prefixo. */
+const SOLFEJO_LETRA: Array<[string, string]> = [["dó", "C"], ["do", "C"], ["ré", "D"], ["re", "D"], ["mi", "E"], ["fá", "F"], ["fa", "F"], ["sol", "G"], ["lá", "A"], ["la", "A"], ["si", "B"]];
+
 export function corDaNota(nome: string) {
-  return CORES_DAS_LETRAS[nome.charAt(0).toUpperCase()] ?? CORES_DAS_LETRAS.B;
+  const l = nome.toLowerCase();
+  const pt = SOLFEJO_LETRA.find(([p]) => l.startsWith(p));
+  return CORES_DAS_LETRAS[pt ? pt[1] : nome.charAt(0).toUpperCase()] ?? CORES_DAS_LETRAS.B;
 }
 
 /**

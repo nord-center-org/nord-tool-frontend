@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 
 import { linhaDeAcordes, transporAcordes, type AcordeNaLinha, type Cifra } from "@/react-app/utils/musica/cifra";
+import { NOTACAO_PADRAO, acordeExibido, type Notacao } from "@/react-app/utils/musica/notacao";
 
 export interface ControleCifra {
   /** Atualiza o "karaokê" da linha atual (0–1), sem renderizar de novo. */
@@ -19,6 +20,8 @@ interface Props {
   onTocarLinha: (indice: number) => void;
   /** v13: clicar no nome do acorde toca o som dele (no tom que se vê) e acende no braço. */
   onTocarAcorde?: (nome: string) => void;
+  /** v15: como escrever os acordes na tela (o som e a cifra guardada continuam com as letras). */
+  notacao?: Notacao;
   tamanhoFonte: number;
 }
 
@@ -26,12 +29,13 @@ interface Props {
  * Cifra no estilo do Cifra Club: acordes em laranja sobre a letra, seções em destaque. A linha que está tocando
  * fica marcada e vai se preenchendo; a cifra rola sozinha para ela.
  */
-const CifraRolando = forwardRef<ControleCifra, Props>(function CifraRolando({ cifra, tempos, atual, semitons, seguir, marcando, onTocarLinha, onTocarAcorde, tamanhoFonte }, ref) {
+const CifraRolando = forwardRef<ControleCifra, Props>(function CifraRolando({ cifra, tempos, atual, semitons, seguir, marcando, onTocarLinha, onTocarAcorde, tamanhoFonte, notacao = NOTACAO_PADRAO }, ref) {
   const caixa = useRef<HTMLDivElement>(null);
   const linhas = useRef(new Map<number, HTMLElement>());
   const preenchimento = useRef<HTMLElement | null>(null);
 
-  const blocos = useMemo(() => cifra.blocos.map(b => ({ ...b, acordes: transporAcordes(b.acordes, semitons) })), [cifra, semitons]);
+  const blocos = useMemo(() => cifra.blocos.map(b => ({ ...b, acordes: transporAcordes(b.acordes, semitons, notacao.acidente === "bemol") })), [cifra, semitons, notacao.acidente]);
+  const ver = (nome: string) => acordeExibido(nome, notacao);
 
   useImperativeHandle(ref, () => ({
     progresso: f => { const el = preenchimento.current; if (el) el.style.backgroundSize = `${Math.round(Math.max(0, Math.min(1, f)) * 100)}% 100%, 100% 100%`; },
@@ -58,7 +62,7 @@ const CifraRolando = forwardRef<ControleCifra, Props>(function CifraRolando({ ci
           return (
             <div key={i} ref={el => { if (el) linhas.current.set(i, el); else linhas.current.delete(i); }} className={`${comum} ${tocando ? "bg-orange-50" : ""}`}>
               <button type="button" onClick={() => temTempo && onTocarLinha(i)} className="font-mono font-bold text-slate-500" style={{ fontSize: "0.85em" }}>
-                [{b.texto}]{b.acordes.length > 0 && <span className="ml-2 text-orange-500">{b.acordes.map((a, k) => <span key={k}>{k > 0 && "  "}<AcordeClicavel nome={a.nome} onTocar={onTocarAcorde} /></span>)}</span>}
+                [{b.texto}]{b.acordes.length > 0 && <span className="ml-2 text-orange-500">{b.acordes.map((a, k) => <span key={k}>{k > 0 && "  "}<AcordeClicavel nome={a.nome} visto={ver(a.nome)} onTocar={onTocarAcorde} /></span>)}</span>}
               </button>
             </div>
           );
@@ -70,7 +74,7 @@ const CifraRolando = forwardRef<ControleCifra, Props>(function CifraRolando({ ci
           <div key={i} ref={el => { if (el) linhas.current.set(i, el); else linhas.current.delete(i); }}
             className={`${comum} cursor-pointer py-0.5 ${tocando ? "bg-orange-50 ring-1 ring-orange-200" : aMarcar ? "bg-blue-50 ring-2 ring-blue-400" : "hover:bg-slate-50"}`}
             onClick={() => onTocarLinha(i)} role="button" tabIndex={-1} aria-current={tocando ? "true" : undefined}>
-            {b.acordes.length > 0 && <pre className="whitespace-pre font-mono font-bold leading-tight text-orange-500">{onTocarAcorde ? <LinhaDeAcordesClicavel acordes={b.acordes} onTocar={onTocarAcorde} /> : linhaDeAcordes(b.acordes)}</pre>}
+            {b.acordes.length > 0 && <pre className="whitespace-pre font-mono font-bold leading-tight text-orange-500">{onTocarAcorde ? <LinhaDeAcordesClicavel acordes={b.acordes} ver={ver} onTocar={onTocarAcorde} /> : linhaDeAcordes(transporAcordes(b.acordes.map(a => ({ ...a, nome: ver(a.nome) })), 0))}</pre>}
             {b.texto && (
               <pre data-letra className={`whitespace-pre-wrap font-mono leading-snug ${tocando ? "font-bold" : "text-slate-700"}`}
                 style={tocando ? { backgroundImage: "linear-gradient(90deg,#ea580c,#ea580c),linear-gradient(90deg,#64748b,#64748b)", backgroundRepeat: "no-repeat", backgroundSize: "0% 100%, 100% 100%", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" } : undefined}>
@@ -86,24 +90,25 @@ const CifraRolando = forwardRef<ControleCifra, Props>(function CifraRolando({ ci
 });
 
 /** v13: o nome do acorde que toca ao clicar (sem pular a música para a linha). */
-function AcordeClicavel({ nome, onTocar }: { nome: string; onTocar?: (nome: string) => void }) {
-  if (!onTocar) return <>{nome}</>;
+function AcordeClicavel({ nome, visto, onTocar }: { nome: string; visto: string; onTocar?: (nome: string) => void }) {
+  if (!onTocar) return <>{visto}</>;
   return (
-    <span role="button" tabIndex={0} aria-label={`Ouvir ${nome}`} title="Ouvir o acorde e ver no braço"
+    <span role="button" tabIndex={0} aria-label={`Ouvir ${visto}`} title="Ouvir o acorde e ver no braço"
       onClick={e => { e.stopPropagation(); onTocar(nome); }} onKeyDown={e => { if (e.key === "Enter") { e.stopPropagation(); onTocar(nome); } }}
-      className="cursor-pointer rounded-sm hover:bg-orange-100 hover:text-orange-700">{nome}</span>
+      className="cursor-pointer rounded-sm hover:bg-orange-100 hover:text-orange-700">{visto}</span>
   );
 }
 
 /** v13: a linha de acordes com cada acorde clicável, nas mesmas colunas do texto. */
-function LinhaDeAcordesClicavel({ acordes, onTocar }: { acordes: AcordeNaLinha[]; onTocar: (nome: string) => void }) {
+function LinhaDeAcordesClicavel({ acordes, ver, onTocar }: { acordes: AcordeNaLinha[]; ver: (nome: string) => string; onTocar: (nome: string) => void }) {
   let fim = 0;
   return (
     <>
       {acordes.map((a, k) => {
         const espaco = " ".repeat(Math.max(k > 0 ? 1 : 0, a.col - fim));
-        fim = fim + espaco.length + a.nome.length;
-        return <span key={k}>{espaco}<AcordeClicavel nome={a.nome} onTocar={onTocar} /></span>;
+        const visto = ver(a.nome);
+        fim = fim + espaco.length + visto.length;
+        return <span key={k}>{espaco}<AcordeClicavel nome={a.nome} visto={visto} onTocar={onTocar} /></span>;
       })}
     </>
   );

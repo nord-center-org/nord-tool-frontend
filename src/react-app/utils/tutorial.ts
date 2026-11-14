@@ -650,11 +650,16 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "No player",
-        texto: "Mude o tom (− e +) e o andamento sem um mexer no outro; em \"Separar faixas\" saem voz, baixo, bateria e outros, com volume, mudo e solo. Escolha o instrumento: as notas descem com o nome (como na cifra: C, G, F#, Bb…) e a casa, e acendem no braço (ou no teclado) na hora de tocar; a próxima já aparece marcada. Em \"Todas as notas\", o braço mostra todas em cinza e só a que toca muda de cor. No baixo e no violão, \"Mapa do braço\" mostra o braço em pé com todas as notas coloridas pela letra (C verde, D vermelho, E amarelo…), e a que toca acende com um anel. \"Sintetizador\" toca essas notas com som do instrumento escolhido junto com a música (no tom e no andamento escolhidos), com volume próprio.",
+        texto: "Mude o tom (− e +) e o andamento sem um mexer no outro; em \"Separar faixas\" (no ícone de ajustes) saem voz, baixo, bateria e outros, com volume, mudo e solo. Escolha o instrumento: as notas descem com o nome (C, G, F#… ou Dó, Sol, Fá#…) e a casa, e acendem no braço (ou no teclado) na hora de tocar; a próxima já aparece marcada. Em \"Todas as notas\", o braço mostra todas em cinza e só a que toca muda de cor. No baixo e no violão, \"Mapa do braço\" mostra o braço em pé com todas as notas coloridas pela letra (C verde, D vermelho, E amarelo…), e a que toca acende com um anel. \"Sintetizador\" toca essas notas com som do instrumento escolhido junto com a música (no tom e no andamento escolhidos), com volume próprio.",
       },
       {
         titulo: "Letra e cifra",
         texto: "Cole a cifra como no Cifra Club: a linha atual fica em destaque e a letra rola sozinha. Se a hora de alguma linha não bater, use \"Marcar linhas\" e toque Enter quando cada uma começar. Em \"Mostrar\", escolha ver a cifra e o instrumento juntos, só a cifra ou só o instrumento.",
+      },
+      {
+        titulo: "Ajustes",
+        texto: "O ícone de ajustes, no canto de cima, guarda as opções menos usadas: ver as notas como C, D, E ou Dó, Ré, Mi, com sustenido (C#, o padrão) ou bemol (Db); o que mostrar; o tamanho da letra, o tom da cifra, rolar sozinha e marcar linhas; se o instrumento segue a cifra ou o áudio, todas as notas, a queda e o volume e o timbre do sintetizador; separar faixas e refazer a análise. Esc ou um clique fora fecha.",
+        alvo: { css: '[aria-label="Ajustes"]' },
       },
       {
         titulo: "Escrever a cifra",
