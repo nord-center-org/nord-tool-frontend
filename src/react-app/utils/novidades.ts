@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-13-sac-pdf-prints",
+    data: "2026-11-13",
+    titulo: "SAC: vários prints e exportação em PDF",
+    texto: "No botão do SAC no canto, adicione até 6 prints ao chamado, desta tela ou de outra, e veja as miniaturas antes de enviar. Quem administra exporta os chamados marcados num PDF caprichado, com o texto de cada um e os prints ao lado.",
+    onde: { rotulo: "Visão Geral → SAC", caminho: "/sac" },
+  },
+  {
     id: "2026-11-13-repertorio-selecionar-copiar",
     data: "2026-11-13",
     titulo: "Criar: um quadradinho por clique e copiar e colar notas",

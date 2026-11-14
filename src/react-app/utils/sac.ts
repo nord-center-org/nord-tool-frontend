@@ -54,35 +54,64 @@ const data = (iso: string) => {
   return `${dia}/${m}/${a}${h ? ` ${h.slice(0, 5)}` : ""}`;
 };
 
-/** Nome do arquivo de cada print no ZIP: imagens/chamado-12-1.png. */
-export const nomeImagemExportada = (idChamado: number, ordem: number, mime: string) =>
-  `imagens/chamado-${idChamado}-${ordem}.${/png/.test(mime) ? "png" : "jpg"}`;
+// ---------------------------------------------------------------- v4: exportação em PDF
 
-/**
- * O texto dos chamados exportados (Markdown): um bloco por chamado com status, quem abriu, tela, data, descrição,
- * resposta e os prints (com o caminho dentro do ZIP), pronto para mandar para quem vai fazer as mudanças.
- */
-export function textoExportacao(chamados: ChamadoExportado[], imagens: Map<number, string[]>, geradoEm: string): string {
-  const linhas = [`# Chamados do SAC — NordTool`, ``, `${chamados.length} chamado(s) · exportado em ${data(geradoEm)}`, ``];
-  for (const c of chamados) {
-    linhas.push(`## #${c.id} — ${c.nmTitulo}`, ``);
-    linhas.push(`- **Status:** ${rotuloStatus(c.cdStatus)}`);
-    linhas.push(`- **Aberto por:** ${c.nmUsuario} em ${data(c.dhCriacao)}`);
-    if (c.txTela) linhas.push(`- **Tela:** ${c.txTela}`);
-    linhas.push(``, `### O que precisa mudar`, ``, c.txDescricao.trim(), ``);
-    if (c.txResposta) linhas.push(`### Resposta${c.nmUsuarioResposta ? ` (${c.nmUsuarioResposta})` : ""}`, ``, c.txResposta.trim(), ``);
-    const arquivos = imagens.get(c.id) ?? [];
-    if (arquivos.length) {
-      linhas.push(`### Prints`, ``);
-      arquivos.forEach((a, i) => linhas.push(`![Print ${i + 1} do chamado #${c.id}](${a})`));
-      linhas.push(``);
-    }
+/** Nome do PDF: chamados-sac-2026-11-04.pdf. */
+export const nomePdfChamados = (hoje: string) => `chamados-sac-${hoje}.pdf`;
+
+/** Data e hora como no app ("04/11/2026 15:30"). */
+export const dataChamado = data;
+
+/** Caracteres extras do Windows-1252 (o que a fonte padrão do PDF sabe escrever além do Latin-1). */
+const CP1252 = "€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ";
+
+/** Deixa o texto escrevível pela fonte padrão do PDF: emojis e símbolos de fora viram "?", tabs viram espaços. */
+export function paraFontePdf(texto: string): string {
+  let r = "";
+  for (const ch of texto.replace(/\r\n?/g, "\n").replace(/\t/g, "  ")) {
+    const c = ch.codePointAt(0)!;
+    if (ch === "\n" || (c >= 32 && c <= 126) || (c >= 160 && c <= 255) || CP1252.includes(ch)) r += ch;
+    else if (c >= 0x300 && c <= 0x36f) continue; // acento solto (já veio junto da letra no normalize)
+    else r += "?";
   }
-  return linhas.join("\n");
+  return r;
 }
 
-/** Nome do ZIP: chamados-sac-2026-11-04.zip. */
-export const nomeZipChamados = (hoje: string) => `chamados-sac-${hoje}.zip`;
+/**
+ * Quebra o texto em linhas que cabem em `largura` (medida por `medir`), respeitando as quebras de linha dele e
+ * partindo palavras que sozinhas não cabem.
+ */
+export function quebrarTexto(texto: string, largura: number, medir: (t: string) => number): string[] {
+  const linhas: string[] = [];
+  for (const paragrafo of texto.normalize("NFC").split("\n")) {
+    if (!paragrafo.trim()) { linhas.push(""); continue; }
+    let atual = "";
+    for (const palavra of paragrafo.split(/\s+/).filter(Boolean)) {
+      const tentativa = atual ? `${atual} ${palavra}` : palavra;
+      if (medir(tentativa) <= largura) { atual = tentativa; continue; }
+      if (atual) linhas.push(atual);
+      // palavra maior que a linha: parte em pedaços
+      let resto = palavra;
+      while (medir(resto) > largura && resto.length > 1) {
+        let n = resto.length - 1;
+        while (n > 1 && medir(resto.slice(0, n)) > largura) n--;
+        linhas.push(resto.slice(0, n));
+        resto = resto.slice(n);
+      }
+      atual = resto;
+    }
+    linhas.push(atual);
+  }
+  return linhas;
+}
+
+/** Tamanho da imagem para caber em maxL × maxA sem distorcer (nunca aumenta). */
+export function encaixar(l: number, a: number, maxL: number, maxA: number): { l: number; a: number } {
+  if (l <= 0 || a <= 0) return { l: 0, a: 0 };
+  const f = Math.min(1, maxL / l, maxA / a);
+  return { l: l * f, a: a * f };
+}
+
 
 // ---------------------------------------------------------------- botão do SAC (v3)
 

@@ -182,7 +182,7 @@ export function tutorialGeral({ nome, grupos, variasObras }: OpcoesTourGeral): T
     },
     {
       titulo: "Falar com o SAC",
-      texto: "Este botãozinho no canto fica em todas as telas: toque nele para abrir um chamado ali mesmo (a tela em que você está vai junto) ou tirar um print dela. O número vermelho avisa quando responderam.",
+      texto: "Este botãozinho no canto fica em todas as telas: toque nele para abrir um chamado ali mesmo (a tela em que você está vai junto), com quantos prints quiser (até 6), desta tela ou de outra. O número vermelho avisa quando responderam.",
       alvo: { css: '[data-tutorial="sac-flutuante"]' },
       menu: "fechar",
     },
@@ -342,7 +342,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Acompanhe",
-        texto: "Em Meus chamados você vê o status (aberto, em andamento, resolvido ou recusado) e a resposta dos administradores. Quando alguém responde, o avatar dele aparece no Início avisando. Marque chamados para exportar a descrição e os prints num ZIP.",
+        texto: "Em Meus chamados você vê o status (aberto, em andamento, resolvido ou recusado) e a resposta dos administradores. Quando alguém responde, o avatar dele aparece no Início avisando. Marque chamados e exporte um PDF caprichado: o texto de cada chamado à esquerda e os prints ao lado.",
         alvo: { css: "[role=tab]", texto: "Meus chamados" },
       },
     ],
