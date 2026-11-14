@@ -6,14 +6,18 @@
 import { renderizarProjeto } from "@/react-app/components/repertorio/tocadorEstudio";
 import { repertorioService as conta } from "@/react-app/services/RepertorioService";
 import {
-  MAX_AUDIO_CONTA, maisNova, musicaDaConta, musicaParaConta, planoMusicas, planoProjetos, projetoDaConta, projetoParaConta, type MusicaConta,
+  MAX_AUDIO_CONTA, autorias, maisNova, musicaDaConta, musicaParaConta, planoMusicas, planoProjetos, projetoDaConta, projetoParaConta, type MusicaConta,
 } from "@/react-app/utils/musica/repertorioConta";
 import {
   AJUSTES_PADRAO, excluirMusica as excluirLocal, excluirProjeto as excluirProjetoLocal, idsComArquivo, lerArquivo, lerProjetoLocal, listarMusicas,
   listarProjetos, salvarArquivo, salvarMusica, salvarProjeto, type Musica,
 } from "@/react-app/utils/musica/repertorioDb";
 import type { Projeto } from "@/react-app/utils/musica/estudio";
+import type { Autoria } from "@/react-app/utils/musica/repertorioConta";
 import { nomeDoTom } from "@/react-app/utils/musica/teoria";
+
+/** Mudanças guardadas no aparelho que ainda vão para a conta (juntadas por `guardarNaConta`). */
+const esperando = new Map<string, number>();
 
 export type SituacaoConta = "na-conta" | "enviando" | "so-aparelho" | "falhou";
 
@@ -39,6 +43,8 @@ export interface ListaSincronizada {
   semConta: boolean;
   /** O que ainda vai subir (em segundo plano). */
   pendentes: string[];
+  /** v16: quem criou cada música da conta (as que só estão no aparelho são de quem está vendo). */
+  autoria: Map<string, Autoria>;
 }
 
 /** Lista do aparelho completada com a da conta. Devolve também o que falta subir, para `subirPendentes`. */
@@ -49,17 +55,24 @@ export async function sincronizarMusicas(): Promise<ListaSincronizada> {
   try {
     naConta = await conta.listarMusicas();
   } catch {
-    return { musicas: locais, situacao, semConta: true, pendentes: [] };
+    return { musicas: locais, situacao, semConta: true, pendentes: [], autoria: new Map() };
   }
   const comArquivo = await idsComArquivo().catch(() => new Set<string>());
   const plano = planoMusicas(locais, naConta, id => comArquivo.has(id));
   for (const c of plano.trazer) await salvarMusica(musicaDaConta(c, AJUSTES_PADRAO), true).catch(() => undefined);
   for (const id of plano.apagar) await excluirLocal(id).catch(() => undefined);
+  // v16: a música pode ter sido editada por outra pessoa; o resto (cifra, ajustes) vem ao abrir, pela mais nova
+  const porId = new Map(locais.map(m => [m.id, m]));
+  for (const c of plano.renomear) {
+    const m = porId.get(c.cdChave);
+    // com uma mudança daqui ainda a caminho da conta, vale a daqui
+    if (m && !esperando.has(m.id)) await salvarMusica({ ...m, titulo: c.nmTitulo, artista: c.nmArtista ?? "" }, true).catch(() => undefined);
+  }
   for (const c of naConta) situacao.set(c.cdChave, "na-conta");
   for (const id of plano.soNoAparelho) situacao.set(id, "so-aparelho");
   const pendentes = [...plano.subir, ...plano.subirAudio];
   for (const id of pendentes) situacao.set(id, "enviando");
-  return { musicas: await listarMusicas(), situacao, semConta: false, pendentes };
+  return { musicas: await listarMusicas(), situacao, semConta: false, pendentes, autoria: autorias(naConta) };
 }
 
 /** Sobe, uma por vez, as músicas que só estão no aparelho (ou cujo áudio falta na conta). */
@@ -105,7 +118,6 @@ export async function abrirMusica(m: Musica, semConta: boolean): Promise<{ music
 }
 
 /** Guarda as mudanças (ajustes, cifra, análise) na conta, juntando as que chegam em sequência. */
-const esperando = new Map<string, number>();
 export function guardarNaConta(m: Musica) {
   window.clearTimeout(esperando.get(m.id));
   esperando.set(m.id, window.setTimeout(() => {
@@ -123,10 +135,10 @@ export async function excluirMusica(id: string) {
 
 // ---------------------------------------------------------------- criações do estúdio
 
-export async function sincronizarProjetos(): Promise<{ projetos: Projeto[]; semConta: boolean }> {
+export async function sincronizarProjetos(): Promise<{ projetos: Projeto[]; semConta: boolean; autoria: Map<string, Autoria> }> {
   const locais = await listarProjetos();
   let naConta;
-  try { naConta = await conta.listarProjetos(); } catch { return { projetos: locais, semConta: true }; }
+  try { naConta = await conta.listarProjetos(); } catch { return { projetos: locais, semConta: true, autoria: new Map() }; }
   const plano = planoProjetos(locais, naConta);
   for (const chave of plano.trazer) {
     const c = await conta.abrirProjeto(chave).catch(() => null);
@@ -138,7 +150,7 @@ export async function sincronizarProjetos(): Promise<{ projetos: Projeto[]; semC
     const p = locais.find(x => x.id === id);
     if (p) await enviarProjeto(p);
   }
-  return { projetos: await listarProjetos(), semConta: false };
+  return { projetos: await listarProjetos(), semConta: false, autoria: autorias(naConta) };
 }
 
 /** A versão mais nova da criação (aparelho ou conta). */

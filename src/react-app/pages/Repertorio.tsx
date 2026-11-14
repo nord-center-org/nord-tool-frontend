@@ -9,6 +9,7 @@ import {
 import { MAX_AUDIO_CONTA, textoDoUso } from "@/react-app/utils/musica/repertorioConta";
 import { tomExibido } from "@/react-app/utils/musica/notacao";
 import { useNotacao } from "@/react-app/components/repertorio/useNotacao";
+import { textoAutoria, type Autoria } from "@/react-app/utils/musica/repertorioConta";
 import { repertorioService } from "@/react-app/services/RepertorioService";
 
 const PlayerRepertorio = lazy(() => import("@/react-app/components/repertorio/PlayerRepertorio"));
@@ -35,6 +36,8 @@ export default function RepertorioPage() {
   const [semConta, setSemConta] = useState(false);
   const [uso, setUso] = useState<string | null>(null);
   const [abrindo, setAbrindo] = useState<string | null>(null);
+  // v16: a aba é aberta a todos; cada música mostra quem criou, e só quem criou exclui
+  const [autoria, setAutoria] = useState<Map<string, Autoria>>(() => new Map());
   const mudarSituacao = useCallback((id: string, s: SituacaoConta) => setSituacao(m => new Map(m).set(id, s)), []);
   const atualizarUso = useCallback(() => { void usoDaConta().then(u => setUso(textoDoUso(u.bytesUsados, u.bytesCota))).catch(() => setUso(null)); }, []);
   const entrada = useRef<HTMLInputElement>(null);
@@ -52,6 +55,7 @@ export default function RepertorioPage() {
       const r = await sincronizarMusicas();
       setMusicas(r.musicas);
       setSituacao(r.situacao);
+      setAutoria(r.autoria);
       setSemConta(r.semConta);
       if (!r.semConta) {
         atualizarUso();
@@ -115,7 +119,7 @@ export default function RepertorioPage() {
   if (aberta) {
     return (
       <Suspense fallback={<p className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Abrindo o player…</p>}>
-        <PlayerRepertorio key={aberta.musica.id} musica={aberta.musica} arquivo={aberta.arquivo} onSalvar={salvar}
+        <PlayerRepertorio key={aberta.musica.id} musica={aberta.musica} arquivo={aberta.arquivo} onSalvar={salvar} autoria={textoAutoria(autoria.get(aberta.musica.id))}
           onVoltar={() => { setAberta(null); void carregar(); }} />
       </Suspense>
     );
@@ -153,13 +157,13 @@ export default function RepertorioPage() {
         className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white p-8 text-center hover:bg-slate-50 disabled:opacity-60">
         {enviando ? <Loader2 className="h-9 w-9 animate-spin text-slate-400" /> : <Upload className="h-9 w-9 text-slate-400" />}
         <span className="text-base font-bold text-slate-700">Enviar uma música</span>
-        <span className="max-w-md text-xs text-slate-500">MP3, WAV, M4A, OGG ou FLAC, até {LIMITE_MB} MB. Reconheço o tom, o BPM, os acordes e o baixo; dá para mudar o tom e o andamento, separar as faixas e tocar junto com a cifra. Fica na sua conta (até 15 MB por música) e abre em qualquer aparelho.</span>
+        <span className="max-w-md text-xs text-slate-500">MP3, WAV, M4A, OGG ou FLAC, até {LIMITE_MB} MB. Reconheço o tom, o BPM, os acordes e o baixo; dá para mudar o tom e o andamento, separar as faixas e tocar junto com a cifra. Fica no NordTool (até 15 MB por música), abre em qualquer aparelho e todos podem tocar e editar; só quem enviou exclui.</span>
       </button>
       {erro && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
       {semConta && <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">Sem conexão com a conta agora: mostrando só as músicas deste aparelho.</p>}
-      <h2 className="mb-2 mt-6 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Minhas músicas
-        {uso && <span className="font-normal normal-case tracking-normal text-slate-400">· na conta: {uso}</span>}
+      <h2 className="mb-2 mt-6 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Músicas de todos
+        {uso && <span className="font-normal normal-case tracking-normal text-slate-400">· seu espaço: {uso}</span>}
       </h2>
       {musicas === null ? (
         <p className="flex items-center gap-2 p-4 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Carregando…</p>
@@ -178,13 +182,16 @@ export default function RepertorioPage() {
                   <span className="block truncate text-xs text-slate-500">
                     {[m.artista, m.duracao ? relogio(m.duracao) : null, m.analise ? `${Math.round(m.analise.bpm)} BPM` : "ainda não analisada", m.cifra.trim() ? "com cifra" : null].filter(Boolean).join(" · ")}
                   </span>
+                  {autoria.get(m.id) && <span className="block truncate text-[11px] text-slate-400">{textoAutoria(autoria.get(m.id))}</span>}
                 </span>
               </button>
               <SeloConta situacao={situacao.get(m.id)} />
-              <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Excluir ${m.titulo}`}
-                onClick={async () => { if (window.confirm(`Excluir "${m.titulo}"? Ela sai deste aparelho e da sua conta.`)) { await excluirMusica(m.id); void carregar(); } }}>
-                <Trash2 className="h-4 w-4" />
-              </button>
+              {autoria.get(m.id)?.minha !== false && (
+                <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Excluir ${m.titulo}`}
+                  onClick={async () => { if (window.confirm(`Excluir "${m.titulo}"? Ela sai do Repertório de todos.`)) { await excluirMusica(m.id); void carregar(); } }}>
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -197,7 +204,7 @@ export default function RepertorioPage() {
 /** Onde a música está guardada. */
 function SeloConta({ situacao }: { situacao: SituacaoConta | undefined }) {
   if (!situacao) return null;
-  if (situacao === "na-conta") return <span title="Na sua conta: abre em qualquer aparelho" className="p-1 text-emerald-600"><Cloud className="h-4 w-4" aria-label="Na conta" /></span>;
+  if (situacao === "na-conta") return <span title="No NordTool: abre em qualquer aparelho, para todos" className="p-1 text-emerald-600"><Cloud className="h-4 w-4" aria-label="Na conta" /></span>;
   if (situacao === "enviando") return <span title="Enviando para a sua conta" className="p-1 text-blue-500"><Loader2 className="h-4 w-4 animate-spin" aria-label="Enviando para a conta" /></span>;
   if (situacao === "so-aparelho") return <span title="Só neste aparelho: o áudio passa de 15 MB" className="p-1 text-amber-600"><CloudOff className="h-4 w-4" aria-label="Só neste aparelho" /></span>;
   return <span title="Não deu para enviar para a conta; tento de novo na próxima vez" className="p-1 text-red-500"><AlertTriangle className="h-4 w-4" aria-label="Falhou ao enviar" /></span>;

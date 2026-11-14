@@ -117,13 +117,15 @@ interface Props {
   arquivo: Blob;
   onVoltar: () => void;
   onSalvar: (m: Musica) => Promise<void>;
+  /** v16: quem criou a música (a aba é aberta a todos). */
+  autoria?: string | null;
 }
 
 /**
  * Player do Repertório: tom e andamento, faixas separadas, a cifra rolando com a linha atual em destaque e, ao
  * lado, o instrumento escolhido com as notas descendo até onde se toca.
  */
-export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, onSalvar }: Props) {
+export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, onSalvar, autoria }: Props) {
   const [musica, setMusica] = useState(inicial);
   const motor = useRef<MotorAudio | null>(null);
   const [pronto, setPronto] = useState(false);
@@ -568,6 +570,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
             className="w-full truncate rounded-lg border border-transparent bg-transparent px-1 text-base font-bold text-slate-800 hover:border-slate-200 focus:border-blue-500 focus:outline-none" />
           <input value={musica.artista} onChange={e => atualizar({ artista: e.target.value.slice(0, 120) })} aria-label="Artista" placeholder="Artista"
             className="w-full truncate rounded-lg border border-transparent bg-transparent px-1 text-xs text-slate-500 hover:border-slate-200 focus:border-blue-500 focus:outline-none" />
+          {autoria && <p className="truncate px-1 text-[11px] text-slate-400">Criada {autoria}</p>}
         </div>
         {analise && (
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
