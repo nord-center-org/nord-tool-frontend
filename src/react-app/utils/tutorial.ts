@@ -657,6 +657,10 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         texto: "Cole a cifra como no Cifra Club: a linha atual fica em destaque e a letra rola sozinha. Se a hora de alguma linha não bater, use \"Marcar linhas\" e toque Enter quando cada uma começar. Em \"Mostrar\", escolha ver a cifra e o instrumento juntos, só a cifra ou só o instrumento.",
       },
       {
+        titulo: "Linha do tempo dos acordes",
+        texto: "Em \"Linha do tempo\", cada acorde da cifra vira um bloco na hora em que entra, com a forma de onda da música e a letra embaixo. Arraste um acorde: os que vêm depois vão junto (ou escolha \"Só este\"). Clique num acorde para ouvir e ir até ele; com a música tocando, \"Pôr aqui\" (Enter) leva o escolhido para aquele ponto e já passa para o próximo. ←/→ ajustam o escolhido; \"Automático\" volta às horas das linhas. O instrumento e a letra seguem essas horas.",
+      },
+      {
         titulo: "Ajustes",
         texto: "O ícone de ajustes, no canto de cima, guarda as opções menos usadas: ver as notas como C, D, E ou Dó, Ré, Mi, com sustenido (C#, o padrão) ou bemol (Db); o que mostrar; o tamanho da letra, o tom da cifra, rolar sozinha e marcar linhas; se o instrumento segue a cifra ou o áudio, todas as notas, a queda e o volume e o timbre do sintetizador; separar faixas e refazer a análise. Esc ou um clique fora fecha.",
         alvo: { css: '[aria-label="Ajustes"]' },

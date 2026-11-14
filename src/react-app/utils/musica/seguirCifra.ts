@@ -6,13 +6,23 @@
 import type { Nota, SegmentoAcorde } from "./analise.ts";
 import type { Cifra } from "./cifra.ts";
 import { lerAcorde, transporAcorde } from "./teoria.ts";
+import { acordesEmOrdem, arrumar, temposValidos } from "./linhaDoTempo.ts";
 
 /**
  * Os acordes da cifra no tempo: cada linha com tempo distribui os seus acordes entre o começo dela e o da próxima
  * linha com tempo, pela coluna (como foram escritos em cima da letra). `semitons` leva a cifra para o tom do áudio
  * (a transposição da cifra no player). Linhas sem tempo ficam de fora; texto que não é acorde também.
  */
-export function segmentosDaCifra(cifra: Cifra, tempos: (number | null)[], duracao: number, semitons = 0): SegmentoAcorde[] {
+export function segmentosDaCifra(cifra: Cifra, tempos: (number | null)[], duracao: number, semitons = 0, temposAcordes?: number[] | null): SegmentoAcorde[] {
+  // v17: com as horas da linha do tempo, cada acorde entra na hora dele
+  const ordem = acordesEmOrdem(cifra);
+  if (temposValidos(temposAcordes, ordem.length)) {
+    const ts = arrumar(temposAcordes, duracao);
+    return ordem.flatMap((a, k) => {
+      const fim = k + 1 < ts.length ? ts[k + 1] : duracao;
+      return fim > ts[k] ? [{ inicio: ts[k], fim, acorde: semitons ? transporAcorde(a.nome, semitons) : a.nome }] : [];
+    });
+  }
   const comTempo = cifra.blocos.flatMap((b, i) => {
     const t = tempos[i];
     return t !== null && t !== undefined && Number.isFinite(t) && b.acordes.length ? [{ b, t }] : [];

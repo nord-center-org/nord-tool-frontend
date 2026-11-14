@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, Check, Share2, Loader2, Minus, Music2, Pause, Piano, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Settings2, Timer, Volume2, VolumeX, Wand2, X,
+  ArrowLeft, Check, Share2, Loader2, Minus, Music2, Pause, Piano, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Settings2, GanttChart, Timer, Volume2, VolumeX, Wand2, X,
 } from "lucide-react";
 
 import { desenhar, desenharMapa, type AcharNota } from "@/react-app/components/repertorio/desenhoInstrumento";
@@ -14,6 +14,8 @@ import EditorAcordes from "@/react-app/components/repertorio/EditorAcordes";
 import { ESCRITA_VAZIA, linhasDaLetra, montarCifra } from "@/react-app/utils/musica/escritaCifra";
 import { acordesNoTempoDaLinha, blocoDaLinha, linhasEditaveis } from "@/react-app/utils/musica/edicaoCifra";
 import { baixoDosAcordes, segmentosDaCifra } from "@/react-app/utils/musica/seguirCifra";
+import { acordesEmOrdem, temposDasLinhas } from "@/react-app/utils/musica/linhaDoTempo";
+import LinhaDoTempoAcordes from "@/react-app/components/repertorio/LinhaDoTempoAcordes";
 import { SR_FALA, escritaDaLetra, linhasDosTrechos, marcasDosAcordes, type TrechoFalado } from "@/react-app/utils/musica/letra";
 import type { ModeloLetra } from "@/react-app/workers/letraMusica.worker";
 import { MotorAudio, decodificar, reamostrar, type FaixaAudio } from "@/react-app/components/repertorio/motorAudio";
@@ -167,7 +169,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const [editandoCifra, setEditandoCifra] = useState(false);
   const [marcando, setMarcando] = useState<number | null>(null);
   // v13: "Escrever cifra" = a letra (colada ou identificada) e depois os acordes com o mouse; o tempo vem sozinho
-  const [etapa, setEtapa] = useState<null | "letra" | "acordes">(null);
+  const [etapa, setEtapa] = useState<null | "letra" | "acordes" | "tempo">(null);
   const escrevendo = etapa !== null;
   const [compartilhando, setCompartilhando] = useState(false);
   // v13: o acorde clicado acende no braço por um instante (eventos no tempo em que foi clicado)
@@ -258,8 +260,9 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   // v11: o instrumento segue a cifra (a escrita, enquanto se escreve) ou o que reconheci no áudio
   const duracaoMusica = analise?.duracao ?? musica.duracao;
   const segmentosCifra = useMemo(() => {
-    return segmentosDaCifra(cifra, tempos, duracaoMusica, semitonsCifra);
-  }, [cifra, tempos, duracaoMusica, semitonsCifra]);
+    return segmentosDaCifra(cifra, tempos, duracaoMusica, semitonsCifra, musica.temposAcordes);
+  }, [cifra, tempos, duracaoMusica, semitonsCifra, musica.temposAcordes]);
+  const temAcordes = useMemo(() => acordesEmOrdem(cifra).length > 0, [cifra]);
   const seguindoCifra = prefs.segue === "cifra" && segmentosCifra.length > 0;
   const fonteAcordes = useMemo(() => (seguindoCifra ? segmentosCifra : analise?.acordes ?? []), [seguindoCifra, segmentosCifra, analise]);
   const eventos = useMemo(() => (seguindoCifra || analise ? eventosParaTocar(ins, seguindoCifra ? baixoDosAcordes(fonteAcordes) : analise?.notasBaixo ?? [], fonteAcordes, semitons, casas || ins.casas) : []),
@@ -358,6 +361,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   }, [pronto]);
 
   // ---------- comandos ----------
+  const tempoAgora = useCallback(() => motor.current?.tempo() ?? 0, []);
+  const irPara = useCallback((t: number) => motor.current?.irPara(t), []);
   const alternar = async () => { const m = motor.current; if (!m) return; if (m.estaTocando) m.pausar(); else await m.tocar(); };
   const pular = (d: number) => { const m = motor.current; if (m) m.irPara(Math.max(0, Math.min(musica.duracao, m.tempo() + d))); };
   const mudarTom = async (s: number) => {
@@ -515,7 +520,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   // marcar as linhas na mão: cada toque marca o início da linha seguinte
   const comecarMarcar = async () => {
     setMarcando(ordemComTempo[0] ?? null);
-    atualizar({ tempos: cifra.blocos.map(() => null) });
+    atualizar({ tempos: cifra.blocos.map(() => null), temposAcordes: null });
     motor.current?.irPara(0);
     await motor.current?.tocar();
   };
@@ -655,6 +660,12 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
               onMudar={texto => atualizar({ cifra: texto })} onTocarAcorde={tocarAcorde} onFechar={() => setEtapa(null)}
               trechoDaLinha={trechoDaLinha} onOuvir={ouvirTrecho} onCifraDaLinha={cifraDaLinha}
               onTrocarLetra={() => setEtapa("letra")} />
+          ) : etapa === "tempo" ? (
+            <LinhaDoTempoAcordes cifra={cifra} tempos={tempos} duracao={duracaoMusica} guardados={musica.temposAcordes} semitons={semitons + semitonsCifra}
+              notacao={notacao} batidas={analise?.batidas} arquivo={arquivo} tocando={tocando} tempo={tempoAgora} irPara={irPara} onAlternar={() => void alternar()}
+              onTocarAcorde={tocarAcorde} onFechar={() => setEtapa(null)}
+              onMudar={ts => atualizar({ temposAcordes: ts, tempos: temposDasLinhas(cifra, ts, tempos) })}
+              onAutomatico={() => atualizar({ temposAcordes: null })} />
           ) : (<>
           <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 p-2">
             <b className="mr-auto text-sm text-slate-700">Letra e cifra</b>
@@ -667,6 +678,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
               <>
                 <button type="button" className={botaoAzul} onClick={() => setEtapa(linhasEditaveis(musica.cifra).some(l => l.letra !== null) ? "acordes" : "letra")}
                   title="Cole (ou identifique) a letra e ponha os acordes com o mouse em cima das sílabas"><Music2 className="h-3.5 w-3.5" />Escrever cifra</button>
+                {temAcordes && <button type="button" className={botao} onClick={() => setEtapa("tempo")} disabled={!pronto}
+                  title="Acerte a hora de cada acorde numa linha do tempo; arrastar um leva junto os seguintes"><GanttChart className="h-3.5 w-3.5" />Linha do tempo</button>}
                 <button type="button" className={botao} onClick={() => setEditandoCifra(true)}><PencilLine className="h-3.5 w-3.5" />{musica.cifra.trim() ? "Editar cifra" : "Colar cifra"}</button>
                 {musica.cifra.trim() && <button type="button" className={botao} onClick={() => setCompartilhando(true)} title="Mandar para alguém do NordTool ou gerar a imagem"><Share2 className="h-3.5 w-3.5" />Compartilhar</button>}
               </>
@@ -777,7 +790,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
               {musica.cifra.trim() && marcando === null && (
                 <div className="flex flex-wrap gap-1.5">
                   <button type="button" className={botao} onClick={() => { setAjustesAbertos(false); void comecarMarcar(); }} disabled={!pronto} title="Toque em Marcar quando cada linha começar">Marcar linhas</button>
-                  {musica.tempos && <button type="button" className={botao} onClick={() => atualizar({ tempos: null })} title="Voltar aos tempos calculados pelos acordes">Tempos automáticos</button>}
+                  {(musica.tempos || musica.temposAcordes) && <button type="button" className={botao} onClick={() => atualizar({ tempos: null, temposAcordes: null })} title="Voltar aos tempos calculados pelos acordes">Tempos automáticos</button>}
                 </div>
               )}
             </fieldset>
