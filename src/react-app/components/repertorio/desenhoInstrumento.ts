@@ -32,7 +32,11 @@ function primeiroVisivel(ev: EventoQueda[], t: number, folga: number) {
   return lo;
 }
 
-export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, cena: Cena, t: number) {
+/** v14: a nota debaixo de um ponto do desenho (para tocar ao clicar). */
+export interface NotaNoPonto { midi: number; corda?: number; casa?: number }
+export type AcharNota = (x: number, y: number) => NotaNoPonto | null;
+
+export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, cena: Cena, t: number): AcharNota {
   const { instrumento: ins, eventos, janela, escuro } = cena;
   const fundo = escuro ? "#0f172a" : "#f8fafc", tinta = escuro ? "#e2e8f0" : "#334155", fraco = escuro ? "#334155" : "#cbd5e1";
   ctx.clearRect(0, 0, w, h);
@@ -48,6 +52,7 @@ export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, ce
   // ---------- onde cada evento cai (x, largura) e a linha da corda ----------
   let xDe: (e: EventoQueda) => { x: number; l: number };
   let desenharBase: (ativos: EventoQueda[], proximos: EventoQueda[]) => void;
+  let achar: AcharNota;
   if (teclado) {
     const [ini, fim] = ins.faixa;
     const brancas: number[] = [];
@@ -58,6 +63,15 @@ export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, ce
       return { x: (brancas.indexOf(m - 1) + 1) * lb - lb * 0.3, l: lb * 0.6 };
     };
     xDe = e => xTecla(e.midi ?? ini);
+    achar = (x, y) => {
+      if (y < topoBase || y > h || x < 0 || x > w) return null;
+      // as pretas ficam por cima, na parte de cima das teclas
+      if (y < topoBase + altBase * 0.62) {
+        for (let m = ini; m <= fim; m++) if (ehPreta(m)) { const k = xTecla(m); if (x >= k.x && x < k.x + k.l) return { midi: m }; }
+      }
+      const m = brancas[Math.min(brancas.length - 1, Math.floor(x / lb))];
+      return m === undefined ? null : { midi: m };
+    };
     desenharBase = ativos => {
       const acesas = new Set(ativos.map(e => e.midi));
       const rotular = (m: number, x: number, l: number, alto: number) => {
@@ -89,6 +103,14 @@ export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, ce
     const xTraste = (f: number) => x0 + larg * k(f);
     const xCasa = (c: number) => (c === 0 ? x0 - 12 : (xTraste(c - 1) + xTraste(c)) / 2);
     const yCorda = (c: number) => topoBase + 12 + ((altBase - 30) * (n - 1 - c)) / Math.max(1, n - 1);
+    achar = (x, y) => {
+      if (y < topoBase || y > h) return null;
+      let corda = 0, dist = Infinity;
+      for (let c = 0; c < n; c++) { const d = Math.abs(yCorda(c) - y); if (d < dist) { dist = d; corda = c; } }
+      let casa = 0;
+      if (x >= x0) { casa = cena.casas; for (let f = 1; f <= cena.casas; f++) if (x < xTraste(f)) { casa = f; break; } }
+      return { midi: ins.cordas[corda] + casa, corda, casa };
+    };
     xDe = e => {
       const c = e.casa ?? 0;
       const l = c === 0 ? 20 : Math.max(10, (xTraste(c) - xTraste(c - 1)) * 0.8);
@@ -207,6 +229,7 @@ export function desenhar(ctx: CanvasRenderingContext2D, w: number, h: number, ce
     const largura = ctx.measureText(cena.acordeAtual).width;
     if (cena.proximoAcorde) { ctx.fillStyle = tinta; ctx.globalAlpha = 0.6; ctx.font = "bold 13px sans-serif"; ctx.fillText(`→ ${cena.proximoAcorde}`, 18 + largura, 27); ctx.globalAlpha = 1; }
   }
+  return achar;
 }
 
 function arredondado(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -239,14 +262,14 @@ function notasDoMomento(eventos: EventoQueda[], t: number) {
  * esquerda), as casas descendo e, em cada uma, a nota numa bolinha com a cor da letra. Tocando, a nota da vez cresce e
  * ganha um anel branco; a próxima ganha um anel tracejado. Só para instrumentos de corda.
  */
-export function desenharMapa(ctx: CanvasRenderingContext2D, w: number, h: number, cena: Cena, t: number) {
+export function desenharMapa(ctx: CanvasRenderingContext2D, w: number, h: number, cena: Cena, t: number): AcharNota {
   const { instrumento: ins, escuro } = cena;
   const fundo = escuro ? "#0f172a" : "#ffffff", tinta = escuro ? "#e2e8f0" : "#334155";
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = fundo;
   ctx.fillRect(0, 0, w, h);
   const n = ins.cordas.length;
-  if (!n) return;
+  if (!n) return () => null;
   const nome = (m: number) => nomeDaNota(m, cena.bemol);
   const { ativos, proximos } = notasDoMomento(cena.eventos, t);
 
@@ -343,4 +366,10 @@ export function desenharMapa(ctx: CanvasRenderingContext2D, w: number, h: number
       bolinha(xCorda(c), yCasa(f), acesa ? raio * 1.15 : raio, nome(ins.cordas[c] + f), acesa, proximo(c, f));
     }
   }
+  return (x, y) => {
+    if (x < x0 - 6 || x > x0 + largBraco + 6 || y < yPestana || y > yCasas + linha * mostradas) return null;
+    const corda = Math.max(0, Math.min(n - 1, Math.floor((x - x0) / coluna)));
+    const casa = y < yCasas ? 0 : Math.min(inicio + mostradas - 1, inicio + Math.floor((y - yCasas) / linha));
+    return { midi: ins.cordas[corda] + casa, corda, casa };
+  };
 }

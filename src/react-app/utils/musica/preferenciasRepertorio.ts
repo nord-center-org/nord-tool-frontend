@@ -14,13 +14,16 @@ export interface PreferenciasRepertorio {
   volumeSintetizador: number;
   /** v10: o que o player mostra — a cifra e o instrumento, só a cifra ou só o instrumento. */
   exibir: "ambos" | "cifra" | "instrumento";
+  /** v14: volume da música no player (0 a 1,5) e se está sem som. */
+  volumeMusica: number;
+  musicaMuda: boolean;
   /** v11: o instrumento segue a cifra escrita ou o que foi reconhecido no áudio. */
   segue: "cifra" | "audio";
 }
 
 export type VistaInstrumento = "queda" | "mapa";
 
-export const PREFERENCIAS_PADRAO: PreferenciasRepertorio = { todasNotas: false, vista: "queda", sintetizador: false, volumeSintetizador: 0.7, exibir: "ambos", segue: "cifra" };
+export const PREFERENCIAS_PADRAO: PreferenciasRepertorio = { todasNotas: false, vista: "queda", sintetizador: false, volumeSintetizador: 0.7, exibir: "ambos", segue: "cifra", volumeMusica: 1, musicaMuda: false };
 export const CHAVE_PREFERENCIAS = "@NordTool:repertorio";
 
 export function lerPreferencias(storage: Pick<Storage, "getItem"> | undefined): PreferenciasRepertorio {
@@ -35,6 +38,8 @@ export function lerPreferencias(storage: Pick<Storage, "getItem"> | undefined): 
       sintetizador: typeof o.sintetizador === "boolean" ? o.sintetizador : PREFERENCIAS_PADRAO.sintetizador,
       volumeSintetizador: typeof o.volumeSintetizador === "number" && Number.isFinite(o.volumeSintetizador)
         ? Math.max(0, Math.min(1.5, o.volumeSintetizador)) : PREFERENCIAS_PADRAO.volumeSintetizador,
+      volumeMusica: typeof o.volumeMusica === "number" && Number.isFinite(o.volumeMusica) ? Math.max(0, Math.min(1.5, o.volumeMusica)) : PREFERENCIAS_PADRAO.volumeMusica,
+      musicaMuda: typeof o.musicaMuda === "boolean" ? o.musicaMuda : PREFERENCIAS_PADRAO.musicaMuda,
       segue: o.segue === "audio" || o.segue === "cifra" ? o.segue : PREFERENCIAS_PADRAO.segue,
       exibir: o.exibir === "cifra" || o.exibir === "instrumento" || o.exibir === "ambos" ? o.exibir : PREFERENCIAS_PADRAO.exibir,
     };

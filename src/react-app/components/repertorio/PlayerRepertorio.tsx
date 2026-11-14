@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Check, Share2, Loader2, Minus, Music2, Pause, Piano, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Timer, Volume2, VolumeX, Wand2,
 } from "lucide-react";
 
-import { desenhar, desenharMapa } from "@/react-app/components/repertorio/desenhoInstrumento";
+import { desenhar, desenharMapa, type AcharNota } from "@/react-app/components/repertorio/desenhoInstrumento";
 import { Sintetizador, timbreDoInstrumento } from "@/react-app/components/repertorio/sintetizador";
 import { VARIANTES, gravarFerramentas, lerFerramentasDe, variante as varianteValida } from "@/react-app/utils/musica/ferramentas";
 import { alturaDoEvento, passoDaAgenda, type Agenda } from "@/react-app/utils/musica/sintese";
@@ -24,7 +24,9 @@ import { gravarPreferencias, lerPreferencias, type PreferenciasRepertorio } from
 import type { Musica } from "@/react-app/utils/musica/repertorioDb";
 import { FAIXAS, NOME_FAIXA } from "@/react-app/utils/musica/separacao";
 import { blocoNoTempo, sincronizar } from "@/react-app/utils/musica/sincronia";
-import { lerAcorde, mod12, nomeDoTom, transporAcorde, transporTom, usaBemol } from "@/react-app/utils/musica/teoria";
+import { lerAcorde, mod12, nomeDaNota, nomeDoTom, transporAcorde, transporTom, usaBemol } from "@/react-app/utils/musica/teoria";
+
+const PainelInstrumentoOnline = lazy(() => import("@/react-app/components/repertorio/PainelInstrumentoOnline"));
 
 const botaoAzul = "inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-40";
 const botao = "inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40";
@@ -33,8 +35,16 @@ const rotulo = "text-[10px] font-bold uppercase tracking-wide text-slate-400";
 
 const relogio = (s: number) => { const t = Math.max(0, Math.floor(s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
 
+/** v14: cancelar uma tarefa de worker (encerra o worker e rejeita com AbortError). */
+function ligarCancelamento(w: Worker, sinal: AbortSignal | undefined, erro: (e: Error) => void) {
+  if (!sinal) return;
+  const parar = () => { w.terminate(); erro(new DOMException("Cancelado", "AbortError")); };
+  if (sinal.aborted) parar(); else sinal.addEventListener("abort", parar, { once: true });
+}
+const foiCancelado = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
+
 /** Análise no worker (o áudio vai mono a 11025 Hz). */
-async function analisarNoWorker(arquivo: Blob, aoProgresso: (p: number, etapa: string) => void, trecho?: { inicio: number; fim: number }): Promise<ResultadoAnalise> {
+async function analisarNoWorker(arquivo: Blob, aoProgresso: (p: number, etapa: string) => void, trecho?: { inicio: number; fim: number }, parada?: AbortSignal): Promise<ResultadoAnalise> {
   aoProgresso(0, "Abrindo o áudio");
   const buf = await decodificar(arquivo);
   const mono = await reamostrar(buf, 11025, 1);
@@ -54,12 +64,13 @@ async function analisarNoWorker(arquivo: Blob, aoProgresso: (p: number, etapa: s
       else { w.terminate(); if (e.data.tipo === "pronto" && e.data.resultado) ok(comDeslocamento(e.data.resultado)); else erro(new Error(e.data.mensagem ?? "Não deu para analisar o áudio.")); }
     };
     w.onerror = () => { w.terminate(); erro(new Error("Não deu para analisar o áudio.")); };
+    ligarCancelamento(w, parada, erro);
     w.postMessage({ sinal, sr: 11025 }, [sinal.buffer]);
   });
 }
 
 /** Separação no worker (o áudio vai estéreo a 22050 Hz); devolve um WAV por faixa. */
-async function separarNoWorker(arquivo: Blob, aoProgresso: (p: number) => void): Promise<Blob[]> {
+async function separarNoWorker(arquivo: Blob, aoProgresso: (p: number) => void, parada?: AbortSignal): Promise<Blob[]> {
   const buf = await decodificar(arquivo);
   const est = await reamostrar(buf, 22050, 2);
   const L = est.getChannelData(0).slice(), R = est.getChannelData(1).slice();
@@ -70,13 +81,14 @@ async function separarNoWorker(arquivo: Blob, aoProgresso: (p: number) => void):
       else { w.terminate(); if (e.data.tipo === "pronto" && e.data.wavs) ok(e.data.wavs.map(b => new Blob([b], { type: "audio/wav" }))); else erro(new Error(e.data.mensagem ?? "Não deu para separar as faixas.")); }
     };
     w.onerror = () => { w.terminate(); erro(new Error("Não deu para separar as faixas.")); };
+    ligarCancelamento(w, parada, erro);
     w.postMessage({ L, R, sr: 22050 }, [L.buffer, R.buffer]);
   });
 }
 
 /** v11: reconhece a letra no worker (Whisper no aparelho; áudio mono a 16 kHz). */
 async function letraNoWorker(arquivo: Blob, modelo: ModeloLetra, idioma: string | null, aoProgresso: (p: number, etapa: string) => void,
-  trecho?: { inicio: number; fim: number }): Promise<TrechoFalado[]> {
+  trecho?: { inicio: number; fim: number }, parada?: AbortSignal): Promise<TrechoFalado[]> {
   aoProgresso(0, "Preparando o áudio");
   const buf = await decodificar(arquivo);
   const mono = await reamostrar(buf, SR_FALA, 1);
@@ -93,6 +105,7 @@ async function letraNoWorker(arquivo: Blob, modelo: ModeloLetra, idioma: string 
       else { w.terminate(); if (e.data.tipo === "pronto" && e.data.trechos) ok(e.data.trechos.map(t => ({ ...t, inicio: t.inicio + desloc, fim: t.fim + desloc }))); else erro(new Error(e.data.mensagem ?? "Não deu para identificar a letra.")); }
     };
     w.onerror = () => { w.terminate(); erro(new Error("Não deu para identificar a letra.")); };
+    ligarCancelamento(w, parada, erro);
     w.postMessage({ sinal, modelo, idioma }, [sinal.buffer]);
   });
 }
@@ -114,6 +127,12 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const [pronto, setPronto] = useState(false);
   const [tocando, setTocando] = useState(false);
   const [ocupado, setOcupado] = useState<{ texto: string; p: number } | null>(null);
+  // v14: o que está carregando aparece num aviso no canto (não trava a tela) e dá para cancelar
+  const tarefa = useRef<AbortController | null>(null);
+  const comecar = (texto: string) => { tarefa.current?.abort(); const c = new AbortController(); tarefa.current = c; setOcupado({ texto, p: 0 }); return c; };
+  const terminar = (c: AbortController) => { if (tarefa.current === c) { tarefa.current = null; setOcupado(null); } };
+  const [instrumentoOnline, setInstrumentoOnline] = useState(false);
+  const acharNota = useRef<AcharNota | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [faixas, setFaixas] = useState<FaixaAudio[]>([]);
   const [atual, setAtual] = useState(-1);
@@ -168,10 +187,20 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
         let a = inicial.analise;
         // sem análise, ou feita por uma versão anterior do analisador (ex.: a linha do baixo antiga): refaz
         if (analiseDesatualizada(a)) {
-          a = await analisarNoWorker(arquivo, (p, etapa) => vivo && setOcupado({ texto: etapa, p }));
+          const c = new AbortController();
+          tarefa.current = c;
+          try {
+            const r = await analisarNoWorker(arquivo, (p, etapa) => vivo && setOcupado({ texto: etapa, p }), undefined, c.signal);
+            if (!vivo) return;
+            a = r;
+            atualizar({ analise: r, duracao: r.duracao });
+          } catch (e) {
+            // cancelou a análise: a música abre mesmo assim ("Refazer análise" faz depois)
+            if (!foiCancelado(e)) throw e;
+          } finally {
+            if (tarefa.current === c) tarefa.current = null;
+          }
           if (!vivo) return;
-          const r = a;
-          atualizar({ analise: r, duracao: r.duracao });
         }
         setOcupado({ texto: inicial.ajustes.semitons ? "Mudando o tom" : "Preparando o áudio", p: 1 });
         const lista: FaixaAudio[] = [{ id: "musica", nome: "Música", original: arquivo, volume: 1, mudo: false, solo: false }];
@@ -187,7 +216,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
         if (vivo) setOcupado(null);
       }
     })();
-    return () => { vivo = false; m.fechar(); };
+    return () => { vivo = false; tarefa.current?.abort(); m.fechar(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -240,6 +269,9 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   // trocar instrumento, tom ou desligar: corta o que soa e recomeça a agenda
   useEffect(() => { sint.current?.calar(); agenda.current = null; destaque.current = null; }, [eventos, sintetizar]);
   useEffect(() => { if (sint.current) sint.current.volume = prefs.volumeSintetizador; }, [prefs.volumeSintetizador]);
+  // v14: volume da música (o sintetizador e o clique nas notas têm o volume deles)
+  const volumeMusica = prefs.musicaMuda ? 0 : prefs.volumeMusica;
+  useEffect(() => { motor.current?.setVolumeGeral(volumeMusica); }, [volumeMusica, pronto, faixas]);
   useEffect(() => () => { sint.current?.fechar(); sint.current = null; }, []);
   useEffect(() => {
     let id = 0, quadro = 0;
@@ -270,7 +302,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           const i = s.acordes.findIndex(a => t >= a.inicio && t < a.fim);
           const prox = s.acordes.find(a => a.inicio > t);
           const d = destaque.current && performance.now() < destaque.current.ateMs ? destaque.current : null;
-          (s.mapa ? desenharMapa : desenhar)(ctx, c.width / dpr, c.height / dpr, {
+          acharNota.current = (s.mapa ? desenharMapa : desenhar)(ctx, c.width / dpr, c.height / dpr, {
             instrumento: s.ins, eventos: d ? d.eventos : s.eventos, casas: s.casas, janela: s.janela, escuro: document.documentElement.classList.contains("nt-escuro"), bemol: s.bemol, todasNotas: s.todasNotas,
             acordeAtual: d ? d.nome : i >= 0 ? s.acordes[i].nome : null, proximoAcorde: d ? null : prox?.nome ?? null,
           }, t);
@@ -322,9 +354,9 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const identificarLetra = async (modelo: ModeloLetra, idioma: string | null) => {
     setErro(null);
     const voz = faixas.find(f => f.id === "voz");
-    setOcupado({ texto: "Preparando o áudio", p: 0 });
+    const c = comecar("Preparando o áudio");
     try {
-      const trechos = await letraNoWorker(voz?.original ?? arquivo, modelo, idioma, (p, texto) => setOcupado({ texto, p }));
+      const trechos = await letraNoWorker(voz?.original ?? arquivo, modelo, idioma, (p, texto) => setOcupado({ texto, p }), undefined, c.signal);
       const linhas = linhasDosTrechos(trechos);
       if (!linhas.length) {
         setErro("Não reconheci letra nesta música (pode ser instrumental ou a voz estar baixa). Tente separar as faixas antes ou o reconhecedor mais preciso.");
@@ -332,26 +364,26 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
       }
       atualizar(m => ({ escrita: escritaDaLetra(linhas, m.escrita ?? ESCRITA_VAZIA) }));
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não deu para identificar a letra.");
+      if (!foiCancelado(e)) setErro(e instanceof Error ? e.message : "Não deu para identificar a letra.");
     } finally {
-      setOcupado(null);
+      terminar(c);
     }
   };
 
   // v11: a cifra de um trecho, ouvindo só ele (os acordes no tom do áudio)
   const cifraDoTrecho = async (inicio: number, fim: number) => {
     setErro(null);
-    setOcupado({ texto: "Ouvindo o trecho", p: 0 });
+    const c = comecar("Ouvindo o trecho");
     try {
-      const r = await analisarNoWorker(arquivo, p => setOcupado({ texto: "Ouvindo o trecho", p }), { inicio, fim });
+      const r = await analisarNoWorker(arquivo, p => setOcupado({ texto: "Ouvindo o trecho", p }), { inicio, fim }, c.signal);
       const marcas = marcasDosAcordes(r.acordes);
       if (!marcas.length) setErro("Não reconheci acordes neste trecho. Tente um trecho um pouco maior.");
       return marcas;
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não deu para ouvir o trecho.");
+      if (!foiCancelado(e)) setErro(e instanceof Error ? e.message : "Não deu para ouvir o trecho.");
       return [];
     } finally {
-      setOcupado(null);
+      terminar(c);
     }
   };
 
@@ -396,6 +428,19 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
     setEtapa("acordes");
   };
 
+  // v14: clicar numa nota do braço (ou do mapa, ou do teclado) toca o som dela e a acende
+  const tocarNotaNoPonto = (x: number, y: number) => {
+    const m = motor.current, n = acharNota.current?.(x, y);
+    if (!m || !n) return;
+    if (!sint.current) { sint.current = new Sintetizador(m.audio()); sint.current.volume = volumeSint.current; }
+    void m.audio().resume?.();
+    sint.current.tocar(ins.id, n.midi, 0, 1.1, 0, 0.9, undefined, varianteSint);
+    const t = m.tempo();
+    const ev: EventoQueda = { inicio: t, fim: t + 0.9, corda: n.corda, casa: n.casa, midi: n.midi, rotulo: String(n.midi) };
+    const juntos = [...estado.current.eventos, ev].sort((a, b) => a.inicio - b.inicio);
+    destaque.current = { eventos: juntos, nome: nomeDaNota(n.midi, bemol), ateMs: performance.now() + 900 };
+  };
+
   // v11/v13: o som de um acorde (clicando nele na cifra) como o instrumento escolhido toca — no baixo a fundamental, no
   // violão/guitarra a forma do acorde dedilhada, no teclado as vozes — com o timbre escolhido; e acende no braço
   const tocarAcorde = (nome: string) => {
@@ -415,28 +460,31 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
     const m = motor.current;
     if (!m) return;
     setErro(null);
-    setOcupado({ texto: "Separando as faixas", p: 0 });
+    const c = comecar("Separando as faixas");
     try {
-      const wavs = await separarNoWorker(arquivo, p => setOcupado({ texto: "Separando as faixas", p }));
+      const wavs = await separarNoWorker(arquivo, p => setOcupado({ texto: "Separando as faixas", p }), c.signal);
+      tarefa.current = null; // daqui em diante (preparar as faixas) não dá para cancelar
       const lista: FaixaAudio[] = FAIXAS.map((f, i) => ({ id: f, nome: NOME_FAIXA[f], original: wavs[i], volume: 1, mudo: false, solo: false }));
       setOcupado({ texto: semitons ? "Mudando o tom das faixas" : "Preparando as faixas", p: 1 });
       await m.definirFaixas(lista);
       setFaixas(lista);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não deu para separar as faixas.");
+      if (!foiCancelado(e)) setErro(e instanceof Error ? e.message : "Não deu para separar as faixas.");
     } finally {
+      tarefa.current = null;
       setOcupado(null);
     }
   };
   const refazerAnalise = async () => {
     setErro(null);
+    const c = comecar("Analisando o áudio");
     try {
-      const r = await analisarNoWorker(arquivo, (p, etapa) => setOcupado({ texto: etapa, p }));
+      const r = await analisarNoWorker(arquivo, (p, etapa) => setOcupado({ texto: etapa, p }), undefined, c.signal);
       atualizar({ analise: r, duracao: r.duracao });
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não deu para analisar o áudio.");
+      if (!foiCancelado(e)) setErro(e instanceof Error ? e.message : "Não deu para analisar o áudio.");
     } finally {
-      setOcupado(null);
+      terminar(c);
     }
   };
   const ajustarFaixa = (id: string, p: Partial<Pick<FaixaAudio, "volume" | "mudo" | "solo">>) => {
@@ -528,6 +576,12 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           onPointerDown={() => { arrastando.current = true; }} onPointerUp={() => { arrastando.current = false; }}
           onChange={e => motor.current?.irPara(Number(e.target.value))} className="min-w-[8rem] flex-1" />
         <span className="text-xs tabular-nums text-slate-400">{relogio(musica.duracao)}</span>
+        <div className="flex items-center gap-1" role="group" aria-label="Volume da música">
+          <button type="button" className={quadrado} aria-pressed={prefs.musicaMuda} aria-label={prefs.musicaMuda ? "Ligar o som da música" : "Tirar o som da música"} title="Som da música"
+            onClick={() => mudarPrefs({ musicaMuda: !prefs.musicaMuda })}>{prefs.musicaMuda || prefs.volumeMusica === 0 ? <VolumeX className="h-4 w-4 text-red-500" /> : <Volume2 className="h-4 w-4" />}</button>
+          <input type="range" min={0} max={1.5} step={0.05} value={prefs.musicaMuda ? 0 : prefs.volumeMusica} aria-label="Volume da música" title={`Volume da música: ${Math.round((prefs.musicaMuda ? 0 : prefs.volumeMusica) * 100)}%`}
+            onChange={e => mudarPrefs({ volumeMusica: Number(e.target.value), musicaMuda: false })} className="w-16 sm:w-20" />
+        </div>
         <div className="flex items-center gap-1" role="group" aria-label="Tom">
           <span className={rotulo}>Tom</span>
           <button type="button" className={quadrado} aria-label="Descer meio tom" onClick={() => void mudarTom(semitons - 1)} disabled={!pronto || semitons <= -12}><Minus className="h-3.5 w-3.5" /></button>
@@ -546,6 +600,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
             {INSTRUMENTOS.map(i => <option key={i.id} value={i.id}>{i.nome}</option>)}
           </select>
         </label>
+        <button type="button" onClick={() => setInstrumentoOnline(true)} title="Tocar baixo, teclado, violão ou bateria na tela, junto com a música"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100"><Piano className="h-3.5 w-3.5" />Instrumento online</button>
       </div>
 
       {/* faixas */}
@@ -580,7 +636,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
 
       {/* cifra + instrumento */}
       <div className="flex min-h-0 flex-1 flex-col-reverse gap-2 md:flex-row">
-        <section className={`min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white ${verCifra ? "flex" : "hidden"}`}>
+        <section className={`min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white ${verCifra ? "flex" : "hidden"}`}>
           {etapa === "letra" ? (
             <LetraParaCifra letra={musica.escrita?.letra ?? ""} onMudarLetra={mudarLetraEscrita} onIdentificarLetra={(modelo, idioma) => void identificarLetra(modelo, idioma)}
               onUsar={usarLetra} onFechar={() => setEtapa(null)} ocupado={!!ocupado} vozSeparada={faixas.some(f => f.id === "voz")} temCifra={!!musica.cifra.trim()} />
@@ -693,21 +749,23 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
             </label>}
           </div>
           <div ref={caixaTela} className="relative min-h-0 flex-1">
-            <canvas ref={tela} className="absolute inset-0 h-full w-full" aria-label={`Animação do ${ins.nome} com as notas`} role="img" />
+            <canvas ref={tela} className="absolute inset-0 h-full w-full cursor-pointer touch-manipulation" aria-label={`${ins.nome}: clique numa nota para ouvir`} role="img"
+              onPointerDown={e => { const r = e.currentTarget.getBoundingClientRect(); tocarNotaNoPonto(e.clientX - r.left, e.clientY - r.top); }} />
           </div>
         </section>
       </div>
 
       {ocupado && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="status" aria-live="polite">
-          <div className="w-full max-w-xs rounded-2xl bg-white p-4 text-center shadow-2xl">
-            <Loader2 className="mx-auto h-6 w-6 animate-spin text-blue-600" />
-            <p className="mt-2 text-sm font-bold text-slate-800">{ocupado.texto}…</p>
-            {ocupado.p < 1 && <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-blue-600 transition-[width]" style={{ width: `${Math.round(ocupado.p * 100)}%` }} /></div>}
-            <p className="mt-2 text-[11px] text-slate-500">Tudo é feito no aparelho; pode levar alguns segundos.</p>
+        <div className="fixed bottom-4 left-4 z-40 w-72 max-w-[calc(100vw-6rem)] rounded-xl border border-slate-200 bg-white p-3 shadow-lg" role="status" aria-live="polite">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-blue-600" />
+            <p className="min-w-0 flex-1 truncate text-xs font-bold text-slate-800">{ocupado.texto}…</p>
+            {tarefa.current && <button type="button" onClick={() => tarefa.current?.abort()} className="rounded-md px-1.5 py-0.5 text-[11px] font-bold text-red-600 hover:bg-red-50">Cancelar</button>}
           </div>
+          {ocupado.p < 1 && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-blue-600 transition-[width]" style={{ width: `${Math.round(ocupado.p * 100)}%` }} /></div>}
         </div>
       )}
+      {instrumentoOnline && <Suspense fallback={null}><PainelInstrumentoOnline onFechar={() => setInstrumentoOnline(false)} /></Suspense>}
 
       {infoCompartilhar && <CompartilharCifra info={infoCompartilhar} onFechar={() => setCompartilhando(false)} />}
 

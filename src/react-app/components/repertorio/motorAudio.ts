@@ -118,13 +118,17 @@ export class MotorAudio {
     for (const tc of this.tocadores.values()) tc.el.playbackRate = v;
   }
 
+  /** v14: volume geral da música (0 a 1,5); multiplica o de cada faixa. */
+  private geral = 1;
+  setVolumeGeral(v: number) { this.geral = Math.max(0, Math.min(1.5, v)); this.aplicarVolumes(); }
+
   aplicarVolumes() {
     const algumSolo = this.faixas.some(f => f.solo);
     for (const f of this.faixas) {
       const tc = this.tocadores.get(f.id);
       if (!tc) continue;
       const ouvir = !f.mudo && (!algumSolo || f.solo);
-      tc.ganho.gain.value = ouvir ? f.volume : 0;
+      tc.ganho.gain.value = ouvir ? f.volume * this.geral : 0;
     }
   }
 
