@@ -2,7 +2,7 @@
  * Cifra no formato do Cifra Club (acordes numa linha, letra embaixo, [Seções], tablaturas): leitura, transposição e
  * cifra gerada a partir dos acordes reconhecidos no áudio. Puro, testável em node.
  */
-import { lerAcorde, lerTom, transporAcorde, type Tom } from "./teoria.ts";
+import { lerAcorde, lerTom, mod12, transporAcorde, usaBemol, type Tom } from "./teoria.ts";
 
 export interface AcordeNaLinha { col: number; nome: string }
 export type TipoBloco = "secao" | "letra" | "acordes" | "tab" | "info";
@@ -130,4 +130,37 @@ export function cifraDosAcordes(segmentos: { inicio: number; fim: number; acorde
   }
   if (linha.length) linhas.push(`| ${linha.join(" | ")} |`);
   return linhas.join("\n");
+}
+
+/**
+ * v11: sobe ou desce o tom da cifra escrita (o texto): os acordes (também os de seção, como "[Intro] G D") ficam
+ * sobre a mesma sílaba e a linha "Tom:" acompanha. A letra, as tablaturas e o resto não mudam. Com o tom
+ * conhecido (`tom` ou a linha "Tom:"), escreve com bemol ou sustenido como no tom novo.
+ */
+export function transporCifra(texto: string, semitons: number, tom?: Tom | null): string {
+  if (!semitons) return texto;
+  const original = lerCifra(texto).tom ?? tom ?? null;
+  const bemol = original ? usaBemol(mod12(original.tonica + semitons), original.menor) : undefined;
+  const nl = texto.includes("\r\n") ? "\r\n" : "\n";
+  return texto.replace(/\r\n?/g, "\n").split("\n").map(linha => {
+    const mTom = /^(\s*tom\s*:\s*)([A-G][#b]?m?)\b(.*)$/i.exec(linha);
+    if (mTom) return `${mTom[1]}${transporAcorde(mTom[2], semitons, bemol)}${mTom[3]}`;
+    if (RE_TAB.test(linha)) return linha;
+    const mSecao = /^(\s*\[[^\]]+\]\s*)(.*)$/.exec(linha);
+    if (mSecao) return mSecao[2].trim() && acordesDaLinha(mSecao[2]) ? mSecao[1] + transporLinha(mSecao[2], semitons, bemol) : linha;
+    return acordesDaLinha(linha) ? transporLinha(linha, semitons, bemol) : linha;
+  }).join(nl);
+}
+
+/** Transpõe uma linha só de acordes no lugar: enfeites ("|", "(2x)") ficam, e o que vem depois anda se o nome crescer. */
+function transporLinha(linha: string, semitons: number, bemol?: boolean): string {
+  let s = "", fim = -1;
+  for (const { col, t } of tokens(linha)) {
+    const m = /^(\(?)(.*?)(\)?)$/.exec(t)!;
+    const novo = lerAcorde(m[2]) ? `${m[1]}${transporAcorde(m[2], semitons, bemol)}${m[3]}` : t;
+    const c = Math.max(col, fim + 1);
+    s = s.padEnd(c, " ") + novo;
+    fim = c + novo.length;
+  }
+  return s;
 }

@@ -13,7 +13,8 @@ function cspDoBuild(origens: string): Plugin {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://static.getmocha.com",
     "font-src 'self' data:",
-    `connect-src 'self' ${origens}`.trim(),
+    // v11 (Repertório): o reconhecedor de letra baixa o modelo do Hugging Face uma vez (o áudio não sai do aparelho)
+    `connect-src 'self' ${origens} https://huggingface.co https://*.huggingface.co https://*.hf.co`.replace(/\s+/g, ' ').trim(),
     "worker-src 'self' blob:",
     // áudio do Repertório (arquivos do aparelho e faixas separadas tocam por blob:)
     "media-src 'self' blob:",

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { acordesDaLinha, blocosComTempo, cifraDosAcordes, lerCifra, linhaDeAcordes, transporAcordes } from "./cifra.ts";
+import { acordesDaLinha, blocosComTempo, cifraDosAcordes, lerCifra, linhaDeAcordes, transporAcordes, transporCifra } from "./cifra.ts";
 
 const TEXTO = `Tom: G
 Capotraste na 2ª casa
@@ -54,4 +54,14 @@ test("cifra gerada pelos acordes do áudio, quatro compassos por linha", () => {
   assert.equal(c.blocos.length, 3, "seção + 2 linhas");
   assert.deepEqual(c.blocos[2].acordes.map(a => a.nome), ["F"], "compasso sem acorde repete o anterior");
   assert.equal(lerCifra(cifraDosAcordes([{ inicio: 0, fim: 4, acorde: "N" }, { inicio: 4, fim: 6, acorde: "D" }], 2)).blocos[1].acordes.length, 1, "silêncio do começo é pulado");
+});
+
+test("v11: subir e descer o tom da cifra escrita", () => {
+  const texto = "Tom: G\n\n[Intro] G  D  Em  C\n\nG              D\n  Escreva aqui a letra\nEm   C   |  (2x)\n  com os acordes";
+  const r = transporCifra(texto, 2);
+  assert.equal(r, "Tom: A\n\n[Intro] A  E  F#m D\n\nA              E\n  Escreva aqui a letra\nF#m  D   |  (2x)\n  com os acordes");
+  assert.equal(transporCifra(r, -2), texto, "volta igual");
+  assert.match(transporCifra("Tom: C\nC  G\nOi", -2), /^Tom: Bb\nBb F\nOi$/, "Si bemol escreve com bemol");
+  assert.equal(transporCifra("C#m7  G#\nOlá", 1), "Dm7   A\nOlá");
+  assert.equal(transporCifra("Letra sem acorde", 3), "Letra sem acorde");
 });

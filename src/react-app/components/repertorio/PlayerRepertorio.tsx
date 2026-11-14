@@ -9,16 +9,19 @@ import { VARIANTES, gravarFerramentas, lerFerramentasDe, variante as varianteVal
 import { alturaDoEvento, passoDaAgenda, type Agenda } from "@/react-app/utils/musica/sintese";
 import CifraRolando, { type ControleCifra } from "@/react-app/components/repertorio/CifraRolando";
 import EscreverCifra from "@/react-app/components/repertorio/EscreverCifra";
-import { ESCRITA_VAZIA } from "@/react-app/utils/musica/escritaCifra";
+import { ESCRITA_VAZIA, linhasDaLetra, montarCifra, trocarVerso } from "@/react-app/utils/musica/escritaCifra";
+import { baixoDosAcordes, segmentosDaCifra } from "@/react-app/utils/musica/seguirCifra";
+import { SR_FALA, escritaDaLetra, linhasDosTrechos, marcasDosAcordes, type TrechoFalado } from "@/react-app/utils/musica/letra";
+import type { ModeloLetra } from "@/react-app/workers/letraMusica.worker";
 import { MotorAudio, decodificar, reamostrar, type FaixaAudio } from "@/react-app/components/repertorio/motorAudio";
 import { analiseDesatualizada, type ResultadoAnalise } from "@/react-app/utils/musica/analise";
-import { blocosComTempo, cifraDosAcordes, lerCifra } from "@/react-app/utils/musica/cifra";
-import { INSTRUMENTOS, eventosParaTocar, instrumento, type IdInstrumento } from "@/react-app/utils/musica/instrumentos";
+import { blocosComTempo, cifraDosAcordes, lerCifra, transporCifra } from "@/react-app/utils/musica/cifra";
+import { INSTRUMENTOS, eventosParaTocar, instrumento, vozesNoTeclado, type IdInstrumento } from "@/react-app/utils/musica/instrumentos";
 import { gravarPreferencias, lerPreferencias, type PreferenciasRepertorio } from "@/react-app/utils/musica/preferenciasRepertorio";
 import type { Musica } from "@/react-app/utils/musica/repertorioDb";
 import { FAIXAS, NOME_FAIXA } from "@/react-app/utils/musica/separacao";
 import { blocoNoTempo, sincronizar } from "@/react-app/utils/musica/sincronia";
-import { mod12, nomeDoTom, transporAcorde, transporTom, usaBemol } from "@/react-app/utils/musica/teoria";
+import { lerAcorde, mod12, nomeDoTom, transporAcorde, transporTom, usaBemol } from "@/react-app/utils/musica/teoria";
 
 const botaoAzul = "inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-40";
 const botao = "inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40";
@@ -28,16 +31,24 @@ const rotulo = "text-[10px] font-bold uppercase tracking-wide text-slate-400";
 const relogio = (s: number) => { const t = Math.max(0, Math.floor(s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
 
 /** Análise no worker (o áudio vai mono a 11025 Hz). */
-async function analisarNoWorker(arquivo: Blob, aoProgresso: (p: number, etapa: string) => void): Promise<ResultadoAnalise> {
+async function analisarNoWorker(arquivo: Blob, aoProgresso: (p: number, etapa: string) => void, trecho?: { inicio: number; fim: number }): Promise<ResultadoAnalise> {
   aoProgresso(0, "Abrindo o áudio");
   const buf = await decodificar(arquivo);
   const mono = await reamostrar(buf, 11025, 1);
-  const sinal = mono.getChannelData(0).slice();
+  // v11: só um trecho (a cifra de um verso); os tempos voltam a contar do começo da música
+  const de = trecho ? Math.max(0, Math.floor(trecho.inicio * 11025)) : 0;
+  const ate = trecho ? Math.min(mono.length, Math.ceil(trecho.fim * 11025)) : mono.length;
+  const sinal = mono.getChannelData(0).slice(de, ate);
+  const desloc = de / 11025;
+  const comDeslocamento = (r: ResultadoAnalise): ResultadoAnalise => (desloc ? {
+    ...r, batidas: r.batidas.map(t => t + desloc), acordes: r.acordes.map(a => ({ ...a, inicio: a.inicio + desloc, fim: a.fim + desloc })),
+    notasBaixo: r.notasBaixo.map(n => ({ ...n, inicio: n.inicio + desloc, fim: n.fim + desloc })),
+  } : r);
   return new Promise((ok, erro) => {
     const w = new Worker(new URL("../../workers/analiseMusica.worker.ts", import.meta.url), { type: "module" });
     w.onmessage = (e: MessageEvent<{ tipo: string; p?: number; etapa?: string; resultado?: ResultadoAnalise; mensagem?: string }>) => {
       if (e.data.tipo === "progresso") aoProgresso(e.data.p ?? 0, e.data.etapa ?? "");
-      else { w.terminate(); if (e.data.tipo === "pronto" && e.data.resultado) ok(e.data.resultado); else erro(new Error(e.data.mensagem ?? "Não deu para analisar o áudio.")); }
+      else { w.terminate(); if (e.data.tipo === "pronto" && e.data.resultado) ok(comDeslocamento(e.data.resultado)); else erro(new Error(e.data.mensagem ?? "Não deu para analisar o áudio.")); }
     };
     w.onerror = () => { w.terminate(); erro(new Error("Não deu para analisar o áudio.")); };
     w.postMessage({ sinal, sr: 11025 }, [sinal.buffer]);
@@ -57,6 +68,29 @@ async function separarNoWorker(arquivo: Blob, aoProgresso: (p: number) => void):
     };
     w.onerror = () => { w.terminate(); erro(new Error("Não deu para separar as faixas.")); };
     w.postMessage({ L, R, sr: 22050 }, [L.buffer, R.buffer]);
+  });
+}
+
+/** v11: reconhece a letra no worker (Whisper no aparelho; áudio mono a 16 kHz). */
+async function letraNoWorker(arquivo: Blob, modelo: ModeloLetra, idioma: string | null, aoProgresso: (p: number, etapa: string) => void,
+  trecho?: { inicio: number; fim: number }): Promise<TrechoFalado[]> {
+  aoProgresso(0, "Preparando o áudio");
+  const buf = await decodificar(arquivo);
+  const mono = await reamostrar(buf, SR_FALA, 1);
+  const tudo = mono.getChannelData(0);
+  // só um verso: o trecho com uma folga de 0,3 s antes (os tempos voltam a contar do começo da música)
+  const de = trecho ? Math.max(0, Math.floor((trecho.inicio - 0.3) * SR_FALA)) : 0;
+  const ate = trecho ? Math.min(tudo.length, Math.ceil((trecho.fim + 0.2) * SR_FALA)) : tudo.length;
+  const sinal = tudo.slice(de, ate);
+  const desloc = de / SR_FALA;
+  return new Promise((ok, erro) => {
+    const w = new Worker(new URL("../../workers/letraMusica.worker.ts", import.meta.url), { type: "module" });
+    w.onmessage = (e: MessageEvent<{ tipo: string; p?: number; etapa?: string; trechos?: TrechoFalado[]; mensagem?: string }>) => {
+      if (e.data.tipo === "progresso") aoProgresso(e.data.p ?? 0, e.data.etapa ?? "");
+      else { w.terminate(); if (e.data.tipo === "pronto" && e.data.trechos) ok(e.data.trechos.map(t => ({ ...t, inicio: t.inicio + desloc, fim: t.fim + desloc }))); else erro(new Error(e.data.mensagem ?? "Não deu para identificar a letra.")); }
+    };
+    w.onerror = () => { w.terminate(); erro(new Error("Não deu para identificar a letra.")); };
+    w.postMessage({ sinal, modelo, idioma }, [sinal.buffer]);
   });
 }
 
@@ -163,8 +197,21 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   // ---------- instrumento ----------
   const [larguraTela, setLarguraTela] = useState(800);
   const casas = ins.id === "teclado" ? 0 : larguraTela < 560 ? 12 : ins.casas;
-  const eventos = useMemo(() => (analise ? eventosParaTocar(ins, analise.notasBaixo, analise.acordes, semitons, casas || ins.casas) : []), [analise, ins, semitons, casas]);
-  const acordes = useMemo(() => (analise?.acordes ?? []).filter(a => a.acorde !== "N").map(a => ({ ...a, nome: transporAcorde(a.acorde, semitons, bemol) })), [analise, semitons, bemol]);
+  // v11: o instrumento segue a cifra (a escrita, enquanto se escreve) ou o que reconheci no áudio
+  const duracaoMusica = analise?.duracao ?? musica.duracao;
+  const segmentosCifra = useMemo(() => {
+    if (escrevendo && musica.escrita) {
+      const e = musica.escrita;
+      const r = montarCifra({ ...e, inicios: linhasDaLetra(e.letra).map((_, i) => e.inicios[i] ?? null) }, duracaoMusica);
+      return segmentosDaCifra(lerCifra(r.texto), r.tempos, duracaoMusica);
+    }
+    return segmentosDaCifra(cifra, tempos, duracaoMusica, semitonsCifra);
+  }, [escrevendo, musica.escrita, cifra, tempos, duracaoMusica, semitonsCifra]);
+  const seguindoCifra = prefs.segue === "cifra" && segmentosCifra.length > 0;
+  const fonteAcordes = useMemo(() => (seguindoCifra ? segmentosCifra : analise?.acordes ?? []), [seguindoCifra, segmentosCifra, analise]);
+  const eventos = useMemo(() => (seguindoCifra || analise ? eventosParaTocar(ins, seguindoCifra ? baixoDosAcordes(fonteAcordes) : analise?.notasBaixo ?? [], fonteAcordes, semitons, casas || ins.casas) : []),
+    [seguindoCifra, fonteAcordes, analise, ins, semitons, casas]);
+  const acordes = useMemo(() => fonteAcordes.filter(a => a.acorde !== "N").map(a => ({ ...a, nome: transporAcorde(a.acorde, semitons, bemol) })), [fonteAcordes, semitons, bemol]);
 
   // ---------- quadro a quadro ----------
   // v4: o mapa do braço só existe nos instrumentos de corda
@@ -265,6 +312,82 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
     try { await m.setTom(alvo); } finally { setOcupado(null); }
   };
   const mudarAndamento = (a: number) => { const v = Math.round(a * 100) / 100; motor.current?.setAndamento(v); ajustar({ andamento: v }); };
+
+  // v11: identificar a letra (com a voz separada, se já separou as faixas)
+  const identificarLetra = async (modelo: ModeloLetra, idioma: string | null) => {
+    setErro(null);
+    const voz = faixas.find(f => f.id === "voz");
+    setOcupado({ texto: "Preparando o áudio", p: 0 });
+    try {
+      const trechos = await letraNoWorker(voz?.original ?? arquivo, modelo, idioma, (p, texto) => setOcupado({ texto, p }));
+      const linhas = linhasDosTrechos(trechos);
+      if (!linhas.length) {
+        setErro("Não reconheci letra nesta música (pode ser instrumental ou a voz estar baixa). Tente separar as faixas antes ou o reconhecedor mais preciso.");
+        return;
+      }
+      atualizar(m => ({ escrita: escritaDaLetra(linhas, m.escrita ?? ESCRITA_VAZIA) }));
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não deu para identificar a letra.");
+    } finally {
+      setOcupado(null);
+    }
+  };
+
+  const identificarVerso = async (i: number, inicio: number, fim: number, modelo: ModeloLetra, idioma: string | null) => {
+    setErro(null);
+    const voz = faixas.find(f => f.id === "voz");
+    setOcupado({ texto: "Preparando o áudio", p: 0 });
+    try {
+      const trechos = await letraNoWorker(voz?.original ?? arquivo, modelo, idioma, (p, texto) => setOcupado({ texto, p }), { inicio, fim });
+      const texto = linhasDosTrechos(trechos, 500).map(l => l.texto).join(" ").trim();
+      if (!texto) { setErro("Não reconheci letra neste verso. Tente o reconhecedor mais preciso ou separar as faixas antes."); return; }
+      atualizar(m => { const e = m.escrita ?? ESCRITA_VAZIA; return { escrita: { ...e, letra: trocarVerso(e.letra, i, texto) } }; });
+      ouvirTrecho(inicio, fim);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não deu para identificar a letra.");
+    } finally {
+      setOcupado(null);
+    }
+  };
+
+  // v11: a cifra de um trecho, ouvindo só ele (os acordes no tom do áudio)
+  const cifraDoTrecho = async (inicio: number, fim: number) => {
+    setErro(null);
+    setOcupado({ texto: "Ouvindo o trecho", p: 0 });
+    try {
+      const r = await analisarNoWorker(arquivo, p => setOcupado({ texto: "Ouvindo o trecho", p }), { inicio, fim });
+      const marcas = marcasDosAcordes(r.acordes);
+      if (!marcas.length) setErro("Não reconheci acordes neste trecho. Tente um trecho um pouco maior.");
+      return marcas;
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não deu para ouvir o trecho.");
+      return [];
+    } finally {
+      setOcupado(null);
+    }
+  };
+
+  // v11: tocar só um trecho (um verso) e parar no fim
+  const paradaTrecho = useRef<number | null>(null);
+  const ouvirTrecho = (inicio: number, fim: number) => {
+    const m = motor.current;
+    if (!m) return;
+    if (paradaTrecho.current !== null) window.clearTimeout(paradaTrecho.current);
+    m.irPara(Math.max(0, inicio - 0.15));
+    if (!m.estaTocando) void m.tocar();
+    paradaTrecho.current = window.setTimeout(() => { paradaTrecho.current = null; if (motor.current?.estaTocando) motor.current.pausar(); }, ((fim - inicio + 0.25) / andamento) * 1000);
+  };
+  useEffect(() => () => { if (paradaTrecho.current !== null) window.clearTimeout(paradaTrecho.current); }, []);
+
+  // v11: o som de um acorde (clicando nele na cifra): o acorde no teclado e, no baixo, a fundamental
+  const tocarAcorde = (nome: string) => {
+    const m = motor.current;
+    const a = lerAcorde(nome);
+    if (!m || !a) return;
+    if (!sint.current) { sint.current = new Sintetizador(m.audio()); sint.current.volume = volumeSint.current; }
+    vozesNoTeclado(nome).forEach((midi, k) => sint.current?.tocar("teclado", midi, 0, 1.4, k, 0.6));
+    if (ins.fonte === "baixo") sint.current.tocar(ins.id, 28 + mod12((a.baixo ?? a.raiz) - 4), 0, 1.4, 0, 0.9, undefined, varianteSint);
+  };
 
   const separarFaixas = async () => {
     const m = motor.current;
@@ -433,7 +556,13 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
             <EscreverCifra escrita={musica.escrita ?? ESCRITA_VAZIA} tom={analise?.tom ?? null} semitons={semitons} batidas={analise?.batidas ?? []}
               duracao={musica.duracao} agora={() => motor.current?.tempo() ?? 0} onMudar={escrita => atualizar({ escrita })}
               onAplicar={(texto, novos) => { atualizar({ cifra: texto, tempos: novos, ajustes: { ...musica.ajustes, semitonsCifra: 0 } }); setEscrevendo(false); }}
-              onFechar={() => setEscrevendo(false)} />
+              onFechar={() => setEscrevendo(false)}
+              ocupado={!!ocupado} vozSeparada={faixas.some(f => f.id === "voz")}
+              onIdentificarLetra={(modelo, idioma) => void identificarLetra(modelo, idioma)}
+              onIdentificarVerso={(i, ini, fim, modelo, idioma) => void identificarVerso(i, ini, fim, modelo, idioma)}
+              onOuvir={ouvirTrecho} onTocarAcorde={tocarAcorde}
+              onCifraDoTrecho={cifraDoTrecho}
+              onAcordesDoAudio={analise ? () => atualizar(m => ({ escrita: { ...(m.escrita ?? ESCRITA_VAZIA), acordes: marcasDosAcordes(analise.acordes) } })) : undefined} />
           ) : (<>
           <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 p-2">
             <b className="mr-auto text-sm text-slate-700">Letra e cifra</b>
@@ -449,6 +578,15 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
                 {musica.cifra.trim() && <button type="button" className={botao} onClick={() => void comecarMarcar()} disabled={!pronto} title="Toque em Marcar quando cada linha começar">Marcar linhas</button>}
                 {musica.tempos && <button type="button" className={botao} onClick={() => atualizar({ tempos: null })} title="Voltar aos tempos calculados pelos acordes">Automático</button>}
               </>
+            )}
+            {musica.cifra.trim() && marcando === null && (
+              <div className="flex items-center gap-0.5" role="group" aria-label="Tom da cifra" title="Sobe ou desce o tom da cifra escrita (o áudio não muda)">
+                <span className="text-[10px] font-bold uppercase text-slate-400">Tom da cifra</span>
+                {([[-1, "Descer meio tom da cifra", Minus], [1, "Subir meio tom da cifra", Plus]] as const).map(([d, rot, Icone]) => (
+                  <button key={d} type="button" className={quadrado} aria-label={rot}
+                    onClick={() => atualizar(m => ({ cifra: transporCifra(m.cifra, d, analise ? transporTom(analise.tom, -semitonsCifra) : null) }))}><Icone className="h-3.5 w-3.5" /></button>
+                ))}
+              </div>
             )}
             <div className="flex items-center gap-0.5" role="group" aria-label="Tamanho da letra">
               <button type="button" className={quadrado} aria-label="Letra menor" onClick={() => setFonte(f => Math.max(11, f - 1))}>A-</button>
@@ -485,6 +623,13 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
         <section className={`min-h-[220px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white ${!verInstrumento ? "hidden" : escrevendo ? "hidden md:flex" : "flex"} ${verCifra ? "h-[36vh] shrink-0 md:h-auto md:w-[46%]" : "min-h-0 flex-1"}`}>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-slate-100 px-2 py-1.5">
             <b className="mr-auto text-sm text-slate-700">{ins.nome}</b>
+            <div className="flex rounded-lg border border-slate-200 p-0.5" role="radiogroup" aria-label="O instrumento segue"
+              title={segmentosCifra.length ? "Cifra: as notas dos acordes que estão escritos; Áudio: o que reconheci na música" : "A cifra ainda não tem acordes com tempo: o instrumento segue o áudio"}>
+              {([["cifra", "Segue a cifra"], ["audio", "Segue o áudio"]] as const).map(([v, r]) => (
+                <button key={v} type="button" role="radio" aria-checked={(v === "cifra") === seguindoCifra} disabled={v === "cifra" && !segmentosCifra.length} onClick={() => mudarPrefs({ segue: v })}
+                  className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold disabled:opacity-40 ${(v === "cifra") === seguindoCifra ? "bg-orange-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{r}</button>
+              ))}
+            </div>
             {ins.cordas.length > 0 && (
               <div className="flex rounded-lg border border-slate-200 p-0.5" role="radiogroup" aria-label="Como ver o instrumento">
                 {([["queda", "Notas caindo"], ["mapa", "Mapa do braço"]] as const).map(([v, r]) => (
