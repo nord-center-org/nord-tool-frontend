@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-14-repertorio-identificar-letra",
+    data: "2026-11-14",
+    titulo: "Repertório: identificar a letra e cifra em cima da sílaba",
+    texto: "Em \u201cEscrever cifra\u201d, \u201cIdentificar letra\u201d escuta a música no seu aparelho e escreve a letra com a hora de cada verso. Clique na sílaba e toque no acorde (ou no teclado de acordes) para pôr a cifra em cima dela; clique no acorde para ouvir. Num verso, ouça só ele, gere a cifra do trecho que escolher ou reescreva a letra dele. E agora dá para subir ou descer o tom da cifra, e o braço segue a cifra que você escreveu.",
+    onde: { rotulo: "Gestão Individual → Repertório", caminho: "/gestao/repertorio" },
+  },
+  {
     id: "2026-11-13-repertorio-escrever-cifra",
     data: "2026-11-13",
     titulo: "Repertório: escreva a cifra tocando",

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { lerCifra } from "./cifra.ts";
-import { campoHarmonico, lerEscrita, linhasDaLetra, marcarAcorde, montarCifra, noTempo } from "./escritaCifra.ts";
+import { campoHarmonico, cifraNoTrecho, escreverTempo, lerEscrita, lerTempo, porNaSilaba, transporEscrita, linhasDaLetra, marcarAcorde, montarCifra, noTempo } from "./escritaCifra.ts";
 
 test("v10: campo harmônico do tom", () => {
   assert.deepEqual(campoHarmonico({ tonica: 0, menor: false }), ["C", "Dm", "Em", "F", "G", "Am", "Bdim", "G7"]);
@@ -63,4 +63,26 @@ test("v10: leitura tolerante da escrita guardada", () => {
   assert.equal(e.letra, "");
   assert.deepEqual(e.inicios, [1, null, null]);
   assert.deepEqual(e.acordes.map(a => a.acorde), ["C", "G"]);
+});
+
+test("v11: tempo escrito e cifra de um trecho do verso", () => {
+  assert.equal(lerTempo("1:02.5"), 62.5);
+  assert.equal(lerTempo("12,3"), 12.3);
+  assert.equal(lerTempo("abc"), null);
+  assert.equal(escreverTempo(62.5), "1:02.5");
+  assert.equal(escreverTempo(5), "0:05.0");
+  const e = { letra: "Um\nDois\nTrês", inicios: [0, null, 20], acordes: [{ tempo: 9, acorde: "X" }, { tempo: 21, acorde: "E" }] };
+  const r = cifraNoTrecho(e, 1, 3, 30, 8, [{ tempo: 7.5, acorde: "C" }, { tempo: 12, acorde: "G" }]);
+  assert.deepEqual(r.inicios, [0, 8, 20]);
+  assert.deepEqual(r.acordes.map(a => [a.tempo, a.acorde]), [[8, "C"], [12, "G"], [21, "E"]], "os do verso trocam; o de antes do trecho entra no começo");
+});
+
+test("v11: acordes na sílaba e tom da escrita", () => {
+  let e = porNaSilaba({ letra: "Oi", inicios: [], acordes: [] }, 0, 1, "C");
+  e = porNaSilaba(e, 0, 1, "D");
+  assert.deepEqual(e.fixos, [{ linha: 0, col: 1, acorde: "D" }], "a mesma sílaba troca");
+  const t = transporEscrita({ ...e, acordes: [{ tempo: 1, acorde: "Am" }] }, 2);
+  assert.deepEqual([t.acordes[0].acorde, t.fixos?.[0].acorde], ["Bm", "E"]);
+  const lido = lerEscrita({ ...t, fixos: [...(t.fixos ?? []), { linha: -1, col: 0, acorde: "C" }] });
+  assert.equal(lido.fixos?.length, 1, "fixo inválido sai");
 });

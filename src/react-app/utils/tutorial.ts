@@ -658,7 +658,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Escrever a cifra tocando",
-        texto: "Em \"Escrever cifra\", cole a letra (opcional), dê play e aperte o acorde na hora em que ele entra: os do campo harmônico do tom aparecem como botões (ou as teclas 1 a 8) e qualquer outro sai do seletor ao lado. Toque \"Próxima linha\" (Enter) quando cada verso começar e o acorde cai em cima da sílaba certa. \"Desfazer\" (Backspace) tira a última marca; \"Aplicar na cifra\" troca a cifra pela escrita, já rolando com a música.",
+        texto: "Em \"Escrever cifra\", toque em \"Identificar letra\" (ouço a voz no aparelho e escrevo cada verso com a hora em que começa) ou cole a letra. Clique na sílaba e toque no acorde para ele ficar em cima dela: os do tom aparecem como botões (teclas 1 a 8), e o teclado de acordes tem as 12 notas com o tipo (m, 7, 7M…). Clique num acorde para ouvir; Delete o tira e Backspace desfaz. Escolhendo um verso: \"Ouvir\" toca só ele, \"Cifra do trecho\" ouve só o pedaço escolhido (de/até) e escreve os acordes, e \"Letra da linha\" reescreve a letra dele. \"Tom da cifra\" − e + sobe ou desce a cifra sem mudar o áudio, e o instrumento pode seguir a cifra escrita. \"Aplicar na cifra\" troca a cifra pela escrita.",
       },
       {
         titulo: "Instrumento online",
