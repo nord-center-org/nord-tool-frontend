@@ -7,7 +7,8 @@ import {
   abrirMusica, enviarMusica, excluirMusica, guardarNaConta, sincronizarMusicas, subirPendentes, usoDaConta, type SituacaoConta,
 } from "@/react-app/components/repertorio/sincronizacao";
 import { MAX_AUDIO_CONTA, textoDoUso } from "@/react-app/utils/musica/repertorioConta";
-import { nomeDoTom } from "@/react-app/utils/musica/teoria";
+import { tomExibido } from "@/react-app/utils/musica/notacao";
+import { useNotacao } from "@/react-app/components/repertorio/useNotacao";
 import { repertorioService } from "@/react-app/services/RepertorioService";
 
 const PlayerRepertorio = lazy(() => import("@/react-app/components/repertorio/PlayerRepertorio"));
@@ -24,6 +25,7 @@ const novoId = () => `m${Date.now().toString(36)}${Math.random().toString(36).sl
  * tom, o BPM, os acordes e o baixo, e mostra a cifra rolando com o instrumento ao lado.
  */
 export default function RepertorioPage() {
+  const notacao = useNotacao();
   const [musicas, setMusicas] = useState<Musica[] | null>(null);
   const [aberta, setAberta] = useState<{ musica: Musica; arquivo: Blob } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -169,7 +171,7 @@ export default function RepertorioPage() {
             <li key={m.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 hover:border-blue-300">
               <button type="button" onClick={() => void abrir(m)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Abrir ${m.titulo}`}>
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-red-500 text-sm font-bold text-white">
-                  {abrindo === m.id ? <Loader2 className="h-5 w-5 animate-spin" /> : m.analise ? nomeDoTom(m.analise.tom).cifra : <Music className="h-5 w-5" />}
+                  {abrindo === m.id ? <Loader2 className="h-5 w-5 animate-spin" /> : m.analise ? tomExibido(m.analise.tom, notacao).cifra : <Music className="h-5 w-5" />}
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-bold text-slate-800">{m.titulo}</span>

@@ -5,7 +5,9 @@ import { PainelImagemCifra } from "@/react-app/components/repertorio/Compartilha
 import { repertorioService, type CifraRecebida } from "@/react-app/services/RepertorioService";
 import { acordesDaLinha, transporCifra } from "@/react-app/utils/musica/cifra";
 import type { Musica } from "@/react-app/utils/musica/repertorioDb";
-import { lerTom, nomeDoTom, transporTom } from "@/react-app/utils/musica/teoria";
+import { lerTom, transporTom } from "@/react-app/utils/musica/teoria";
+import { tomExibido } from "@/react-app/utils/musica/notacao";
+import { useNotacao } from "./useNotacao";
 
 const botao = "inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40";
 const quando = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -97,13 +99,14 @@ export default function CifrasRecebidas({ musicas, onUsar, onNaoLidas }: Props) 
 }
 
 function VerCifra({ cifra, musicas, onUsar, onVoltar, onExcluir }: { cifra: CifraRecebida; musicas: Musica[] | null; onUsar: Props["onUsar"]; onVoltar: () => void; onExcluir: () => void }) {
+  const notacao = useNotacao();
   const [semitons, setSemitons] = useState(0);
   const [destino, setDestino] = useState("");
   const [usando, setUsando] = useState(false);
   const original = cifra.txCifra ?? "";
   const tomOriginal = cifra.nmTom ? lerTom(cifra.nmTom) : null;
   const texto = useMemo(() => transporCifra(original, semitons, tomOriginal), [original, semitons, tomOriginal]);
-  const tom = tomOriginal ? nomeDoTom(transporTom(tomOriginal, semitons)).cifra : null;
+  const tom = tomOriginal ? tomExibido(transporTom(tomOriginal, semitons), notacao).cifra : null;
   const info = useMemo(() => ({ titulo: cifra.nmTitulo, artista: cifra.nmArtista, tom, texto }), [cifra.nmTitulo, cifra.nmArtista, tom, texto]);
   const usar = async () => {
     const m = musicas?.find(x => x.id === destino);

@@ -43,6 +43,9 @@ test("o que cai na tela segue o instrumento e o tom", () => {
 test("v4: cor da nota pela letra, o sustenido na cor da letra", () => {
   assert.equal(corDaNota("C").fundo, corDaNota("C#").fundo);
   assert.equal(corDaNota("Db").fundo, corDaNota("D").fundo);
+  assert.equal(corDaNota("Sol#").fundo, corDaNota("G").fundo, "v15: nome em português");
+  assert.equal(corDaNota("Si").fundo, corDaNota("B").fundo);
+  assert.equal(corDaNota("Dó").fundo, corDaNota("C").fundo);
   assert.notEqual(corDaNota("C").fundo, corDaNota("D").fundo);
   assert.equal(new Set(["C", "D", "E", "F", "G", "A", "B"].map(l => corDaNota(l).fundo)).size, 7);
   assert.equal(corDaNota("E").texto, "#3b2a00", "texto escuro no amarelo");

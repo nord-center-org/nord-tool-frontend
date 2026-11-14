@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-14-repertorio-ajustes-notacao",
+    data: "2026-11-14",
+    titulo: "Repertório: notas com sustenido, Dó Ré Mi e tela mais limpa",
+    texto: "As notas agora aparecem com sustenido (C#, F#…) em todo o Repertório, e dá para trocar para bemol ou para Dó, Ré, Mi no novo ícone de ajustes, no canto do player. As opções menos usadas foram para lá, deixando a tela mais limpa.",
+    onde: { rotulo: "Gestão Individual → Repertório", caminho: "/gestao/repertorio" },
+  },
+  {
     id: "2026-11-14-repertorio-pads-e-notas",
     data: "2026-11-14",
     titulo: "Repertório: cifra com pads, notas que tocam e carregando sem travar",

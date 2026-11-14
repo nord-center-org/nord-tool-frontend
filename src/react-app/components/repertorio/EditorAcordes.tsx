@@ -4,7 +4,9 @@ import { Check, FileText, Headphones, Loader2, Music2, Undo2, X } from "lucide-r
 import { TIPOS_ACORDE, campoHarmonico } from "@/react-app/utils/musica/escritaCifra";
 import { linhasEditaveis, moverAcorde, porAcorde, tirarAcorde } from "@/react-app/utils/musica/edicaoCifra";
 import { transporAcordes } from "@/react-app/utils/musica/cifra";
-import { NOTAS_BEMOL, NOTAS_SUSTENIDO, transporAcorde, usaBemol, type Tom } from "@/react-app/utils/musica/teoria";
+import { NOTAS_BEMOL, NOTAS_SUSTENIDO, transporAcorde, type Tom } from "@/react-app/utils/musica/teoria";
+import { acordeExibido, acordeNaNotacao } from "@/react-app/utils/musica/notacao";
+import { useNotacao } from "./useNotacao";
 
 const botao = "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40";
 
@@ -49,10 +51,15 @@ export default function EditorAcordes({ texto, semitons, tomOuvido, tamanhoFonte
   const caixa = useRef<HTMLDivElement>(null);
   const regua = useRef<HTMLSpanElement>(null);
   const linhas = useMemo(() => linhasEditaveis(texto), [texto]);
-  const bemol = tomOuvido ? usaBemol(tomOuvido.tonica, tomOuvido.menor) : false;
-  const campo = useMemo(() => (tomOuvido ? campoHarmonico(tomOuvido) : ["C", "Dm", "Em", "F", "G", "Am", "Bdim", "G7"]), [tomOuvido?.tonica, tomOuvido?.menor]); // eslint-disable-line react-hooks/exhaustive-deps
+  // v15: sustenido ou bemol e letras ou Dó/Ré/Mi como a pessoa escolheu; `visto` é o acorde que se ouve (em letras,
+  // para tocar) e `mostra` é como ele aparece na tela
+  const notacao = useNotacao();
+  const bemol = notacao.acidente === "bemol";
+  const campo = useMemo(() => (tomOuvido ? campoHarmonico(tomOuvido) : ["C", "Dm", "Em", "F", "G", "Am", "Bdim", "G7"]).map(a => acordeNaNotacao(a, notacao)),
+    [tomOuvido?.tonica, tomOuvido?.menor, notacao]); // eslint-disable-line react-hooks/exhaustive-deps
   const notas = bemol ? NOTAS_BEMOL : NOTAS_SUSTENIDO;
   const visto = (n: string) => (semitons ? transporAcorde(n, semitons, bemol) : n);
+  const mostra = (n: string) => acordeExibido(visto(n), notacao);
   const escrito = (n: string) => (semitons ? transporAcorde(n, -semitons) : n);
   const fonte = Math.max(15, tamanhoFonte + 2);
 
@@ -183,7 +190,7 @@ export default function EditorAcordes({ texto, semitons, tomOuvido, tamanhoFonte
         <span ref={regua} className="pointer-events-none invisible absolute">M</span>
         {!linhas.length && <p className="font-sans text-sm text-slate-500">A cifra não tem linhas de letra ainda. Use “Trocar a letra” para colar ou identificar a letra.</p>}
         {linhas.map((l, i) => {
-          const nomes = l.itens.map(a => visto(a.nome));
+          const nomes = l.itens.map(a => mostra(a.nome));
           const cols = transporAcordes(l.itens.map((a, k) => ({ col: a.col, nome: nomes[k] })), 0).map(a => a.col);
           const largura = Math.max(l.texto.length + 6, ...cols.map((c, k) => c + nomes[k].length + 2), 16);
           const alvoAqui = alvo?.linha === i ? alvo.col : null;
@@ -203,7 +210,7 @@ export default function EditorAcordes({ texto, semitons, tomOuvido, tamanhoFonte
                 })}
                 {/* onde o acorde vai cair */}
                 {alvoAqui !== null && arrasto && (
-                  <span className="pointer-events-none absolute top-0 z-10 rounded bg-orange-600 px-0.5 font-bold leading-[1.45em] text-white shadow" style={{ left: `${alvoAqui}ch` }} data-alvo>{visto(arrasto.nome)}</span>
+                  <span className="pointer-events-none absolute top-0 z-10 rounded bg-orange-600 px-0.5 font-bold leading-[1.45em] text-white shadow" style={{ left: `${alvoAqui}ch` }} data-alvo>{mostra(arrasto.nome)}</span>
                 )}
               </div>
               <div className={`relative flex ${l.letra === null ? "text-slate-300" : "text-slate-800"}`} style={{ width: `${largura}ch` }} aria-label={`Letra da linha ${i + 1}`}>
@@ -219,7 +226,7 @@ export default function EditorAcordes({ texto, semitons, tomOuvido, tamanhoFonte
       </div>
       {/* o acorde acompanhando o ponteiro */}
       {arrasto?.moveu && !alvo && (
-        <span className="pointer-events-none fixed z-50 rounded bg-slate-800 px-1.5 py-0.5 font-mono font-bold text-white opacity-80 shadow" style={{ left: arrasto.x + 8, top: arrasto.y - 20, fontSize: fonte }}>{visto(arrasto.nome)}</span>
+        <span className="pointer-events-none fixed z-50 rounded bg-slate-800 px-1.5 py-0.5 font-mono font-bold text-white opacity-80 shadow" style={{ left: arrasto.x + 8, top: arrasto.y - 20, fontSize: fonte }}>{mostra(arrasto.nome)}</span>
       )}
 
       {/* os pads, como os da bateria no estúdio: toque ou arraste para a letra */}
@@ -228,7 +235,7 @@ export default function EditorAcordes({ texto, semitons, tomOuvido, tamanhoFonte
           {campo.map((nome, i) => (
             <button key={nome} type="button" aria-label={`Acorde ${nome}`} style={{ touchAction: "none" }} className={`${pad} h-12`}
               onPointerDown={e => pegar(e, null, escrito(nome))} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); apertar(nome); } }}>
-              <span className="text-base font-bold leading-tight">{nome}</span>
+              <span className="text-base font-bold leading-tight">{acordeExibido(nome, notacao)}</span>
               <span className="rounded bg-slate-600 px-1 text-[9px] leading-tight text-slate-200">{i + 1}</span>
             </button>
           ))}
@@ -238,7 +245,7 @@ export default function EditorAcordes({ texto, semitons, tomOuvido, tamanhoFonte
             <button key={n} type="button" aria-label={`Teclado ${n}${tipo}`} style={{ touchAction: "none" }}
               onPointerDown={e => pegar(e, null, escrito(`${n}${tipo}`))} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); apertar(`${n}${tipo}`); } }}
               className={`h-9 min-w-[2.4rem] shrink-0 cursor-grab select-none rounded-lg border px-1 text-xs font-bold active:scale-95 ${n.length > 1 ? "border-slate-700 bg-slate-700 text-white hover:bg-slate-600" : "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"}`}>
-              {n}{tipo && <span className="text-[9px] font-normal">{tipo}</span>}
+              {acordeExibido(n, notacao)}{tipo && <span className="text-[9px] font-normal">{tipo}</span>}
             </button>
           ))}
           <div className="ml-1 flex shrink-0 gap-0.5" role="radiogroup" aria-label="Tipo do acorde">
