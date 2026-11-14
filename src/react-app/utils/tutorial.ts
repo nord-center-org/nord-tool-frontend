@@ -71,7 +71,7 @@ export const DESCRICAO_DAS_TELAS: Record<string, string> = {
   "/organizacional/medicoes": "Os boletins de medição dos contratos, com status e valores.",
   "/gestao/financeiro": "Quanto sobra no mês, extrato, gráficos e investimentos.",
   "/gestao/treinos": "Fichas de treino, o treino do dia e o histórico do que você fez.",
-  "/gestao/repertorio": "Envie uma música: tom, BPM, acordes e o baixo reconhecidos; mude o tom e o andamento, separe as faixas e toque junto com a cifra rolando e o instrumento ao lado. Em Criar, monte músicas faixa por faixa; o instrumento online toca na tela.",
+  "/gestao/repertorio": "Envie uma música: tom, BPM, acordes e o baixo reconhecidos; mude o tom e o andamento, separe as faixas e toque junto com a cifra rolando e o instrumento ao lado (ou escreva a cifra tocando). Em Criar, monte músicas faixa por faixa; o instrumento online toca na tela.",
   "/gestao/academico": EM_BREVE,
   "/gestao/casamento": "Fornecedores, convidados e marcos do casamento, tudo num lugar só.",
   "/gestao/caixinha": "As despesas da caixinha: quem gastou, o que foi pago e os comprovantes.",
@@ -654,7 +654,11 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Letra e cifra",
-        texto: "Cole a cifra como no Cifra Club: a linha atual fica em destaque e a letra rola sozinha. Se a hora de alguma linha não bater, use \"Marcar linhas\" e toque Enter quando cada uma começar.",
+        texto: "Cole a cifra como no Cifra Club: a linha atual fica em destaque e a letra rola sozinha. Se a hora de alguma linha não bater, use \"Marcar linhas\" e toque Enter quando cada uma começar. Em \"Mostrar\", escolha ver a cifra e o instrumento juntos, só a cifra ou só o instrumento.",
+      },
+      {
+        titulo: "Escrever a cifra tocando",
+        texto: "Em \"Escrever cifra\", cole a letra (opcional), dê play e aperte o acorde na hora em que ele entra: os do campo harmônico do tom aparecem como botões (ou as teclas 1 a 8) e qualquer outro sai do seletor ao lado. Toque \"Próxima linha\" (Enter) quando cada verso começar e o acorde cai em cima da sílaba certa. \"Desfazer\" (Backspace) tira a última marca; \"Aplicar na cifra\" troca a cifra pela escrita, já rolando com a música.",
       },
       {
         titulo: "Instrumento online",

@@ -12,11 +12,13 @@ export interface PreferenciasRepertorio {
   sintetizador: boolean;
   /** v5: volume do sintetizador (0 a 1,5). */
   volumeSintetizador: number;
+  /** v10: o que o player mostra — a cifra e o instrumento, só a cifra ou só o instrumento. */
+  exibir: "ambos" | "cifra" | "instrumento";
 }
 
 export type VistaInstrumento = "queda" | "mapa";
 
-export const PREFERENCIAS_PADRAO: PreferenciasRepertorio = { todasNotas: false, vista: "queda", sintetizador: false, volumeSintetizador: 0.7 };
+export const PREFERENCIAS_PADRAO: PreferenciasRepertorio = { todasNotas: false, vista: "queda", sintetizador: false, volumeSintetizador: 0.7, exibir: "ambos" };
 export const CHAVE_PREFERENCIAS = "@NordTool:repertorio";
 
 export function lerPreferencias(storage: Pick<Storage, "getItem"> | undefined): PreferenciasRepertorio {
@@ -31,6 +33,7 @@ export function lerPreferencias(storage: Pick<Storage, "getItem"> | undefined): 
       sintetizador: typeof o.sintetizador === "boolean" ? o.sintetizador : PREFERENCIAS_PADRAO.sintetizador,
       volumeSintetizador: typeof o.volumeSintetizador === "number" && Number.isFinite(o.volumeSintetizador)
         ? Math.max(0, Math.min(1.5, o.volumeSintetizador)) : PREFERENCIAS_PADRAO.volumeSintetizador,
+      exibir: o.exibir === "cifra" || o.exibir === "instrumento" || o.exibir === "ambos" ? o.exibir : PREFERENCIAS_PADRAO.exibir,
     };
   } catch {
     return { ...PREFERENCIAS_PADRAO };

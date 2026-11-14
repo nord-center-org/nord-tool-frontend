@@ -6,6 +6,7 @@
  */
 import type { Musica } from "./repertorioDb.ts";
 import { lerProjeto, type Projeto } from "./estudio.ts";
+import { lerEscrita } from "./escritaCifra.ts";
 
 /** Áudio até 15 MB vai para a conta (o mesmo limite do servidor); acima disso fica só no aparelho. */
 export const MAX_AUDIO_CONTA = 15 * 1024 * 1024;
@@ -38,7 +39,7 @@ export function musicaParaConta(m: Musica, nomeTom: string | null) {
     nmTom: nomeTom,
     nrBpm: m.analise ? Math.round(Math.min(400, Math.max(0, m.analise.bpm)) * 100) / 100 : null,
     cdProjeto: m.projeto ?? null,
-    txDados: JSON.stringify({ analise: m.analise, cifra: m.cifra, tempos: m.tempos, ajustes: m.ajustes, criadaEm: m.criadaEm, atualizadaEm: m.atualizadaEm, tamanho: m.tamanho }),
+    txDados: JSON.stringify({ analise: m.analise, cifra: m.cifra, tempos: m.tempos, ajustes: m.ajustes, criadaEm: m.criadaEm, atualizadaEm: m.atualizadaEm, tamanho: m.tamanho, ...(m.escrita ? { escrita: m.escrita } : {}) }),
   };
 }
 
@@ -64,6 +65,7 @@ export function musicaDaConta(c: MusicaConta, base: Musica["ajustes"]): Musica {
     ajustes: { ...base, ...(d.ajustes && typeof d.ajustes === "object" ? (d.ajustes as Partial<Musica["ajustes"]>) : {}) },
     projeto: c.cdProjeto ?? undefined,
     sincronizada: true,
+    ...(d.escrita ? { escrita: lerEscrita(d.escrita) } : {}),
   };
 }
 

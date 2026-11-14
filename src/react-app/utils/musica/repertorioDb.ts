@@ -5,6 +5,7 @@
 import type { ResultadoAnalise } from "./analise.ts";
 import type { IdInstrumento } from "./instrumentos.ts";
 import { lerProjeto, type Projeto } from "./estudio.ts";
+import type { EscritaCifra } from "./escritaCifra.ts";
 
 export interface AjustesMusica {
   semitons: number;
@@ -33,6 +34,8 @@ export interface Musica {
   projeto?: string;
   /** v7: já esteve na conta. Se sumir de lá, foi excluída em outro aparelho (e sai deste também). */
   sincronizada?: boolean;
+  /** v10: o que foi apertado em "Escrever cifra" (letra, começo das linhas e acordes), para continuar depois. */
+  escrita?: EscritaCifra;
 }
 
 export const AJUSTES_PADRAO: AjustesMusica = { semitons: 0, andamento: 1, instrumento: "baixo4", semitonsCifra: 0 };
