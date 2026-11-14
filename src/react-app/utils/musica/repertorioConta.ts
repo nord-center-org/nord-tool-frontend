@@ -65,7 +65,7 @@ export function musicaParaConta(m: Musica, nomeTom: string | null) {
     nmTom: nomeTom,
     nrBpm: m.analise ? Math.round(Math.min(400, Math.max(0, m.analise.bpm)) * 100) / 100 : null,
     cdProjeto: m.projeto ?? null,
-    txDados: JSON.stringify({ analise: m.analise, cifra: m.cifra, tempos: m.tempos, ajustes: m.ajustes, criadaEm: m.criadaEm, atualizadaEm: m.atualizadaEm, tamanho: m.tamanho, ...(m.escrita ? { escrita: m.escrita } : {}) }),
+    txDados: JSON.stringify({ analise: m.analise, cifra: m.cifra, tempos: m.tempos, ajustes: m.ajustes, criadaEm: m.criadaEm, atualizadaEm: m.atualizadaEm, tamanho: m.tamanho, ...(m.escrita ? { escrita: m.escrita } : {}), ...(m.temposAcordes ? { temposAcordes: m.temposAcordes } : {}) }),
   };
 }
 
@@ -92,6 +92,7 @@ export function musicaDaConta(c: MusicaConta, base: Musica["ajustes"]): Musica {
     projeto: c.cdProjeto ?? undefined,
     sincronizada: true,
     ...(d.escrita ? { escrita: lerEscrita(d.escrita) } : {}),
+    ...(Array.isArray(d.temposAcordes) && d.temposAcordes.every(t => typeof t === "number" && Number.isFinite(t)) ? { temposAcordes: d.temposAcordes as number[] } : {}),
   };
 }
 

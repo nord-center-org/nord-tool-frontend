@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-14-repertorio-linha-do-tempo",
+    data: "2026-11-14",
+    titulo: "Repertório: linha do tempo dos acordes",
+    texto: "No player, \u201cLinha do tempo\u201d mostra cada acorde da cifra como um bloco em cima da forma de onda da música. Arraste o primeiro para o lugar certo e os seguintes vão sendo empurrados junto; \u201cPôr aqui\u201d acerta o acorde escolhido com a música tocando.",
+    onde: { rotulo: "Gestão Individual → Repertório", caminho: "/gestao/repertorio" },
+  },
+  {
     id: "2026-11-14-repertorio-aberto",
     data: "2026-11-14",
     titulo: "Repertório aberto para todos",

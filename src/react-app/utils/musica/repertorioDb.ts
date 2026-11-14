@@ -36,6 +36,8 @@ export interface Musica {
   sincronizada?: boolean;
   /** v10: o que foi apertado em "Escrever cifra" (letra, começo das linhas e acordes), para continuar depois. */
   escrita?: EscritaCifra;
+  /** v17: a hora de cada acorde da cifra (na ordem do texto), da linha do tempo; vale enquanto bate com a cifra. */
+  temposAcordes?: number[] | null;
 }
 
 export const AJUSTES_PADRAO: AjustesMusica = { semitons: 0, andamento: 1, instrumento: "baixo4", semitonsCifra: 0 };
