@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-14-repertorio-compartilhar-cifra",
+    data: "2026-11-14",
+    titulo: "Repertório: compartilhe a cifra",
+    texto: "No player, toque em \u201cCompartilhar\u201d para mandar a cifra para quem usa o NordTool (com um recado, se quiser) ou gerar uma imagem bonitinha da cifra para baixar e mandar pelo celular. As cifras que mandarem para você ficam na nova aba \u201cRecebidas\u201d: mude o tom, baixe a imagem ou ponha numa música sua.",
+    onde: { rotulo: "Gestão Individual → Repertório → Recebidas", caminho: "/gestao/repertorio?aba=recebidas" },
+  },
+  {
     id: "2026-11-14-repertorio-identificar-letra",
     data: "2026-11-14",
     titulo: "Repertório: identificar a letra e cifra em cima da sílaba",
