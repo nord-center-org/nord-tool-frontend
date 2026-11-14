@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-13-repertorio-escrever-cifra",
+    data: "2026-11-13",
+    titulo: "Repertório: escreva a cifra tocando",
+    texto: "No player, \u201cEscrever cifra\u201d: cole a letra, dê play e aperte os acordes do campo harmônico (ou qualquer outro) na hora em que entram; a cifra vai se escrevendo com os acordes em cima da sílaba certa e rola sozinha depois. E em \u201cMostrar\u201d você escolhe ver a cifra e o instrumento, só a cifra ou só o instrumento.",
+    onde: { rotulo: "Gestão Individual → Repertório", caminho: "/gestao/repertorio" },
+  },
+  {
     id: "2026-11-13-sac-pdf-prints",
     data: "2026-11-13",
     titulo: "SAC: vários prints e exportação em PDF",

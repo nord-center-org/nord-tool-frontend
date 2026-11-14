@@ -8,6 +8,8 @@ import { Sintetizador, timbreDoInstrumento } from "@/react-app/components/repert
 import { VARIANTES, gravarFerramentas, lerFerramentasDe, variante as varianteValida } from "@/react-app/utils/musica/ferramentas";
 import { alturaDoEvento, passoDaAgenda, type Agenda } from "@/react-app/utils/musica/sintese";
 import CifraRolando, { type ControleCifra } from "@/react-app/components/repertorio/CifraRolando";
+import EscreverCifra from "@/react-app/components/repertorio/EscreverCifra";
+import { ESCRITA_VAZIA } from "@/react-app/utils/musica/escritaCifra";
 import { MotorAudio, decodificar, reamostrar, type FaixaAudio } from "@/react-app/components/repertorio/motorAudio";
 import { analiseDesatualizada, type ResultadoAnalise } from "@/react-app/utils/musica/analise";
 import { blocosComTempo, cifraDosAcordes, lerCifra } from "@/react-app/utils/musica/cifra";
@@ -89,6 +91,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const alternarTodasNotas = () => mudarPrefs({ todasNotas: !todasNotas });
   const [editandoCifra, setEditandoCifra] = useState(false);
   const [marcando, setMarcando] = useState<number | null>(null);
+  const [escrevendo, setEscrevendo] = useState(false);
   const tela = useRef<HTMLCanvasElement>(null);
   const caixaTela = useRef<HTMLDivElement>(null);
   const cifraRef = useRef<ControleCifra>(null);
@@ -331,6 +334,10 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
 
   const tomOriginal = analise ? nomeDoTom(analise.tom) : null;
   const tomAtual = analise ? nomeDoTom(transporTom(analise.tom, semitons)) : null;
+  // v10: escolher o que mostrar; escrevendo a cifra, ela sempre aparece
+  const exibir = prefs.exibir;
+  const verCifra = exibir !== "instrumento" || escrevendo;
+  const verInstrumento = exibir !== "cifra";
   const sugestaoCifra = auto && musica.cifra.trim() && auto.acerto >= 0.25 && auto.deslocamento !== 0 && semitonsCifra !== auto.deslocamento ? auto.deslocamento : null;
 
   return (
@@ -408,9 +415,26 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
         ))}
       </div>
 
+      {/* o que mostrar (v10) */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={rotulo}>Mostrar</span>
+        <div className="flex rounded-lg border border-slate-200 bg-white p-0.5" role="radiogroup" aria-label="O que mostrar">
+          {([["ambos", "Cifra e instrumento"], ["cifra", "Só a cifra"], ["instrumento", "Só o instrumento"]] as const).map(([v, r]) => (
+            <button key={v} type="button" role="radio" aria-checked={exibir === v} onClick={() => mudarPrefs({ exibir: v })}
+              className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${exibir === v ? "bg-slate-800 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{r}</button>
+          ))}
+        </div>
+      </div>
+
       {/* cifra + instrumento */}
       <div className="flex min-h-0 flex-1 flex-col-reverse gap-2 md:flex-row">
-        <section className="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white">
+        <section className={`min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white ${verCifra ? "flex" : "hidden"}`}>
+          {escrevendo ? (
+            <EscreverCifra escrita={musica.escrita ?? ESCRITA_VAZIA} tom={analise?.tom ?? null} semitons={semitons} batidas={analise?.batidas ?? []}
+              duracao={musica.duracao} agora={() => motor.current?.tempo() ?? 0} onMudar={escrita => atualizar({ escrita })}
+              onAplicar={(texto, novos) => { atualizar({ cifra: texto, tempos: novos, ajustes: { ...musica.ajustes, semitonsCifra: 0 } }); setEscrevendo(false); }}
+              onFechar={() => setEscrevendo(false)} />
+          ) : (<>
           <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 p-2">
             <b className="mr-auto text-sm text-slate-700">Letra e cifra</b>
             {marcando !== null ? (
@@ -420,6 +444,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
               </>
             ) : (
               <>
+                <button type="button" className={botaoAzul} onClick={() => setEscrevendo(true)} title="Toque a música e aperte os acordes: a cifra vai se escrevendo"><Music2 className="h-3.5 w-3.5" />Escrever cifra</button>
                 <button type="button" className={botao} onClick={() => setEditandoCifra(true)}><PencilLine className="h-3.5 w-3.5" />{musica.cifra.trim() ? "Editar cifra" : "Colar cifra"}</button>
                 {musica.cifra.trim() && <button type="button" className={botao} onClick={() => void comecarMarcar()} disabled={!pronto} title="Toque em Marcar quando cada linha começar">Marcar linhas</button>}
                 {musica.tempos && <button type="button" className={botao} onClick={() => atualizar({ tempos: null })} title="Voltar aos tempos calculados pelos acordes">Automático</button>}
@@ -455,8 +480,9 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
               </div>
             )}
           </div>
+          </>)}
         </section>
-        <section className="flex h-[36vh] min-h-[220px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white md:h-auto md:w-[46%]">
+        <section className={`min-h-[220px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white ${!verInstrumento ? "hidden" : escrevendo ? "hidden md:flex" : "flex"} ${verCifra ? "h-[36vh] shrink-0 md:h-auto md:w-[46%]" : "min-h-0 flex-1"}`}>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-slate-100 px-2 py-1.5">
             <b className="mr-auto text-sm text-slate-700">{ins.nome}</b>
             {ins.cordas.length > 0 && (

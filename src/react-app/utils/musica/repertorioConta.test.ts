@@ -80,3 +80,10 @@ test("v7: texto do espaço usado", () => {
   assert.equal(textoDoUso(1.5 * 1024 * 1024, 300 * 1024 * 1024), "1,5 MB de 300 MB");
   assert.equal(textoDoUso(45.4 * 1024 * 1024, 300 * 1024 * 1024), "45 MB de 300 MB");
 });
+
+test("v10: a escrita da cifra vai e volta com a música", () => {
+  const m = musica("m1", { escrita: { letra: "oi", inicios: [1], acordes: [{ tempo: 1, acorde: "C" }] } });
+  const volta = musicaDaConta({ ...conta("m1"), txDados: musicaParaConta(m, null).txDados }, AJUSTES_PADRAO);
+  assert.deepEqual(volta.escrita, m.escrita);
+  assert.equal(musicaDaConta({ ...conta("m2"), txDados: musicaParaConta(musica("m2"), null).txDados }, AJUSTES_PADRAO).escrita, undefined);
+});
