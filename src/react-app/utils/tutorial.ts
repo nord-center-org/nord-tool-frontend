@@ -642,10 +642,10 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
   "/gestao/repertorio": {
     titulo: "Repertório",
     passos: [
-      cabecalho("Repertório", "Suas músicas para tocar junto, guardadas neste aparelho."),
+      cabecalho("Repertório", "As músicas de todos do NordTool, para tocar junto."),
       {
         titulo: "Enviar uma música",
-        texto: "Escolha ou arraste um MP3, WAV, M4A, OGG ou FLAC. Ao abrir, reconheço o tom, o BPM, os acordes e as notas do baixo. A música vai para a sua conta (até 15 MB cada) e abre em qualquer aparelho, com a cifra e os ajustes; a nuvem verde mostra o que já está na conta.",
+        texto: "Escolha ou arraste um MP3, WAV, M4A, OGG ou FLAC. Ao abrir, reconheço o tom, o BPM, os acordes e as notas do baixo. A música vai para o NordTool (até 15 MB cada) e abre em qualquer aparelho, com a cifra e os ajustes; a nuvem verde mostra o que já está lá. A aba é aberta a todos: qualquer pessoa toca e edita as músicas e as criações, cada uma mostra quem criou (e quem editou por último) e só quem criou exclui.",
         alvo: { css: "button", texto: "Enviar uma música" },
       },
       {

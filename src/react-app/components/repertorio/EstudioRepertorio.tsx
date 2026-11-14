@@ -17,6 +17,7 @@ import { abrirProjeto, enviarMusica, excluirProjeto, guardarProjeto, sincronizar
 import { nomeDaNota } from "@/react-app/utils/musica/teoria";
 import { nomeDaNotaExibida, type Notacao } from "@/react-app/utils/musica/notacao";
 import { useNotacao } from "./useNotacao";
+import { textoAutoria, type Autoria } from "@/react-app/utils/musica/repertorioConta";
 
 const botao = "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40";
 const quadrado = "inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40";
@@ -34,10 +35,12 @@ export default function EstudioRepertorio({ onMandado }: { onMandado: (m: Musica
   const [aberto, setAberto] = useState<Projeto | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [semConta, setSemConta] = useState(false);
+  // v16: as criações de todos, com quem criou; só quem criou exclui
+  const [autoria, setAutoria] = useState<Map<string, Autoria>>(() => new Map());
 
   // v7: as criações da conta (de qualquer aparelho) junto com as deste aparelho
   const carregar = useCallback(async () => {
-    try { const r = await sincronizarProjetos(); setProjetos(r.projetos); setSemConta(r.semConta); }
+    try { const r = await sincronizarProjetos(); setProjetos(r.projetos); setSemConta(r.semConta); setAutoria(r.autoria); }
     catch (e) { setErro(e instanceof Error ? e.message : "Não deu para ler os projetos."); setProjetos([]); }
   }, []);
   useEffect(() => { void carregar(); }, [carregar]);
@@ -61,7 +64,7 @@ export default function EstudioRepertorio({ onMandado }: { onMandado: (m: Musica
       </button>
       {erro && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
       {semConta && <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">Sem conexão com a conta agora: mostrando só as criações deste aparelho.</p>}
-      <h2 className="mb-2 mt-6 text-[10px] font-bold uppercase tracking-wider text-slate-400">Minhas criações</h2>
+      <h2 className="mb-2 mt-6 text-[10px] font-bold uppercase tracking-wider text-slate-400">Criações de todos</h2>
       {projetos === null ? (
         <p className="flex items-center gap-2 p-4 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Carregando…</p>
       ) : projetos.length === 0 ? (
@@ -75,12 +78,15 @@ export default function EstudioRepertorio({ onMandado }: { onMandado: (m: Musica
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-bold text-slate-800">{p.titulo}</span>
                   <span className="block truncate text-xs text-slate-500">{p.bpm} BPM · {p.compassos} compasso{p.compassos > 1 ? "s" : ""} · {p.faixas.length} faixa{p.faixas.length === 1 ? "" : "s"}</span>
+                  {autoria.get(p.id) && <span className="block truncate text-[11px] text-slate-400">{textoAutoria(autoria.get(p.id))}</span>}
                 </span>
               </button>
-              <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Excluir ${p.titulo}`}
-                onClick={async () => { if (window.confirm(`Excluir "${p.titulo}"? Ela sai deste aparelho e da sua conta.`)) { await excluirProjeto(p.id); void carregar(); } }}>
-                <Trash2 className="h-4 w-4" />
-              </button>
+              {autoria.get(p.id)?.minha !== false && (
+                <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Excluir ${p.titulo}`}
+                  onClick={async () => { if (window.confirm(`Excluir "${p.titulo}"? Ela sai do Repertório de todos.`)) { await excluirProjeto(p.id); void carregar(); } }}>
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </li>
           ))}
         </ul>

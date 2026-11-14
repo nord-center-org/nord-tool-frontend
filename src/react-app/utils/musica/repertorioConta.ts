@@ -25,9 +25,35 @@ export interface MusicaConta {
   idArquivo?: number | null;
   dhAlteracao?: string;
   txDados?: string;
+  /** v16: quem criou, quem mexeu por último e se foi quem está vendo. */
+  nmCriador?: string | null;
+  nmAlterador?: string | null;
+  inMinha?: boolean | null;
 }
 
-export interface ProjetoConta { cdChave: string; nmTitulo: string; dhAlteracao?: string; txDados?: string }
+export interface ProjetoConta { cdChave: string; nmTitulo: string; dhAlteracao?: string; txDados?: string; nmCriador?: string | null; nmAlterador?: string | null; inMinha?: boolean | null }
+
+/**
+ * v16: a aba é aberta a todos — qualquer pessoa abre e edita as músicas e criações de todos; só quem criou exclui.
+ * `alterador` só aparece quando foi outra pessoa (não quem criou).
+ */
+export interface Autoria { criador: string; alterador: string | null; minha: boolean }
+
+export function autoriaDe(c: { nmCriador?: string | null; nmAlterador?: string | null; inMinha?: boolean | null }): Autoria {
+  const criador = (c.nmCriador ?? "").trim();
+  const alterador = (c.nmAlterador ?? "").trim();
+  return { criador, alterador: alterador && alterador !== criador ? alterador : null, minha: c.inMinha !== false };
+}
+
+/** "por você", "por Ana" e, se outra pessoa mexeu por último, "· editada por Bia". */
+export function textoAutoria(a: Autoria | undefined, feminino = true): string | null {
+  if (!a) return null;
+  const quem = a.minha ? "você" : a.criador || "outra pessoa";
+  return `por ${quem}${a.alterador ? ` · ${feminino ? "editada" : "editado"} por ${a.alterador}` : ""}`;
+}
+
+export const autorias = (lista: Array<{ cdChave: string; nmCriador?: string | null; nmAlterador?: string | null; inMinha?: boolean | null }>) =>
+  new Map(lista.map(c => [c.cdChave, autoriaDe(c)]));
 
 /** Corpo do PUT da música: os campos de lista e, em JSON, o resto. */
 export function musicaParaConta(m: Musica, nomeTom: string | null) {
@@ -91,6 +117,8 @@ export interface PlanoMusicas {
   soNoAparelho: string[];
   /** Já estiveram na conta e sumiram de lá: foram excluídas em outro aparelho. */
   apagar: string[];
+  /** v16: nos dois lugares, com nome ou artista trocados na conta (outra pessoa editou): atualizar o resumo daqui. */
+  renomear: MusicaConta[];
 }
 
 /**
@@ -100,7 +128,7 @@ export interface PlanoMusicas {
 export function planoMusicas(locais: Musica[], conta: MusicaConta[], audioLocal: (id: string) => boolean): PlanoMusicas {
   const naConta = new Map(conta.map(c => [c.cdChave, c]));
   const noAparelho = new Set(locais.map(m => m.id));
-  const plano: PlanoMusicas = { subir: [], trazer: conta.filter(c => !noAparelho.has(c.cdChave)), subirAudio: [], soNoAparelho: [], apagar: [] };
+  const plano: PlanoMusicas = { subir: [], trazer: conta.filter(c => !noAparelho.has(c.cdChave)), subirAudio: [], soNoAparelho: [], apagar: [], renomear: [] };
   for (const m of locais) {
     const c = naConta.get(m.id);
     if (!c && m.sincronizada) { plano.apagar.push(m.id); continue; }
@@ -108,6 +136,7 @@ export function planoMusicas(locais: Musica[], conta: MusicaConta[], audioLocal:
     if (grande) plano.soNoAparelho.push(m.id);
     if (!c) { if (!grande) plano.subir.push(m.id); continue; }
     if (!m.projeto && !grande && !c.idArquivo && audioLocal(m.id)) plano.subirAudio.push(m.id);
+    if (m.sincronizada && (c.nmTitulo !== m.titulo || (c.nmArtista ?? "") !== m.artista)) plano.renomear.push(c);
   }
   return plano;
 }

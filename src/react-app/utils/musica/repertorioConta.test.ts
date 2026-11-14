@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { novoProjeto } from "./estudio.ts";
-import { MAX_AUDIO_CONTA, maisNova, musicaDaConta, musicaParaConta, planoMusicas, planoProjetos, projetoDaConta, projetoParaConta, textoDoUso, type MusicaConta } from "./repertorioConta.ts";
+import { MAX_AUDIO_CONTA, autoriaDe, autorias, maisNova, musicaDaConta, musicaParaConta, planoMusicas, planoProjetos, projetoDaConta, projetoParaConta, textoAutoria, textoDoUso, type MusicaConta } from "./repertorioConta.ts";
 import { AJUSTES_PADRAO, type Musica } from "./repertorioDb.ts";
 
 const musica = (id: string, extra: Partial<Musica> = {}): Musica => ({
@@ -46,6 +46,8 @@ test("v7: plano de sincronização das músicas", () => {
   assert.deepEqual(p.trazer.map(c => c.cdChave), ["z"]);
   assert.deepEqual(p.subirAudio, ["b"], "na conta sem áudio, e o aparelho tem");
   assert.deepEqual(p.soNoAparelho, ["c"]);
+  const renomeada = planoMusicas([{ ...musica("b"), sincronizada: true }], [{ ...conta("b"), nmTitulo: "Nome novo" }], () => true).renomear;
+  assert.deepEqual(renomeada.map(c => c.nmTitulo), ["Nome novo"], "v16: editada por outra pessoa, o nome daqui acompanha");
   assert.deepEqual(planoMusicas([musica("b")], [conta("b")], () => false).subirAudio, [], "sem áudio no aparelho não há o que subir");
   const excluida = planoMusicas([musica("f", { sincronizada: true }), musica("g")], [], () => true);
   assert.deepEqual(excluida.apagar, ["f"], "já esteve na conta e sumiu: excluída em outro aparelho");
@@ -86,4 +88,15 @@ test("v10: a escrita da cifra vai e volta com a música", () => {
   const volta = musicaDaConta({ ...conta("m1"), txDados: musicaParaConta(m, null).txDados }, AJUSTES_PADRAO);
   assert.deepEqual(volta.escrita, m.escrita);
   assert.equal(musicaDaConta({ ...conta("m2"), txDados: musicaParaConta(musica("m2"), null).txDados }, AJUSTES_PADRAO).escrita, undefined);
+});
+
+test("v16: quem criou e quem editou por último", () => {
+  assert.deepEqual(autoriaDe({ nmCriador: "Ana", nmAlterador: "Ana", inMinha: false }), { criador: "Ana", alterador: null, minha: false });
+  assert.equal(textoAutoria(autoriaDe({ nmCriador: "Ana", nmAlterador: "Bia", inMinha: false })), "por Ana · editada por Bia");
+  assert.equal(textoAutoria(autoriaDe({ nmCriador: "Eu", inMinha: true })), "por você");
+  assert.equal(textoAutoria(autoriaDe({ nmCriador: "Eu", nmAlterador: "Bia", inMinha: true }), false), "por você · editado por Bia");
+  assert.equal(autoriaDe({}).minha, true, "sem a informação, trata como de quem vê (servidor antigo)");
+  assert.equal(textoAutoria(undefined), null);
+  const m = autorias([{ cdChave: "m1", nmCriador: "Ana", inMinha: false }]);
+  assert.equal(m.get("m1")?.criador, "Ana");
 });

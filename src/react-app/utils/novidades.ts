@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-14-repertorio-aberto",
+    data: "2026-11-14",
+    titulo: "Repertório aberto para todos",
+    texto: "Agora todo mundo vê, toca e edita as músicas e as criações do Repertório, de qualquer login. Cada uma mostra quem criou (e quem editou por último), e só quem criou pode excluir.",
+    onde: { rotulo: "Gestão Individual → Repertório", caminho: "/gestao/repertorio" },
+  },
+  {
     id: "2026-11-14-repertorio-ajustes-notacao",
     data: "2026-11-14",
     titulo: "Repertório: notas com sustenido, Dó Ré Mi e tela mais limpa",
