@@ -657,13 +657,17 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         texto: "Cole a cifra como no Cifra Club: a linha atual fica em destaque e a letra rola sozinha. Se a hora de alguma linha não bater, use \"Marcar linhas\" e toque Enter quando cada uma começar. Em \"Mostrar\", escolha ver a cifra e o instrumento juntos, só a cifra ou só o instrumento.",
       },
       {
-        titulo: "Escrever a cifra tocando",
-        texto: "Em \"Escrever cifra\", toque em \"Identificar letra\" (ouço a voz no aparelho e escrevo cada verso com a hora em que começa) ou cole a letra. Clique na sílaba e toque no acorde para ele ficar em cima dela: os do tom aparecem como botões (teclas 1 a 8), e o teclado de acordes tem as 12 notas com o tipo (m, 7, 7M…). Clique num acorde para ouvir; Delete o tira e Backspace desfaz. Escolhendo um verso: \"Ouvir\" toca só ele, \"Cifra do trecho\" ouve só o pedaço escolhido (de/até) e escreve os acordes, e \"Letra da linha\" reescreve a letra dele. \"Tom da cifra\" − e + sobe ou desce a cifra sem mudar o áudio, e o instrumento pode seguir a cifra escrita. \"Aplicar na cifra\" troca a cifra pela escrita.",
+        titulo: "Escrever a cifra",
+        texto: "Em \"Escrever cifra\", cole a letra ou toque em \"Identificar letra\" (ouço a voz no aparelho e escrevo a letra) e depois em \"Escrever os acordes\". Clique na sílaba e toque no acorde (os do tom aparecem como botões, teclas 1 a 8, e o teclado de acordes tem as 12 notas com o tipo) para pô-lo em cima dela; arraste os acordes com o mouse para o lugar certo. O tempo de cada linha eu acho sozinho, e a cifra rola com a música. Escolhendo uma linha: \"Ouvir\" toca só ela e \"Cifra da linha\" ouve só aquele trecho e escreve os acordes. \"Tom da cifra\" − e + sobe ou desce a cifra sem mudar o áudio, e o instrumento segue a cifra.",
       },
       {
         titulo: "Instrumento online",
         texto: "Toque baixo, teclado, violão, sintetizador ou bateria na tela (várias notas de uma vez) ou pelo teclado do computador: A S D F… são as teclas brancas, W E T Y U as pretas, Z/X mudam a oitava e Shift segurado sustenta; na bateria, A é o bumbo e S a caixa. Escolha o timbre (baixo slap, piano, órgão, guitarra distorcida, pad…), toque no braço do baixo ou do violão e, em \"Mais ferramentas\", transponha, destaque uma escala, toque um acorde inteiro com uma tecla e ajuste a força. Tem metrônomo.",
         alvo: { css: "button", texto: "Instrumento online" },
+      },
+      {
+        titulo: "Ouvir os acordes",
+        texto: "Clique no nome de um acorde na cifra para ouvir como o instrumento escolhido toca (no baixo a nota, no violão o acorde dedilhado, no teclado as notas juntas) e ver as notas acesas no braço ou no teclado.",
       },
       {
         titulo: "Compartilhar a cifra",
