@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  MAX_PRINTS, MAX_TITULO, classeStatus, nomeImagemExportada, nomeZipChamados, ordenarChamados, pendentes, posicaoBotaoSac, primeiroNome, problemaDoRascunho, saudacaoSac, rotuloStatus, textoExportacao,
+  MAX_PRINTS, MAX_TITULO, classeStatus, encaixar, nomePdfChamados, paraFontePdf, quebrarTexto, ordenarChamados, pendentes, posicaoBotaoSac, primeiroNome, problemaDoRascunho, saudacaoSac, rotuloStatus,
 } from "./sac.ts";
 
 test("rascunho do chamado precisa de título e descrição e cabe nos limites", () => {
@@ -30,24 +30,6 @@ test("rótulo e cor de cada status", () => {
   assert.equal(rotuloStatus("OUTRO"), "OUTRO");
 });
 
-test("exportação: um bloco por chamado com descrição, resposta e os prints do ZIP", () => {
-  const c = {
-    id: 12, nmTitulo: "Filtro por obra", txDescricao: "Falta filtrar por obra.", txTela: "/gestao/financeiro", cdStatus: "EM_ANDAMENTO",
-    txResposta: "Vamos fazer.", nmUsuario: "Ana", nmUsuarioResposta: "Nick", dhCriacao: "2026-11-04T15:30:00", imagens: [7, 8],
-  };
-  const imagens = new Map([[12, [nomeImagemExportada(12, 1, "image/png"), nomeImagemExportada(12, 2, "image/jpeg")]]]);
-  const texto = textoExportacao([c], imagens, "2026-11-04T16:00:00");
-  assert.match(texto, /^# Chamados do SAC/);
-  assert.match(texto, /1 chamado\(s\) · exportado em 04\/11\/2026 16:00/);
-  assert.match(texto, /## #12 — Filtro por obra/);
-  assert.match(texto, /\*\*Status:\*\* Em andamento/);
-  assert.match(texto, /\*\*Aberto por:\*\* Ana em 04\/11\/2026 15:30/);
-  assert.match(texto, /Falta filtrar por obra\./);
-  assert.match(texto, /### Resposta \(Nick\)\n\nVamos fazer\./);
-  assert.match(texto, /!\[Print 1 do chamado #12\]\(imagens\/chamado-12-1\.png\)/);
-  assert.match(texto, /imagens\/chamado-12-2\.jpg/);
-  assert.equal(nomeZipChamados("2026-11-04"), "chamados-sac-2026-11-04.zip");
-});
 
 test("botão do SAC: saudação pela hora e com o primeiro nome", () => {
   assert.equal(saudacaoSac("Ana Maria Souza", 9), "Bom dia, Ana!");
@@ -65,4 +47,25 @@ test("botão do SAC: some no próprio SAC e sobe no Início para não cobrir o m
   assert.equal(posicaoBotaoSac("/"), "acima-do-mascote");
   assert.equal(posicaoBotaoSac("/mapeamentos/bloco-notas"), "canto");
   assert.equal(posicaoBotaoSac("/sacolas"), "canto");
+});
+
+test("v4: texto escrevível pela fonte do PDF", () => {
+  assert.equal(paraFontePdf("Ação “ok” — 50% 😀\tfim"), "Ação “ok” — 50% ?  fim");
+  assert.equal(paraFontePdf("linha1\r\nlinha2"), "linha1\nlinha2");
+});
+
+test("v4: quebra o texto em linhas que cabem", () => {
+  const medir = (t: string) => t.length;
+  assert.deepEqual(quebrarTexto("um dois tres quatro", 9, medir), ["um dois", "tres", "quatro"]);
+  assert.deepEqual(quebrarTexto("a\n\nb", 9, medir), ["a", "", "b"]);
+  assert.deepEqual(quebrarTexto("abcdefghijkl", 5, medir), ["abcde", "fghij", "kl"], "palavra grande é partida");
+  assert.deepEqual(quebrarTexto("", 5, medir), [""]);
+});
+
+test("v4: encaixa o print sem distorcer nem aumentar", () => {
+  assert.deepEqual(encaixar(1000, 500, 400, 400), { l: 400, a: 200 });
+  assert.deepEqual(encaixar(300, 900, 400, 300), { l: 100, a: 300 });
+  assert.deepEqual(encaixar(100, 50, 400, 400), { l: 100, a: 50 });
+  assert.deepEqual(encaixar(0, 50, 400, 400), { l: 0, a: 0 });
+  assert.equal(nomePdfChamados("2026-11-13"), "chamados-sac-2026-11-13.pdf");
 });

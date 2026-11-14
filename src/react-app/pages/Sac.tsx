@@ -9,61 +9,27 @@ import { useCapturaLugia } from "@/react-app/hooks/useCapturaLugia";
 import { useNovidadesSac } from "@/react-app/hooks/useNovidadesSac";
 import { sacService, type Chamado } from "@/react-app/services/SacService";
 import {
-  MAX_BYTES_PRINT, MAX_DESCRICAO, MAX_PRINTS, MAX_TITULO, STATUS_CHAMADO, classeStatus, nomeImagemExportada, nomeZipChamados, ordenarChamados,
-  pendentes, problemaDoRascunho, rotuloStatus, textoExportacao, type StatusChamado,
+  MAX_DESCRICAO, MAX_PRINTS, MAX_TITULO, STATUS_CHAMADO, classeStatus, nomePdfChamados, ordenarChamados,
+  pendentes, problemaDoRascunho, rotuloStatus, type StatusChamado,
 } from "@/react-app/utils/sac";
-import { criarZip, type EntradaZip } from "@/react-app/utils/zip";
 import { podeAcessar } from "@/react-app/utils/sessao";
 
 import { rascunhoSac as rascunho, type PrintLocal } from "@/react-app/components/sac/rascunhoSac";
+import { base64ParaBlob, caber } from "@/react-app/components/sac/imagensSac";
 
 const chave = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-function base64ParaBlob(base64: string, mime: string): Blob {
-  const bin = atob(base64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new Blob([bytes], { type: mime });
-}
 
-/** Imagem grande demais para o servidor (5 MB) vira JPEG reduzido. */
-async function caber(blob: Blob): Promise<Blob> {
-  if (blob.size <= MAX_BYTES_PRINT) return blob;
-  const bitmap = await createImageBitmap(blob);
-  let escala = 1;
-  for (let tentativa = 0; tentativa < 5; tentativa++) {
-    const c = document.createElement("canvas");
-    c.width = Math.round(bitmap.width * escala);
-    c.height = Math.round(bitmap.height * escala);
-    c.getContext("2d")?.drawImage(bitmap, 0, 0, c.width, c.height);
-    const saida = await new Promise<Blob | null>(ok => c.toBlob(ok, "image/jpeg", 0.85));
-    if (saida && saida.size <= MAX_BYTES_PRINT) return saida;
-    escala *= 0.75;
-  }
-  throw new Error("A imagem é grande demais.");
-}
-
-/** Baixa os chamados escolhidos num ZIP: chamados.md (texto de cada um) e a pasta imagens/ com os prints. */
+/** v4: baixa os chamados escolhidos num PDF (texto à esquerda, prints ao lado). */
 async function exportarChamados(lista: Chamado[]): Promise<void> {
-  const entradas: EntradaZip[] = [];
-  const nomes = new Map<number, string[]>();
-  for (const c of lista) {
-    const desse: string[] = [];
-    for (const [i, id] of c.imagens.entries()) {
-      const blob = await sacService.imagem(id);
-      const nome = nomeImagemExportada(c.id, i + 1, blob.type);
-      entradas.push({ nome, bytes: new Uint8Array(await blob.arrayBuffer()) });
-      desse.push(nome);
-    }
-    nomes.set(c.id, desse);
-  }
   const agora = new Date();
   const local = new Date(agora.getTime() - agora.getTimezoneOffset() * 60_000).toISOString().slice(0, 19);
-  entradas.unshift({ nome: "chamados.md", bytes: new TextEncoder().encode(textoExportacao(lista, nomes, local)) });
-  const url = URL.createObjectURL(new Blob([criarZip(entradas) as BlobPart], { type: "application/zip" }));
+  const { gerarPdfChamados } = await import("@/react-app/components/sac/pdfChamados");
+  const bytes = await gerarPdfChamados(lista, local);
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
   const a = document.createElement("a");
   a.href = url;
-  a.download = nomeZipChamados(local.slice(0, 10));
+  a.download = nomePdfChamados(local.slice(0, 10));
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -419,7 +385,7 @@ export default function Sac() {
                 <span className="text-xs text-slate-500">{selecionados.size} selecionado(s)</span>
                 <button type="button" onClick={exportar} disabled={!selecionados.size || exportando}
                   className="ml-auto inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-700 disabled:opacity-40">
-                  {exportando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Exportar com prints
+                  {exportando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Exportar PDF com prints
                 </button>
               </div>
               {lista.map(c => (

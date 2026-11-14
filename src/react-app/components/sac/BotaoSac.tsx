@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { CheckCircle2, Crop, LifeBuoy, Loader2, Send, X } from "lucide-react";
+import { Camera, CheckCircle2, Crop, LifeBuoy, Loader2, Send, X } from "lucide-react";
 
 import Avatar from "@/react-app/components/avatar/Avatar";
-import { rascunhoSac } from "@/react-app/components/sac/rascunhoSac";
+import { rascunhoSac, type PrintLocal } from "@/react-app/components/sac/rascunhoSac";
+import { base64ParaBlob, caber } from "@/react-app/components/sac/imagensSac";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { useCapturaLugia } from "@/react-app/hooks/useCapturaLugia";
 import { useNovidadesSac } from "@/react-app/hooks/useNovidadesSac";
 import { avatarService, type AvatarUsuario } from "@/react-app/services/AvatarService";
 import { sacService } from "@/react-app/services/SacService";
 import { lerAvatar } from "@/react-app/utils/avatar";
-import { MAX_DESCRICAO, MAX_TITULO, posicaoBotaoSac, primeiroNome, problemaDoRascunho, saudacaoSac } from "@/react-app/utils/sac";
+import { MAX_DESCRICAO, MAX_PRINTS, MAX_TITULO, posicaoBotaoSac, primeiroNome, problemaDoRascunho, saudacaoSac } from "@/react-app/utils/sac";
 
 /**
  * SAC v3: um botão pequeno no canto de todas as telas. Ao tocar, abre uma janelinha com o avatar de quem cuida do
@@ -31,6 +32,26 @@ export default function BotaoSac() {
   const [erro, setErro] = useState<string | null>(null);
   const [aberta, setAberta] = useState<number | null>(null);
   const caixa = useRef<HTMLDivElement>(null);
+  // v4: vários prints na própria janelinha (a captura volta para a tela em que a pessoa estava)
+  const [prints, setPrints] = useState<PrintLocal[]>([]);
+  const esperando = useRef<string | null>(null);
+  const { estado: estadoCaptura, consumirPrints, prints: filaCaptura } = captura;
+  useEffect(() => {
+    const destino = esperando.current;
+    if (!destino || estadoCaptura !== "inativo") return;
+    const novos = consumirPrints(destino);
+    esperando.current = null;
+    setAberto(true);
+    if (!novos.length) return;
+    setPrints(atuais => {
+      const cabem = Math.max(0, MAX_PRINTS - atuais.length);
+      if (novos.length > cabem) setErro(`No máximo ${MAX_PRINTS} prints por chamado.`);
+      return [...atuais, ...novos.slice(0, cabem).map(n => {
+        const blob = base64ParaBlob(n.base64, n.mime);
+        return { chave: `${Date.now()}-${Math.random().toString(36).slice(2)}`, nome: n.nome, blob, url: URL.createObjectURL(blob), tela: n.tela };
+      })];
+    });
+  }, [estadoCaptura, consumirPrints, filaCaptura]);
 
   // quem recebe: o avatar do dono do NordTool (o mesmo das novidades)
   useEffect(() => {
@@ -55,14 +76,20 @@ export default function BotaoSac() {
   const quem = voz ? primeiroNome(voz.nmNome) : "a equipe do NordTool";
 
   const enviar = async () => {
-    const problema = problemaDoRascunho({ titulo, descricao }, 0);
+    const problema = problemaDoRascunho({ titulo, descricao }, prints.length);
     if (problema) { setErro(problema); return; }
     setErro(null);
     setEnviando(true);
     try {
-      const novo = await sacService.abrir({ nmTitulo: titulo.trim(), txDescricao: descricao.trim(), txTela: location.pathname }, []);
+      const imagens = await Promise.all(prints.map(async (p, i) => {
+        const blob = await caber(p.blob);
+        return { blob, nome: `print-${i + 1}.${blob.type === "image/png" ? "png" : "jpg"}` };
+      }));
+      const novo = await sacService.abrir({ nmTitulo: titulo.trim(), txDescricao: descricao.trim(), txTela: prints.find(p => p.tela)?.tela ?? location.pathname }, imagens);
       setAberta(novo?.id ?? 0);
       setTitulo(""); setDescricao("");
+      prints.forEach(p => URL.revokeObjectURL(p.url));
+      setPrints([]);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não deu para abrir o chamado. Tente de novo.");
     } finally {
@@ -70,13 +97,21 @@ export default function BotaoSac() {
     }
   };
 
-  // print desta tela: o texto vai para o rascunho do SAC, a captura começa e termina no SAC com o print anexado
-  const comPrint = () => {
-    rascunhoSac.titulo = titulo;
-    rascunhoSac.descricao = descricao;
+  // print: marca a área desta tela (ou de outra, navegando) e volta para a janelinha com ele. Na tela da Lugia, que
+  // também recebe prints, o chamado continua no SAC (como antes).
+  const tirarPrint = (modo: "agora" | "escolher") => {
+    if (location.pathname.startsWith("/lugia")) {
+      rascunhoSac.titulo = titulo;
+      rascunhoSac.descricao = descricao;
+      setAberto(false);
+      captura.iniciar(modo, "/sac");
+      return;
+    }
+    esperando.current = location.pathname;
     setAberto(false);
-    captura.iniciar("agora", "/sac");
+    captura.iniciar(modo, location.pathname);
   };
+  const removerPrint = (chave: string) => setPrints(l => { const p = l.find(x => x.chave === chave); if (p) URL.revokeObjectURL(p.url); return l.filter(x => x.chave !== chave); });
 
   return (
     <div data-sem-print className={`fixed right-3 z-[60] flex flex-col items-end gap-2 sm:right-5 ${base}`}>
@@ -115,14 +150,30 @@ export default function BotaoSac() {
                 <textarea value={descricao} onChange={e => setDescricao(e.target.value)} maxLength={MAX_DESCRICAO} rows={3}
                   className="mt-1 w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm font-normal text-slate-800 outline-none focus:border-blue-500" />
               </label>
+              <div>
+                <p className="mb-1 text-xs font-bold text-slate-600">Prints <span className="font-normal text-slate-400">({prints.length}/{MAX_PRINTS})</span></p>
+                <div className="flex flex-wrap gap-1.5" aria-label="Prints do chamado">
+                  {prints.map((p, i) => (
+                    <div key={p.chave} className="relative">
+                      <img src={p.url} alt={`Print ${i + 1}`} className="h-14 w-20 rounded-lg border border-slate-200 object-cover" />
+                      <button type="button" onClick={() => removerPrint(p.chave)} aria-label={`Tirar o print ${i + 1}`} className="absolute -right-1.5 -top-1.5 rounded-full bg-white p-0.5 text-slate-500 shadow hover:text-red-600"><X className="h-3 w-3" /></button>
+                    </div>
+                  ))}
+                  {prints.length < MAX_PRINTS && (<>
+                    <button type="button" onClick={() => tirarPrint("agora")} title="Marque uma área desta tela" className="flex h-14 w-20 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-slate-300 text-[10px] font-bold text-slate-600 hover:bg-slate-50">
+                      <Crop className="h-4 w-4" />Desta tela
+                    </button>
+                    <button type="button" onClick={() => tirarPrint("escolher")} title="Vá até outra tela e marque a área; volta para cá" className="flex h-14 w-20 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-slate-300 text-[10px] font-bold text-slate-600 hover:bg-slate-50">
+                      <Camera className="h-4 w-4" />De outra tela
+                    </button>
+                  </>)}
+                </div>
+              </div>
               <p className="text-[11px] text-slate-400">Vai junto: a tela em que você está ({location.pathname}).</p>
               {erro && <p role="alert" className="rounded-lg bg-red-50 px-2 py-1 text-xs text-red-700">{erro}</p>}
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 <button type="submit" disabled={enviando} className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50">
                   {enviando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}Enviar
-                </button>
-                <button type="button" onClick={comPrint} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50" title="Marque uma área desta tela; você termina o chamado no SAC com o print">
-                  <Crop className="h-3.5 w-3.5" />Com print desta tela
                 </button>
                 <button type="button" onClick={() => { setAberto(false); navigate("/sac"); }} className="ml-auto text-xs font-bold text-blue-600 hover:underline">
                   Meus chamados{novidades ? ` (${novidades} nova${novidades > 1 ? "s" : ""})` : ""}
