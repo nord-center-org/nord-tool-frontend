@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, Check, Loader2, Minus, Music2, Pause, Piano, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Timer, Volume2, VolumeX, Wand2,
+  ArrowLeft, Check, Share2, Loader2, Minus, Music2, Pause, Piano, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Timer, Volume2, VolumeX, Wand2,
 } from "lucide-react";
 
 import { desenhar, desenharMapa } from "@/react-app/components/repertorio/desenhoInstrumento";
@@ -9,6 +9,7 @@ import { VARIANTES, gravarFerramentas, lerFerramentasDe, variante as varianteVal
 import { alturaDoEvento, passoDaAgenda, type Agenda } from "@/react-app/utils/musica/sintese";
 import CifraRolando, { type ControleCifra } from "@/react-app/components/repertorio/CifraRolando";
 import EscreverCifra from "@/react-app/components/repertorio/EscreverCifra";
+import CompartilharCifra from "@/react-app/components/repertorio/CompartilharCifra";
 import { ESCRITA_VAZIA, linhasDaLetra, montarCifra, trocarVerso } from "@/react-app/utils/musica/escritaCifra";
 import { baixoDosAcordes, segmentosDaCifra } from "@/react-app/utils/musica/seguirCifra";
 import { SR_FALA, escritaDaLetra, linhasDosTrechos, marcasDosAcordes, type TrechoFalado } from "@/react-app/utils/musica/letra";
@@ -126,6 +127,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const [editandoCifra, setEditandoCifra] = useState(false);
   const [marcando, setMarcando] = useState<number | null>(null);
   const [escrevendo, setEscrevendo] = useState(false);
+  const [compartilhando, setCompartilhando] = useState(false);
   const tela = useRef<HTMLCanvasElement>(null);
   const caixaTela = useRef<HTMLDivElement>(null);
   const cifraRef = useRef<ControleCifra>(null);
@@ -457,6 +459,13 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
 
   const tomOriginal = analise ? nomeDoTom(analise.tom) : null;
   const tomAtual = analise ? nomeDoTom(transporTom(analise.tom, semitons)) : null;
+  // v12: o que se compartilha é a cifra como está na tela (no tom que se ouve)
+  const infoCompartilhar = useMemo(() => {
+    if (!compartilhando) return null;
+    const texto = transporCifra(musica.cifra, semitons + semitonsCifra, analise ? transporTom(analise.tom, -semitonsCifra) : null).trim();
+    const tomEscrito = lerCifra(texto).tom;
+    return { titulo: musica.titulo, artista: musica.artista, tom: tomEscrito ? nomeDoTom(tomEscrito).cifra : tomAtual?.cifra ?? null, texto };
+  }, [compartilhando, musica.cifra, musica.titulo, musica.artista, semitons, semitonsCifra, analise, tomAtual?.cifra]);
   // v10: escolher o que mostrar; escrevendo a cifra, ela sempre aparece
   const exibir = prefs.exibir;
   const verCifra = exibir !== "instrumento" || escrevendo;
@@ -575,6 +584,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
               <>
                 <button type="button" className={botaoAzul} onClick={() => setEscrevendo(true)} title="Toque a música e aperte os acordes: a cifra vai se escrevendo"><Music2 className="h-3.5 w-3.5" />Escrever cifra</button>
                 <button type="button" className={botao} onClick={() => setEditandoCifra(true)}><PencilLine className="h-3.5 w-3.5" />{musica.cifra.trim() ? "Editar cifra" : "Colar cifra"}</button>
+                {musica.cifra.trim() && <button type="button" className={botao} onClick={() => setCompartilhando(true)} title="Mandar para alguém do NordTool ou gerar a imagem"><Share2 className="h-3.5 w-3.5" />Compartilhar</button>}
                 {musica.cifra.trim() && <button type="button" className={botao} onClick={() => void comecarMarcar()} disabled={!pronto} title="Toque em Marcar quando cada linha começar">Marcar linhas</button>}
                 {musica.tempos && <button type="button" className={botao} onClick={() => atualizar({ tempos: null })} title="Voltar aos tempos calculados pelos acordes">Automático</button>}
               </>
@@ -679,6 +689,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           </div>
         </div>
       )}
+
+      {infoCompartilhar && <CompartilharCifra info={infoCompartilhar} onFechar={() => setCompartilhando(false)} />}
 
       {editandoCifra && (
         <EditorCifra texto={musica.cifra} onFechar={() => setEditandoCifra(false)}
