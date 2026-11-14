@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, Check, Move, Share2, Loader2, Minus, Music2, Pause, Piano, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Timer, Volume2, VolumeX, Wand2,
+  ArrowLeft, Check, Share2, Loader2, Minus, Music2, Pause, Piano, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Timer, Volume2, VolumeX, Wand2,
 } from "lucide-react";
 
 import { desenhar, desenharMapa } from "@/react-app/components/repertorio/desenhoInstrumento";
@@ -8,10 +8,11 @@ import { Sintetizador, timbreDoInstrumento } from "@/react-app/components/repert
 import { VARIANTES, gravarFerramentas, lerFerramentasDe, variante as varianteValida } from "@/react-app/utils/musica/ferramentas";
 import { alturaDoEvento, passoDaAgenda, type Agenda } from "@/react-app/utils/musica/sintese";
 import CifraRolando, { type ControleCifra } from "@/react-app/components/repertorio/CifraRolando";
-import EscreverCifra from "@/react-app/components/repertorio/EscreverCifra";
+import LetraParaCifra from "@/react-app/components/repertorio/LetraParaCifra";
 import CompartilharCifra from "@/react-app/components/repertorio/CompartilharCifra";
 import EditorAcordes from "@/react-app/components/repertorio/EditorAcordes";
-import { ESCRITA_VAZIA, linhasDaLetra, montarCifra, trocarVerso } from "@/react-app/utils/musica/escritaCifra";
+import { ESCRITA_VAZIA, linhasDaLetra, montarCifra } from "@/react-app/utils/musica/escritaCifra";
+import { acordesNoTempoDaLinha, blocoDaLinha, linhasEditaveis } from "@/react-app/utils/musica/edicaoCifra";
 import { baixoDosAcordes, segmentosDaCifra } from "@/react-app/utils/musica/seguirCifra";
 import { SR_FALA, escritaDaLetra, linhasDosTrechos, marcasDosAcordes, type TrechoFalado } from "@/react-app/utils/musica/letra";
 import type { ModeloLetra } from "@/react-app/workers/letraMusica.worker";
@@ -127,9 +128,10 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const alternarTodasNotas = () => mudarPrefs({ todasNotas: !todasNotas });
   const [editandoCifra, setEditandoCifra] = useState(false);
   const [marcando, setMarcando] = useState<number | null>(null);
-  const [escrevendo, setEscrevendo] = useState(false);
+  // v13: "Escrever cifra" = a letra (colada ou identificada) e depois os acordes com o mouse; o tempo vem sozinho
+  const [etapa, setEtapa] = useState<null | "letra" | "acordes">(null);
+  const escrevendo = etapa !== null;
   const [compartilhando, setCompartilhando] = useState(false);
-  const [mexendo, setMexendo] = useState(false);
   // v13: o acorde clicado acende no braço por um instante (eventos no tempo em que foi clicado)
   const destaque = useRef<{ eventos: EventoQueda[]; nome: string; ateMs: number } | null>(null);
   // trocar de instrumento ou de tom apaga o destaque (os eventos dele eram do instrumento anterior)
@@ -207,13 +209,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   // v11: o instrumento segue a cifra (a escrita, enquanto se escreve) ou o que reconheci no áudio
   const duracaoMusica = analise?.duracao ?? musica.duracao;
   const segmentosCifra = useMemo(() => {
-    if (escrevendo && musica.escrita) {
-      const e = musica.escrita;
-      const r = montarCifra({ ...e, inicios: linhasDaLetra(e.letra).map((_, i) => e.inicios[i] ?? null) }, duracaoMusica);
-      return segmentosDaCifra(lerCifra(r.texto), r.tempos, duracaoMusica);
-    }
     return segmentosDaCifra(cifra, tempos, duracaoMusica, semitonsCifra);
-  }, [escrevendo, musica.escrita, cifra, tempos, duracaoMusica, semitonsCifra]);
+  }, [cifra, tempos, duracaoMusica, semitonsCifra]);
   const seguindoCifra = prefs.segue === "cifra" && segmentosCifra.length > 0;
   const fonteAcordes = useMemo(() => (seguindoCifra ? segmentosCifra : analise?.acordes ?? []), [seguindoCifra, segmentosCifra, analise]);
   const eventos = useMemo(() => (seguindoCifra || analise ? eventosParaTocar(ins, seguindoCifra ? baixoDosAcordes(fonteAcordes) : analise?.notasBaixo ?? [], fonteAcordes, semitons, casas || ins.casas) : []),
@@ -341,23 +338,6 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
     }
   };
 
-  const identificarVerso = async (i: number, inicio: number, fim: number, modelo: ModeloLetra, idioma: string | null) => {
-    setErro(null);
-    const voz = faixas.find(f => f.id === "voz");
-    setOcupado({ texto: "Preparando o áudio", p: 0 });
-    try {
-      const trechos = await letraNoWorker(voz?.original ?? arquivo, modelo, idioma, (p, texto) => setOcupado({ texto, p }), { inicio, fim });
-      const texto = linhasDosTrechos(trechos, 500).map(l => l.texto).join(" ").trim();
-      if (!texto) { setErro("Não reconheci letra neste verso. Tente o reconhecedor mais preciso ou separar as faixas antes."); return; }
-      atualizar(m => { const e = m.escrita ?? ESCRITA_VAZIA; return { escrita: { ...e, letra: trocarVerso(e.letra, i, texto) } }; });
-      ouvirTrecho(inicio, fim);
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : "Não deu para identificar a letra.");
-    } finally {
-      setOcupado(null);
-    }
-  };
-
   // v11: a cifra de um trecho, ouvindo só ele (os acordes no tom do áudio)
   const cifraDoTrecho = async (inicio: number, fim: number) => {
     setErro(null);
@@ -386,6 +366,35 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
     paradaTrecho.current = window.setTimeout(() => { paradaTrecho.current = null; if (motor.current?.estaTocando) motor.current.pausar(); }, ((fim - inicio + 0.25) / andamento) * 1000);
   };
   useEffect(() => () => { if (paradaTrecho.current !== null) window.clearTimeout(paradaTrecho.current); }, []);
+
+  // v13: o tempo de cada linha da cifra (marcado, identificado com a letra ou achado pelos acordes) e a cifra da linha
+  const linhasDaCifra = useMemo(() => linhasEditaveis(musica.cifra), [musica.cifra]);
+  const blocosDasLinhas = useMemo(() => blocoDaLinha(cifra.blocos.map(b => b.tipo), linhasDaCifra.length), [cifra, linhasDaCifra.length]);
+  const trechoDaLinha = (k: number) => {
+    const bi = blocosDasLinhas[k];
+    const ini = bi === null || bi === undefined ? null : tempos[bi];
+    if (bi === null || bi === undefined || ini === null || ini === undefined) return null;
+    const fim = tempos.slice(bi + 1).find((t): t is number => t !== null && t !== undefined) ?? duracaoMusica;
+    return { inicio: ini, fim: Math.max(ini + 0.5, fim) };
+  };
+  const cifraDaLinha = async (k: number, inicio: number, fim: number) => {
+    const marcas = await cifraDoTrecho(inicio, fim);
+    if (!marcas.length) return null;
+    // os acordes do áudio vão para o tom em que a cifra está escrita
+    return acordesNoTempoDaLinha(musica.cifra, k, marcas.map(m => ({ ...m, acorde: semitonsCifra ? transporAcorde(m.acorde, -semitonsCifra) : m.acorde })), inicio, fim);
+  };
+  // a letra do primeiro passo; mudar o número de linhas solta as horas que vieram do reconhecimento
+  const mudarLetraEscrita = (letra: string) => atualizar(m => {
+    const e = m.escrita ?? ESCRITA_VAZIA;
+    const mesmaQtd = linhasDaLetra(letra).length === linhasDaLetra(e.letra).length;
+    return { escrita: { ...e, letra, inicios: mesmaQtd ? e.inicios : [] } };
+  });
+  const usarLetra = () => {
+    const e = musica.escrita ?? ESCRITA_VAZIA;
+    const r = montarCifra({ letra: e.letra, inicios: linhasDaLetra(e.letra).map((_, i) => e.inicios[i] ?? null), acordes: [] }, duracaoMusica);
+    atualizar({ cifra: r.texto, tempos: r.tempos.some(t => t !== null) ? r.tempos : null, ajustes: { ...musica.ajustes, semitonsCifra: 0 } });
+    setEtapa("acordes");
+  };
 
   // v11/v13: o som de um acorde (clicando nele na cifra) como o instrumento escolhido toca — no baixo a fundamental, no
   // violão/guitarra a forma do acorde dedilhada, no teclado as vozes — com o timbre escolhido; e acende no braço
@@ -572,20 +581,14 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
       {/* cifra + instrumento */}
       <div className="flex min-h-0 flex-1 flex-col-reverse gap-2 md:flex-row">
         <section className={`min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white ${verCifra ? "flex" : "hidden"}`}>
-          {mexendo && !escrevendo ? (
+          {etapa === "letra" ? (
+            <LetraParaCifra letra={musica.escrita?.letra ?? ""} onMudarLetra={mudarLetraEscrita} onIdentificarLetra={(modelo, idioma) => void identificarLetra(modelo, idioma)}
+              onUsar={usarLetra} onFechar={() => setEtapa(null)} ocupado={!!ocupado} vozSeparada={faixas.some(f => f.id === "voz")} temCifra={!!musica.cifra.trim()} />
+          ) : etapa === "acordes" ? (
             <EditorAcordes texto={musica.cifra} semitons={semitons + semitonsCifra} tomOuvido={analise ? transporTom(analise.tom, semitons) : null} tamanhoFonte={fonte}
-              onMudar={texto => atualizar({ cifra: texto })} onTocarAcorde={tocarAcorde} onFechar={() => setMexendo(false)} />
-          ) : escrevendo ? (
-            <EscreverCifra escrita={musica.escrita ?? ESCRITA_VAZIA} tom={analise?.tom ?? null} semitons={semitons} batidas={analise?.batidas ?? []}
-              duracao={musica.duracao} agora={() => motor.current?.tempo() ?? 0} onMudar={escrita => atualizar({ escrita })}
-              onAplicar={(texto, novos) => { atualizar({ cifra: texto, tempos: novos, ajustes: { ...musica.ajustes, semitonsCifra: 0 } }); setEscrevendo(false); }}
-              onFechar={() => setEscrevendo(false)}
-              ocupado={!!ocupado} vozSeparada={faixas.some(f => f.id === "voz")}
-              onIdentificarLetra={(modelo, idioma) => void identificarLetra(modelo, idioma)}
-              onIdentificarVerso={(i, ini, fim, modelo, idioma) => void identificarVerso(i, ini, fim, modelo, idioma)}
-              onOuvir={ouvirTrecho} onTocarAcorde={tocarAcorde}
-              onCifraDoTrecho={cifraDoTrecho}
-              onAcordesDoAudio={analise ? () => atualizar(m => ({ escrita: { ...(m.escrita ?? ESCRITA_VAZIA), acordes: marcasDosAcordes(analise.acordes) } })) : undefined} />
+              onMudar={texto => atualizar({ cifra: texto })} onTocarAcorde={tocarAcorde} onFechar={() => setEtapa(null)}
+              trechoDaLinha={trechoDaLinha} onOuvir={ouvirTrecho} onCifraDaLinha={cifraDaLinha}
+              onTrocarLetra={() => setEtapa("letra")} />
           ) : (<>
           <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 p-2">
             <b className="mr-auto text-sm text-slate-700">Letra e cifra</b>
@@ -596,9 +599,9 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
               </>
             ) : (
               <>
-                <button type="button" className={botaoAzul} onClick={() => setEscrevendo(true)} title="Toque a música e aperte os acordes: a cifra vai se escrevendo"><Music2 className="h-3.5 w-3.5" />Escrever cifra</button>
+                <button type="button" className={botaoAzul} onClick={() => setEtapa(linhasEditaveis(musica.cifra).some(l => l.letra !== null) ? "acordes" : "letra")}
+                  title="Cole (ou identifique) a letra e ponha os acordes com o mouse em cima das sílabas"><Music2 className="h-3.5 w-3.5" />Escrever cifra</button>
                 <button type="button" className={botao} onClick={() => setEditandoCifra(true)}><PencilLine className="h-3.5 w-3.5" />{musica.cifra.trim() ? "Editar cifra" : "Colar cifra"}</button>
-                {musica.cifra.trim() && <button type="button" className={botao} onClick={() => setMexendo(true)} title="Pôr, tirar e arrastar os acordes em cima da letra"><Move className="h-3.5 w-3.5" />Mexer nos acordes</button>}
                 {musica.cifra.trim() && <button type="button" className={botao} onClick={() => setCompartilhando(true)} title="Mandar para alguém do NordTool ou gerar a imagem"><Share2 className="h-3.5 w-3.5" />Compartilhar</button>}
                 {musica.cifra.trim() && <button type="button" className={botao} onClick={() => void comecarMarcar()} disabled={!pronto} title="Toque em Marcar quando cada linha começar">Marcar linhas</button>}
                 {musica.tempos && <button type="button" className={botao} onClick={() => atualizar({ tempos: null })} title="Voltar aos tempos calculados pelos acordes">Automático</button>}
@@ -646,7 +649,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           </div>
           </>)}
         </section>
-        <section className={`min-h-[220px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white ${!verInstrumento ? "hidden" : escrevendo ? "hidden md:flex" : "flex"} ${verCifra ? "h-[36vh] shrink-0 md:h-auto md:w-[46%]" : "min-h-0 flex-1"}`}>
+        <section className={`min-h-[220px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white ${!verInstrumento ? "hidden" : etapa === "letra" ? "hidden md:flex" : "flex"} ${verCifra ? "h-[36vh] shrink-0 md:h-auto md:w-[46%]" : "min-h-0 flex-1"}`}>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-slate-100 px-2 py-1.5">
             <b className="mr-auto text-sm text-slate-700">{ins.nome}</b>
             <div className="flex rounded-lg border border-slate-200 p-0.5" role="radiogroup" aria-label="O instrumento segue"

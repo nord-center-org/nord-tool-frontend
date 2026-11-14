@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Undo2, X } from "lucide-react";
+import { Check, FileText, Headphones, Loader2, Music2, Undo2, X } from "lucide-react";
 
 import { TIPOS_ACORDE, campoHarmonico } from "@/react-app/utils/musica/escritaCifra";
 import { linhasEditaveis, moverAcorde, porAcorde, tirarAcorde } from "@/react-app/utils/musica/edicaoCifra";
@@ -20,6 +20,13 @@ interface Props {
   /** Toca o acorde (no tom que se vê) e acende no braço. */
   onTocarAcorde: (nome: string) => void;
   onFechar: () => void;
+  /** O trecho da música de cada linha (o tempo achado sozinho), se já se sabe. */
+  trechoDaLinha?: (linha: number) => { inicio: number; fim: number } | null;
+  onOuvir?: (inicio: number, fim: number) => void;
+  /** Ouve só o trecho da linha e escreve os acordes dele (devolve o texto novo, ou null). */
+  onCifraDaLinha?: (linha: number, inicio: number, fim: number) => Promise<string | null>;
+  /** Voltar para a letra (trocar a letra). */
+  onTrocarLetra?: () => void;
 }
 
 interface Arrasto { linha: number; col: number; nome: string; x0: number; y0: number; x: number; y: number; moveu: boolean }
@@ -29,7 +36,8 @@ interface Arrasto { linha: number; col: number; nome: string; x0: number; y0: nu
  * arraste um acorde com o mouse (ou o dedo) para outra sílaba ou outra linha; clique nele para ouvir (e ver no braço);
  * Delete tira; Desfazer volta.
  */
-export default function EditorAcordes({ texto, semitons, tomOuvido, tamanhoFonte, onMudar, onTocarAcorde, onFechar }: Props) {
+export default function EditorAcordes({ texto, semitons, tomOuvido, tamanhoFonte, onMudar, onTocarAcorde, onFechar, trechoDaLinha, onOuvir, onCifraDaLinha, onTrocarLetra }: Props) {
+  const [ouvindo, setOuvindo] = useState(false);
   const [cursor, setCursor] = useState<{ linha: number; col: number } | null>(null);
   const [sel, setSel] = useState<{ linha: number; col: number } | null>(null);
   const [tipo, setTipo] = useState("");
@@ -43,6 +51,8 @@ export default function EditorAcordes({ texto, semitons, tomOuvido, tamanhoFonte
   const visto = (n: string) => (semitons ? transporAcorde(n, semitons, bemol) : n);
   const escrito = (n: string) => (semitons ? transporAcorde(n, -semitons) : n);
 
+  const linhaEscolhida = sel?.linha ?? cursor?.linha ?? null;
+  const trecho = linhaEscolhida !== null && trechoDaLinha ? trechoDaLinha(linhaEscolhida) : null;
   const mudar = (novo: string) => { if (novo === texto) return; historico.current = [...historico.current.slice(-99), texto]; onMudar(novo); };
   const desfazer = () => { const ant = historico.current.pop(); if (ant !== undefined) { onMudar(ant); setSel(null); } };
   const apertar = (nome: string) => {
@@ -94,7 +104,8 @@ export default function EditorAcordes({ texto, semitons, tomOuvido, tamanhoFonte
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto" role="region" aria-label="Mexer nos acordes">
       <div className="space-y-1.5 border-b border-slate-100 p-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          <b className="mr-auto text-sm text-slate-700">Mexer nos acordes</b>
+          <b className="mr-auto text-sm text-slate-700">Escrever cifra <span className="font-normal text-slate-400">· os acordes</span></b>
+          {onTrocarLetra && <button type="button" className={botao} onClick={onTrocarLetra} title="Colar ou identificar outra letra"><FileText className="h-3.5 w-3.5" />Trocar a letra</button>}
           <button type="button" className={botao} onClick={desfazer} disabled={!historico.current.length} title="Desfazer (Backspace)"><Undo2 className="h-3.5 w-3.5" />Desfazer</button>
           {sel && <button type="button" className={botao} onClick={tirar} title="Tirar o acorde escolhido (Delete)"><X className="h-3.5 w-3.5" />Tirar acorde</button>}
           <button type="button" className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700" onClick={onFechar}><Check className="h-3.5 w-3.5" />Pronto</button>
@@ -125,6 +136,23 @@ export default function EditorAcordes({ texto, semitons, tomOuvido, tamanhoFonte
           {cursor ? "Toque num acorde para pô-lo na sílaba marcada (teclas 1–8)." : "Clique na sílaba e toque no acorde; arraste um acorde para mudar de lugar; clique nele para ouvir e ver no braço."} Delete tira; Backspace desfaz.
         </p>
       </div>
+
+      {linhaEscolhida !== null && linhas[linhaEscolhida] && (
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 bg-orange-50/60 px-2 py-1.5" role="group" aria-label="Linha escolhida">
+          <span className="mr-1 text-[11px] font-bold text-slate-600">Linha {linhaEscolhida + 1}</span>
+          {onOuvir && <button type="button" className={botao} disabled={!trecho} onClick={() => trecho && onOuvir(trecho.inicio, trecho.fim)} title="Toca só esta linha"><Headphones className="h-3.5 w-3.5" />Ouvir</button>}
+          {onCifraDaLinha && (
+            <button type="button" className={botao} disabled={!trecho || ouvindo} title="Ouve só o trecho desta linha e escreve os acordes dele"
+              onClick={async () => {
+                if (!trecho || linhaEscolhida === null) return;
+                setOuvindo(true);
+                try { const novo = await onCifraDaLinha(linhaEscolhida, trecho.inicio, trecho.fim); if (novo !== null) { mudar(novo); onOuvir?.(trecho.inicio, trecho.fim); } }
+                finally { setOuvindo(false); }
+              }}>{ouvindo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Music2 className="h-3.5 w-3.5" />}Cifra da linha</button>
+          )}
+          {!trecho && <span className="text-[11px] text-slate-500">Ainda não sei o tempo desta linha: ponha alguns acordes nas outras (ou identifique a letra) que eu acho sozinho.</span>}
+        </div>
+      )}
 
       <div ref={caixa} className="relative min-h-[40vh] overflow-x-auto px-3 py-3 font-mono" style={{ fontSize: tamanhoFonte }} aria-label="Cifra para mexer">
         <span data-letra-largura className="invisible absolute">M</span>

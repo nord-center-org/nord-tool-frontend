@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { linhasEditaveis, moverAcorde, porAcorde, tirarAcorde } from "./edicaoCifra.ts";
+import { acordesNoTempoDaLinha, blocoDaLinha, linhasEditaveis, moverAcorde, porAcorde, tirarAcorde } from "./edicaoCifra.ts";
 
 const CIFRA = "Tom: G\n\n[Intro] G  D\n\nG       D\nLevanta a parede\nAssenta o tijolo\n\nEm  C  |  (2x)\n";
 
@@ -42,4 +42,17 @@ test("v13: linha só de acordes que fica vazia some", () => {
   let t = tirarAcorde(CIFRA, 2, 0);
   t = tirarAcorde(t, 2, 4);
   assert.ok(!t.includes("Em") && !t.includes("C  |"));
+});
+
+test("v13: a cifra de uma linha pelos acordes do áudio no trecho dela", () => {
+  // linha 1 ("Assenta o tijolo", 16 letras) vai de 10 s a 14 s
+  const t = acordesNoTempoDaLinha(CIFRA, 1, [{ tempo: 9.2, acorde: "F" }, { tempo: 12, acorde: "C" }, { tempo: 12.1, acorde: "C7" }, { tempo: 15, acorde: "G" }], 10, 14);
+  const l = linhasEditaveis(t)[1];
+  assert.deepEqual(l.itens.map(a => [a.col, a.nome]), [[0, "F"], [8, "C7"]], "o que soa no começo entra na coluna 0; o do fim do trecho fica de fora");
+  assert.equal(linhasEditaveis(t)[0].itens.length, 2, "as outras linhas não mudam");
+});
+
+test("v13: o bloco da cifra de cada linha editável", () => {
+  assert.deepEqual(blocoDaLinha(["secao", "letra", "letra", "acordes"], 3), [1, 2, 3]);
+  assert.deepEqual(blocoDaLinha(["letra"], 2), [null, null], "se não bate, não arrisca");
 });

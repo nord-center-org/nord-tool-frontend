@@ -101,3 +101,27 @@ export function moverAcorde(texto: string, de: { linha: number; col: number }, p
   if (novoIndice < 0) return texto;
   return porAcorde(semOrigem, novoIndice, para.col, item.nome);
 }
+
+/**
+ * Os acordes que soam no trecho de uma linha (do áudio, com o tempo de cada um) viram os acordes dessa linha: cada um
+ * na coluna proporcional ao tempo dentro do trecho (o verso é cantado de forma mais ou menos uniforme). Troca os que
+ * a linha tinha; dois na mesma coluna ficam com o último.
+ */
+export function acordesNoTempoDaLinha(texto: string, indice: number, marcas: { tempo: number; acorde: string }[], inicio: number, fim: number): string {
+  const alvo = linhasEditaveis(texto)[indice];
+  if (!alvo) return texto;
+  const largura = Math.max(alvo.texto.length, 8), dur = Math.max(0.5, fim - inicio);
+  const porColuna = new Map<number, string>();
+  for (const m of [...marcas].sort((a, b) => a.tempo - b.tempo)) {
+    if (m.tempo >= fim) continue;
+    const col = Math.min(largura - 1, Math.round(((Math.max(inicio, m.tempo) - inicio) / dur) * largura));
+    porColuna.set(col, m.acorde);
+  }
+  return trocarAcordesDaLinha(texto, indice, [...porColuna].map(([col, nome]) => ({ col, nome })));
+}
+
+/** O índice do bloco da cifra (`lerCifra`) de cada linha editável (versos e linhas só de acordes, na ordem). */
+export function blocoDaLinha(tiposDosBlocos: string[], nLinhas: number): (number | null)[] {
+  const blocos = tiposDosBlocos.flatMap((t, i) => (t === "letra" || t === "acordes" ? [i] : []));
+  return Array.from({ length: nLinhas }, (_, k) => (blocos.length === nLinhas ? blocos[k] : null));
+}

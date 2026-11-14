@@ -19,8 +19,8 @@ export const NOVIDADES: Novidade[] = [
   {
     id: "2026-11-14-repertorio-mexer-acordes",
     data: "2026-11-14",
-    titulo: "Repertório: arraste os acordes na cifra e ouça cada um",
-    texto: "Em \u201cMexer nos acordes\u201d, ponha acordes em cima de cada linha e arraste com o mouse (ou o dedo) para a sílaba certa. Clicar no nome do acorde toca o som dele como o instrumento escolhido e acende as notas no braço ou no teclado ao lado.",
+    titulo: "Repertório: escreva a cifra arrastando os acordes",
+    texto: "\u201cEscrever cifra\u201d ficou mais simples: cole (ou identifique) a letra e ponha os acordes com o mouse em cima das sílabas, arrastando para o lugar certo. O tempo de cada linha o app acha sozinho e a cifra rola com a música. E clicar no nome do acorde toca o som dele como o instrumento escolhido e acende as notas no braço ou no teclado.",
     onde: { rotulo: "Gestão Individual → Repertório", caminho: "/gestao/repertorio" },
   },
   {
