@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, Check, Share2, Loader2, Minus, Music2, Pause, Piano, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Timer, Volume2, VolumeX, Wand2,
+  ArrowLeft, Check, Move, Share2, Loader2, Minus, Music2, Pause, Piano, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Timer, Volume2, VolumeX, Wand2,
 } from "lucide-react";
 
 import { desenhar, desenharMapa } from "@/react-app/components/repertorio/desenhoInstrumento";
@@ -10,6 +10,7 @@ import { alturaDoEvento, passoDaAgenda, type Agenda } from "@/react-app/utils/mu
 import CifraRolando, { type ControleCifra } from "@/react-app/components/repertorio/CifraRolando";
 import EscreverCifra from "@/react-app/components/repertorio/EscreverCifra";
 import CompartilharCifra from "@/react-app/components/repertorio/CompartilharCifra";
+import EditorAcordes from "@/react-app/components/repertorio/EditorAcordes";
 import { ESCRITA_VAZIA, linhasDaLetra, montarCifra, trocarVerso } from "@/react-app/utils/musica/escritaCifra";
 import { baixoDosAcordes, segmentosDaCifra } from "@/react-app/utils/musica/seguirCifra";
 import { SR_FALA, escritaDaLetra, linhasDosTrechos, marcasDosAcordes, type TrechoFalado } from "@/react-app/utils/musica/letra";
@@ -17,7 +18,7 @@ import type { ModeloLetra } from "@/react-app/workers/letraMusica.worker";
 import { MotorAudio, decodificar, reamostrar, type FaixaAudio } from "@/react-app/components/repertorio/motorAudio";
 import { analiseDesatualizada, type ResultadoAnalise } from "@/react-app/utils/musica/analise";
 import { blocosComTempo, cifraDosAcordes, lerCifra, transporCifra } from "@/react-app/utils/musica/cifra";
-import { INSTRUMENTOS, eventosParaTocar, instrumento, vozesNoTeclado, type IdInstrumento } from "@/react-app/utils/musica/instrumentos";
+import { INSTRUMENTOS, eventosParaTocar, instrumento, type EventoQueda, type IdInstrumento } from "@/react-app/utils/musica/instrumentos";
 import { gravarPreferencias, lerPreferencias, type PreferenciasRepertorio } from "@/react-app/utils/musica/preferenciasRepertorio";
 import type { Musica } from "@/react-app/utils/musica/repertorioDb";
 import { FAIXAS, NOME_FAIXA } from "@/react-app/utils/musica/separacao";
@@ -128,6 +129,10 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const [marcando, setMarcando] = useState<number | null>(null);
   const [escrevendo, setEscrevendo] = useState(false);
   const [compartilhando, setCompartilhando] = useState(false);
+  const [mexendo, setMexendo] = useState(false);
+  // v13: o acorde clicado acende no braço por um instante (eventos no tempo em que foi clicado)
+  const destaque = useRef<{ eventos: EventoQueda[]; nome: string; ateMs: number } | null>(null);
+  // trocar de instrumento ou de tom apaga o destaque (os eventos dele eram do instrumento anterior)
   const tela = useRef<HTMLCanvasElement>(null);
   const caixaTela = useRef<HTMLDivElement>(null);
   const cifraRef = useRef<ControleCifra>(null);
@@ -236,7 +241,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const sint = useRef<Sintetizador | null>(null);
   const agenda = useRef<Agenda | null>(null);
   // trocar instrumento, tom ou desligar: corta o que soa e recomeça a agenda
-  useEffect(() => { sint.current?.calar(); agenda.current = null; }, [eventos, sintetizar]);
+  useEffect(() => { sint.current?.calar(); agenda.current = null; destaque.current = null; }, [eventos, sintetizar]);
   useEffect(() => { if (sint.current) sint.current.volume = prefs.volumeSintetizador; }, [prefs.volumeSintetizador]);
   useEffect(() => () => { sint.current?.fechar(); sint.current = null; }, []);
   useEffect(() => {
@@ -267,9 +272,10 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           const i = s.acordes.findIndex(a => t >= a.inicio && t < a.fim);
           const prox = s.acordes.find(a => a.inicio > t);
+          const d = destaque.current && performance.now() < destaque.current.ateMs ? destaque.current : null;
           (s.mapa ? desenharMapa : desenhar)(ctx, c.width / dpr, c.height / dpr, {
-            instrumento: s.ins, eventos: s.eventos, casas: s.casas, janela: s.janela, escuro: document.documentElement.classList.contains("nt-escuro"), bemol: s.bemol, todasNotas: s.todasNotas,
-            acordeAtual: i >= 0 ? s.acordes[i].nome : null, proximoAcorde: prox?.nome ?? null,
+            instrumento: s.ins, eventos: d ? d.eventos : s.eventos, casas: s.casas, janela: s.janela, escuro: document.documentElement.classList.contains("nt-escuro"), bemol: s.bemol, todasNotas: s.todasNotas,
+            acordeAtual: d ? d.nome : i >= 0 ? s.acordes[i].nome : null, proximoAcorde: d ? null : prox?.nome ?? null,
           }, t);
         }
       }
@@ -381,14 +387,19 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   };
   useEffect(() => () => { if (paradaTrecho.current !== null) window.clearTimeout(paradaTrecho.current); }, []);
 
-  // v11: o som de um acorde (clicando nele na cifra): o acorde no teclado e, no baixo, a fundamental
+  // v11/v13: o som de um acorde (clicando nele na cifra) como o instrumento escolhido toca — no baixo a fundamental, no
+  // violão/guitarra a forma do acorde dedilhada, no teclado as vozes — com o timbre escolhido; e acende no braço
   const tocarAcorde = (nome: string) => {
     const m = motor.current;
-    const a = lerAcorde(nome);
-    if (!m || !a) return;
+    if (!m || !lerAcorde(nome)) return;
     if (!sint.current) { sint.current = new Sintetizador(m.audio()); sint.current.volume = volumeSint.current; }
-    vozesNoTeclado(nome).forEach((midi, k) => sint.current?.tocar("teclado", midi, 0, 1.4, k, 0.6));
-    if (ins.fonte === "baixo") sint.current.tocar(ins.id, 28 + mod12((a.baixo ?? a.raiz) - 4), 0, 1.4, 0, 0.9, undefined, varianteSint);
+    const t = m.tempo();
+    const seg = { inicio: t, fim: t + 1.5, acorde: semitons ? transporAcorde(nome, -semitons) : nome };
+    const evs = eventosParaTocar(ins, baixoDosAcordes([seg]), [seg], semitons, casas || ins.casas);
+    evs.forEach((ev, k) => sint.current?.tocar(ins.id, alturaDoEvento(ins, ev), 0, 1.4, k, 0.85, undefined, varianteSint));
+    // o desenho lê os eventos em ordem de início: junta (já ordenado) com os da música uma vez, no clique
+    const juntos = [...estado.current.eventos, ...evs].sort((a, b) => a.inicio - b.inicio);
+    destaque.current = { eventos: juntos, nome, ateMs: performance.now() + 1500 };
   };
 
   const separarFaixas = async () => {
@@ -561,7 +572,10 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
       {/* cifra + instrumento */}
       <div className="flex min-h-0 flex-1 flex-col-reverse gap-2 md:flex-row">
         <section className={`min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white ${verCifra ? "flex" : "hidden"}`}>
-          {escrevendo ? (
+          {mexendo && !escrevendo ? (
+            <EditorAcordes texto={musica.cifra} semitons={semitons + semitonsCifra} tomOuvido={analise ? transporTom(analise.tom, semitons) : null} tamanhoFonte={fonte}
+              onMudar={texto => atualizar({ cifra: texto })} onTocarAcorde={tocarAcorde} onFechar={() => setMexendo(false)} />
+          ) : escrevendo ? (
             <EscreverCifra escrita={musica.escrita ?? ESCRITA_VAZIA} tom={analise?.tom ?? null} semitons={semitons} batidas={analise?.batidas ?? []}
               duracao={musica.duracao} agora={() => motor.current?.tempo() ?? 0} onMudar={escrita => atualizar({ escrita })}
               onAplicar={(texto, novos) => { atualizar({ cifra: texto, tempos: novos, ajustes: { ...musica.ajustes, semitonsCifra: 0 } }); setEscrevendo(false); }}
@@ -584,6 +598,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
               <>
                 <button type="button" className={botaoAzul} onClick={() => setEscrevendo(true)} title="Toque a música e aperte os acordes: a cifra vai se escrevendo"><Music2 className="h-3.5 w-3.5" />Escrever cifra</button>
                 <button type="button" className={botao} onClick={() => setEditandoCifra(true)}><PencilLine className="h-3.5 w-3.5" />{musica.cifra.trim() ? "Editar cifra" : "Colar cifra"}</button>
+                {musica.cifra.trim() && <button type="button" className={botao} onClick={() => setMexendo(true)} title="Pôr, tirar e arrastar os acordes em cima da letra"><Move className="h-3.5 w-3.5" />Mexer nos acordes</button>}
                 {musica.cifra.trim() && <button type="button" className={botao} onClick={() => setCompartilhando(true)} title="Mandar para alguém do NordTool ou gerar a imagem"><Share2 className="h-3.5 w-3.5" />Compartilhar</button>}
                 {musica.cifra.trim() && <button type="button" className={botao} onClick={() => void comecarMarcar()} disabled={!pronto} title="Toque em Marcar quando cada linha começar">Marcar linhas</button>}
                 {musica.tempos && <button type="button" className={botao} onClick={() => atualizar({ tempos: null })} title="Voltar aos tempos calculados pelos acordes">Automático</button>}
@@ -617,7 +632,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           <div className="min-h-0 flex-1">
             {musica.cifra.trim() ? (
               <CifraRolando ref={cifraRef} cifra={cifra} tempos={tempos} atual={atual} semitons={semitons + semitonsCifra} seguir={seguir} marcando={marcando} tamanhoFonte={fonte}
-                onTocarLinha={i => { if (marcando !== null) return; const t = tempos[i]; if (t !== null && t !== undefined) motor.current?.irPara(t); }} />
+                onTocarLinha={i => { if (marcando !== null) return; const t = tempos[i]; if (t !== null && t !== undefined) motor.current?.irPara(t); }}
+                onTocarAcorde={marcando === null ? tocarAcorde : undefined} />
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
                 <p className="max-w-sm text-sm text-slate-500">Cole a cifra (do Cifra Club, por exemplo) para a letra rolar com a música. Ou gere uma cifra com os acordes que reconheci no áudio.</p>

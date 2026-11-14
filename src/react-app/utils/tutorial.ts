@@ -666,6 +666,10 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         alvo: { css: "button", texto: "Instrumento online" },
       },
       {
+        titulo: "Mexer nos acordes",
+        texto: "Clique no nome de um acorde na cifra para ouvir como o instrumento escolhido toca (no baixo a nota, no violão o acorde dedilhado, no teclado as notas juntas) e ver as notas acesas no braço ou no teclado. Em \"Mexer nos acordes\", clique numa sílaba e toque no acorde para pô-lo em cima dela, arraste um acorde com o mouse (ou o dedo) para outra sílaba ou outra linha, Delete tira e Backspace desfaz.",
+      },
+      {
         titulo: "Compartilhar a cifra",
         texto: "No player, \"Compartilhar\" manda a cifra (no tom que você está vendo, sem o áudio) para pessoas do NordTool, com um recado se quiser, e gera uma imagem bonita da cifra para baixar ou mandar pelo celular. O que mandam para você aparece na aba \"Recebidas\": dá para mudar o tom, baixar a imagem e pôr a cifra numa música sua.",
         alvo: { css: '[role="tab"]', texto: "Recebidas" },
