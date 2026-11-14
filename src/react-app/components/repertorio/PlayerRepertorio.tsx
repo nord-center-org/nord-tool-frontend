@@ -269,6 +269,9 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   // trocar instrumento, tom ou desligar: corta o que soa e recomeça a agenda
   useEffect(() => { sint.current?.calar(); agenda.current = null; destaque.current = null; }, [eventos, sintetizar]);
   useEffect(() => { if (sint.current) sint.current.volume = prefs.volumeSintetizador; }, [prefs.volumeSintetizador]);
+  // v14: volume da música (o sintetizador e o clique nas notas têm o volume deles)
+  const volumeMusica = prefs.musicaMuda ? 0 : prefs.volumeMusica;
+  useEffect(() => { motor.current?.setVolumeGeral(volumeMusica); }, [volumeMusica, pronto, faixas]);
   useEffect(() => () => { sint.current?.fechar(); sint.current = null; }, []);
   useEffect(() => {
     let id = 0, quadro = 0;
@@ -573,6 +576,12 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           onPointerDown={() => { arrastando.current = true; }} onPointerUp={() => { arrastando.current = false; }}
           onChange={e => motor.current?.irPara(Number(e.target.value))} className="min-w-[8rem] flex-1" />
         <span className="text-xs tabular-nums text-slate-400">{relogio(musica.duracao)}</span>
+        <div className="flex items-center gap-1" role="group" aria-label="Volume da música">
+          <button type="button" className={quadrado} aria-pressed={prefs.musicaMuda} aria-label={prefs.musicaMuda ? "Ligar o som da música" : "Tirar o som da música"} title="Som da música"
+            onClick={() => mudarPrefs({ musicaMuda: !prefs.musicaMuda })}>{prefs.musicaMuda || prefs.volumeMusica === 0 ? <VolumeX className="h-4 w-4 text-red-500" /> : <Volume2 className="h-4 w-4" />}</button>
+          <input type="range" min={0} max={1.5} step={0.05} value={prefs.musicaMuda ? 0 : prefs.volumeMusica} aria-label="Volume da música" title={`Volume da música: ${Math.round((prefs.musicaMuda ? 0 : prefs.volumeMusica) * 100)}%`}
+            onChange={e => mudarPrefs({ volumeMusica: Number(e.target.value), musicaMuda: false })} className="w-16 sm:w-20" />
+        </div>
         <div className="flex items-center gap-1" role="group" aria-label="Tom">
           <span className={rotulo}>Tom</span>
           <button type="button" className={quadrado} aria-label="Descer meio tom" onClick={() => void mudarTom(semitons - 1)} disabled={!pronto || semitons <= -12}><Minus className="h-3.5 w-3.5" /></button>

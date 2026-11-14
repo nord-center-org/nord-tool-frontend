@@ -667,7 +667,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Ouvir os acordes e as notas",
-        texto: "Clique no nome de um acorde na cifra para ouvir como o instrumento escolhido toca e ver as notas acesas no braço ou no teclado. Clicar numa nota do braço, do mapa do braço ou do teclado também toca o som dela. \"Instrumento online\", na barra de cima, abre o instrumento para tocar junto com a música. Quando algo está carregando (análise, separar faixas, identificar letra), aparece um aviso no canto com \"Cancelar\" e a tela continua livre.",
+        texto: "Clique no nome de um acorde na cifra para ouvir como o instrumento escolhido toca e ver as notas acesas no braço ou no teclado. Clicar numa nota do braço, do mapa do braço ou do teclado também toca o som dela. \"Instrumento online\", na barra de cima, abre o instrumento para tocar junto com a música, e ao lado do tempo fica o volume da música (o alto-falante tira o som). Quando algo está carregando (análise, separar faixas, identificar letra), aparece um aviso no canto com \"Cancelar\" e a tela continua livre.",
       },
       {
         titulo: "Compartilhar a cifra",

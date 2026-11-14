@@ -20,7 +20,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-14-repertorio-pads-e-notas",
     data: "2026-11-14",
     titulo: "Repertório: cifra com pads, notas que tocam e carregando sem travar",
-    texto: "A tela de escrever cifra ficou no estilo da aba Criar: arraste os pads dos acordes e solte em cima da sílaba, com uma marca mostrando onde cai. Clicar numa nota do braço ou do mapa do braço toca o som dela. O player ganhou o botão \u201cInstrumento online\u201d. E o que estiver carregando aparece num aviso no canto, com \u201cCancelar\u201d, sem travar a tela.",
+    texto: "A tela de escrever cifra ficou no estilo da aba Criar: arraste os pads dos acordes e solte em cima da sílaba, com uma marca mostrando onde cai. Clicar numa nota do braço ou do mapa do braço toca o som dela. O player ganhou o botão \u201cInstrumento online\u201d e o volume da música (com botão de tirar o som). E o que estiver carregando aparece num aviso no canto, com \u201cCancelar\u201d, sem travar a tela.",
     onde: { rotulo: "Gestão Individual → Repertório", caminho: "/gestao/repertorio" },
   },
   {
