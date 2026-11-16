@@ -4,7 +4,7 @@ import * as XLSX from "xlsx";
 
 import {
   abasEmPortugues, abasParaSalvar, abasParaXlsx, dataPtBr, formulaParaIngles, formulaParaPortugues, lerPlanilha, normalizarFormula, numeroNaTela, numeroPtBr, planilhaVazia,
-  prepararAbas, precisaNormalizar, temFormulaEmPortugues, textoNaTela, xlsxParaAbas, type AbaFs,
+  prepararAbas, precisaNormalizar, quantidadeSelecionada, temFormulaEmPortugues, textoNaTela, xlsxParaAbas, type AbaFs,
 } from "./planilha.ts";
 
 test("fórmulas em português viram as do editor", () => {
@@ -147,4 +147,13 @@ test("v5: data digitada como dd/mm/aaaa", () => {
   assert.equal(dataPtBr("11/12/2026 25:00"), null);
   assert.equal(dataPtBr("1/2"), null);
   assert.equal(dataPtBr(44000), null);
+});
+
+test("correção: planilha nova com 1000 linhas e inserir N linhas pela seleção", () => {
+  assert.equal(planilhaVazia()[0].row, 1000);
+  assert.equal(planilhaVazia()[0].column, 26);
+  assert.equal(quantidadeSelecionada([2, 6]), 5);
+  assert.equal(quantidadeSelecionada([4, 4]), 1);
+  assert.equal(quantidadeSelecionada(undefined), 1);
+  assert.equal(quantidadeSelecionada([0, 99999]), 1000, "no máximo 1000 de uma vez");
 });

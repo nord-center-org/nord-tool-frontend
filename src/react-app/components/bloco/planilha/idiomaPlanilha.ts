@@ -81,7 +81,7 @@ const PT: Record<string, Textos> = {
     copy: "Copiar", copyAs: "Copiar como", paste: "Colar", insert: "Inserir", image: "Inserir imagem", link: "Inserir link", delete: "Excluir",
     deleteCell: "Excluir célula", deleteSelected: "Excluir selecionadas: ", hide: "Ocultar", hideSelected: "Ocultar selecionadas: ", showHide: "Mostrar ocultas: ",
     to: "Para", left: "Esquerda", right: "Direita", top: "Acima", bottom: "Abaixo", moveLeft: "Mover para a esquerda", moveUp: "Mover para cima", add: "Inserir",
-    row: "Linha", column: "Coluna", width: "Largura", height: "Altura", number: "Quantidade", confirm: "Confirmar", orderAZ: "Classificar de A a Z",
+    row: "Linha", column: "Coluna", width: " (largura)", height: " (altura)", number: "Quantidade", confirm: "Confirmar", orderAZ: "Classificar de A a Z",
     orderZA: "Classificar de Z a A", clearContent: "Limpar conteúdo", matrix: "Operação de matriz", sortSelection: "Classificar", filterSelection: "Filtrar",
     chartGeneration: "Criar gráfico", firstLineTitle: "primeira linha é título", untitled: "sem título", transpose: "Transpor", plus: "Somar", minus: "Subtrair",
     multiply: "Multiplicar", divided: "Dividir", power: "Potência", root: "Raiz", removeDuplicate: "Tirar valores repetidos", byRow: "Por linha", byCol: "Por coluna",

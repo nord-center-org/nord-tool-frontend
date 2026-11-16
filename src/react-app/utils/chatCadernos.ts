@@ -140,7 +140,7 @@ export function linhasParaAbas(linhas: (string | number | boolean | null)[][]): 
     else celldata.push({ r, c, v: { v: valor, m: valor, ct: { fa: "General", t: "g" }, ...(r === 0 ? { bl: 1 } : {}) } });
   }));
   const [aba] = planilhaVazia();
-  return [{ ...aba, row: Math.max(100, linhas.length + 20), column: Math.max(26, colunas + 5), celldata }];
+  return [{ ...aba, row: Math.max(1000, linhas.length + 20), column: Math.max(26, colunas + 5), celldata }];
 }
 
 /** HTML da IA só com o básico (o documento passa ainda pelo sanitizador do editor ao abrir). */

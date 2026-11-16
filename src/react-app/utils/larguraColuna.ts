@@ -31,3 +31,22 @@ export function larguraIdeal(textos: TextoCelula[], medir: (t: TextoCelula) => n
   if (!max) return null;
   return Math.min(MAXIMA, Math.max(MINIMA, Math.ceil(max + FOLGA)));
 }
+
+/** Correção: largura e altura padrão da planilha (coluna ou linha vazia volta a elas nos dois cliques). */
+export const LARGURA_PADRAO = 73;
+export const ALTURA_PADRAO = 19;
+
+/**
+ * Altura ideal de uma linha (dois cliques na borda do número da linha): a célula mais alta — tamanho da letra em pt
+ * vezes as linhas de texto dela. Sem texto, volta à altura padrão.
+ */
+export function alturaIdeal(celulas: Array<{ texto: string; tamanho?: number }>): number {
+  let max = 0;
+  for (const c of celulas) {
+    if (!c.texto) continue;
+    const linhas = c.texto.split("\n").length;
+    const px = (c.tamanho ?? 10) * (96 / 72);
+    max = Math.max(max, Math.ceil(linhas * px * 1.2 + 3));
+  }
+  return max ? Math.min(400, Math.max(ALTURA_PADRAO, max)) : ALTURA_PADRAO;
+}

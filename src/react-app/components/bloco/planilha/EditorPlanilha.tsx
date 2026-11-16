@@ -7,12 +7,12 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, Download, Loader2, Sh
 
 import { aplicarPortugues } from "@/react-app/components/bloco/planilha/idiomaPlanilha";
 import { baixarArquivo, nomeDeArquivo } from "@/react-app/utils/baixarArquivo";
-import { colunaDaBorda, larguraIdeal } from "@/react-app/utils/larguraColuna";
+import { LARGURA_PADRAO, alturaIdeal, colunaDaBorda, larguraIdeal } from "@/react-app/utils/larguraColuna";
 import { ajustarFormula, blocoDoMovimento, girarBloco, type Direcao, type Eixo } from "@/react-app/utils/moverPlanilha";
 import { ApiError } from "@/react-app/services/apiClient";
 import { arquivosBlocoService as servico, type ArquivoBloco } from "@/react-app/services/BlocoNotasService";
 import {
-  MAX_BYTES_PLANILHA, abasParaSalvar, abasParaXlsx, dataPtBr, lerPlanilha, normalizarFormula, numeroPtBr, precisaNormalizar, prepararAbas, textoNaTela, type AbaFs,
+  COLUNAS_NOVA, LINHAS_NOVA, MAX_BYTES_PLANILHA, abasParaSalvar, abasParaXlsx, dataPtBr, lerPlanilha, normalizarFormula, numeroPtBr, precisaNormalizar, prepararAbas, quantidadeSelecionada, textoNaTela, type AbaFs,
 } from "@/react-app/utils/planilha";
 
 aplicarPortugues();
@@ -222,6 +222,34 @@ export default function EditorPlanilha({ id, onVoltar, onAlterado, extra }: { id
     if (!el) return;
     const medidor = document.createElement("canvas").getContext("2d");
     const duplo = (e: MouseEvent) => {
+      // correção: dois cliques na borda do número da linha ajustam a altura ao conteúdo (todas as linhas selecionadas)
+      const alcaLinha = (e.target as HTMLElement | null)?.closest(".fortune-rows-change-size") as HTMLElement | null;
+      if (alcaLinha && wb.current) {
+        const w = wb.current;
+        const cabecalho = el.querySelector(".fortune-row-header")?.getBoundingClientRect();
+        const rolagem = el.querySelector(".luckysheet-scrollbar-y")?.scrollTop ?? 0;
+        const dados = w.getSheet().data;
+        if (!cabecalho || !dados?.length) return;
+        const idx = Array.from({ length: dados.length }, (_, i) => i);
+        const alturas = w.getRowHeight(idx);
+        const y = alcaLinha.getBoundingClientRect().top + 3 - cabecalho.top + rolagem;
+        const r = colunaDaBorda(idx.map(i => alturas[i]), y);
+        if (r < 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const sel = w.getSelection()?.[0];
+        const linhas = sel && r >= sel.row[0] && r <= sel.row[1] && sel.column[0] === 0 && sel.column[1] >= (dados[0]?.length ?? 1) - 1
+          ? Array.from({ length: sel.row[1] - sel.row[0] + 1 }, (_, k) => sel.row[0] + k) : [r];
+        const novas: Record<string, number> = {};
+        for (const lin of linhas) {
+          novas[String(lin)] = alturaIdeal((dados[lin] ?? []).map(cel => {
+            const bruto = cel?.m ?? cel?.v;
+            return { texto: bruto === null || bruto === undefined ? "" : String(bruto), tamanho: Number(cel?.fs) || 10 };
+          }));
+        }
+        w.setRowHeight(novas);
+        return;
+      }
       const alca = (e.target as HTMLElement | null)?.closest("#fortune-cols-change-size") as HTMLElement | null;
       const w = wb.current;
       if (!alca || !w || !medidor) return;
@@ -248,12 +276,34 @@ export default function EditorPlanilha({ id, onVoltar, onAlterado, extra }: { id
           return { texto: bruto === null || bruto === undefined ? "" : textoNaTela(String(bruto)), negrito: cel?.bl === 1, tamanho: Number(cel?.fs) || 10 };
         });
         const largura = larguraIdeal(textos, t => { medidor.font = `${t.negrito ? "bold " : ""}${t.tamanho ?? 10}pt Arial`; return medidor.measureText(t.texto).width; });
-        if (largura) novas[String(col)] = largura;
+        // coluna vazia volta à largura padrão (antes os dois cliques não faziam nada)
+        novas[String(col)] = largura ?? LARGURA_PADRAO;
       }
       if (Object.keys(novas).length) w.setColumnWidth(novas);
     };
     el.addEventListener("dblclick", duplo, { capture: true });
     return () => el.removeEventListener("dblclick", duplo, { capture: true });
+  }, [inicial]);
+
+  // Correção: o botão direito com várias linhas (ou colunas) selecionadas já sugere inserir essa quantidade, como no
+  // Google Sheets ("Inserir 5 linhas acima"); antes ficava sempre 1.
+  useEffect(() => {
+    const el = caixa.current;
+    if (!el) return;
+    const menu = () => window.setTimeout(() => {
+      const sel = wb.current?.getSelection()?.[0];
+      if (!sel) return;
+      el.querySelectorAll<HTMLInputElement>(".fortune-context-menu input[placeholder]").forEach(entrada => {
+        const palavra = entrada.parentElement?.querySelector(".luckysheet-cols-rows-shift-word");
+        const eLinha = palavra?.textContent?.trim().toLowerCase().startsWith("linha");
+        if (!palavra) return;
+        const n = quantidadeSelecionada(eLinha ? sel.row : sel.column);
+        entrada.value = String(n);
+        palavra.textContent = `${eLinha ? (n > 1 ? "linhas" : "linha") : n > 1 ? "colunas" : "coluna"}  `;
+      });
+    }, 0);
+    el.addEventListener("contextmenu", menu, { capture: true });
+    return () => el.removeEventListener("contextmenu", menu, { capture: true });
   }, [inicial]);
 
   // Alt+Shift+setas move (como no Google Sheets), fora da edição de uma célula.
@@ -330,7 +380,7 @@ export default function EditorPlanilha({ id, onVoltar, onAlterado, extra }: { id
       )}
       {aviso && <p role="alert" className="rounded-xl bg-amber-50 px-3 py-1.5 text-xs text-amber-800">{aviso}</p>}
       <div ref={caixa} className="planilha-bloco relative min-h-[20rem] flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white" data-planilha="">
-        <Workbook ref={wb} data={inicial as unknown as AbaEditor[]} lang="en" currency="R$" hooks={hooks}
+        <Workbook ref={wb} data={inicial as unknown as AbaEditor[]} lang="en" currency="R$" hooks={hooks} row={LINHAS_NOVA} column={COLUNAS_NOVA} addRows={100}
           onChange={dados => { atual.current = dados as unknown as AbaFs[]; agendar(); }} />
       </div>
     </div>
