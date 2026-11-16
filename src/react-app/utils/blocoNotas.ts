@@ -627,6 +627,18 @@ export function nomeArquivoCaderno(titulo: string): string {
   return `caderno-${base}.pdf`;
 }
 
+/**
+ * v7: nome do arquivo de páginas baixadas: "caderno-obra-pagina-3.jpg", "caderno-obra-paginas-1-3-5.pdf" (com muitas,
+ * "caderno-obra-12-paginas.zip").
+ */
+export function nomeArquivoPaginas(titulo: string, numeros: number[], extensao: string): string {
+  const base = nomeArquivoCaderno(titulo).replace(/\.pdf$/, "");
+  const ns = [...numeros].sort((a, b) => a - b);
+  if (ns.length === 1) return `${base}-pagina-${ns[0]}.${extensao}`;
+  if (ns.length <= 6) return `${base}-paginas-${ns.join("-")}.${extensao}`;
+  return `${base}-${ns.length}-paginas.${extensao}`;
+}
+
 /** Título do caderno a partir do arquivo importado: "Projeto torre B.pdf" → "Projeto torre B". */
 export const tituloDoPdf = (nomeArquivo: string) => (nomeArquivo.replace(/\.[a-z0-9]{1,5}$/i, "").trim() || "Arquivo importado").slice(0, 120);
 
