@@ -30,6 +30,14 @@ export function grupoDaRota<G extends { title: string; items: { path: string }[]
   return grupos.find(g => g.items.some(i => casa(i.path)))?.title ?? null;
 }
 
+/**
+ * Correção: a tela está nos favoritos (o caminho dela ou o começo dele). Aí o grupo dela não abre sozinho: ela já
+ * aparece nos Favoritos, no alto do menu.
+ */
+export function rotaFavorita(favoritos: string[], caminho: string): boolean {
+  return favoritos.some(p => (p === "/" ? caminho === "/" : caminho === p || caminho.startsWith(`${p}/`)));
+}
+
 export function iniciais(nome: string): string {
   return nome.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join("") || "?";
 }

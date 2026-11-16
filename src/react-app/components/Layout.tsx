@@ -15,7 +15,7 @@ import BotaoSac from "@/react-app/components/sac/BotaoSac";
 import CapturaLugiaProvider from "@/react-app/components/lugia/CapturaLugiaProvider";
 import BotaoPrintLugia from "@/react-app/components/lugia/BotaoPrintLugia";
 import { EVENTO_DAVI, criarContadorToques } from "@/react-app/utils/segredo";
-import { alternarGrupo, grupoDaRota, lerGruposAbertos, salvarGruposAbertos } from "@/react-app/utils/menuLateral";
+import { alternarGrupo, grupoDaRota, lerGruposAbertos, rotaFavorita, salvarGruposAbertos } from "@/react-app/utils/menuLateral";
 import { alternarFavorito, itensFavoritos, lerFavoritosLocais, limparFavoritos, salvarFavoritosLocais } from "@/react-app/utils/menuFavoritos";
 import { menuFavoritoService } from "@/react-app/services/MenuFavoritoService";
 import { idGrupoMenu, jaViuTutorial, marcarTutorialVisto, tutorialDaTela, tutorialGeral, type PassoTutorial, type Tutorial as DadosTutorial } from "@/react-app/utils/tutorial";
@@ -102,16 +102,18 @@ export default function Layout() {
   useEffect(() => {
     if (usuario) setAbertos(lerGruposAbertos(armazenamento(), usuario.id));
   }, [usuario]);
-  // Ao entrar numa tela, o grupo dela abre (e pode ser fechado depois).
+  // Ao entrar numa tela, o grupo dela abre (e pode ser fechado depois) — menos nas telas favoritas, que já aparecem
+  // nos Favoritos. Lê a cópia do aparelho na hora, para não abrir antes de os favoritos chegarem.
   useEffect(() => {
     if (!grupoAtual || !usuario) return;
+    if (rotaFavorita(lerFavoritosLocais(armazenamento(), usuario.id), location.pathname)) return;
     setAbertos(atual => {
       if (atual.includes(grupoAtual)) return atual;
       const novo = [...atual, grupoAtual];
       salvarGruposAbertos(armazenamento(), usuario.id, novo);
       return novo;
     });
-  }, [grupoAtual, usuario]);
+  }, [grupoAtual, usuario, location.pathname]);
   // Favoritos (o tijolo): cópia do aparelho na hora, a lista do servidor logo depois.
   const [favoritos, setFavoritos] = useState<string[]>([]);
   useEffect(() => {
