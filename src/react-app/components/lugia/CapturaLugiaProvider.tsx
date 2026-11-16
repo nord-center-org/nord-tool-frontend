@@ -4,32 +4,78 @@ import { toCanvas } from "html-to-image";
 import { Camera, Loader2, X } from "lucide-react";
 
 import { ContextoCapturaLugia, type CapturaLugia, type EstadoCaptura, type PrintPendente, type SessaoLugia } from "@/react-app/hooks/useCapturaLugia";
-import { ATRIBUTO_SEM_PRINT, nomePrint, recorteNoElemento, retanguloEntre, selecaoValida, type Retangulo } from "@/react-app/utils/captura";
+import { ATRIBUTO_SEM_PRINT, nomePrint, recorteNoElemento, retanguloEntre, selecaoValida, transformacaoDeslocada, type Retangulo } from "@/react-app/utils/captura";
 
 const MAX_BYTES_PNG = 9 * 1024 * 1024;
 
 const proximoQuadro = () => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 
-/** Renderiza a tela atual (área de conteúdo do Layout) e recorta a seleção. */
+/**
+ * O desenho do print volta cada área rolável ao topo. Para sair como está na tela, cada área rolada volta ao topo de
+ * verdade e os filhos dela andam o mesmo tanto (na tela nada muda); depois tudo volta como estava.
+ */
+function congelarRolagens(raiz: HTMLElement): () => void {
+  const desfazer: Array<() => void> = [];
+  for (const el of [raiz, ...Array.from(raiz.querySelectorAll<HTMLElement>("*"))]) {
+    const rola = el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1;
+    if (!rola) continue;
+    // sem barra de rolagem no print (na tela, só some por um instante)
+    const overflow = el.style.overflow;
+    if (/(auto|scroll)/.test(getComputedStyle(el).overflow)) el.style.overflow = "hidden";
+    const topo = el.scrollTop, esquerda = el.scrollLeft;
+    const filhos = topo || esquerda ? Array.from(el.children).filter((f): f is HTMLElement => f instanceof HTMLElement) : [];
+    // a transição (as telas têm) atrasaria o deslocamento: o print sairia antes dele
+    const antes = filhos.map(f => [f.style.transform, f.style.transition] as const);
+    filhos.forEach(f => {
+      const atual = getComputedStyle(f).transform;
+      f.style.transition = "none";
+      f.style.transform = transformacaoDeslocada(esquerda, topo, atual);
+    });
+    if (topo || esquerda) { el.scrollTop = 0; el.scrollLeft = 0; }
+    desfazer.push(() => {
+      filhos.forEach((f, i) => { f.style.transform = antes[i][0]; });
+      el.style.overflow = overflow;
+      el.scrollTop = topo;
+      el.scrollLeft = esquerda;
+      // a transição só volta depois de o deslocamento sair, para a tela não "deslizar"
+      requestAnimationFrame(() => filhos.forEach((f, i) => { f.style.transition = antes[i][1]; }));
+    });
+  }
+  // o texto de exemplo (placeholder) sairia escuro, como se o campo estivesse preenchido: no print, campo vazio fica vazio
+  for (const campo of Array.from(raiz.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input[placeholder], textarea[placeholder]"))) {
+    if (campo.value) continue;
+    const exemplo = campo.getAttribute("placeholder") ?? "";
+    campo.setAttribute("placeholder", "");
+    desfazer.push(() => campo.setAttribute("placeholder", exemplo));
+  }
+  return () => desfazer.reverse().forEach(f => f());
+}
+
+/** Renderiza o app como está na janela (menu lateral, conteúdo e o que estiver rolado) e recorta a seleção. */
 async function capturar(selecao: Retangulo): Promise<{ base64: string; mime: string }> {
-  const tela = document.querySelector<HTMLElement>("[data-tutorial-tela]");
+  const tela = document.querySelector<HTMLElement>("[data-print-raiz]") ?? document.querySelector<HTMLElement>("[data-tutorial-tela]");
   if (!tela) throw new Error("Não encontrei a tela para capturar.");
   const caixa = tela.getBoundingClientRect();
-  // A área de conteúdo rola por dentro: renderiza tudo e recorta o pedaço visível escolhido.
-  const largura = Math.max(tela.scrollWidth, Math.round(caixa.width));
-  const altura = Math.max(tela.scrollHeight, Math.round(caixa.height));
+  const largura = Math.round(caixa.width), altura = Math.round(caixa.height);
   const escala = Math.min(2, window.devicePixelRatio || 1);
   const recorte = recorteNoElemento(selecao, { x: caixa.left, y: caixa.top, largura, altura }, escala);
   if (!recorte) throw new Error("Marque uma área dentro da tela.");
 
-  const imagem = await toCanvas(tela, {
-    width: largura,
-    height: altura,
-    pixelRatio: escala,
-    backgroundColor: "#f8fafc",
-    cacheBust: true,
-    filter: no => !(no instanceof Element && no.hasAttribute(ATRIBUTO_SEM_PRINT)),
-  });
+  const fundo = getComputedStyle(document.body).backgroundColor;
+  const descongelar = congelarRolagens(tela);
+  let imagem: HTMLCanvasElement;
+  try {
+    imagem = await toCanvas(tela, {
+      width: largura,
+      height: altura,
+      pixelRatio: escala,
+      backgroundColor: fundo && fundo !== "rgba(0, 0, 0, 0)" ? fundo : "#f8fafc",
+      cacheBust: true,
+      filter: no => !(no instanceof Element && no.hasAttribute(ATRIBUTO_SEM_PRINT)),
+    });
+  } finally {
+    descongelar();
+  }
   const saida = document.createElement("canvas");
   saida.width = recorte.largura;
   saida.height = recorte.altura;

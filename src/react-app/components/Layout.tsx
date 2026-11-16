@@ -219,7 +219,7 @@ export default function Layout() {
   return (
     <CapturaLugiaProvider>
     <NovidadesSacProvider>
-    <div className="flex h-screen w-full bg-slate-50 overflow-hidden relative font-sans">
+    <div data-print-raiz className="flex h-screen w-full bg-slate-50 overflow-hidden relative font-sans">
       
       {/* No celular o menu fica por cima da tela, com fundo escuro que fecha ao tocar. */}
       {sidebarOpen && (
