@@ -9,7 +9,7 @@ import { useCapturaLugia } from "@/react-app/hooks/useCapturaLugia";
 import { useNovidadesSac } from "@/react-app/hooks/useNovidadesSac";
 import { sacService, type Chamado } from "@/react-app/services/SacService";
 import {
-  MAX_DESCRICAO, MAX_PRINTS, MAX_TITULO, STATUS_CHAMADO, classeStatus, nomePdfChamados, ordenarChamados,
+  MAX_DESCRICAO, MAX_PRINTS, MAX_TITULO, STATUS_CHAMADO, classeStatus, nomePdfChamados, separarConcluidos,
   pendentes, problemaDoRascunho, rotuloStatus, type StatusChamado,
 } from "@/react-app/utils/sac";
 import { podeAcessar } from "@/react-app/utils/sessao";
@@ -141,7 +141,7 @@ export default function Sac() {
   const novidades = useNovidadesSac();
   const [busca] = useSearchParams();
   const doAviso = Number(busca.get("chamado")) || null;
-  const [aba, setAba] = useState<"novo" | "meus" | "todos">(doAviso ? "meus" : "novo");
+  const [aba, setAba] = useState<"novo" | "meus" | "todos" | "concluidos">(doAviso ? "meus" : "novo");
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
   const [exportando, setExportando] = useState(false);
   /** Chamados que tinham novidade quando a pessoa abriu a lista (o selo fica até sair da tela). */
@@ -245,7 +245,7 @@ export default function Sac() {
   // Abriu "Meus chamados": as novidades foram vistas (o selo "Novidade" continua até sair da tela).
   const { marcarVistos } = novidades;
   useEffect(() => {
-    if (aba !== "meus" || !meus) return;
+    if ((aba !== "meus" && aba !== "concluidos") || !meus) return;
     const ids = meus.filter(c => c.inNovidade).map(c => c.id);
     if (!ids.length) return;
     setNovosVistos(atual => new Set([...atual, ...ids]));
@@ -253,9 +253,18 @@ export default function Sac() {
     void marcarVistos(ids);
   }, [aba, meus, marcarVistos]);
 
+  // v5: o aviso de um chamado já concluído (resolvido ou recusado) abre "Concluídos", onde ele está
+  const avisoTratado = useRef(false);
+  useEffect(() => {
+    if (!doAviso || !meus || avisoTratado.current) return;
+    avisoTratado.current = true;
+    const c = meus.find(x => x.id === doAviso);
+    if (c && (c.cdStatus === "RESOLVIDO" || c.cdStatus === "RECUSADO")) setAba("concluidos");
+  }, [doAviso, meus]);
+
   // Veio pelo aviso: rola até o chamado.
   useEffect(() => {
-    if (!doAviso || aba !== "meus" || !meus) return;
+    if (!doAviso || (aba !== "meus" && aba !== "concluidos") || !meus) return;
     const t = window.setTimeout(() => document.getElementById(`chamado-${doAviso}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 200);
     return () => window.clearTimeout(t);
   }, [doAviso, aba, meus]);
@@ -277,9 +286,12 @@ export default function Sac() {
     }
   };
 
-  const listaMeus = useMemo(() => ordenarChamados(meus ?? []), [meus]);
-  const listaTodos = useMemo(() => ordenarChamados(todos ?? []), [todos]);
-  const lista = aba === "todos" ? listaTodos : listaMeus;
+  // v5: resolvidos e recusados saem da esteira e ficam em "Concluídos" (os de todos, para quem administra)
+  const meusSeparados = useMemo(() => separarConcluidos(meus ?? []), [meus]);
+  const todosSeparados = useMemo(() => separarConcluidos(todos ?? []), [todos]);
+  const listaConcluidos = admin ? todosSeparados.concluidos : meusSeparados.concluidos;
+  const lista = aba === "todos" ? todosSeparados.esteira : aba === "concluidos" ? listaConcluidos : meusSeparados.esteira;
+  const carregada = aba === "todos" || (aba === "concluidos" && admin) ? todos : meus;
   const aba_ = (id: typeof aba, rotulo: string, n?: number) => (
     <button type="button" role="tab" aria-selected={aba === id} onClick={() => setAba(id)}
       className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${aba === id ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
@@ -295,6 +307,7 @@ export default function Sac() {
         {aba_("novo", "Novo chamado")}
         {aba_("meus", "Meus chamados", meus ? pendentes(meus) : undefined)}
         {admin && aba_("todos", "Todos os chamados", todos ? pendentes(todos) : undefined)}
+        {aba_("concluidos", "Concluídos")}
       </div>
 
       {aviso && (
@@ -366,12 +379,12 @@ export default function Sac() {
           </div>
         </section>
       ) : (
-        <section className="space-y-3" aria-label={aba === "todos" ? "Todos os chamados" : "Meus chamados"}>
-          {(aba === "todos" ? todos : meus) === null ? (
+        <section className="space-y-3" aria-label={aba === "todos" ? "Todos os chamados" : aba === "concluidos" ? "Chamados concluídos" : "Meus chamados"}>
+          {carregada === null ? (
             <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Carregando…</p>
           ) : lista.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-              {aba === "todos" ? "Nenhum chamado por enquanto." : "Você ainda não abriu nenhum chamado."}
+              {aba === "todos" ? "Nenhum chamado na esteira." : aba === "concluidos" ? "Nenhum chamado concluído ainda." : meus?.length ? "Nenhum chamado seu na esteira: os resolvidos e recusados estão em Concluídos." : "Você ainda não abriu nenhum chamado."}
               {aba === "meus" && <button type="button" onClick={() => setAba("novo")} className="ml-1 font-bold text-blue-600 hover:underline">Abrir um chamado</button>}
             </div>
           ) : (
@@ -389,8 +402,8 @@ export default function Sac() {
                 </button>
               </div>
               {lista.map(c => (
-                <CartaoChamado key={`${c.id}-${c.dhAtualizacao}`} c={c} admin={aba === "todos"} onAtualizar={atualizar} onExcluir={excluir} onAbrirImagem={setAmpliada}
-                  selecionado={selecionados.has(c.id)} novo={aba === "meus" && novosVistos.has(c.id)} destaque={aba === "meus" && c.id === doAviso}
+                <CartaoChamado key={`${c.id}-${c.dhAtualizacao}`} c={c} admin={aba === "todos" || (aba === "concluidos" && admin)} onAtualizar={atualizar} onExcluir={excluir} onAbrirImagem={setAmpliada}
+                  selecionado={selecionados.has(c.id)} novo={aba !== "todos" && novosVistos.has(c.id)} destaque={aba !== "todos" && c.id === doAviso}
                   onSelecionar={sim => setSelecionados(atual => { const n = new Set(atual); if (sim) n.add(c.id); else n.delete(c.id); return n; })} />
               ))}
             </>

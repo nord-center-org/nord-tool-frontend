@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-16-sac-concluidos",
+    data: "2026-11-16",
+    titulo: "SAC: aba Concluídos e print com o menu",
+    texto: "Os chamados resolvidos ou recusados saem da esteira e ficam na nova aba \u201cConcluídos\u201d. E o \u201cTirar print de uma tela\u201d agora pega o menu lateral também, do jeito que está na tela.",
+    onde: { rotulo: "SAC", caminho: "/sac" },
+  },
+  {
     id: "2026-11-14-repertorio-linha-do-tempo",
     data: "2026-11-14",
     titulo: "Repertório: linha do tempo dos acordes",
