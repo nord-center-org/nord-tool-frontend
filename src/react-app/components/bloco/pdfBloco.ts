@@ -130,18 +130,7 @@ export async function exportarPdf(paginas: PaginaBloco[], itensDe: ItensDaPagina
       continue;
     }
     // As outras: imagem da página. Com PDF original (girada), desenhada dele em alta resolução.
-    const escala = p.idPdf ? Math.min(3, 6000 / Math.max(p.nrLargura, p.nrAltura)) : Math.min(2, 3000 / Math.max(p.nrLargura, p.nrAltura));
-    const canvas = document.createElement("canvas");
-    let fundo: CanvasImageSource | null = null;
-    if (p.idPdf && p.nrPaginaPdf) {
-      const c = document.createElement("canvas");
-      if (await desenharPaginaPdf(c, p.idPdf, p.nrPaginaPdf, giro, p.nrLargura, { x: 0, y: 0, w: p.nrLargura, h: p.nrAltura, escala })) fundo = c;
-    }
-    if (!fundo && p.inFundo) fundo = await fundoDaPagina(p.id);
-    canvas.width = Math.round(p.nrLargura * escala);
-    canvas.height = Math.round(p.nrAltura * escala);
-    // O fundo vindo do PDF já está girado pelo pdf.js.
-    desenharPagina(canvas.getContext("2d")!, escala, p.idPdf && fundo ? { ...p, nrRotacao: 0 } : p, itens, imagens, fundo);
+    const canvas = await desenharImagemDaPagina(p, itens, imagens);
     const imagem = await pdf.embedJpg(new Uint8Array(await (await jpeg(canvas, 0.92)).arrayBuffer()));
     // px a 96 dpi → pontos a 72 dpi
     const pagina = pdf.addPage([p.nrLargura * 0.75, p.nrAltura * 0.75]);
@@ -151,6 +140,41 @@ export async function exportarPdf(paginas: PaginaBloco[], itensDe: ItensDaPagina
   pdf.setTitle("Bloco de notas");
   pdf.setProducer("NordTool");
   return pdf.save();
+}
+
+/**
+ * A página inteira numa imagem (papel ou PDF e o desenho por cima), em alta resolução: a página de PDF é desenhada
+ * do original. Serve para o PDF exportado e (v7) para editar a página no editor de imagens.
+ */
+async function desenharImagemDaPagina(p: PaginaBloco, itens: Item[], imagens: Map<number, CanvasImageSource>): Promise<HTMLCanvasElement> {
+  const giro = p.nrRotacao ?? 0;
+  const escala = p.idPdf ? Math.min(3, 6000 / Math.max(p.nrLargura, p.nrAltura)) : Math.min(2, 3000 / Math.max(p.nrLargura, p.nrAltura));
+  const canvas = document.createElement("canvas");
+  let fundo: CanvasImageSource | null = null;
+  if (p.idPdf && p.nrPaginaPdf) {
+    const c = document.createElement("canvas");
+    if (await desenharPaginaPdf(c, p.idPdf, p.nrPaginaPdf, giro, p.nrLargura, { x: 0, y: 0, w: p.nrLargura, h: p.nrAltura, escala })) fundo = c;
+  }
+  if (!fundo && p.inFundo) fundo = await fundoDaPagina(p.id);
+  canvas.width = Math.round(p.nrLargura * escala);
+  canvas.height = Math.round(p.nrAltura * escala);
+  // O fundo vindo do PDF já está girado pelo pdf.js.
+  desenharPagina(canvas.getContext("2d")!, escala, p.idPdf && fundo ? { ...p, nrRotacao: 0 } : p, itens, imagens, fundo);
+  return canvas;
+}
+
+/** v7: a página (com o desenho) como imagem — JPEG para o editor de imagens; JPEG ou PNG para baixar. */
+export async function imagemDaPagina(p: PaginaBloco, itens: Item[], formato: "jpg" | "png" = "jpg"): Promise<Blob> {
+  const imagens = new Map<number, CanvasImageSource>();
+  for (const i of itens) {
+    if (i.t === "im" && !imagens.has(i.img)) {
+      const bmp = await imagemDoBloco(i.img);
+      if (bmp) imagens.set(i.img, bmp);
+    }
+  }
+  const canvas = await desenharImagemDaPagina(p, itens, imagens);
+  if (formato === "png") return new Promise<Blob>((ok, falha) => canvas.toBlob(b => (b ? ok(b) : falha(new Error("Não foi possível gerar a imagem da página."))), "image/png"));
+  return jpeg(canvas, 0.92);
 }
 
 /** Itens salvos de uma página (para exportar as que não foram abertas na tela). */

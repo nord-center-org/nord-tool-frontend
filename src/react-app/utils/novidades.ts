@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-16-caderno-v7",
+    data: "2026-11-16",
+    titulo: "Caderno: editar a página, barra onde quiser e baixar páginas",
+    texto: "No caderno, o botão de editar abre a página (ou a página do PDF) no editor de imagens e ela volta editada. A barra de lápis, canetas e formas pode ficar em cima, nas laterais ou flutuante. E no painel de páginas dá para marcar só as que quer e baixar em PDF, JPEG ou PNG.",
+    onde: { rotulo: "Mapeamentos → Bloco de notas", caminho: "/mapeamentos/bloco-notas" },
+  },
+  {
     id: "2026-11-16-caderno-pinca-zoom",
     data: "2026-11-16",
     titulo: "Caderno: pinça no tablet e zoom no ponto",

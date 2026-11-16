@@ -1,20 +1,23 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowDown, ArrowLeft, ArrowUp, Circle, Copy, Eraser, FileDown, FileUp, Hand, Highlighter, ImagePlus, Lasso, Loader2, Minus,
-  MoveUpRight, PenLine, PenTool, Plus, Redo2, Square, Trash2, Type, Undo2, X, ZoomIn, ZoomOut, Layers, CheckCircle2, AlertTriangle,
+  MoveUpRight, PenLine, PenTool, Plus, Redo2, Square, Trash2, Type, Undo2, X, ZoomIn, ZoomOut, Layers, CheckCircle2, SquarePen, GripHorizontal, Download, PanelTop, PanelLeft, PanelRight, Move, AlertTriangle,
   RotateCw, RotateCcw, FileText, Columns2, NotebookPen,
 } from "lucide-react";
 import DocumentoCaderno, { type ExibicaoDocumento } from "@/react-app/components/bloco/DocumentoCaderno";
 import { useGestosToque } from "@/react-app/components/bloco/useGestosToque";
+import EditorImagemTelaCheia from "@/react-app/components/imagem/EditorImagemTelaCheia";
+import { baixarArquivo } from "@/react-app/utils/baixarArquivo";
+
 
 import PaginaVista, { type ConfigFerramenta, type Ferramenta } from "@/react-app/components/bloco/PaginaVista";
 import { guardarImagem } from "@/react-app/components/bloco/imagensBloco";
 import { ACEITA_ARQUIVOS, importarArquivo } from "@/react-app/components/bloco/arquivosBloco";
-import { exportarPdf, itensSalvos } from "@/react-app/components/bloco/pdfBloco";
+import { exportarPdf, imagemDaPagina, itensSalvos } from "@/react-app/components/bloco/pdfBloco";
 import { ApiError } from "@/react-app/services/apiClient";
 import { blocoNotasService as servico, type Caderno, type PaginaBloco } from "@/react-app/services/BlocoNotasService";
 import {
-  CORES, CORES_MARCA, ESPESSURAS, ROTULO_FUNDO, compactar, girarItens, tipoDoArquivo, lerConteudo, nomeArquivoCaderno, novoId, proximoGiro, registrar,
+  CORES, CORES_MARCA, ESPESSURAS, ROTULO_FUNDO, compactar, girarItens, tipoDoArquivo, lerConteudo, nomeArquivoCaderno, nomeArquivoPaginas, novoId, proximoGiro, registrar,
   type Fundo, type Item, type Passo, type TipoForma,
   correcaoDaRolagem, deslocamentoLateral, limitarZoom, zoomDaRoda,
 } from "@/react-app/utils/blocoNotas";
@@ -55,6 +58,46 @@ const FERRAMENTAS: Array<{ id: Ferramenta; rotulo: string; Icone: typeof PenLine
   { id: "laco", rotulo: "Laço (selecionar)", Icone: Lasso },
   { id: "mao", rotulo: "Mão (rolar)", Icone: Hand },
 ];
+/** v7: onde fica a barra de ferramentas do desenho. */
+type PosicaoBarra = "cima" | "esquerda" | "direita" | "flutuante";
+const POSICOES_BARRA: Array<{ id: PosicaoBarra; rotulo: string; Icone: typeof Minus }> = [
+  { id: "cima", rotulo: "em cima", Icone: PanelTop },
+  { id: "esquerda", rotulo: "na lateral esquerda", Icone: PanelLeft },
+  { id: "direita", rotulo: "na lateral direita", Icone: PanelRight },
+  { id: "flutuante", rotulo: "flutuante (arraste para onde quiser)", Icone: Move },
+];
+const CHAVE_BARRA = "@NordTool:caderno-barra";
+function lerBarra(): { pos: PosicaoBarra; x: number; y: number } {
+  try {
+    const v = JSON.parse(localStorage.getItem(CHAVE_BARRA) ?? "null") as { pos?: string; x?: number; y?: number } | null;
+    const pos = POSICOES_BARRA.some(p => p.id === v?.pos) ? (v!.pos as PosicaoBarra) : "cima";
+    return { pos, x: Number.isFinite(v?.x) ? v!.x! : 16, y: Number.isFinite(v?.y) ? v!.y! : 16 };
+  } catch {
+    return { pos: "cima", x: 16, y: 16 };
+  }
+}
+function classesDaBarra(pos: PosicaoBarra) {
+  if (pos === "esquerda" || pos === "direita") {
+    return {
+      fora: `flex w-16 shrink-0 flex-col overflow-y-auto overscroll-contain bg-white ${pos === "esquerda" ? "border-r" : "border-l"} border-slate-200`,
+      ferramentas: "flex flex-col items-center gap-1 p-1.5",
+      opcoes: "flex flex-col items-center gap-1.5 border-t border-slate-100 px-1 py-2",
+    };
+  }
+  if (pos === "flutuante") {
+    return {
+      fora: "absolute z-30 w-max max-w-[calc(100%-1rem)] rounded-2xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur",
+      ferramentas: "flex flex-wrap items-center gap-1 px-2 pb-1",
+      opcoes: "flex flex-wrap items-center gap-2 px-3 pb-2",
+    };
+  }
+  return {
+    fora: "border-b border-slate-200 bg-white",
+    ferramentas: "flex items-center gap-1 overflow-x-auto px-2 py-1.5",
+    opcoes: "flex items-center gap-2 overflow-x-auto px-3 pb-2",
+  };
+}
+
 const FORMAS: Array<{ id: TipoForma; rotulo: string; Icone: typeof Minus }> = [
   { id: "linha", rotulo: "Linha", Icone: Minus },
   { id: "seta", rotulo: "Seta", Icone: MoveUpRight },
@@ -85,6 +128,28 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
   const [refazer, setRefazer] = useState<Passo[]>([]);
   const [selecao, setSelecao] = useState<{ pagina: number; ids: Set<string> } | null>(null);
   const [fator, setFator] = useState(1);
+  // v7: posição da barra de ferramentas (em cima, laterais ou flutuante), guardada no aparelho
+  const [barra, setBarra] = useState(lerBarra);
+  const posBarra = barra.pos, posFlutuante = barra;
+  const areaRef = useRef<HTMLDivElement>(null);
+  const guardarBarra = (b: typeof barra) => { setBarra(b); try { localStorage.setItem(CHAVE_BARRA, JSON.stringify(b)); } catch { /* fica só nesta visita */ } };
+  const mudarPosBarra = (pos: PosicaoBarra) => guardarBarra({ ...barra, pos });
+  /** Arrastar a barra flutuante pela alça (sem sair da área do caderno). */
+  const arrastarBarra = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const area = areaRef.current, caixa = e.currentTarget.parentElement;
+    if (!area || !caixa) return;
+    const x0 = e.clientX - barra.x, y0 = e.clientY - barra.y;
+    let atual = barra;
+    const mover = (ev: PointerEvent) => {
+      const maxX = Math.max(0, area.clientWidth - caixa.offsetWidth), maxY = Math.max(0, area.clientHeight - caixa.offsetHeight);
+      atual = { ...barra, x: Math.max(0, Math.min(maxX, ev.clientX - x0)), y: Math.max(0, Math.min(maxY, ev.clientY - y0)) };
+      setBarra(atual);
+    };
+    const soltar = () => { window.removeEventListener("pointermove", mover); window.removeEventListener("pointerup", soltar); guardarBarra(atual); };
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", soltar);
+  };
   /** Correção: quanto a folha (mais estreita que a tela) anda para o lado, para o zoom ficar no ponto do mouse. */
   const [desloc, setDesloc] = useState(0);
   // correção: o texto tem o zoom dele (1 = a folha cabe na largura); no modo Texto os botões de zoom mexem nele
@@ -372,6 +437,51 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
     }
   };
 
+  // ---------- v7: editar a página no editor de imagens ----------
+
+  const [editandoPagina, setEditandoPagina] = useState<{ id: number; numero: number; imagem: Blob } | null>(null);
+  /** A página (papel ou PDF, com o desenho) vira uma imagem e abre no editor de imagens. */
+  const editarPagina = async (idPagina: number | null) => {
+    if (idPagina === null) return;
+    const meta = paginas.find(p => p.id === idPagina);
+    if (!meta) return;
+    setOcupado("editar");
+    setAviso("Preparando a página para editar…");
+    try {
+      const itens = estadoRef.current[idPagina]?.itens ?? await itensSalvos(idPagina);
+      setEditandoPagina({ id: idPagina, numero: posicaoDe(idPagina), imagem: await imagemDaPagina(meta, itens) });
+      setAviso(null);
+    } catch (e) {
+      setAviso(null);
+      setErro(mensagem(e, "Não foi possível abrir a página no editor de imagens."));
+    } finally {
+      setOcupado(null);
+    }
+  };
+  /** Salvar no editor: a imagem editada entra no lugar da página (o desenho já vai dentro dela). */
+  const salvarPaginaEditada = async (imagem: Blob): Promise<string | null> => {
+    const ed = editandoPagina;
+    const meta = ed && paginas.find(p => p.id === ed.id);
+    if (!ed || !meta) return "A página não está mais no caderno.";
+    try {
+      const bmp = await createImageBitmap(imagem);
+      const largura = meta.nrLargura, altura = Math.max(1, Math.round((largura * bmp.height) / Math.max(1, bmp.width)));
+      bmp.close();
+      const nova = await servico.paginaDePdf(id, imagem, largura, altura, posicaoDe(ed.id));
+      await servico.excluirPagina(ed.id);
+      setEstado(e => { const n = { ...e }; delete n[ed.id]; return n; });
+      setDesfazer(d => d.filter(p => p.pagina !== ed.id));
+      setRefazer(d => d.filter(p => p.pagina !== ed.id));
+      await carregar();
+      setEditandoPagina(null);
+      setAviso(`Página ${ed.numero} editada.`);
+      setTimeout(() => irPara(nova.id), 200);
+      return null;
+    } catch (e) {
+      return mensagem(e, "Não foi possível guardar a página editada.");
+    }
+  };
+
   const moverPagina = async (idPagina: number, delta: number) => {
     const ids = paginas.map(p => p.id);
     const de = ids.indexOf(idPagina), para = de + delta;
@@ -416,6 +526,47 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
     } catch (e) {
       setAviso(null);
       setErro(mensagem(e, "Não foi possível inserir o arquivo."));
+    } finally {
+      setOcupado(null);
+    }
+  };
+
+  // ---------- v7: baixar só as páginas marcadas, em PDF, JPEG ou PNG ----------
+
+  const [marcadas, setMarcadas] = useState<Set<number>>(() => new Set());
+  const [formatoBaixar, setFormatoBaixar] = useState<"pdf" | "jpg" | "png">("pdf");
+  const baixarMarcadas = async () => {
+    if (!caderno) return;
+    const escolhidas = paginas.filter(p => marcadas.has(p.id));
+    if (!escolhidas.length) return;
+    const numeros = escolhidas.map(p => posicaoDe(p.id));
+    const itensDe = async (p: PaginaBloco) => estadoRef.current[p.id]?.itens ?? itensSalvos(p.id);
+    setOcupado("baixar");
+    try {
+      await Promise.all(pendentes.map(p => salvarPagina(p)));
+      if (formatoBaixar === "pdf") {
+        const bytes = await exportarPdf(escolhidas, itensDe, (feitas, total) => setAviso(`Gerando o PDF: página ${feitas} de ${total}…`));
+        baixarArquivo(new File([bytes as BlobPart], nomeArquivoPaginas(caderno.nmTitulo, numeros, "pdf"), { type: "application/pdf" }));
+      } else {
+        const tipo = formatoBaixar === "png" ? "image/png" : "image/jpeg";
+        const imagens: Blob[] = [];
+        for (const [k, p] of escolhidas.entries()) {
+          setAviso(`Gerando a imagem: página ${k + 1} de ${escolhidas.length}…`);
+          imagens.push(await imagemDaPagina(p, await itensDe(p), formatoBaixar));
+        }
+        if (imagens.length === 1) baixarArquivo(new File([imagens[0]], nomeArquivoPaginas(caderno.nmTitulo, numeros, formatoBaixar), { type: tipo }));
+        else {
+          // várias imagens: um .zip, uma por página
+          const { default: JSZip } = await import("jszip");
+          const zip = new JSZip();
+          imagens.forEach((img, k) => zip.file(nomeArquivoPaginas(caderno.nmTitulo, [numeros[k]], formatoBaixar), img));
+          baixarArquivo(new File([await zip.generateAsync({ type: "blob" })], nomeArquivoPaginas(caderno.nmTitulo, numeros, "zip"), { type: "application/zip" }));
+        }
+      }
+      setAviso(escolhidas.length === 1 ? "Página baixada." : `${escolhidas.length} páginas baixadas.`);
+    } catch (e) {
+      setAviso(null);
+      setErro(mensagem(e, "Não foi possível baixar as páginas."));
     } finally {
       setOcupado(null);
     }
@@ -481,6 +632,105 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
     `inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${ativo ? "bg-blue-600 text-white shadow" : "text-slate-600 hover:bg-slate-100"}`;
   const numeroAtual = Math.max(1, posicaoDe(atual));
 
+  // v7: a barra de ferramentas em cima, numa das laterais ou flutuante (arrastável); a escolha fica no aparelho
+  const vertical = posBarra === "esquerda" || posBarra === "direita";
+  const classeBarra = classesDaBarra(posBarra);
+  const barraFerramentas = (orient: PosicaoBarra) => (
+      <div className={classeBarra.fora} style={orient === "flutuante" ? { left: posFlutuante.x, top: posFlutuante.y } : undefined} aria-label="Barra de ferramentas">
+        {orient === "flutuante" && (
+          <button type="button" onPointerDown={arrastarBarra} aria-label="Arrastar a barra" title="Arraste para mudar a barra de lugar" className="flex w-full cursor-grab items-center justify-center rounded-t-2xl py-0.5 text-slate-400 hover:bg-slate-50 active:cursor-grabbing" style={{ touchAction: "none" }}><GripHorizontal className="h-4 w-4" /></button>
+        )}
+        <div className={classeBarra.ferramentas} role="toolbar" aria-label="Ferramentas" aria-orientation={orient === "esquerda" || orient === "direita" ? "vertical" : "horizontal"}>
+          {FERRAMENTAS.map(({ id: fid, rotulo, Icone }) => (
+            <button key={fid} type="button" onClick={() => { mudar({ ferramenta: f === fid ? "nenhuma" : fid }); if (fid !== "laco") setSelecao(null); }} aria-pressed={f === fid} title={f === fid ? `${rotulo} (toque de novo para soltar)` : rotulo} aria-label={rotulo} className={botaoFerramenta(f === fid)}>
+              <Icone className="h-5 w-5" />
+            </button>
+          ))}
+          <button type="button" onClick={() => arquivoImagem.current?.click()} disabled={ocupado !== null} title="Inserir imagem" aria-label="Inserir imagem" className={botaoFerramenta(false)}>
+            {ocupado === "imagem" ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+          </button>
+          {/* v6: PDF (ou outro arquivo) direto da barra, sem abrir o painel de páginas; entra depois da página atual. */}
+          <button type="button" onClick={() => arquivoPdf.current?.click()} disabled={ocupado !== null} title="Inserir PDF ou arquivo depois da página atual" aria-label="Inserir PDF" className={botaoFerramenta(false)}>
+            {ocupado === "pdf" ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileUp className="h-5 w-5" />}
+          </button>
+          <span className="mx-1 h-6 w-px shrink-0 bg-slate-200" />
+          <button type="button" onClick={() => mudar({ soCaneta: !config.soCaneta })} aria-pressed={config.soCaneta}
+            title="Só a caneta (stylus) desenha; o dedo rola a página" className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold ${config.soCaneta ? "bg-violet-100 text-violet-700" : "text-slate-600 hover:bg-slate-100"}`}>
+            <PenTool className="h-4 w-4" /> <span className={vertical ? "sr-only" : ""}>Só caneta</span>
+          </button>
+          <span className={vertical ? "my-1 h-px w-6 shrink-0 bg-slate-200" : "mx-1 h-6 w-px shrink-0 bg-slate-200"} />
+          <div className={vertical ? "flex flex-col gap-0.5" : "flex gap-0.5"} role="radiogroup" aria-label="Posição da barra">
+            {POSICOES_BARRA.map(({ id: pos, rotulo, Icone }) => (
+              <button key={pos} type="button" role="radio" aria-checked={posBarra === pos} onClick={() => mudarPosBarra(pos)} title={`Barra ${rotulo}`} aria-label={`Barra ${rotulo}`}
+                className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${posBarra === pos ? "bg-slate-800 text-white" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"}`}>
+                <Icone className="h-3.5 w-3.5" />
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className={classeBarra.opcoes} aria-label="Opções da ferramenta">
+          {(f === "caneta" || f === "forma" || f === "texto") && CORES.map(c => (
+            <button key={c} type="button" onClick={() => mudar({ cor: c })} aria-label={`Cor ${c}`} aria-pressed={config.cor === c}
+              className={`h-7 w-7 shrink-0 rounded-full border ${config.cor === c ? "ring-2 ring-blue-500 ring-offset-2" : "border-slate-300"}`} style={{ background: c }} />
+          ))}
+          {f === "marca" && CORES_MARCA.map(c => (
+            <button key={c} type="button" onClick={() => mudar({ corMarca: c })} aria-label={`Cor ${c}`} aria-pressed={config.corMarca === c}
+              className={`h-7 w-7 shrink-0 rounded-full border ${config.corMarca === c ? "ring-2 ring-blue-500 ring-offset-2" : "border-slate-300"}`} style={{ background: c }} />
+          ))}
+          {(f === "caneta" || f === "forma") && (
+            <>
+              <span className={vertical ? "my-1 h-px w-6 shrink-0 bg-slate-200" : "mx-1 h-6 w-px shrink-0 bg-slate-200"} />
+              {ESPESSURAS.map(w => (
+                <button key={w} type="button" onClick={() => mudar({ espessura: w })} aria-label={`Espessura ${w}`} aria-pressed={config.espessura === w}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${config.espessura === w ? "bg-blue-50 ring-1 ring-blue-300" : "hover:bg-slate-100"}`}>
+                  <span className="rounded-full bg-slate-800" style={{ width: Math.min(18, w + 2), height: Math.min(18, w + 2) }} />
+                </button>
+              ))}
+            </>
+          )}
+          {f === "marca" && (
+            <select aria-label="Largura do marca-texto" value={config.espessuraMarca} onChange={e => mudar({ espessuraMarca: Number(e.target.value) })} className={`rounded-lg border border-slate-200 py-1 text-xs ${vertical ? "w-12 px-0.5 text-[10px]" : "px-2"}`}>
+              {[10, 16, 24, 32].map(w => <option key={w} value={w}>{w}px</option>)}
+            </select>
+          )}
+          {f === "forma" && (
+            <>
+              <span className={vertical ? "my-1 h-px w-6 shrink-0 bg-slate-200" : "mx-1 h-6 w-px shrink-0 bg-slate-200"} />
+              {FORMAS.map(({ id: fo, rotulo, Icone }) => (
+                <button key={fo} type="button" onClick={() => mudar({ forma: fo })} aria-pressed={config.forma === fo} title={rotulo} aria-label={rotulo}
+                  className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${config.forma === fo ? "bg-blue-50 text-blue-700 ring-1 ring-blue-300" : "text-slate-600 hover:bg-slate-100"}`}>
+                  <Icone className="h-4 w-4" />
+                </button>
+              ))}
+              {!vertical && <span className="shrink-0 text-[11px] text-slate-400">Shift: reto</span>}
+            </>
+          )}
+          {f === "borracha" && (
+            <>
+              {(["traco", "parcial"] as const).map(m => (
+                <button key={m} type="button" onClick={() => mudar({ borracha: m })} aria-pressed={config.borracha === m}
+                  title={m === "traco" ? (vertical ? "Traço" : "Apagar traço inteiro") : (vertical ? "Parte" : "Apagar parte")} className={`shrink-0 rounded-lg py-1.5 text-xs font-bold ${vertical ? "w-12 px-0.5 text-[10px] leading-tight" : "px-2.5"} ${config.borracha === m ? "bg-blue-50 text-blue-700 ring-1 ring-blue-300" : "text-slate-600 hover:bg-slate-100"}`}>
+                  {m === "traco" ? (vertical ? "Traço" : "Apagar traço inteiro") : (vertical ? "Parte" : "Apagar parte")}
+                </button>
+              ))}
+              <select aria-label="Tamanho da borracha" value={config.raioBorracha} onChange={e => mudar({ raioBorracha: Number(e.target.value) })} className={`rounded-lg border border-slate-200 py-1 text-xs ${vertical ? "w-12 px-0.5 text-[10px]" : "px-2"}`}>
+                {[5, 10, 20, 40].map(r => <option key={r} value={r}>{r * 2}px</option>)}
+              </select>
+            </>
+          )}
+          {f === "texto" && (
+            <select aria-label="Tamanho do texto" value={config.tamanhoTexto} onChange={e => mudar({ tamanhoTexto: Number(e.target.value) })} className={`rounded-lg border border-slate-200 py-1 text-xs ${vertical ? "w-12 px-0.5 text-[10px]" : "px-2"}`}>
+              {[14, 18, 20, 24, 32, 48].map(s => <option key={s} value={s}>{s}px</option>)}
+            </select>
+          )}
+          {f === "laco" && !vertical && <span className="shrink-0 text-xs text-slate-500">Circule para selecionar; arraste para mover e puxe a bolinha para redimensionar.</span>}
+          {f === "mao" && !vertical && <span className="shrink-0 text-xs text-slate-500">Arraste para rolar (ou arraste com a rodinha apertada, em qualquer ferramenta).</span>}
+          {f === "nenhuma" && !vertical && <span className="shrink-0 text-xs text-slate-500">Lápis solto: nada é desenhado. Toque numa ferramenta para voltar a escrever.</span>}
+        </div>
+      </div>
+
+  );
+
   return (
     <div className="flex h-[calc(100dvh-5.5rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:h-[calc(100dvh-4rem)]">
       {/* Barra de cima: voltar, desfazer, zoom, páginas e PDF. */}
@@ -510,6 +760,8 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
           <button type="button" onClick={() => { if (modo === "texto") setZoomTexto(1); else { setFator(1); setDesloc(0); } }} title="Caber na largura" className="w-12 rounded-lg py-1 text-xs font-bold text-slate-600 hover:bg-slate-100">{Math.round((modo === "texto" ? zoomTexto : zoom) * 100)}%</button>
           <button type="button" onClick={() => (modo === "texto" ? mudarZoomTexto(zoomTexto * 1.25) : zoomPara(zoom * 1.25))} title="Aumentar" aria-label="Aumentar zoom" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><ZoomIn className="h-4 w-4" /></button>
           <button type="button" onClick={() => void girarPagina(atual)} disabled={modo === "texto"} title="Girar a página atual 90°" aria-label="Girar página" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30"><RotateCw className="h-4 w-4" /></button>
+          <button type="button" onClick={() => void editarPagina(atual)} disabled={modo === "texto" || ocupado !== null} title="Editar a página atual no editor de imagens" aria-label="Editar página" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30">
+            {ocupado === "editar" ? <Loader2 className="h-4 w-4 animate-spin" /> : <SquarePen className="h-4 w-4" />}</button>
           <button type="button" onClick={() => setPainel(p => !p)} aria-expanded={painel} title="Páginas" className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100">
             <Layers className="h-4 w-4" /> {numeroAtual}/{paginas.length}
           </button>
@@ -519,90 +771,7 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
         </div>
       </div>
 
-      {modo !== "texto" && (<>
-      {/* Ferramentas e as opções da escolhida. */}
-      <div className="border-b border-slate-200 bg-white">
-        <div className="flex items-center gap-1 overflow-x-auto px-2 py-1.5" role="toolbar" aria-label="Ferramentas">
-          {FERRAMENTAS.map(({ id: fid, rotulo, Icone }) => (
-            <button key={fid} type="button" onClick={() => { mudar({ ferramenta: f === fid ? "nenhuma" : fid }); if (fid !== "laco") setSelecao(null); }} aria-pressed={f === fid} title={f === fid ? `${rotulo} (toque de novo para soltar)` : rotulo} aria-label={rotulo} className={botaoFerramenta(f === fid)}>
-              <Icone className="h-5 w-5" />
-            </button>
-          ))}
-          <button type="button" onClick={() => arquivoImagem.current?.click()} disabled={ocupado !== null} title="Inserir imagem" aria-label="Inserir imagem" className={botaoFerramenta(false)}>
-            {ocupado === "imagem" ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-          </button>
-          {/* v6: PDF (ou outro arquivo) direto da barra, sem abrir o painel de páginas; entra depois da página atual. */}
-          <button type="button" onClick={() => arquivoPdf.current?.click()} disabled={ocupado !== null} title="Inserir PDF ou arquivo depois da página atual" aria-label="Inserir PDF" className={botaoFerramenta(false)}>
-            {ocupado === "pdf" ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileUp className="h-5 w-5" />}
-          </button>
-          <span className="mx-1 h-6 w-px shrink-0 bg-slate-200" />
-          <button type="button" onClick={() => mudar({ soCaneta: !config.soCaneta })} aria-pressed={config.soCaneta}
-            title="Só a caneta (stylus) desenha; o dedo rola a página" className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold ${config.soCaneta ? "bg-violet-100 text-violet-700" : "text-slate-600 hover:bg-slate-100"}`}>
-            <PenTool className="h-4 w-4" /> Só caneta
-          </button>
-        </div>
-        <div className="flex items-center gap-2 overflow-x-auto px-3 pb-2" aria-label="Opções da ferramenta">
-          {(f === "caneta" || f === "forma" || f === "texto") && CORES.map(c => (
-            <button key={c} type="button" onClick={() => mudar({ cor: c })} aria-label={`Cor ${c}`} aria-pressed={config.cor === c}
-              className={`h-7 w-7 shrink-0 rounded-full border ${config.cor === c ? "ring-2 ring-blue-500 ring-offset-2" : "border-slate-300"}`} style={{ background: c }} />
-          ))}
-          {f === "marca" && CORES_MARCA.map(c => (
-            <button key={c} type="button" onClick={() => mudar({ corMarca: c })} aria-label={`Cor ${c}`} aria-pressed={config.corMarca === c}
-              className={`h-7 w-7 shrink-0 rounded-full border ${config.corMarca === c ? "ring-2 ring-blue-500 ring-offset-2" : "border-slate-300"}`} style={{ background: c }} />
-          ))}
-          {(f === "caneta" || f === "forma") && (
-            <>
-              <span className="mx-1 h-6 w-px shrink-0 bg-slate-200" />
-              {ESPESSURAS.map(w => (
-                <button key={w} type="button" onClick={() => mudar({ espessura: w })} aria-label={`Espessura ${w}`} aria-pressed={config.espessura === w}
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${config.espessura === w ? "bg-blue-50 ring-1 ring-blue-300" : "hover:bg-slate-100"}`}>
-                  <span className="rounded-full bg-slate-800" style={{ width: Math.min(18, w + 2), height: Math.min(18, w + 2) }} />
-                </button>
-              ))}
-            </>
-          )}
-          {f === "marca" && (
-            <select aria-label="Largura do marca-texto" value={config.espessuraMarca} onChange={e => mudar({ espessuraMarca: Number(e.target.value) })} className="rounded-lg border border-slate-200 px-2 py-1 text-xs">
-              {[10, 16, 24, 32].map(w => <option key={w} value={w}>{w}px</option>)}
-            </select>
-          )}
-          {f === "forma" && (
-            <>
-              <span className="mx-1 h-6 w-px shrink-0 bg-slate-200" />
-              {FORMAS.map(({ id: fo, rotulo, Icone }) => (
-                <button key={fo} type="button" onClick={() => mudar({ forma: fo })} aria-pressed={config.forma === fo} title={rotulo} aria-label={rotulo}
-                  className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${config.forma === fo ? "bg-blue-50 text-blue-700 ring-1 ring-blue-300" : "text-slate-600 hover:bg-slate-100"}`}>
-                  <Icone className="h-4 w-4" />
-                </button>
-              ))}
-              <span className="shrink-0 text-[11px] text-slate-400">Shift: reto</span>
-            </>
-          )}
-          {f === "borracha" && (
-            <>
-              {(["traco", "parcial"] as const).map(m => (
-                <button key={m} type="button" onClick={() => mudar({ borracha: m })} aria-pressed={config.borracha === m}
-                  className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-bold ${config.borracha === m ? "bg-blue-50 text-blue-700 ring-1 ring-blue-300" : "text-slate-600 hover:bg-slate-100"}`}>
-                  {m === "traco" ? "Apagar traço inteiro" : "Apagar parte"}
-                </button>
-              ))}
-              <select aria-label="Tamanho da borracha" value={config.raioBorracha} onChange={e => mudar({ raioBorracha: Number(e.target.value) })} className="rounded-lg border border-slate-200 px-2 py-1 text-xs">
-                {[5, 10, 20, 40].map(r => <option key={r} value={r}>{r * 2}px</option>)}
-              </select>
-            </>
-          )}
-          {f === "texto" && (
-            <select aria-label="Tamanho do texto" value={config.tamanhoTexto} onChange={e => mudar({ tamanhoTexto: Number(e.target.value) })} className="rounded-lg border border-slate-200 px-2 py-1 text-xs">
-              {[14, 18, 20, 24, 32, 48].map(s => <option key={s} value={s}>{s}px</option>)}
-            </select>
-          )}
-          {f === "laco" && <span className="shrink-0 text-xs text-slate-500">Circule para selecionar; arraste para mover e puxe a bolinha para redimensionar.</span>}
-          {f === "mao" && <span className="shrink-0 text-xs text-slate-500">Arraste para rolar (ou arraste com a rodinha apertada, em qualquer ferramenta).</span>}
-          {f === "nenhuma" && <span className="shrink-0 text-xs text-slate-500">Lápis solto: nada é desenhado. Toque numa ferramenta para voltar a escrever.</span>}
-        </div>
-      </div>
-
-      </>)}
+      {modo !== "texto" && posBarra === "cima" && barraFerramentas("cima")}
 
       {(erro || aviso || conflito) && (
         <div className="space-y-1 px-3 pt-2">
@@ -617,7 +786,9 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
         </div>
       )}
 
-      <div className={`relative flex min-h-0 flex-1 ${modo === "lado" ? "flex-col md:flex-row" : ""}`}>
+      <div ref={areaRef} className="relative flex min-h-0 flex-1">
+      {modo !== "texto" && posBarra === "esquerda" && barraFerramentas("esquerda")}
+      <div className={`relative flex min-h-0 min-w-0 flex-1 ${modo === "lado" ? "flex-col md:flex-row" : ""}`}>
         {modo !== "desenho" && (
           <div className={`min-h-0 min-w-0 flex-1 ${modo === "lado" ? "border-b border-slate-300 md:border-b-0 md:border-r" : ""}`}>
             <DocumentoCaderno idCaderno={id} exibicao={exibicao} onExibicao={setExibicao} onHtml={guardarHtml} zoom={zoomTexto} onZoom={mudarZoomTexto} />
@@ -675,15 +846,35 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
                 {ocupado === "pdf" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileUp className="h-3.5 w-3.5" />} Inserir arquivo
               </button>
             </div>
+            <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 px-3 py-2" role="group" aria-label="Baixar páginas">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                <input type="checkbox" className="h-4 w-4 accent-blue-600" checked={paginas.length > 0 && marcadas.size === paginas.length}
+                  onChange={e => setMarcadas(e.target.checked ? new Set(paginas.map(p => p.id)) : new Set())} aria-label="Marcar todas as páginas" />
+                Todas
+              </label>
+              <select aria-label="Formato para baixar" value={formatoBaixar} onChange={e => setFormatoBaixar(e.target.value as "pdf" | "jpg" | "png")}
+                className="ml-auto rounded-lg border border-slate-200 px-1.5 py-1 text-xs font-bold text-slate-700">
+                <option value="pdf">PDF</option>
+                <option value="jpg">JPEG</option>
+                <option value="png">PNG</option>
+              </select>
+              <button type="button" onClick={() => void baixarMarcadas()} disabled={!marcadas.size || ocupado !== null}
+                className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-slate-700 disabled:opacity-40">
+                {ocupado === "baixar" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Baixar{marcadas.size ? ` (${marcadas.size})` : ""}
+              </button>
+            </div>
             <ol className="flex-1 space-y-1 overflow-y-auto p-2">
               {paginas.map((p, n) => (
                 <li key={p.id} className={`rounded-xl border p-2 ${p.id === atual ? "border-blue-300 bg-blue-50/60" : "border-slate-200"}`}>
-                  <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => irPara(p.id)} className="flex-1 text-left text-sm font-bold text-slate-700">Página {n + 1}</button>
+                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                    <input type="checkbox" className="h-4 w-4 shrink-0 accent-blue-600" checked={marcadas.has(p.id)} aria-label={`Marcar a página ${n + 1} para baixar`}
+                      onChange={e => setMarcadas(m => { const novo = new Set(m); if (e.target.checked) novo.add(p.id); else novo.delete(p.id); return novo; })} />
+                    <button type="button" onClick={() => irPara(p.id)} className="min-w-[5rem] flex-1 whitespace-nowrap text-left text-sm font-bold text-slate-700">Página {n + 1}</button>
                     <button type="button" onClick={() => void moverPagina(p.id, -1)} disabled={n === 0} aria-label={`Subir a página ${n + 1}`} className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button>
                     <button type="button" onClick={() => void moverPagina(p.id, 1)} disabled={n === paginas.length - 1} aria-label={`Descer a página ${n + 1}`} className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button>
                     <button type="button" onClick={() => void girarPagina(p.id, true)} aria-label={`Girar a página ${n + 1} para a esquerda`} title="Girar para a esquerda" className="rounded p-1 text-slate-500 hover:bg-slate-100"><RotateCcw className="h-3.5 w-3.5" /></button>
                     <button type="button" onClick={() => void girarPagina(p.id)} aria-label={`Girar a página ${n + 1} para a direita`} title="Girar para a direita" className="rounded p-1 text-slate-500 hover:bg-slate-100"><RotateCw className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => void editarPagina(p.id)} disabled={ocupado !== null} aria-label={`Editar a página ${n + 1} no editor de imagens`} title="Editar no editor de imagens" className="rounded p-1 text-slate-500 hover:bg-slate-100 disabled:opacity-30"><SquarePen className="h-3.5 w-3.5" /></button>
                     <button type="button" onClick={() => void novaPagina(null, p.id, p.id)} aria-label={`Duplicar a página ${n + 1}`} title="Duplicar" className="rounded p-1 text-slate-500 hover:bg-slate-100"><Copy className="h-3.5 w-3.5" /></button>
                     <button type="button" onClick={() => void excluirPagina(p.id)} disabled={paginas.length <= 1} aria-label={`Excluir a página ${n + 1}`} title="Excluir" className="rounded p-1 text-red-500 hover:bg-red-50 disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
@@ -698,7 +889,14 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
           </aside>
         )}
       </div>
+      {modo !== "texto" && posBarra === "direita" && barraFerramentas("direita")}
+      {modo !== "texto" && posBarra === "flutuante" && barraFerramentas("flutuante")}
+      </div>
 
+      {editandoPagina && (
+        <EditorImagemTelaCheia titulo={`Página ${editandoPagina.numero}`} formatoSalvar="jpg" carregar={() => Promise.resolve(editandoPagina.imagem)}
+          onSalvar={salvarPaginaEditada} onFechar={() => setEditandoPagina(null)} />
+      )}
       <input ref={arquivoPdf} type="file" accept={ACEITA_ARQUIVOS} className="hidden" onChange={e => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void inserirPdf(a); }} />
       <input ref={arquivoImagem} type="file" accept="image/*" className="hidden" onChange={e => { const a = e.target.files?.[0]; e.target.value = ""; if (a) void inserirImagem(a); }} />
     </div>

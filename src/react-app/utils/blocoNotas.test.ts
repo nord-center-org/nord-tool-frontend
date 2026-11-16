@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  ZOOM_MAX, ZOOM_MIN, acrescentarPonto, correcaoDaRolagem, deslocamentoLateral, escalaDaPinca, limitarZoom, zoomDaRoda, adensar, alturaTexto, apagarItens, apagarParcial, caixaDoItem, compactar, dentroDoPoligono, duplicarItens, escalarItens,
+  ZOOM_MAX, ZOOM_MIN, acrescentarPonto, correcaoDaRolagem, deslocamentoLateral, escalaDaPinca, nomeArquivoPaginas, limitarZoom, zoomDaRoda, adensar, alturaTexto, apagarItens, apagarParcial, caixaDoItem, compactar, dentroDoPoligono, duplicarItens, escalarItens,
   formaDoArrasto, itemNoPonto, itensNoLaco, larguraNaPressao, lerConteudo, linhasDoFundo, linhasDoTexto, moverItens, nomeArquivoCaderno,
   pintarItens, pontasDaSeta, pontosDoFundo, pressao, registrar, tamanhoDaPaginaPdf, tituloDoPdf, tocaItem, type Item, type Traco,
 } from "./blocoNotas.ts";
@@ -323,4 +323,10 @@ test("correção: a pinça dá zoom na proporção dos dedos", () => {
   assert.equal(escalaDaPinca(2, 200, 100), 1);
   assert.equal(escalaDaPinca(1, 100, 100000), ZOOM_MAX, "não passa do máximo");
   assert.equal(escalaDaPinca(1, 0, 50), limitarZoom(50), "sem dividir por zero");
+});
+
+test("v7: nome das páginas baixadas", () => {
+  assert.equal(nomeArquivoPaginas("Obra Ação", [3], "jpg"), "caderno-obra-acao-pagina-3.jpg");
+  assert.equal(nomeArquivoPaginas("Obra", [5, 1, 3], "pdf"), "caderno-obra-paginas-1-3-5.pdf");
+  assert.equal(nomeArquivoPaginas("Obra", [1, 2, 3, 4, 5, 6, 7], "zip"), "caderno-obra-7-paginas.zip");
 });
