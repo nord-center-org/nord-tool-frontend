@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { nomePrint, recorteNoElemento, retanguloEntre, selecaoValida } from "./captura.ts";
+import { nomePrint, recorteNoElemento, retanguloEntre, selecaoValida, transformacaoDeslocada } from "./captura.ts";
 
 test("retanguloEntre aceita arrastar em qualquer direção", () => {
   assert.deepEqual(retanguloEntre(100, 80, 20, 10), { x: 20, y: 10, largura: 80, altura: 70 });
@@ -29,4 +29,10 @@ test("nomePrint usa a tela e a hora", () => {
   const quando = new Date(2026, 9, 25, 9, 5, 7);
   assert.equal(nomePrint("/gestao/financeiro", quando), "print-gestao-financeiro-090507.png");
   assert.equal(nomePrint("/", quando), "print-inicio-090507.png");
+});
+
+test("correção: o print guarda o quanto cada área estava rolada", () => {
+  assert.equal(transformacaoDeslocada(0, 120, "none"), "translate(0px, -120px)");
+  assert.equal(transformacaoDeslocada(30, 0, "matrix(1, 0, 0, 1, 5, 0)"), "translate(-30px, 0px) matrix(1, 0, 0, 1, 5, 0)");
+  assert.equal(transformacaoDeslocada(0, 10, ""), "translate(0px, -10px)");
 });

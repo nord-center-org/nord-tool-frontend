@@ -41,6 +41,16 @@ export function recorteNoElemento(selecao: Retangulo, elemento: Retangulo, escal
   };
 }
 
+/**
+ * Correção: o print pega o app inteiro (menu lateral incluído). O clone usado para desenhar volta cada área rolável
+ * para o topo; para o print sair como está na tela, os filhos dela andam o quanto ela estava rolada. Junta com uma
+ * transformação que o filho já tenha.
+ */
+export function transformacaoDeslocada(esquerda: number, topo: number, atual: string): string {
+  const desloca = `translate(${-esquerda}px, ${-topo}px)`;
+  return atual && atual !== "none" ? `${desloca} ${atual}` : desloca;
+}
+
 /** Nome do arquivo: print-<tela>-<hora>.png, sem caracteres estranhos. */
 export function nomePrint(caminho: string, quando: Date): string {
   const tela = caminho.replace(/^\/+|\/+$/g, "").replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase() || "inicio";
