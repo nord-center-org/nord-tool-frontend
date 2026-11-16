@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  ZOOM_MAX, ZOOM_MIN, acrescentarPonto, correcaoDaRolagem, limitarZoom, zoomDaRoda, adensar, alturaTexto, apagarItens, apagarParcial, caixaDoItem, compactar, dentroDoPoligono, duplicarItens, escalarItens,
+  ZOOM_MAX, ZOOM_MIN, acrescentarPonto, correcaoDaRolagem, deslocamentoLateral, escalaDaPinca, limitarZoom, zoomDaRoda, adensar, alturaTexto, apagarItens, apagarParcial, caixaDoItem, compactar, dentroDoPoligono, duplicarItens, escalarItens,
   formaDoArrasto, itemNoPonto, itensNoLaco, larguraNaPressao, lerConteudo, linhasDoFundo, linhasDoTexto, moverItens, nomeArquivoCaderno,
   pintarItens, pontasDaSeta, pontosDoFundo, pressao, registrar, tamanhoDaPaginaPdf, tituloDoPdf, tocaItem, type Item, type Traco,
 } from "./blocoNotas.ts";
@@ -309,4 +309,18 @@ test("v6: o ponto embaixo do cursor fica embaixo dele depois do zoom", () => {
   // folha a 100 px da borda, ponto (200, 50) da folha; com zoom 3 ele iria para 100 + 600 = 700; cursor em 300
   assert.deepEqual(correcaoDaRolagem({ left: 100, top: 20 }, { x: 200, y: 50 }, 3, { x: 300, y: 120 }), { dx: 400, dy: 50 });
   assert.deepEqual(correcaoDaRolagem({ left: 0, top: 0 }, { x: 10, y: 10 }, 1, { x: 10, y: 10 }), { dx: 0, dy: 0 });
+});
+
+test("correção: folha mais estreita que a tela anda para o lado no zoom", () => {
+  assert.equal(deslocamentoLateral(0, 50, 200), -50);
+  assert.equal(deslocamentoLateral(-180, 50, 200), -200, "não sai da tela");
+  assert.equal(deslocamentoLateral(30, -20, 200), 50);
+  assert.equal(deslocamentoLateral(80, 0, -10), 0, "folha mais larga que a tela: sem deslocar (a rolagem cuida)");
+});
+
+test("correção: a pinça dá zoom na proporção dos dedos", () => {
+  assert.equal(escalaDaPinca(1, 100, 200), 2);
+  assert.equal(escalaDaPinca(2, 200, 100), 1);
+  assert.equal(escalaDaPinca(1, 100, 100000), ZOOM_MAX, "não passa do máximo");
+  assert.equal(escalaDaPinca(1, 0, 50), limitarZoom(50), "sem dividir por zero");
 });

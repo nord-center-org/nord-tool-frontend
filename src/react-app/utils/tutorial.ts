@@ -230,7 +230,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Caderno",
-        texto: "Para escrever à mão (caneta que sente a pressão, marca-texto, borracha, formas, texto, imagens e laço) e anotar por cima de PDFs (o botão de PDF fica na barra de ferramentas). Escolha o papel: pautado, quadriculado, pontilhado ou em branco. Dentro dele, a rodinha do mouse dá zoom onde está o cursor (até 1600%, para ler detalhes de projeto) e arrastar com a rodinha apertada move a folha.",
+        texto: "Para escrever à mão (caneta que sente a pressão, marca-texto, borracha, formas, texto, imagens e laço) e anotar por cima de PDFs (o botão de PDF fica na barra de ferramentas). Escolha o papel: pautado, quadriculado, pontilhado ou em branco. Dentro dele, a rodinha do mouse dá zoom onde está o cursor (até 1600%, para ler detalhes de projeto; Shift + rodinha vai para os lados) e arrastar com a rodinha apertada move a folha. No tablet, como no Xodo: pinça dá zoom no ponto entre os dedos, dois dedos arrastam e um dedo arrasta com a Mão, com \"Só caneta\" ou fora da folha. O texto também tem zoom (botões, Ctrl + rodinha e pinça).",
         alvo: { css: "button", texto: "Escreva à mão" },
       },
       {

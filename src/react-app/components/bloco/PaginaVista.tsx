@@ -28,7 +28,6 @@ export interface ConfigFerramenta {
   /** Só a caneta (stylus) desenha; o dedo rola a página. */
   soCaneta: boolean;
   /** v6: a rodinha do mouse dá zoom (como no CAD); desligado, ela rola e o zoom é com Ctrl. */
-  rodaZoom: boolean;
 }
 
 interface Props {
@@ -57,6 +56,16 @@ type Gesto =
   | { tipo: "escalar"; inicio: Item[]; origem: Ponto; largura0: number; atual: Item[] };
 
 /** Uma página do caderno: o desenho salvo num canvas e o gesto em andamento noutro, por cima. */
+/** Dedos encostados na tela agora (todas as páginas): dois ou mais é pinça, não desenho. */
+const TOQUES = new Set<number>();
+if (typeof window !== "undefined") {
+  const soltar = (e: PointerEvent) => { if (e.pointerType === "touch") TOQUES.delete(e.pointerId); };
+  // o segundo dedo pode encostar fora da folha: conta em qualquer lugar da tela
+  window.addEventListener("pointerdown", e => { if (e.pointerType === "touch") TOQUES.add(e.pointerId); }, true);
+  window.addEventListener("pointerup", soltar, true);
+  window.addEventListener("pointercancel", soltar, true);
+}
+
 export default function PaginaVista({ pagina, numero, itens, zoom, config, selecao, onItens, onSelecao, onCarregar, onVisivel }: Props) {
   const caixaRef = useRef<HTMLDivElement>(null);
   const baseRef = useRef<HTMLCanvasElement>(null);
@@ -258,6 +267,11 @@ export default function PaginaVista({ pagina, numero, itens, zoom, config, selec
   };
 
   const aoDescer = (e: PE<HTMLCanvasElement>) => {
+    if (e.pointerType === "touch") {
+      TOQUES.add(e.pointerId);
+      // correção: o segundo dedo é pinça (zoom/arrastar), não desenho — o traço que o primeiro começou é descartado
+      if (TOQUES.size > 1) { gesto.current = null; setTrabalho(null); desenharTopo(); return; }
+    }
     if (!itens || ignorar(e) || e.button > 0) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -298,6 +312,11 @@ export default function PaginaVista({ pagina, numero, itens, zoom, config, selec
   };
 
   const aoMover = (e: PE<HTMLCanvasElement>) => {
+    // correção: com dois dedos na tela é pinça — o traço que o primeiro começou é descartado
+    if (e.pointerType === "touch" && TOQUES.size > 1) {
+      if (gesto.current) { gesto.current = null; setTrabalho(null); desenharTopo(); }
+      return;
+    }
     const p = ponto(e);
     if (config.ferramenta === "borracha" && !ignorar(e)) setCursor(p);
     const g = gesto.current;
@@ -331,7 +350,8 @@ export default function PaginaVista({ pagina, numero, itens, zoom, config, selec
     desenharTopo();
   };
 
-  const aoSubir = () => {
+  const aoSubir = (e?: PE<HTMLCanvasElement>) => {
+    if (e?.pointerType === "touch") TOQUES.delete(e.pointerId);
     const g = gesto.current;
     gesto.current = null;
     if (!g || !itens) return;
@@ -369,7 +389,7 @@ export default function PaginaVista({ pagina, numero, itens, zoom, config, selec
       <canvas ref={detalheRef} aria-hidden="true" className="pointer-events-none absolute"
         style={detalhe ? { left: detalhe.x * zoom, top: detalhe.y * zoom, width: detalhe.w * zoom, height: detalhe.h * zoom } : { display: "none" }} />
       <canvas ref={topoRef} className="absolute inset-0 h-full w-full"
-        style={{ touchAction: config.ferramenta === "mao" || config.ferramenta === "nenhuma" || config.soCaneta ? "pan-x pan-y" : "none", cursor: cursorCss }}
+        style={{ touchAction: "none", cursor: cursorCss }}
         onPointerDown={aoDescer} onPointerMove={aoMover} onPointerUp={aoSubir} onPointerCancel={aoSubir}
         onPointerLeave={() => setCursor(null)} aria-label={`Desenhar na página ${numero}`} />
       {itens === null && (
