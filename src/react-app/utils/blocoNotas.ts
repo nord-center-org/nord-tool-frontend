@@ -740,6 +740,21 @@ export function zoomDaRoda(zoom: number, deltaY: number, deltaMode = 0): number 
  * a folha ficou (na tela, já com o zoom novo), o ponto na folha (px da folha) e onde está o cursor; devolve o
  * acréscimo de rolagem (positivo = rolar para a direita/baixo).
  */
+/**
+ * Correção: com a folha mais estreita que a tela não há rolagem para os lados, e o zoom no ponto do mouse não segurava
+ * o ponto (a folha fica sempre no meio). A folha então anda para o lado o que faltou, sem sair da tela (`limite` é a
+ * folga de cada lado).
+ */
+/** Correção: o zoom da pinça — o de quando os dedos encostaram, na proporção que eles abriram ou fecharam. */
+export function escalaDaPinca(zoomInicial: number, distanciaInicial: number, distancia: number): number {
+  return limitarZoom(zoomInicial * (distancia / Math.max(1, distanciaInicial)));
+}
+
+export function deslocamentoLateral(atual: number, falta: number, limite: number): number {
+  const l = Math.max(0, limite);
+  return Math.max(-l, Math.min(l, atual - falta));
+}
+
 export function correcaoDaRolagem(folha: { left: number; top: number }, ponto: { x: number; y: number }, zoom: number, cursor: { x: number; y: number }) {
   return { dx: folha.left + ponto.x * zoom - cursor.x, dy: folha.top + ponto.y * zoom - cursor.y };
 }

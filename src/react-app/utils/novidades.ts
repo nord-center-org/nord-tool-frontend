@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-16-caderno-pinca-zoom",
+    data: "2026-11-16",
+    titulo: "Caderno: pinça no tablet e zoom no ponto",
+    texto: "No caderno, o zoom agora vai sempre para onde está o mouse (ou entre os dedos). No tablet, a pinça funciona como no Xodo: abre e fecha o zoom e dois dedos arrastam a folha. O modo Texto também ganhou zoom.",
+    onde: { rotulo: "Mapeamentos → Bloco de notas", caminho: "/mapeamentos/bloco-notas" },
+  },
+  {
     id: "2026-11-16-sac-concluidos",
     data: "2026-11-16",
     titulo: "SAC: aba Concluídos e print com o menu",

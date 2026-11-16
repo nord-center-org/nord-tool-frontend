@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, CheckCircle2, Highlighter, IndentDecrease, IndentIncrease, Italic, List, ListOrdered,
   Loader2, Minus, Redo2, RemoveFormatting, Strikethrough, Underline, Undo2,
 } from "lucide-react";
 
 import { ESTILO_DOCUMENTO, sanitizarHtml } from "@/react-app/components/bloco/documento";
+import { useGestosToque } from "@/react-app/components/bloco/useGestosToque";
 import { ApiError } from "@/react-app/services/apiClient";
 import { blocoNotasService as servico } from "@/react-app/services/BlocoNotasService";
-import { CORES, CORES_MARCA, PAGINA_DOCUMENTO } from "@/react-app/utils/blocoNotas";
+import { CORES, CORES_MARCA, PAGINA_DOCUMENTO, zoomDaRoda } from "@/react-app/utils/blocoNotas";
 
 export type ExibicaoDocumento = "paginas" | "continuo";
 
@@ -26,6 +27,10 @@ interface Props {
   onExibicao: (e: ExibicaoDocumento) => void;
   /** Para o PDF do caderno: o HTML atual do documento. */
   onHtml?: (html: string) => void;
+  /** Correção: zoom do texto (1 = a folha cabe na largura), com os botões de zoom do caderno. */
+  zoom?: number;
+  /** Ctrl + rodinha (ou a pinça) no texto muda o zoom. */
+  onZoom?: (z: number) => void;
 }
 
 const ESTILOS_BLOCO = [
@@ -39,7 +44,7 @@ const TAMANHOS = [{ v: "2", r: "Pequeno" }, { v: "3", r: "Normal" }, { v: "4", r
  * cor, marca-texto, tamanho, alinhamento, listas, recuo e linha. Em "páginas" o texto aparece em folhas A4 (com as
  * quebras marcadas); em "contínuo", numa coluna só. Salva sozinho, com controle de versão.
  */
-export default function DocumentoCaderno({ idCaderno, fonte, exibicao, onExibicao, onHtml }: Props) {
+export default function DocumentoCaderno({ idCaderno, fonte, exibicao, onExibicao, onHtml, zoom = 1, onZoom }: Props) {
   const origem = useMemo<FonteDocumento>(() => fonte ?? {
     carregar: () => servico.documento(idCaderno ?? 0),
     salvar: (html, v) => servico.salvarDocumento(idCaderno ?? 0, html, v),
@@ -76,8 +81,43 @@ export default function DocumentoCaderno({ idCaderno, fonte, exibicao, onExibica
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
-  // A folha é sempre A4 (794 px) e encolhe inteira com CSS zoom, como o zoom do Word.
-  const escala = largura / PAGINA_DOCUMENTO.largura;
+  // A folha é sempre A4 (794 px) e encolhe (ou cresce, com o zoom) inteira com CSS zoom, como o zoom do Word.
+  const escala = (largura / PAGINA_DOCUMENTO.largura) * zoom;
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  /** O ponto da folha embaixo do mouse (em fração da folha) e onde o mouse estava: depois do zoom ele volta para lá. */
+  const ancora = useRef<{ fx: number; fy: number; mx: number; my: number } | null>(null);
+  const folha = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = caixa.current;
+    if (!el || !onZoom) return;
+    const roda = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      const r = folha.current?.getBoundingClientRect();
+      if (r && r.width && r.height) ancora.current = { fx: (e.clientX - r.left) / r.width, fy: (e.clientY - r.top) / r.height, mx: e.clientX, my: e.clientY };
+      onZoom(zoomDaRoda(zoomRef.current, e.deltaY, e.deltaMode));
+    };
+    el.addEventListener("wheel", roda, { passive: false });
+    return () => el.removeEventListener("wheel", roda);
+  }, [onZoom]);
+  // correção: no tablet, pinça dá zoom no ponto entre os dedos; um ou dois dedos arrastam (como no Xodo)
+  useGestosToque(caixa, {
+    podeArrastar: () => true,
+    zoomAtual: () => zoomRef.current,
+    aoZoom: (z, cx, cy) => {
+      const r = folha.current?.getBoundingClientRect();
+      if (r && r.width && r.height) ancora.current = { fx: (cx - r.left) / r.width, fy: (cy - r.top) / r.height, mx: cx, my: cy };
+      onZoom?.(z);
+    },
+  }, !!onZoom);
+  useLayoutEffect(() => {
+    const a = ancora.current, el = caixa.current, r = folha.current?.getBoundingClientRect();
+    ancora.current = null;
+    if (!a || !el || !r) return;
+    el.scrollLeft += r.left + a.fx * r.width - a.mx;
+    el.scrollTop += r.top + a.fy * r.height - a.my;
+  }, [zoom]);
   const alturaPagina: number = PAGINA_DOCUMENTO.altura;
 
   const salvar = useCallback(async () => {
@@ -172,10 +212,10 @@ export default function DocumentoCaderno({ idCaderno, fonte, exibicao, onExibica
         </span>
       </div>
 
-      <div ref={caixa} className="min-h-0 flex-1 overflow-auto bg-slate-100 py-4">
+      <div ref={caixa} className="min-h-0 flex-1 overflow-auto bg-slate-100 py-4" style={onZoom ? { touchAction: "none" } : undefined}>
         {!carregado && <div className="flex justify-center p-6"><Loader2 className="h-6 w-6 animate-spin text-slate-400" aria-label="Carregando documento" /></div>}
-        <div className={exibicao === "paginas" ? "relative mx-auto" : "mx-auto max-w-4xl"}
-          style={exibicao === "paginas" ? { width: PAGINA_DOCUMENTO.largura, zoom: escala } : undefined}>
+        <div ref={folha} className={exibicao === "paginas" ? "relative mx-auto" : "mx-auto max-w-4xl"}
+          style={exibicao === "paginas" ? { width: PAGINA_DOCUMENTO.largura, zoom: escala } : zoom !== 1 ? { zoom } : undefined}>
           {exibicao === "paginas" && (
             // Folha A4 contínua com a quebra de cada página marcada (no PDF, cada página sai separada).
             <div aria-hidden="true" className="absolute inset-0 bg-white shadow-md ring-1 ring-slate-200" style={{ minHeight: paginas * alturaPagina }}>

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowDown, ArrowLeft, ArrowUp, Circle, Copy, Eraser, FileDown, FileUp, Hand, Highlighter, ImagePlus, Lasso, Loader2, Minus,
-  MoveUpRight, PenLine, PenTool, Plus, Redo2, Square, Trash2, Type, Undo2, X, ZoomIn, ZoomOut, Layers, Mouse, CheckCircle2, AlertTriangle,
+  MoveUpRight, PenLine, PenTool, Plus, Redo2, Square, Trash2, Type, Undo2, X, ZoomIn, ZoomOut, Layers, CheckCircle2, AlertTriangle,
   RotateCw, RotateCcw, FileText, Columns2, NotebookPen,
 } from "lucide-react";
 import DocumentoCaderno, { type ExibicaoDocumento } from "@/react-app/components/bloco/DocumentoCaderno";
+import { useGestosToque } from "@/react-app/components/bloco/useGestosToque";
 
 import PaginaVista, { type ConfigFerramenta, type Ferramenta } from "@/react-app/components/bloco/PaginaVista";
 import { guardarImagem } from "@/react-app/components/bloco/imagensBloco";
@@ -15,7 +16,7 @@ import { blocoNotasService as servico, type Caderno, type PaginaBloco } from "@/
 import {
   CORES, CORES_MARCA, ESPESSURAS, ROTULO_FUNDO, compactar, girarItens, tipoDoArquivo, lerConteudo, nomeArquivoCaderno, novoId, proximoGiro, registrar,
   type Fundo, type Item, type Passo, type TipoForma,
-  correcaoDaRolagem, limitarZoom, zoomDaRoda,
+  correcaoDaRolagem, deslocamentoLateral, limitarZoom, zoomDaRoda,
 } from "@/react-app/utils/blocoNotas";
 import { prepararFoto } from "@/react-app/utils/imagem";
 
@@ -24,7 +25,7 @@ interface EstadoPagina { itens: Item[] | null; nrVersao: number; sujo: boolean; 
 const CHAVE_CONFIG = "@NordTool:bloco-notas";
 const CONFIG_PADRAO: ConfigFerramenta = {
   ferramenta: "caneta", cor: "#111827", espessura: 3, corMarca: "#facc15", espessuraMarca: 16,
-  borracha: "traco", raioBorracha: 10, forma: "linha", tamanhoTexto: 20, soCaneta: false, rodaZoom: true,
+  borracha: "traco", raioBorracha: 10, forma: "linha", tamanhoTexto: 20, soCaneta: false,
 };
 
 function lerConfig(): ConfigFerramenta {
@@ -84,6 +85,11 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
   const [refazer, setRefazer] = useState<Passo[]>([]);
   const [selecao, setSelecao] = useState<{ pagina: number; ids: Set<string> } | null>(null);
   const [fator, setFator] = useState(1);
+  /** Correção: quanto a folha (mais estreita que a tela) anda para o lado, para o zoom ficar no ponto do mouse. */
+  const [desloc, setDesloc] = useState(0);
+  // correção: o texto tem o zoom dele (1 = a folha cabe na largura); no modo Texto os botões de zoom mexem nele
+  const [zoomTexto, setZoomTexto] = useState(1);
+  const mudarZoomTexto = useCallback((z: number) => setZoomTexto(Math.max(0.5, Math.min(4, z))), []);
   const [ajuste, setAjuste] = useState(1);
   const [atual, setAtual] = useState<number | null>(null);
   const [painel, setPainel] = useState(false);
@@ -173,9 +179,13 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
     if (!pg) return;
     const r = pg.getBoundingClientRect();
     const { dx, dy } = correcaoDaRolagem(r, a, zoom, { x: a.cx, y: a.cy });
+    const antes = el.scrollLeft;
     el.scrollLeft += dx;
     el.scrollTop += dy;
-  }, [zoom]);
+    // folha mais estreita que a tela: o que a rolagem não deu conta, a folha anda para o lado
+    const falta = dx - (el.scrollLeft - antes);
+    if (Math.abs(falta) > 0.5) setDesloc(d => deslocamentoLateral(d, falta, (el.clientWidth - larguraMax * zoom - 24) / 2));
+  }, [zoom]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const carregando = useRef(new Set<number>());
   const carregarPagina = useCallback(async (idPagina: number) => {
@@ -277,18 +287,29 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
 
   // v6: a rodinha do mouse dá zoom no ponto do cursor (como no CAD); Shift + rodinha rola para os lados. Com a opção
   // "rodinha rola" desligada, só Ctrl + rodinha (ou a pinça do touchpad) dá zoom.
-  const rodaZoom = config.rodaZoom;
   useEffect(() => {
     const el = rolagemRef.current;
     if (!el) return;
     const roda = (e: WheelEvent) => {
-      if (!e.ctrlKey && (!rodaZoom || e.shiftKey)) return;
+      if (e.shiftKey && !e.ctrlKey) return; // Shift + rodinha rola para os lados
       e.preventDefault();
       zoomPara(zoomDaRoda(alvoZoom.current ?? zoomRef.current, e.deltaY, e.deltaMode), e.clientX, e.clientY);
     };
     el.addEventListener("wheel", roda, { passive: false });
     return () => el.removeEventListener("wheel", roda);
-  }, [caderno, modo, rodaZoom, zoomPara]);
+  }, [caderno, modo, zoomPara]);
+
+  // correção: no tablet, pinça dá zoom no ponto entre os dedos e dois dedos arrastam (como no Xodo); um dedo arrasta
+  // quando não está desenhando (Mão, nenhuma ferramenta, "Só caneta") ou fora da folha
+  useGestosToque(rolagemRef, {
+    podeArrastar: alvo => {
+      const f = config.ferramenta;
+      if (f === "mao" || f === "nenhuma" || config.soCaneta) return true;
+      return !(alvo instanceof Element && alvo.closest("canvas[aria-label^='Desenhar']"));
+    },
+    zoomAtual: () => alvoZoom.current ?? zoomRef.current,
+    aoZoom: (z, cx, cy) => zoomPara(z, cx, cy),
+  }, modo !== "texto" && !!caderno);
 
   const aoVisivel = useCallback((idPagina: number, fracao: number) => {
     visiveis.current.set(idPagina, fracao);
@@ -485,9 +506,9 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
         <div className="flex items-center gap-1">
           <button type="button" onClick={() => voltarPasso("desfazer")} disabled={!desfazer.length} title="Desfazer (Ctrl+Z)" aria-label="Desfazer" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30"><Undo2 className="h-4 w-4" /></button>
           <button type="button" onClick={() => voltarPasso("refazer")} disabled={!refazer.length} title="Refazer (Ctrl+Y)" aria-label="Refazer" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30"><Redo2 className="h-4 w-4" /></button>
-          <button type="button" onClick={() => zoomPara(zoom / 1.25)} title="Diminuir" aria-label="Diminuir zoom" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><ZoomOut className="h-4 w-4" /></button>
-          <button type="button" onClick={() => setFator(1)} title="Caber na largura" className="w-12 rounded-lg py-1 text-xs font-bold text-slate-600 hover:bg-slate-100">{Math.round(zoom * 100)}%</button>
-          <button type="button" onClick={() => zoomPara(zoom * 1.25)} title="Aumentar" aria-label="Aumentar zoom" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><ZoomIn className="h-4 w-4" /></button>
+          <button type="button" onClick={() => (modo === "texto" ? mudarZoomTexto(zoomTexto / 1.25) : zoomPara(zoom / 1.25))} title="Diminuir" aria-label="Diminuir zoom" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><ZoomOut className="h-4 w-4" /></button>
+          <button type="button" onClick={() => { if (modo === "texto") setZoomTexto(1); else { setFator(1); setDesloc(0); } }} title="Caber na largura" className="w-12 rounded-lg py-1 text-xs font-bold text-slate-600 hover:bg-slate-100">{Math.round((modo === "texto" ? zoomTexto : zoom) * 100)}%</button>
+          <button type="button" onClick={() => (modo === "texto" ? mudarZoomTexto(zoomTexto * 1.25) : zoomPara(zoom * 1.25))} title="Aumentar" aria-label="Aumentar zoom" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><ZoomIn className="h-4 w-4" /></button>
           <button type="button" onClick={() => void girarPagina(atual)} disabled={modo === "texto"} title="Girar a página atual 90°" aria-label="Girar página" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30"><RotateCw className="h-4 w-4" /></button>
           <button type="button" onClick={() => setPainel(p => !p)} aria-expanded={painel} title="Páginas" className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100">
             <Layers className="h-4 w-4" /> {numeroAtual}/{paginas.length}
@@ -518,11 +539,6 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
           <button type="button" onClick={() => mudar({ soCaneta: !config.soCaneta })} aria-pressed={config.soCaneta}
             title="Só a caneta (stylus) desenha; o dedo rola a página" className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold ${config.soCaneta ? "bg-violet-100 text-violet-700" : "text-slate-600 hover:bg-slate-100"}`}>
             <PenTool className="h-4 w-4" /> Só caneta
-          </button>
-          <button type="button" onClick={() => mudar({ rodaZoom: !config.rodaZoom })} aria-pressed={config.rodaZoom}
-            title={config.rodaZoom ? "A rodinha do mouse dá zoom onde está o cursor (Shift + rodinha rola para os lados; arraste com a rodinha apertada para mover). Toque para a rodinha rolar a página." : "A rodinha do mouse rola a página (Ctrl + rodinha dá zoom). Toque para a rodinha dar zoom."}
-            className={`hidden h-10 shrink-0 items-center gap-1.5 rounded-xl px-2.5 text-xs font-bold sm:inline-flex ${config.rodaZoom ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100"}`}>
-            <Mouse className="h-4 w-4" /> {config.rodaZoom ? "Rodinha: zoom" : "Rodinha: rolar"}
           </button>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto px-3 pb-2" aria-label="Opções da ferramenta">
@@ -604,11 +620,11 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
       <div className={`relative flex min-h-0 flex-1 ${modo === "lado" ? "flex-col md:flex-row" : ""}`}>
         {modo !== "desenho" && (
           <div className={`min-h-0 min-w-0 flex-1 ${modo === "lado" ? "border-b border-slate-300 md:border-b-0 md:border-r" : ""}`}>
-            <DocumentoCaderno idCaderno={id} exibicao={exibicao} onExibicao={setExibicao} onHtml={guardarHtml} />
+            <DocumentoCaderno idCaderno={id} exibicao={exibicao} onExibicao={setExibicao} onHtml={guardarHtml} zoom={zoomTexto} onZoom={mudarZoomTexto} />
           </div>
         )}
         {modo !== "texto" && (
-        <div ref={rolagemRef} data-rolagem className="min-h-0 min-w-0 flex-1 overflow-auto bg-slate-100 py-4"
+        <div ref={rolagemRef} data-rolagem className="min-h-0 min-w-0 flex-1 overflow-auto bg-slate-100 py-4" style={{ touchAction: "none" }}
           onMouseDown={e => { if (e.button === 1) e.preventDefault(); /* sem a rolagem automática do botão do meio */ }}
           onPointerDown={e => {
             if (e.target === e.currentTarget) setSelecao(null);
@@ -622,7 +638,8 @@ export default function EditorCaderno({ id, onVoltar, onAlterado, paginaInicial,
               window.addEventListener("pointerup", soltar);
             }
           }}>
-          <div className="flex w-max min-w-full flex-col items-center gap-4 px-3">
+          <div className="flex w-max min-w-full flex-col items-center gap-4 px-3"
+            style={desloc ? { transform: `translateX(${deslocamentoLateral(desloc, 0, ((rolagemRef.current?.clientWidth ?? 0) - larguraMax * zoom - 24) / 2)}px)` } : undefined}>
             {paginas.map((p, n) => (
               <PaginaVista key={p.id} pagina={p} numero={n + 1} itens={estado[p.id]?.itens ?? null} zoom={zoom} config={config}
                 selecao={selecao?.pagina === p.id ? selecao.ids : VAZIA}
