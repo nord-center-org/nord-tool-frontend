@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { alternarGrupo, chaveGrupos, grupoDaRota, iniciais, lerGruposAbertos, salvarGruposAbertos } from "./menuLateral.ts";
+import { alternarGrupo, chaveGrupos, grupoDaRota, iniciais, lerGruposAbertos, rotaFavorita, salvarGruposAbertos } from "./menuLateral.ts";
 
 const memoria = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) }; };
 
@@ -46,4 +46,12 @@ test("iniciais do nome", () => {
   assert.equal(iniciais("Nick Gomes da Silva"), "NG");
   assert.equal(iniciais("  ana "), "A");
   assert.equal(iniciais(""), "?");
+});
+
+test("correção: tela favorita não abre o grupo dela", () => {
+  assert.equal(rotaFavorita(["/sac", "/mapeamentos/cubicagem"], "/mapeamentos/cubicagem"), true);
+  assert.equal(rotaFavorita(["/mapeamentos/cubicagem"], "/mapeamentos/cubicagem/12"), true, "subtela também");
+  assert.equal(rotaFavorita(["/mapeamentos/cubicagem"], "/mapeamentos/cubicagem-velha"), false);
+  assert.equal(rotaFavorita(["/"], "/sac"), false, "o início só casa com ele mesmo");
+  assert.equal(rotaFavorita([], "/sac"), false);
 });
