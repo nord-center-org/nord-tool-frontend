@@ -30,7 +30,16 @@ export interface AbaFs {
 
 export const MAX_BYTES_PLANILHA = 5_000_000;
 
-export const planilhaVazia = (): AbaFs[] => [{ name: "Página1", id: "p1", order: 0, status: 1, row: 100, column: 26, celldata: [], config: {} }];
+/** Correção: planilha nova do tamanho da do Google Sheets (1000 linhas, 26 colunas); antes eram só 100 linhas. */
+export const LINHAS_NOVA = 1000;
+export const COLUNAS_NOVA = 26;
+export const planilhaVazia = (): AbaFs[] => [{ name: "Página1", id: "p1", order: 0, status: 1, row: LINHAS_NOVA, column: COLUNAS_NOVA, celldata: [], config: {} }];
+
+/** Quantas linhas (ou colunas) a seleção tem: o "Inserir N linhas" já vem com esse número, como no Google Sheets. */
+export function quantidadeSelecionada(faixa: [number, number] | number[] | undefined): number {
+  if (!faixa || faixa.length < 2) return 1;
+  return Math.max(1, Math.min(1000, Math.abs(Number(faixa[1]) - Number(faixa[0])) + 1));
+}
 
 /** O que vem do banco (JSON das abas); vazio ou estragado vira uma planilha nova. */
 export function lerPlanilha(texto: string | null | undefined): AbaFs[] {
@@ -214,10 +223,10 @@ export function xlsxParaAbas(wb: XLSX.WorkBook): AbaFs[] {
     const ws = wb.Sheets[nome];
     const ref = ws["!ref"];
     const celldata: CelulaComPosicao[] = [];
-    let linhas = 100, colunas = 26;
+    let linhas = LINHAS_NOVA, colunas = COLUNAS_NOVA;
     if (ref) {
       const faixa = XLSX.utils.decode_range(ref);
-      linhas = Math.max(100, faixa.e.r + 20);
+      linhas = Math.max(LINHAS_NOVA, faixa.e.r + 20);
       colunas = Math.max(26, faixa.e.c + 5);
       for (let r = faixa.s.r; r <= Math.min(faixa.e.r, 20000); r++) {
         for (let c = faixa.s.c; c <= Math.min(faixa.e.c, 500); c++) {

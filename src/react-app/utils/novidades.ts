@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-16-planilha-linhas",
+    data: "2026-11-16",
+    titulo: "Planilha: 1000 linhas, inserir várias e ajuste rápido",
+    texto: "A planilha nova já vem com 1000 linhas, o botão “Adicionar” no fim ficou à vista, inserir com várias linhas selecionadas já sugere a mesma quantidade e dois cliques na borda ajustam a coluna ou a linha ao conteúdo.",
+    onde: { rotulo: "Mapeamentos → Bloco de notas", caminho: "/mapeamentos/bloco-notas" },
+  },
+  {
     id: "2026-11-16-caderno-v7",
     data: "2026-11-16",
     titulo: "Caderno: editar a página, barra onde quiser e baixar páginas",

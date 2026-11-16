@@ -274,7 +274,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Atalhos da planilha",
-        texto: "Ctrl+C / Ctrl+V copiam e colam (também do Excel e do Sheets), Ctrl+Z desfaz, Ctrl+B negrito. Arraste o quadradinho do canto da célula para repetir ou continuar uma sequência. Botão direito: inserir e excluir linhas e colunas, classificar e filtrar. Em “Mover” (ou Alt+Shift+setas) a linha ou coluna selecionada troca de lugar com a vizinha; dois cliques na borda do cabeçalho ajustam a largura da coluna ao texto; Shift + rodinha do mouse rola para os lados.",
+        texto: "Ctrl+C / Ctrl+V copiam e colam (também do Excel e do Sheets), Ctrl+Z desfaz, Ctrl+B negrito. Arraste o quadradinho do canto da célula para repetir ou continuar uma sequência. Dois cliques na borda do cabeçalho ajustam a largura da coluna (ou a altura da linha) ao conteúdo. Com várias linhas selecionadas, o botão direito já sugere inserir a mesma quantidade; no fim da planilha, \"Adicionar\" põe mais linhas (a planilha nova já vem com 1000). Botão direito: inserir e excluir linhas e colunas, classificar e filtrar. Em “Mover” (ou Alt+Shift+setas) a linha ou coluna selecionada troca de lugar com a vizinha; dois cliques na borda do cabeçalho ajustam a largura da coluna ao texto; Shift + rodinha do mouse rola para os lados.",
       },
       {
         titulo: "Dentro do caderno",

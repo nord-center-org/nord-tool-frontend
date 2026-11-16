@@ -47,3 +47,10 @@ html.nt-menos-movimento *::after {
   transition-duration: 1ms !important;
   scroll-behavior: auto !important;
 }
+
+/* Correção: no fim da planilha, "Adicionar N linhas" parece um botão de verdade (antes passava despercebido). */
+[data-planilha] .luckysheet-bottom-controll-row { display: flex !important; align-items: center; gap: 6px; padding: 6px 0; }
+[data-planilha] .luckysheet-bottom-controll-row .fortune-add-row-button { border-radius: 8px; padding: 4px 12px; font-weight: 700; cursor: pointer; }
+[data-planilha] .luckysheet-bottom-controll-row > .fortune-add-row-button:first-child { background: #2563eb; border-color: #2563eb; color: #fff; }
+[data-planilha] .luckysheet-bottom-controll-row > .fortune-add-row-button:first-child:hover { background: #1d4ed8; }
+[data-planilha] .luckysheet-bottom-controll-row input { border: 1px solid #cbd5e1; border-radius: 8px; padding: 3px 6px; text-align: center; }
