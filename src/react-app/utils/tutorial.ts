@@ -342,7 +342,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Acompanhe",
-        texto: "Em Meus chamados você vê o status (aberto, em andamento, resolvido ou recusado) e a resposta dos administradores. Quando alguém responde, o avatar dele aparece no Início avisando. Marque chamados e exporte um PDF caprichado: o texto de cada chamado à esquerda e os prints ao lado.",
+        texto: "Em Meus chamados ficam os que estão na esteira (aberto ou em andamento), com a resposta dos administradores; quando um é resolvido ou recusado, ele sai da esteira e vai para \"Concluídos\". Quando alguém responde, o avatar dele aparece no Início avisando. Marque chamados e exporte um PDF caprichado: o texto de cada chamado à esquerda e os prints ao lado.",
         alvo: { css: "[role=tab]", texto: "Meus chamados" },
       },
     ],

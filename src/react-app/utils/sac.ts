@@ -38,6 +38,15 @@ export function ordenarChamados<T extends ChamadoResumo>(lista: T[]): T[] {
   return [...lista].sort((a, b) => peso(a.cdStatus) - peso(b.cdStatus) || b.dhCriacao.localeCompare(a.dhCriacao));
 }
 
+/** v5: resolvido ou recusado sai da esteira e vai para "Concluídos". */
+export const concluido = (c: ChamadoResumo) => c.cdStatus === "RESOLVIDO" || c.cdStatus === "RECUSADO";
+
+/** v5: os da esteira (aberto e em andamento, os mais novos primeiro) e os concluídos (os mais novos primeiro). */
+export function separarConcluidos<T extends ChamadoResumo>(lista: T[]): { esteira: T[]; concluidos: T[] } {
+  const ordem = ordenarChamados(lista);
+  return { esteira: ordem.filter(c => !concluido(c)), concluidos: ordem.filter(concluido) };
+}
+
 /** Quantos chamados ainda esperam os administradores (aberto ou em andamento). */
 export const pendentes = (lista: ChamadoResumo[]) => lista.filter(c => c.cdStatus === "ABERTO" || c.cdStatus === "EM_ANDAMENTO").length;
 

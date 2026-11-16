@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   MAX_PRINTS, MAX_TITULO, classeStatus, encaixar, nomePdfChamados, paraFontePdf, quebrarTexto, ordenarChamados, pendentes, posicaoBotaoSac, primeiroNome, problemaDoRascunho, saudacaoSac, rotuloStatus,
+  concluido, separarConcluidos,
 } from "./sac.ts";
 
 test("rascunho do chamado precisa de título e descrição e cabe nos limites", () => {
@@ -68,4 +69,17 @@ test("v4: encaixa o print sem distorcer nem aumentar", () => {
   assert.deepEqual(encaixar(100, 50, 400, 400), { l: 100, a: 50 });
   assert.deepEqual(encaixar(0, 50, 400, 400), { l: 0, a: 0 });
   assert.equal(nomePdfChamados("2026-11-13"), "chamados-sac-2026-11-13.pdf");
+});
+
+test("v5: resolvidos e recusados saem da esteira para Concluídos", () => {
+  const l = [
+    { id: 1, cdStatus: "RESOLVIDO", dhCriacao: "2026-11-01T10:00" },
+    { id: 2, cdStatus: "ABERTO", dhCriacao: "2026-11-02T10:00" },
+    { id: 3, cdStatus: "RECUSADO", dhCriacao: "2026-11-03T10:00" },
+    { id: 4, cdStatus: "EM_ANDAMENTO", dhCriacao: "2026-11-04T10:00" },
+  ];
+  const { esteira, concluidos } = separarConcluidos(l);
+  assert.deepEqual(esteira.map(c => c.id), [2, 4]);
+  assert.deepEqual(concluidos.map(c => c.id), [3, 1], "os mais novos primeiro");
+  assert.ok(concluido(l[0]) && !concluido(l[1]));
 });
