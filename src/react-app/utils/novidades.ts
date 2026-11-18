@@ -17,6 +17,12 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-18-app-android",
+    data: "2026-11-18",
+    titulo: "NordTool no celular: app Android",
+    texto: "Agora dá para instalar o NordTool no celular Android: toque em “Baixar app Android”, no fim do menu lateral, abra o arquivo e permita a instalação. O app abre direto no NordTool, envia fotos e arquivos e salva os downloads na pasta Downloads.",
+  },
+  {
     id: "2026-11-16-planilha-linhas",
     data: "2026-11-16",
     titulo: "Planilha: 1000 linhas, inserir várias e ajuste rápido",
