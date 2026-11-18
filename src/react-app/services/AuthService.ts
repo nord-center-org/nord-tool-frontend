@@ -7,6 +7,11 @@ export const authService = {
     return apiFetch<Sessao>("/auth/login", { method: "POST", body: JSON.stringify({ email, senha }) });
   },
 
+  /** App Android: registra este aparelho para a sessão não cair (o token volta uma única vez). */
+  registrarAparelho(nmAparelho: string): Promise<{ txToken: string }> {
+    return apiFetch<{ txToken: string }>("/auth/aparelho", { method: "POST", body: JSON.stringify({ nmAparelho }) });
+  },
+
   refresh(): Promise<Sessao> {
     return apiFetch<Sessao>("/auth/refresh", { method: "POST" });
   },

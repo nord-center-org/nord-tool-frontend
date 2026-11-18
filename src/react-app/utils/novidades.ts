@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-18-app-android-v2",
+    data: "2026-11-18",
+    titulo: "App Android 2.0: sempre conectado e com avisos",
+    texto: "Baixe o app de novo e instale por cima: agora ele não desconecta mais, fica ativo em segundo plano e mostra os avisos nas notificações do celular, mesmo fechado. Administradores também recebem cada alteração feita no NordTool, com o nome de quem fez.",
+    onde: { rotulo: "Configurações → Notificações no celular", caminho: "/configuracoes#notificacoes" },
+  },
+  {
     id: "2026-11-18-app-android",
     data: "2026-11-18",
     titulo: "NordTool no celular: app Android",

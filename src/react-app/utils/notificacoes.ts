@@ -13,10 +13,12 @@ export interface PreferenciasNotificacao {
   inSac: boolean;
   /** Avisar também do que eu mesmo fiz (útil para conferir em outro aparelho). */
   inMinhasAcoes: boolean;
+  /** Administrador: avisar das alterações que as outras pessoas fazem no NordTool, com o nome de quem fez. */
+  inAtividade: boolean;
 }
 
 export const PREFERENCIAS_PADRAO: PreferenciasNotificacao = {
-  inDemandaNova: true, inDemandaAlterada: true, inHorario: true, nrAntecedenciaMin: 30, inPrazo: true, inSac: true, inMinhasAcoes: true,
+  inDemandaNova: true, inDemandaAlterada: true, inHorario: true, nrAntecedenciaMin: 30, inPrazo: true, inSac: true, inMinhasAcoes: true, inAtividade: true,
 };
 
 export const ANTECEDENCIAS = [0, 10, 15, 30, 60, 120] as const;
@@ -25,13 +27,17 @@ export const rotuloAntecedencia = (min: number) =>
   min === 0 ? "Na hora" : min < 60 ? `${min} min antes` : min === 60 ? "1 hora antes" : `${min / 60} horas antes`;
 
 /** As opções da tela, na ordem em que aparecem. */
-export const OPCOES_NOTIFICACAO: { chave: Exclude<keyof PreferenciasNotificacao, "nrAntecedenciaMin">; titulo: string; texto: string }[] = [
+export const OPCOES_NOTIFICACAO: { chave: Exclude<keyof PreferenciasNotificacao, "nrAntecedenciaMin">; titulo: string; texto: string; soAdmin?: boolean }[] = [
   { chave: "inDemandaNova", titulo: "Demanda nova", texto: "Quando uma demanda do cronograma é cadastrada para você ou compartilhada com você." },
   { chave: "inDemandaAlterada", titulo: "Demanda alterada", texto: "Quando uma demanda sua muda: texto, data, horário ou etapa." },
   { chave: "inHorario", titulo: "Horário chegando", texto: "Antes do horário marcado de uma demanda agendada." },
   { chave: "inPrazo", titulo: "Prazo do dia", texto: "Às 8h, das demandas que vencem hoje e ainda não foram concluídas." },
   { chave: "inSac", titulo: "Resposta no SAC", texto: "Quando um administrador responde ou muda o status do seu chamado." },
   { chave: "inMinhasAcoes", titulo: "O que eu mesmo fiz", texto: "Avisar também das alterações feitas por você (para conferir em outro aparelho)." },
+  {
+    chave: "inAtividade", soAdmin: true, titulo: "Alterações das outras pessoas",
+    texto: "Qualquer alteração feita no NordTool, com o nome de quem fez e onde (alterações seguidas na mesma tela viram um aviso só).",
+  },
 ];
 
 /** Lê as preferências vindas do servidor, completando o que faltar. */
@@ -42,7 +48,7 @@ export function lerPreferencias(bruto: unknown): PreferenciasNotificacao {
   return {
     inDemandaNova: bool("inDemandaNova"), inDemandaAlterada: bool("inDemandaAlterada"), inHorario: bool("inHorario"),
     nrAntecedenciaMin: Number.isFinite(n) ? Math.min(120, Math.max(0, Math.round(n))) : PREFERENCIAS_PADRAO.nrAntecedenciaMin,
-    inPrazo: bool("inPrazo"), inSac: bool("inSac"), inMinhasAcoes: bool("inMinhasAcoes"),
+    inPrazo: bool("inPrazo"), inSac: bool("inSac"), inMinhasAcoes: bool("inMinhasAcoes"), inAtividade: bool("inAtividade"),
   };
 }
 

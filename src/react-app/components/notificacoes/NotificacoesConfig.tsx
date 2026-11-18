@@ -3,6 +3,8 @@ import { useLocation } from "react-router";
 import { Bell, BellOff, BellRing, Loader2, Send, Share, Smartphone, SquarePlus } from "lucide-react";
 
 import { notificacaoService, type Aparelho } from "@/react-app/services/NotificacaoService";
+import { useAuth } from "@/react-app/hooks/useAuth";
+import { ponteAndroid } from "@/react-app/utils/appAndroid";
 import {
   ANTECEDENCIAS, OPCOES_NOTIFICACAO, PREFERENCIAS_PADRAO, rotuloAntecedencia, suporteDoAparelho, type PreferenciasNotificacao, type Suporte,
 } from "@/react-app/utils/notificacoes";
@@ -26,6 +28,10 @@ export default function NotificacoesConfig() {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => { if (hash === "#notificacoes") ref.current?.scrollIntoView({ block: "start", behavior: "smooth" }); }, [hash]);
 
+  const { pode } = useAuth();
+  const admin = pode("ADMINISTRACAO", "ADMIN");
+  // No app Android os avisos chegam pelo próprio app (serviço em segundo plano), sem Web Push.
+  const [noApp] = useState(() => ponteAndroid() !== null);
   const [suporte] = useState<Suporte>(suporteAqui);
   const [chave, setChave] = useState<string | null>(null);
   const [servidorPronto, setServidorPronto] = useState(true);
@@ -44,7 +50,7 @@ export default function NotificacoesConfig() {
       try {
         const [cfg, p, lista, inscricao] = await Promise.all([
           notificacaoService.config(), notificacaoService.preferencias(), notificacaoService.aparelhos(),
-          suporte === "ok" ? notificacaoService.inscricaoAtual().catch(() => null) : Promise.resolve(null),
+          suporte === "ok" && !noApp ? notificacaoService.inscricaoAtual().catch(() => null) : Promise.resolve(null),
         ]);
         if (!vivo) return;
         setServidorPronto(cfg.habilitado && !!cfg.chavePublica);
@@ -59,7 +65,7 @@ export default function NotificacoesConfig() {
       }
     })();
     return () => { vivo = false; };
-  }, [suporte]);
+  }, [suporte, noApp]);
 
   const ativar = async () => {
     if (!chave) return;
@@ -88,7 +94,7 @@ export default function NotificacoesConfig() {
     setOcupado("teste"); setAviso(null);
     try {
       const n = await notificacaoService.testar();
-      setAviso(n > 0
+      setAviso(noApp ? { tipo: "ok", texto: "Teste enviado. Deve aparecer nas notificações do celular em alguns segundos." } : n > 0
         ? { tipo: "ok", texto: `Teste enviado para ${n === 1 ? "1 aparelho" : `${n} aparelhos`}. Deve chegar em alguns segundos.` }
         : { tipo: "erro", texto: "Nenhum aparelho ativo para receber o teste." });
     } catch (e) { setAviso({ tipo: "erro", texto: mensagemDe(e) }); }
@@ -118,7 +124,18 @@ export default function NotificacoesConfig() {
           ) : (
             <>
               <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-                {!servidorPronto ? (
+                {noApp ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="flex min-w-0 items-start gap-2 text-sm font-bold text-slate-700">
+                      <Bell className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      <span>Ativas no app: ele fica ligado em segundo plano e avisa mesmo fechado.</span>
+                    </p>
+                    <button type="button" onClick={testar} disabled={!!ocupado}
+                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                      {ocupado === "teste" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Enviar teste
+                    </button>
+                  </div>
+                ) : !servidorPronto ? (
                   <p className="text-sm font-medium text-slate-600">As notificações ainda não foram ligadas no servidor. Avise um administrador.</p>
                 ) : suporte === "instalar-ios" ? (
                   <div className="text-sm text-slate-700">
@@ -165,7 +182,7 @@ export default function NotificacoesConfig() {
 
               <p className="mt-5 text-[10px] font-bold uppercase tracking-wider text-slate-400">O que avisar (vale para todos os seus aparelhos)</p>
               <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200">
-                {OPCOES_NOTIFICACAO.map(o => (
+                {OPCOES_NOTIFICACAO.filter(o => !o.soAdmin || admin).map(o => (
                   <li key={o.chave} className="flex items-start justify-between gap-4 p-3">
                     <div className="min-w-0">
                       <label htmlFor={`notif-${o.chave}`} className="cursor-pointer">

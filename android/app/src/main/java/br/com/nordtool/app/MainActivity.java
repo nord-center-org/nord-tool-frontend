@@ -7,6 +7,9 @@ import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
@@ -26,6 +29,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
+import org.json.JSONObject;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -34,10 +39,13 @@ import java.io.OutputStream;
 /**
  * App Android do NordTool: abre o NordTool publicado numa WebView, com envio de arquivos,
  * downloads (inclusive os gerados no navegador, como PDF e planilhas) e o botão voltar.
+ * Desde a versão 2: a sessão não cai (o aparelho renova a sessão sem pedir a senha) e um serviço em segundo
+ * plano mostra os avisos do NordTool nas notificações do celular.
  */
 public class MainActivity extends Activity {
 
     private static final int PEDIDO_ARQUIVO = 1;
+    private static final int PEDIDO_NOTIFICACOES = 2;
 
     /**
      * Os downloads do NordTool são gerados no navegador (URLs blob:), que o DownloadManager não alcança.
@@ -59,6 +67,8 @@ public class MainActivity extends Activity {
     private WebView webView;
     private ValueCallback<Uri[]> retornoArquivo;
     private String hostDoApp;
+    /** Página aberta no momento: a ponte da sessão só responde com o NordTool aberto (nunca outro site). */
+    private volatile String hostAtual;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -83,10 +93,55 @@ public class MainActivity extends Activity {
         webView.setWebChromeClient(new Janela());
         webView.setDownloadListener((url, agente, disposicao, tipo, tamanho) -> baixar(url, agente, disposicao, tipo));
 
-        if (estado != null) {
+        ServicoSegundoPlano.criarCanais(this);
+        String destino = enderecoDoAviso(getIntent());
+        if (destino != null) {
+            webView.loadUrl(destino);
+        } else if (estado != null) {
             webView.restoreState(estado);
         } else {
             webView.loadUrl(BuildConfig.ENDERECO);
+        }
+        if (new Armazenamento(this).temAparelho()) {
+            pedirPermissaoDeNotificacao();
+            ServicoSegundoPlano.iniciar(this);
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intencao) {
+        super.onNewIntent(intencao);
+        String destino = enderecoDoAviso(intencao);
+        if (destino != null) webView.loadUrl(destino);
+    }
+
+    /** Tocou num aviso: abre a tela dele (só caminhos do próprio NordTool). */
+    private static String enderecoDoAviso(Intent intencao) {
+        String url = intencao == null ? null : intencao.getStringExtra(ServicoSegundoPlano.EXTRA_URL);
+        if (url == null || !url.startsWith("/") || url.startsWith("//")) return null;
+        return BuildConfig.ENDERECO.replaceAll("/+$", "") + url;
+    }
+
+    private void pedirPermissaoDeNotificacao() {
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, PEDIDO_NOTIFICACOES);
+        }
+    }
+
+    /** Uma vez: pede para o Android não pausar o app para economizar bateria (senão os avisos atrasam). */
+    @SuppressLint("BatteryLife")
+    private void pedirParaNaoPausar() {
+        Armazenamento dados = new Armazenamento(this);
+        if (dados.pediuBateria()) return;
+        dados.pediuBateria(true);
+        try {
+            PowerManager energia = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (energia != null && !energia.isIgnoringBatteryOptimizations(getPackageName())) {
+                startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getPackageName())));
+            }
+        } catch (RuntimeException ignorado) {
+            // alguns fabricantes não têm a tela: o serviço segue funcionando
         }
     }
 
@@ -194,8 +249,71 @@ public class MainActivity extends Activity {
         return limpo;
     }
 
-    /** Ponte chamada pelo SCRIPT_DOWNLOADS. */
+    private boolean noNordTool() {
+        return hostDoApp != null && hostDoApp.equalsIgnoreCase(hostAtual);
+    }
+
+    /** Ponte chamada pela página: downloads (SCRIPT_DOWNLOADS) e, desde a v2, a sessão pelo aparelho. */
     private final class Ponte {
+        /** Depois de entrar com a senha: guarda o token do aparelho e liga o segundo plano. */
+        @JavascriptInterface
+        public void registrar(String token, String api) {
+            if (!noNordTool() || token == null || token.isEmpty() || api == null || !api.startsWith("https://")) return;
+            Armazenamento dados = new Armazenamento(MainActivity.this);
+            String anterior = dados.token();
+            String apiAnterior = dados.api();
+            dados.guardar(token, api.replaceAll("/+$", ""));
+            if (anterior != null && apiAnterior != null && !anterior.equals(token)) {
+                new Thread(() -> Api.sair(apiAnterior, anterior), "nordtool-sair").start();
+            }
+            runOnUiThread(() -> {
+                pedirPermissaoDeNotificacao();
+                ServicoSegundoPlano.iniciar(MainActivity.this);
+                pedirParaNaoPausar();
+            });
+        }
+
+        @JavascriptInterface
+        public boolean temAparelho() {
+            return noNordTool() && new Armazenamento(MainActivity.this).temAparelho();
+        }
+
+        /** Sessão nova pelo token do aparelho; responde em window.__nordAndroidSessao(id, json ou ""). */
+        @JavascriptInterface
+        public void pedirSessao(String id) {
+            if (!noNordTool()) return;
+            Armazenamento dados = new Armazenamento(MainActivity.this);
+            String api = dados.api();
+            String token = dados.token();
+            new Thread(() -> {
+                String resposta = "";
+                if (api != null && token != null) {
+                    try {
+                        resposta = Api.entrar(api, token).toString();
+                    } catch (Api.Desconectado e) {
+                        dados.esquecer();
+                        runOnUiThread(() -> ServicoSegundoPlano.parar(MainActivity.this));
+                    } catch (java.io.IOException | RuntimeException e) {
+                        resposta = "";
+                    }
+                }
+                String js = "window.__nordAndroidSessao && window.__nordAndroidSessao(" + JSONObject.quote(id) + "," + JSONObject.quote(resposta) + ")";
+                runOnUiThread(() -> webView.evaluateJavascript(js, null));
+            }, "nordtool-sessao").start();
+        }
+
+        /** Saiu da conta: desconecta o aparelho e para o segundo plano. */
+        @JavascriptInterface
+        public void sair() {
+            if (!noNordTool()) return;
+            Armazenamento dados = new Armazenamento(MainActivity.this);
+            String api = dados.api();
+            String token = dados.token();
+            dados.esquecer();
+            runOnUiThread(() -> ServicoSegundoPlano.parar(MainActivity.this));
+            if (api != null && token != null) new Thread(() -> Api.sair(api, token), "nordtool-sair").start();
+        }
+
         @JavascriptInterface
         public void salvar(String dataUrl, String nome) {
             try {
@@ -227,7 +345,13 @@ public class MainActivity extends Activity {
 
         @Override
         public void onPageStarted(WebView vista, String url, Bitmap icone) {
+            hostAtual = Uri.parse(url).getHost();
             vista.evaluateJavascript(SCRIPT_DOWNLOADS, null);
+        }
+
+        @Override
+        public void doUpdateVisitedHistory(WebView vista, String url, boolean recarregou) {
+            hostAtual = Uri.parse(url).getHost();
         }
 
         @Override
