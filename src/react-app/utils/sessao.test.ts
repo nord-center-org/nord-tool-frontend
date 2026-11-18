@@ -83,3 +83,16 @@ test("subacesso: vale o que veio no token; token antigo (sem subacessos) herda o
   assert.equal(podeAcessar(antigo, "CRONOGRAMA_EXCLUIR", "ESCRITA"), true);
   assert.equal(podeAcessar([{ cdModulo: "CRONOGRAMA", cdAcao: "LEITURA" }], "CRONOGRAMA_EXCLUIR", "ESCRITA"), false);
 });
+
+test("telas que antes abriam para todos agora dependem do acesso", () => {
+  const sem: { cdModulo: string; cdAcao: string }[] = [];
+  for (const rota of ["/mapeamentos/bloco-notas", "/mapeamentos/cubicagem", "/gestao/treinos", "/gestao/repertorio", "/organizacional/rte",
+    "/organizacional/diario-obras", "/organizacional/fluxograma", "/organizacional/fvs", "/organizacional/projetos", "/treinamentos",
+    "/gestao/academico", "/mapeamentos/pendencias"]) {
+    assert.equal(podeAbrirRota(sem, rota), false, rota);
+  }
+  assert.equal(podeAbrirRota([{ cdModulo: "BLOCO_NOTAS", cdAcao: "LEITURA" }], "/mapeamentos/bloco-notas"), true);
+  assert.equal(podeAbrirRota([{ cdModulo: "TELAS_EM_CONSTRUCAO", cdAcao: "LEITURA" }], "/organizacional/rte"), true);
+  // seguem abertas a todos: início, SAC, configurações e a conta
+  for (const rota of ["/", "/sac", "/configuracoes", "/conta/dados"]) assert.equal(podeAbrirRota(sem, rota), true, rota);
+});

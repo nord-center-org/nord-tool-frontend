@@ -77,3 +77,24 @@ test("subacessos: padrão do cargo bloqueia, rascunho guarda a intenção e pers
   assert.equal(paiPermite(baixo, "CRONOGRAMA_RELATORIO_IA"), true);
   assert.equal(qtModulosLiberados({ CRONOGRAMA: "ESCRITA", CRONOGRAMA_EXCLUIR: "ESCRITA" }), 1);
 });
+
+test("acessos de liga/desliga: só Sem acesso e Liberado, e qualquer nível acima conta como liberado", async () => {
+  const a = await import("./acessos.ts");
+  assert.deepEqual(a.niveisDoModulo("SESSAO_CONTINUA"), ["NENHUM", "LEITURA"]);
+  assert.deepEqual(a.niveisDoModulo("TELAS_EM_CONSTRUCAO"), ["NENHUM", "LEITURA"]);
+  assert.deepEqual(a.niveisDoModulo("BLOCO_NOTAS"), ["NENHUM", "LEITURA", "ESCRITA", "ADMIN"]);
+  assert.equal(a.rotuloNivelDoModulo("SESSAO_CONTINUA", "LEITURA"), "Liberado");
+  assert.equal(a.rotuloNivelDoModulo("BLOCO_NOTAS", "LEITURA"), "Ver");
+  assert.equal(a.nivelMarcado("SESSAO_CONTINUA", "ADMIN", "LEITURA"), true, "admin (curinga) aparece liberado");
+  assert.equal(a.nivelMarcado("SESSAO_CONTINUA", "NENHUM", "NENHUM"), true);
+  assert.equal(a.nivelMarcado("SESSAO_CONTINUA", undefined, "LEITURA"), false);
+  assert.equal(a.nivelMarcado("BLOCO_NOTAS", "ESCRITA", "LEITURA"), false);
+  assert.equal(a.nivelMarcado("BLOCO_NOTAS", "ESCRITA", "ESCRITA"), true);
+});
+
+test("toda tela do menu que abre para alguém tem um acesso com nome na tela de Acessos", async () => {
+  const a = await import("./acessos.ts");
+  for (const m of ["BLOCO_NOTAS", "CUBICAGEM", "TREINOS", "REPERTORIO", "TELAS_EM_CONSTRUCAO", "SESSAO_CONTINUA"]) {
+    assert.ok(a.MODULOS[m]?.nome, m);
+  }
+});

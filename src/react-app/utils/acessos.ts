@@ -26,14 +26,36 @@ export const MODULOS: Record<string, { nome: string; telas: string }> = {
   ESCADINHA: { nome: "Escadinha", telas: "Prédio 3D, apartamentos, lados A/B e ciclos (Editar: montar torres e mudar ciclos)" },
   PLACAS: { nome: "Placas", telas: "Placas de aviso da obra (Editar: criar placas; Admin: modelos)" },
   RELATORIO_FOTOGRAFICO: { nome: "Relatório fotográfico", telas: "Relatórios com fotos (Admin mantém os modelos)" },
+  BLOCO_NOTAS: { nome: "Bloco de notas", telas: "Cadernos, planilhas, documentos, conversor e o chat dos cadernos" },
+  CUBICAGEM: { nome: "Cubicagem", telas: "Volume das peças a partir do projeto" },
   CAIXINHA: { nome: "Caixinha", telas: "Despesas e comprovantes" },
   FINANCEIRO: { nome: "Gestão financeira", telas: "Controle financeiro e investimentos" },
   CASAMENTO: { nome: "Casamento", telas: "Fornecedores, convidados e marcos" },
+  TREINOS: { nome: "Treinos", telas: "Treinos e sessões de academia" },
+  REPERTORIO: { nome: "Repertório", telas: "Músicas, cifras e estúdio (Ver: tocar; Editar: criar, mudar e compartilhar)" },
+  TELAS_EM_CONSTRUCAO: { nome: "Telas em construção", telas: "Pendências, RTE, Diário de obras, Fluxo de atividades, FVs, Projetos, Treinamentos e Acadêmico" },
+  SESSAO_CONTINUA: { nome: "Manter conectado no app", telas: "No app Android a sessão não cai (sem ele, o app pede a senha como o navegador)" },
   LUGIA: { nome: "Lugia (IA)", telas: "Chat com Claude, ChatGPT e Gemini (Editar e Admin: para as próximas fases)" },
   SAC: { nome: "SAC", telas: "Todos abrem chamados; Admin vê os chamados de todos e responde" },
   CADASTROS: { nome: "Cadastros", telas: "Empresas, cargos e ferramentas" },
   ADMINISTRACAO: { nome: "Administração", telas: "Acessos de usuários (use Admin)" },
 };
+
+/** Módulos de liga/desliga: só "Sem acesso" ou "Liberado" (gravado como LEITURA). */
+export const MODULOS_LIGA_DESLIGA = new Set(["TELAS_EM_CONSTRUCAO", "SESSAO_CONTINUA"]);
+
+/** Os botões de nível que a tela mostra para o módulo. */
+export const niveisDoModulo = (m: string): Nivel[] => (MODULOS_LIGA_DESLIGA.has(m) ? ["NENHUM", "LEITURA"] : NIVEIS);
+
+/** Rótulo do botão: nos de liga/desliga, "Liberado" no lugar de "Ver". */
+export const rotuloNivelDoModulo = (m: string, n: Nivel): string => (MODULOS_LIGA_DESLIGA.has(m) && n === "LEITURA" ? "Liberado" : ROTULO_NIVEL[n]);
+
+/** O botão do nível está marcado? Nos de liga/desliga, qualquer nível acima de "Sem acesso" conta como liberado. */
+export function nivelMarcado(m: string, atual: string | undefined, n: Nivel): boolean {
+  if (!MODULOS_LIGA_DESLIGA.has(m)) return atual === n;
+  const liberado = !!atual && atual !== "NENHUM";
+  return n === "NENHUM" ? !liberado : liberado;
+}
 
 /**
  * Subacessos: ficam dentro de um módulo e herdam o nível dele. Só dá para liberar ("Pode") ou bloquear ("Não pode");

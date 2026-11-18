@@ -9,7 +9,7 @@ import { useAuth } from "@/react-app/hooks/useAuth";
 import { OpcoesColaboradorService } from "@/react-app/services/OpcoesColaboradorService";
 import { acessoService, type Acessos, type AcessoUsuario } from "@/react-app/services/AcessoService";
 import {
-  MODULOS, NIVEIS, ROTULO_NIVEL, SUBACESSOS, alterado, ehSubacesso, filtrarUsuarios, nomeModulo, padraoDe, paiPermite, paraEdicao,
+  MODULOS, ROTULO_NIVEL, niveisDoModulo, rotuloNivelDoModulo, nivelMarcado, SUBACESSOS, alterado, ehSubacesso, filtrarUsuarios, nomeModulo, padraoDe, paiPermite, paraEdicao,
   personalizados, qtModulosLiberados, rascunhoUsuario, subacessosDe, type Nivel, type Rascunho,
 } from "@/react-app/utils/acessos";
 import ChaveSubacesso from "@/react-app/components/administracao/ChaveSubacesso";
@@ -223,10 +223,10 @@ export default function AcessosModal({ onFechar }: AcessosModalProps) {
                               {MODULOS[m] && <p className="text-xs text-slate-400">{MODULOS[m].telas}</p>}
                             </div>
                             <div role="radiogroup" aria-label={`Nível em ${nomeModulo(m)}`} className="flex rounded-xl bg-slate-100 p-0.5">
-                              {NIVEIS.map(n => (
-                                <button key={n} type="button" role="radio" aria-checked={atual === n} onClick={() => definir(m, n)}
-                                  className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-colors ${atual === n ? (n === "NENHUM" ? "bg-white text-slate-600 shadow-sm" : "bg-blue-600 text-white shadow-sm") : "text-slate-500 hover:text-slate-700"}`}>
-                                  {ROTULO_NIVEL[n]}
+                              {niveisDoModulo(m).map(n => (
+                                <button key={n} type="button" role="radio" aria-checked={nivelMarcado(m, atual, n)} onClick={() => definir(m, n)}
+                                  className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-colors ${nivelMarcado(m, atual, n) ? (n === "NENHUM" ? "bg-white text-slate-600 shadow-sm" : "bg-blue-600 text-white shadow-sm") : "text-slate-500 hover:text-slate-700"}`}>
+                                  {rotuloNivelDoModulo(m, n)}
                                 </button>
                               ))}
                             </div>

@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-18-acessos-v2",
+    data: "2026-11-18",
+    titulo: "Acessos: mais telas sob controle e o “Manter conectado no app”",
+    texto: "Bloco de notas, Cubicagem, Treinos, Repertório e as telas em construção agora aparecem em Acessos para liberar ou tirar de cada pessoa, perfil ou cargo. E dá para escolher quem fica sempre conectado no app Android.",
+    onde: { rotulo: "Configurações → Acessos", caminho: "/configuracoes" },
+  },
+  {
     id: "2026-11-18-app-android-barra",
     data: "2026-11-18",
     titulo: "App Android 4.0: tela certinha no Android 15",

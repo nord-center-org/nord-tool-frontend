@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, Loader2, Network, X } from "lucide-react";
 
 import { acessoService, type AcessoCargo, type Acessos, type NivelAcesso } from "@/react-app/services/AcessoService";
-import { MODULOS, NIVEIS, ROTULO_NIVEL, abaixoDe, arvoreHierarquia, ehSubacesso, nomeModulo, paraEdicao, subacessosDe } from "@/react-app/utils/acessos";
+import { MODULOS, niveisDoModulo, rotuloNivelDoModulo, nivelMarcado, abaixoDe, arvoreHierarquia, ehSubacesso, nomeModulo, paraEdicao, subacessosDe } from "@/react-app/utils/acessos";
 import ChaveSubacesso from "@/react-app/components/administracao/ChaveSubacesso";
 
 interface Props { onFechar: () => void }
@@ -159,10 +159,10 @@ function Cargos({ dados, onAtualizar }: { dados: Acessos; onAtualizar: (d: Acess
                   {MODULOS[m] && <p className="text-xs text-slate-400">{MODULOS[m].telas}</p>}
                 </div>
                 <div role="radiogroup" aria-label={`Nível do cargo em ${nomeModulo(m)}`} className="flex rounded-xl bg-slate-100 p-0.5">
-                  {NIVEIS.map(n => (
-                    <button key={n} type="button" role="radio" aria-checked={rascunho[m] === n} onClick={() => setRascunho({ ...rascunho, [m]: n })}
-                      className={`rounded-lg px-2.5 py-1 text-xs font-bold ${rascunho[m] === n ? (n === "NENHUM" ? "bg-white text-slate-600 shadow-sm" : "bg-blue-600 text-white shadow-sm") : "text-slate-500"}`}>
-                      {ROTULO_NIVEL[n]}
+                  {niveisDoModulo(m).map(n => (
+                    <button key={n} type="button" role="radio" aria-checked={nivelMarcado(m, rascunho[m], n)} onClick={() => setRascunho({ ...rascunho, [m]: n })}
+                      className={`rounded-lg px-2.5 py-1 text-xs font-bold ${nivelMarcado(m, rascunho[m], n) ? (n === "NENHUM" ? "bg-white text-slate-600 shadow-sm" : "bg-blue-600 text-white shadow-sm") : "text-slate-500"}`}>
+                      {rotuloNivelDoModulo(m, n)}
                     </button>
                   ))}
                 </div>
