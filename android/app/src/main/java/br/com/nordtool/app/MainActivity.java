@@ -106,6 +106,14 @@ public class MainActivity extends Activity {
             pedirPermissaoDeNotificacao();
             ServicoSegundoPlano.iniciar(this);
         }
+        Atualizador.verificar(this, true);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Voltou para o app (inclusive depois de liberar "Instalar apps desconhecidos"): confere de novo.
+        Atualizador.verificar(this, false);
     }
 
     @Override
