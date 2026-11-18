@@ -163,6 +163,12 @@ export function tutorialGeral({ nome, grupos, variasObras }: OpcoesTourGeral): T
 
   passos.push(
     {
+      titulo: "App no celular",
+      texto: "Em “Baixar app Android” você baixa o NordTool para instalar no celular: abra o arquivo baixado e permita instalar (o Android pede isso para apps de fora da loja). Os downloads feitos no app vão para a pasta Downloads.",
+      alvo: { css: 'a[href="/app/nordtool.apk"]' },
+      menu: "abrir",
+    },
+    {
       titulo: "Configurações",
       texto: "Sua conta, senha, avatar e o botão de sair. Quem administra também cuida das obras, fases, equipes e de quem acessa cada tela.",
       alvo: { css: 'a[href="/configuracoes"]' },

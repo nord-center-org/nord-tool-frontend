@@ -17,6 +17,7 @@ import BotaoPrintLugia from "@/react-app/components/lugia/BotaoPrintLugia";
 import { EVENTO_DAVI, criarContadorToques } from "@/react-app/utils/segredo";
 import { alternarGrupo, grupoDaRota, lerGruposAbertos, rotaFavorita, salvarGruposAbertos } from "@/react-app/utils/menuLateral";
 import { alternarFavorito, itensFavoritos, lerFavoritosLocais, limparFavoritos, salvarFavoritosLocais } from "@/react-app/utils/menuFavoritos";
+import { ENDERECO_APK, mostrarBotaoAppAndroid } from "@/react-app/utils/appAndroid";
 import { menuFavoritoService } from "@/react-app/services/MenuFavoritoService";
 import { idGrupoMenu, jaViuTutorial, marcarTutorialVisto, tutorialDaTela, tutorialGeral, type PassoTutorial, type Tutorial as DadosTutorial } from "@/react-app/utils/tutorial";
 import { 
@@ -24,7 +25,7 @@ import {
   Home as HomeIcon, Briefcase, GraduationCap,
   ClipboardCheck, AlertTriangle, Camera, FileText, BookOpen, 
   TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Heart, PiggyBank,
-  Ruler, ChevronDown, HelpCircle, Sparkles, LifeBuoy, Signpost, NotebookPen, Box, BrickWall, type LucideIcon
+  Ruler, ChevronDown, HelpCircle, Sparkles, LifeBuoy, Signpost, NotebookPen, Box, BrickWall, Smartphone, type LucideIcon
 } from "lucide-react";
 
 const armazenamento = () => (typeof window === "undefined" ? undefined : window.localStorage);
@@ -309,6 +310,21 @@ export default function Layout() {
               );
             })}
           </nav>
+
+          {/* Baixar o app Android (escondido dentro do próprio app e no iPhone/iPad). */}
+          {mostrarBotaoAppAndroid(typeof navigator === "undefined" ? undefined : navigator.userAgent) && (
+            <div className="px-4 pt-3 border-t border-slate-100 bg-white">
+              <a
+                href={ENDERECO_APK}
+                download="nordtool.apk"
+                title="Instalar o NordTool no celular Android"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition-all duration-200 hover:bg-slate-50 hover:text-slate-900"
+              >
+                <Smartphone className="w-4 h-4" aria-hidden="true" />
+                <span>Baixar app Android</span>
+              </a>
+            </div>
+          )}
 
           {/* No rodapé Configurações (conta, senha e sair ficam lá dentro) e o atalho para o chat da Lugia. */}
           <div className="p-4 border-t border-slate-100 bg-white flex items-center gap-2">

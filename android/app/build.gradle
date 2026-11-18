@@ -1,0 +1,51 @@
+plugins {
+    id "com.android.application"
+}
+
+// A chave de assinatura fica fora do repositório: o caminho e as senhas vêm de assinatura.properties (não versionado)
+// ou das variáveis NORDTOOL_KEYSTORE, NORDTOOL_KEYSTORE_SENHA, NORDTOOL_KEY_ALIAS e NORDTOOL_KEY_SENHA.
+def assinatura = new Properties()
+def arquivoAssinatura = rootProject.file("assinatura.properties")
+if (arquivoAssinatura.exists()) arquivoAssinatura.withInputStream { assinatura.load(it) }
+def valor = { String chave, String variavel -> assinatura.getProperty(chave) ?: System.getenv(variavel) }
+
+android {
+    namespace "br.com.nordtool.app"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "br.com.nordtool.app"
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+        // Endereço que o app abre (o NordTool publicado).
+        buildConfigField "String", "ENDERECO", "\"${project.findProperty("enderecoNordTool") ?: "https://nordtoolfrontend-develop.up.railway.app"}\""
+    }
+
+    buildFeatures { buildConfig true }
+
+    signingConfigs {
+        release {
+            def loja = valor("storeFile", "NORDTOOL_KEYSTORE")
+            if (loja) {
+                storeFile file(loja)
+                storePassword valor("storePassword", "NORDTOOL_KEYSTORE_SENHA")
+                keyAlias valor("keyAlias", "NORDTOOL_KEY_ALIAS")
+                keyPassword valor("keyPassword", "NORDTOOL_KEY_SENHA")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (valor("storeFile", "NORDTOOL_KEYSTORE")) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
