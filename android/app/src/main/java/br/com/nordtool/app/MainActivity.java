@@ -27,6 +27,10 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.view.View;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import org.json.JSONObject;
@@ -77,7 +81,7 @@ public class MainActivity extends Activity {
         hostDoApp = Uri.parse(BuildConfig.ENDERECO).getHost();
 
         webView = new WebView(this);
-        setContentView(webView);
+        setContentView(montarTela(webView));
 
         WebSettings ajustes = webView.getSettings();
         ajustes.setJavaScriptEnabled(true);
@@ -151,6 +155,43 @@ public class MainActivity extends Activity {
         } catch (RuntimeException ignorado) {
             // alguns fabricantes não têm a tela: o serviço segue funcionando
         }
+    }
+
+    /**
+     * No Android 15 o app ocupa a tela inteira (até atrás da barra de horário e da barra de navegação). A página fica
+     * entre as barras: em cima uma faixa azul do tamanho da barra de horário (ícones claros), embaixo o espaço da
+     * navegação e do teclado. Nos Androids anteriores as barras já ficam fora e nada muda.
+     */
+    private View montarTela(WebView pagina) {
+        LinearLayout raiz = new LinearLayout(this);
+        raiz.setOrientation(LinearLayout.VERTICAL);
+        raiz.setBackgroundColor(0xFFF8FAFC);
+        View faixa = new View(this);
+        faixa.setBackgroundColor(0xFF1E40AF);
+        raiz.addView(faixa, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0));
+        raiz.addView(pagina, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        if (Build.VERSION.SDK_INT >= 35) {
+            raiz.setOnApplyWindowInsetsListener((v, insets) -> {
+                android.graphics.Insets barras = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                android.graphics.Insets teclado = insets.getInsets(WindowInsets.Type.ime());
+                LinearLayout.LayoutParams alto = (LinearLayout.LayoutParams) faixa.getLayoutParams();
+                if (alto.height != barras.top) {
+                    alto.height = barras.top;
+                    faixa.setLayoutParams(alto);
+                }
+                v.setPadding(barras.left, 0, barras.right, Math.max(barras.bottom, teclado.bottom));
+                return WindowInsets.CONSUMED;
+            });
+            raiz.post(() -> {
+                WindowInsetsController controle = getWindow().getInsetsController();
+                if (controle != null) {
+                    // ícones claros na faixa azul de cima, escuros na navegação clara de baixo
+                    controle.setSystemBarsAppearance(WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+                            WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+                }
+            });
+        }
+        return raiz;
     }
 
     @Override

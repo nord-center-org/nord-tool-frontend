@@ -17,6 +17,12 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-18-app-android-barra",
+    data: "2026-11-18",
+    titulo: "App Android 4.0: tela certinha no Android 15",
+    texto: "A barra de horário do celular não fica mais por cima do NordTool. Quem já tem a 3.0 recebe a atualização sozinho ao abrir o app: é só confirmar.",
+  },
+  {
     id: "2026-11-18-app-android-v3",
     data: "2026-11-18",
     titulo: "App Android 3.0: se atualiza sozinho",
