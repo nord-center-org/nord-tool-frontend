@@ -4,6 +4,8 @@ import { notificacaoService } from "@/react-app/services/NotificacaoService";
 import { EVENTO_SESSAO_ENCERRADA } from "@/react-app/services/apiClient";
 import { AuthContext, type AuthContexto } from "@/react-app/hooks/useAuth";
 import { gravarSessao, lerSessao, msAteRenovar, podeAcessar, sessaoValida, type Sessao } from "@/react-app/utils/sessao";
+import { ponteAndroid } from "@/react-app/utils/appAndroid";
+import { registrarNoApp, sessaoDoApp } from "@/react-app/services/sessaoApp";
 
 function armazenamento(): Storage | undefined {
   try {
@@ -18,6 +20,8 @@ const EVENTOS_ATIVIDADE = ["pointerdown", "keydown", "scroll"] as const;
 /**
  * Sessão do usuário (token em sessionStorage, por aba). Renova o token antes de expirar enquanto houver
  * atividade; sem atividade deixa expirar. Um 401 da API (token expirado ou revogado) encerra a sessão.
+ * No app Android a sessão não cai: sem atividade, no fim da sessão ou depois de um 401, o app abre uma sessão
+ * nova com o token do aparelho; só volta ao login se o aparelho foi desconectado (senha trocada, saiu, 60 dias).
  */
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const [sessao, setSessao] = useState<Sessao | null>(() => {
@@ -35,6 +39,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const sair = useCallback(() => {
     // Sair de propósito desliga as notificações deste aparelho (a sessão que só expirou continua recebendo).
     void notificacaoService.esquecerEsteAparelho();
+    try { ponteAndroid()?.sair(); } catch { /* app sem ponte */ }
     setSessaoEncerrada(false);
     aplicar(null);
   }, [aplicar]);
@@ -44,6 +49,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     setSessaoEncerrada(false);
     ultimaAtividade.current = Date.now();
     aplicar(nova);
+    registrarNoApp();
   }, [aplicar]);
 
   const definirSenha = useCallback(async (email: string, senhaProvisoria: string, novaSenha: string) => {
@@ -51,16 +57,22 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     setSessaoEncerrada(false);
     ultimaAtividade.current = Date.now();
     aplicar(nova);
+    registrarNoApp();
+  }, [aplicar]);
+
+  /** No app: tenta seguir pelo aparelho; sem ele, encerra como no navegador. */
+  const continuarOuEncerrar = useCallback(async () => {
+    const nova = await sessaoDoApp().catch(() => null);
+    if (nova) { aplicar(nova); return; }
+    setSessaoEncerrada(true);
+    aplicar(null);
   }, [aplicar]);
 
   useEffect(() => {
-    const encerrar = () => {
-      setSessaoEncerrada(true);
-      aplicar(null);
-    };
+    const encerrar = () => { void continuarOuEncerrar(); };
     window.addEventListener(EVENTO_SESSAO_ENCERRADA, encerrar);
     return () => window.removeEventListener(EVENTO_SESSAO_ENCERRADA, encerrar);
-  }, [aplicar]);
+  }, [continuarOuEncerrar]);
 
   useEffect(() => {
     const marcar = () => { ultimaAtividade.current = Date.now(); };
@@ -71,14 +83,18 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!sessao) return;
     const agora = Date.now();
-    const expirar = setTimeout(() => {
-      setSessaoEncerrada(true);
-      aplicar(null);
-    }, Math.max(0, Date.parse(sessao.expiraEm) - agora));
-    const espera = msAteRenovar(sessao, agora);
+    const noApp = ponteAndroid() !== null;
+    const expirar = setTimeout(() => { void continuarOuEncerrar(); }, Math.max(0, Date.parse(sessao.expiraEm) - agora));
+    // No app renova sempre (mesmo parado), e pelo aparelho quando a sessão chega ao limite.
+    const espera = msAteRenovar(sessao, agora) ?? (noApp ? Math.max(5_000, Date.parse(sessao.expiraEm) - agora - 120_000) : null);
     if (espera === null) return () => clearTimeout(expirar);
 
     const renovar = setTimeout(() => {
+      if (noApp) {
+        void sessaoDoApp().then(nova => nova ?? authService.refresh()).then(aplicar)
+          .catch(() => { /* tenta de novo ao expirar */ });
+        return;
+      }
       if (ultimaAtividade.current <= agora) return;
       authService.refresh()
         .then(aplicar)
@@ -88,7 +104,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(renovar);
       clearTimeout(expirar);
     };
-  }, [sessao, aplicar]);
+  }, [sessao, aplicar, continuarOuEncerrar]);
 
   const valor = useMemo<AuthContexto>(() => ({
     usuario: sessao?.usuario ?? null,
