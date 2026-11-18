@@ -24,6 +24,12 @@ export type Modulo =
   | "LUGIA"
   | "SAC"
   | "PLACAS"
+  | "BLOCO_NOTAS"
+  | "CUBICAGEM"
+  | "TREINOS"
+  | "REPERTORIO"
+  | "TELAS_EM_CONSTRUCAO"
+  | "SESSAO_CONTINUA"
   | "CADASTROS"
   | "ADMINISTRACAO";
 
@@ -94,6 +100,19 @@ const MODULO_POR_ROTA: Array<[string, Modulo]> = [
   ["/gestao/casamento", "CASAMENTO"],
   ["/gestao/caixinha", "CAIXINHA"],
   ["/lugia", "LUGIA"],
+  ["/mapeamentos/bloco-notas", "BLOCO_NOTAS"],
+  ["/mapeamentos/cubicagem", "CUBICAGEM"],
+  ["/gestao/treinos", "TREINOS"],
+  ["/gestao/repertorio", "REPERTORIO"],
+  // Telas ainda em construção: só aparecem para quem tem o acesso.
+  ["/mapeamentos/pendencias", "TELAS_EM_CONSTRUCAO"],
+  ["/organizacional/rte", "TELAS_EM_CONSTRUCAO"],
+  ["/organizacional/diario-obras", "TELAS_EM_CONSTRUCAO"],
+  ["/organizacional/fluxograma", "TELAS_EM_CONSTRUCAO"],
+  ["/organizacional/fvs", "TELAS_EM_CONSTRUCAO"],
+  ["/organizacional/projetos", "TELAS_EM_CONSTRUCAO"],
+  ["/treinamentos", "TELAS_EM_CONSTRUCAO"],
+  ["/gestao/academico", "TELAS_EM_CONSTRUCAO"],
 ];
 
 export function moduloDaRota(caminho: string): Modulo | null {
