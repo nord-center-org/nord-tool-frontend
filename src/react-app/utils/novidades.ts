@@ -17,6 +17,12 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-18-app-android-v3",
+    data: "2026-11-18",
+    titulo: "App Android 3.0: se atualiza sozinho",
+    texto: "Instale a versão 3.0 pelo menu uma última vez: daqui em diante, quando sair uma versão nova, o app baixa sozinho ao abrir e só pede para você confirmar a instalação.",
+  },
+  {
     id: "2026-11-18-app-android-v2",
     data: "2026-11-18",
     titulo: "App Android 2.0: sempre conectado e com avisos",

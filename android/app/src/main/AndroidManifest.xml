@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- v3: o app se atualiza sozinho (a pessoa só confirma a instalação). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Só no Android 9 ou antes, para salvar os downloads na pasta Downloads. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 
@@ -40,6 +42,10 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Mantém o NordTool ativo para mostrar na hora os avisos de demandas, SAC e alterações." />
         </service>
+
+        <receiver
+            android:name=".Atualizador$Resultado"
+            android:exported="false" />
 
         <receiver
             android:name=".Inicializacao"
