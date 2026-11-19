@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Package, Map, Briefcase, UserCircle, LayoutDashboard, Database, BookOpen, Settings, ChevronDown, Key, Heart, PiggyBank, Ruler, CalendarDays, Wallet, Camera, Dumbbell, type LucideIcon } from "lucide-react";
+import { Package, Map, Briefcase, UserCircle, LayoutDashboard, Database, BookOpen, Settings, ChevronDown, Key, Heart, PiggyBank, Ruler, CalendarDays, Wallet, Camera, Dumbbell, Layers, type LucideIcon } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/react-app/hooks/useAuth";
@@ -56,6 +56,7 @@ export default function HomePage() {
     "Mapeamentos": [
       { label: "Contagens e quantitativos", path: "/mapeamentos/conferencias", icon: Ruler },
       { label: "Relatório fotográfico", path: "/mapeamentos/relatorio-fotografico", icon: Camera },
+      { label: "Controle de Lote de Cerâmica", path: "/mapeamentos/lote-ceramica", icon: Layers },
     ],
     "Organizacional": [
       { label: "Treinamentos", path: "/treinamentos", icon: BookOpen },

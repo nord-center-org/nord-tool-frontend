@@ -56,6 +56,7 @@ export const DESCRICAO_DAS_TELAS: Record<string, string> = {
   "/mapeamentos/conferencias": "Contagens de campo e quantitativos (projeto × medido × solicitado).",
   "/mapeamentos/pendencias": EM_BREVE,
   "/mapeamentos/bloco-notas": "Cadernos à mão, planilhas como no Google Sheets e documentos como no Word, num lugar só; abre PDF, Word e Excel.",
+  "/mapeamentos/lote-ceramica": "Os lotes de cerâmica aplicados em cada torre: rastreabilidade, alerta de mistura de tonalidade e saldo de cada lote.",
   "/mapeamentos/cubicagem": "Volume de concreto (m³) das peças de um projeto em PDF: busque a peça pelo código, meça no desenho e veja os totais por tipo, com descontos e perda.",
   "/mapeamentos/placas": "Placas de aviso da obra a partir de modelos (fundo com marca d'água, logo, texto e rodapé), em PNG ou PDF para imprimir.",
   "/mapeamentos/relatorio-fotografico": "Fotos organizadas por item, com edição e PDF pronto no padrão da obra.",
@@ -289,6 +290,50 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       {
         titulo: "Texto no caderno",
         texto: "Na caixa de texto, a barra de cima formata o que estiver selecionado e a alça da direita muda a largura. Em “Texto” fica o documento do caderno; “Lado a lado” mostra o documento e o desenho juntos.",
+      },
+    ],
+  },
+  "/mapeamentos/lote-ceramica": {
+    titulo: "Controle de Lote de Cerâmica",
+    passos: [
+      {
+        titulo: "Controle de Lote de Cerâmica",
+        texto: "Eu sou o controle de lotes de cerâmica da obra. Registro qual lote, de qual fornecedor, foi aplicado em cada torre, pavimento e apartamento, para que a obra saiba exatamente o que está em cada parede e piso.",
+        alvo: [{ css: "header", texto: "Controle de Lote de Cerâmica" }, { css: "h1, h2", texto: "Controle de Lote de Cerâmica", pai: 1 }],
+      },
+      {
+        titulo: "Indicadores da obra",
+        texto: "Aqui a gestão vê em segundos quantos lotes existem, quantos m² chegaram, quantos já foram aplicados, o saldo em estoque e quantos locais têm mistura de lote. É a fotografia do material de acabamento, sem planilha paralela.",
+        alvo: { css: '[data-tutorial="lote-indicadores"]' },
+      },
+      {
+        titulo: "Consumo por torre, status e fornecedor",
+        texto: "Os gráficos mostram onde o material está sendo consumido, em que fase está cada lançamento e quanto cada fornecedor entregou. Isso apoia a programação de compras e evita pedido em excesso, que vira desperdício.",
+        alvo: { css: '[data-tutorial="lote-graficos"]' },
+      },
+      {
+        titulo: "Mapa de mistura de lotes",
+        texto: "Cada célula é um pavimento de uma torre. Verde-água significa um único lote aplicado; vermelho indica lotes, tonalidades ou calibres diferentes no mesmo lugar. É o principal risco de diferença de tom na cerâmica, e aqui ele aparece antes de virar reclamação na entrega.",
+        alvo: { css: '[data-tutorial="lote-mapa"]' },
+      },
+      {
+        titulo: "Alertas de mistura",
+        texto: "Para cada local com mistura, eu digo o que difere: o lote, a tonalidade ou o calibre. A equipe confere em campo antes de continuar o assentamento, reduzindo retrabalho, troca de peças e custo de pós-obra.",
+        alvo: { css: '[data-tutorial="lote-alertas"]' },
+      },
+      {
+        titulo: "Saldo por lote",
+        texto: "Para cada lote, mostro o recebido, o aplicado e o saldo, com destaque quando está acabando. Assim a obra completa um ambiente com o mesmo lote e pede a reposição a tempo, sem misturar tonalidades nem comprar além do necessário.",
+        alvo: { css: '[data-tutorial="lote-saldo"]' },
+      },
+      {
+        titulo: "Rastreabilidade de cada lançamento",
+        texto: "Na tabela, cada registro guarda torre, pavimento, apartamento, fornecedor, produto, lote, tonalidade, calibre, datas, nota fiscal e status. Busque e filtre por torre, pavimento, fornecedor, lote ou status; edite, duplique para lançar mais rápido ou exclua com confirmação.",
+        alvo: [{ css: '[data-tutorial="lote-tabela"]' }],
+      },
+      {
+        titulo: "Criada a partir de um pedido",
+        texto: "Esta aba inteira, com cadastro, indicadores, gráficos, alertas e este tutorial, foi criada a partir de um único pedido em linguagem natural, em minutos. Qualquer obra pode pedir a sua própria ferramenta da mesma forma, e cada entrega passa por validação e aprovação antes de ir para o campo. Essa é a proposta da Esteira de Ferramentas Individualizadas.",
       },
     ],
   },
