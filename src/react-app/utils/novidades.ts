@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-19-lote-ceramica",
+    data: "2026-11-19",
+    titulo: "Controle de Lote de Cerâmica",
+    texto: "Nova aba em Mapeamentos: os lotes de cerâmica de cada torre, com alerta quando lotes, tonalidades ou calibres diferentes são aplicados no mesmo pavimento, saldo por lote e dashboard da obra.",
+    onde: { rotulo: "Mapeamentos → Controle de Lote de Cerâmica", caminho: "/mapeamentos/lote-ceramica" },
+  },
+  {
     id: "2026-11-18-acessos-v2",
     data: "2026-11-18",
     titulo: "Acessos: mais telas sob controle e o “Manter conectado no app”",

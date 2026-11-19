@@ -38,6 +38,7 @@ const Sac = lazy(() => import("@/react-app/pages/Sac"));
 const Placas = lazy(() => import("@/react-app/pages/Placas"));
 const BlocoNotas = lazy(() => import("@/react-app/pages/BlocoNotas"));
 const Cubicagem = lazy(() => import("@/react-app/pages/Cubicagem"));
+const LoteCeramica = lazy(() => import("@/react-app/pages/LoteCeramica"));
 const Repertorio = lazy(() => import("@/react-app/pages/Repertorio"));
 
 function CarregandoTela() {
@@ -73,6 +74,7 @@ export default function App() {
             <Route path="mapeamentos/pendencias" element={<ConcretagemInProgress />} />
             <Route path="mapeamentos/relatorio-fotografico" element={<RelatorioFotograficoPage />} />
             <Route path="mapeamentos/placas" element={<Suspense fallback={<CarregandoTela />}><Placas /></Suspense>} />
+            <Route path="mapeamentos/lote-ceramica" element={<Suspense fallback={<CarregandoTela />}><LoteCeramica /></Suspense>} />
             <Route path="mapeamentos/cubicagem" element={<Suspense fallback={<CarregandoTela />}><Cubicagem /></Suspense>} />
             <Route path="mapeamentos/bloco-notas" element={<Suspense fallback={<CarregandoTela />}><BlocoNotas /></Suspense>} />
   

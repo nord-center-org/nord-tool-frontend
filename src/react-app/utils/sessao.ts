@@ -102,6 +102,7 @@ const MODULO_POR_ROTA: Array<[string, Modulo]> = [
   ["/lugia", "LUGIA"],
   ["/mapeamentos/bloco-notas", "BLOCO_NOTAS"],
   ["/mapeamentos/cubicagem", "CUBICAGEM"],
+  ["/mapeamentos/lote-ceramica", "MAPEAMENTOS"],
   ["/gestao/treinos", "TREINOS"],
   ["/gestao/repertorio", "REPERTORIO"],
   // Telas ainda em construção: só aparecem para quem tem o acesso.

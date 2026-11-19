@@ -25,7 +25,7 @@ import {
   Home as HomeIcon, Briefcase, GraduationCap,
   ClipboardCheck, AlertTriangle, Camera, FileText, BookOpen, 
   TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Heart, PiggyBank,
-  Ruler, ChevronDown, HelpCircle, Sparkles, LifeBuoy, Signpost, NotebookPen, Box, BrickWall, Smartphone, type LucideIcon
+  Ruler, ChevronDown, HelpCircle, Sparkles, LifeBuoy, Signpost, NotebookPen, Box, BrickWall, Smartphone, Layers, type LucideIcon
 } from "lucide-react";
 
 const armazenamento = () => (typeof window === "undefined" ? undefined : window.localStorage);
@@ -63,6 +63,7 @@ export default function Layout() {
         { path: "/mapeamentos/placas", label: "Placas", icon: Signpost },
         { path: "/mapeamentos/bloco-notas", label: "Bloco de notas", icon: NotebookPen },
         { path: "/mapeamentos/cubicagem", label: "Cubicagem", icon: Box },
+        { path: "/mapeamentos/lote-ceramica", label: "Controle de Lote de Cerâmica", icon: Layers },
       ]
     },
     {
