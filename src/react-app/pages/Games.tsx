@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Gamepad2, Heart, Lock, Medal, Monitor, Play, Search, Smartphone, Sparkles, Users, X } from "lucide-react";
 import CapaJogo from "@/react-app/components/games/central/CapaJogo";
@@ -10,7 +10,7 @@ import ModoTela from "@/react-app/components/games/central/ModoTela";
 import FundoGamer from "@/react-app/components/games/central/FundoGamer";
 import AvatarCorpo from "@/react-app/components/games/central/AvatarCorpo";
 import ConfigPartida, { Pilulas } from "@/react-app/components/games/central/ConfigPartida";
-import { CONFIG_PADRAO, type ConfigBombas } from "@/react-app/utils/games/configBombas";
+import { configPadrao, ehJogavel, modoEfetivo, type ConfigJogo } from "@/react-app/utils/games/registroJogos";
 import { ClienteSala, type EstadoConexao } from "@/react-app/components/games/rede/ClienteSala";
 import BombasTaticas, { type FaseBombas, type ResultadoBombas, type VagaBombas } from "@/react-app/components/games/jogos/bombas/BombasTaticas";
 import { som } from "@/react-app/components/games/audio/sintetizador";
@@ -23,6 +23,11 @@ import { classificacao, colocacoes, novaCopa, registrarPartida, resumoDaCopa, te
 import { pontosBombas } from "@/react-app/utils/games/pontuacao";
 import { CATEGORIAS, FILTROS_CENTRAL, JOGOS, filtrarJogos, type FiltrosCentral, type Jogo } from "@/react-app/utils/games/catalogo";
 import type { Bioma, Dificuldade, Modo } from "@/react-app/utils/games/bombas";
+import type { ModoHex } from "@/react-app/utils/games/hexagonos";
+import type { CenarioHex } from "@/react-app/components/games/jogos/hexagonos/motorHexagonos";
+
+// O 3D (three.js) só carrega quando alguém abre um jogo 3D.
+const SumoHexagonos = lazy(() => import("@/react-app/components/games/jogos/hexagonos/SumoHexagonos"));
 
 const CHAVE_FAVORITOS = "@NordTool:games:favoritos";
 
@@ -38,7 +43,7 @@ function guardarFavoritos(f: Set<string>) {
   try { localStorage.setItem(CHAVE_FAVORITOS, JSON.stringify([...f])); } catch { /* sem armazenamento */ }
 }
 
-interface Partida { vagas: VagaBombas[]; modo: Modo; bioma: Bioma; vitorias: number; dificuldade: Dificuldade; inicio: number; numero: number }
+interface Partida { jogo: string; vagas: VagaBombas[]; modo: string; cenario: string; vitorias: number; dificuldade: Dificuldade; inicio: number; numero: number }
 
 type Registro = { estado: "salvando" } | { estado: "salvo"; pontos: number; r: GameRegistro } | { estado: "erro" };
 
@@ -68,7 +73,12 @@ export default function GamesPage() {
   const [aberto, setAberto] = useState<Jogo | null>(null);
   const [meuAvatar, setMeuAvatar] = useState<{ dsConfig: string | null; idUsuario: number } | null>(null);
   const [partida, setPartida] = useState<Partida | null>(null);
-  const [cfg, setCfg] = useState<ConfigBombas>(CONFIG_PADRAO);
+  // Jogo em preparação e a preparação de cada jogo (cada um guarda a sua).
+  const [jogoAtual, setJogoAtual] = useState("bombas");
+  const [cfgs, setCfgs] = useState<Record<string, ConfigJogo>>({});
+  const cfg = cfgs[jogoAtual] ?? configPadrao(jogoAtual);
+  const setCfg = (c: ConfigJogo) => setCfgs(x => ({ ...x, [jogoAtual]: c }));
+  const jogoDaCopa = useRef("bombas");
   const [copa, setCopa] = useState<Copa | null>(null);
   const [podio, setPodio] = useState<{ copa: Copa; salvo: "salvando" | "salvo" | "erro" | "fora" } | null>(null);
   const [registro, setRegistro] = useState<Registro | null>(null);
@@ -106,7 +116,8 @@ export default function GamesPage() {
   }, []);
 
   const lista = useMemo(() => filtrarJogos(JOGOS, filtros, favoritos), [filtros, favoritos]);
-  const destaque = JOGOS.find(j => j.disponivel) ?? JOGOS[0];
+  // Em destaque: o jogo jogável mais novo.
+  const destaque = JOGOS.filter(j => j.disponivel).sort((a, b) => b.fase - a.fase)[0] ?? JOGOS[0];
 
   const alternarFavorito = (id: string) => {
     const novo = new Set(favoritos);
@@ -139,7 +150,7 @@ export default function GamesPage() {
   const abrirSala = async () => {
     setErroSala(null);
     try {
-      const ingresso = await salasService.criar("bombas");
+      const ingresso = await salasService.criar(jogoAtual);
       if (!ingresso) throw new Error("Não deu para abrir a sala");
       clienteSala.current?.fechar();
       setSala({ codigo: ingresso.codigo, estado: "conectando", jogadores: [] });
@@ -186,10 +197,12 @@ export default function GamesPage() {
     setRegistro(null);
     const daPartida = numero === 1 || !copa ? vagas : vagasDaCopa.current;
     if (numero === 1) vagasDaCopa.current = vagas;
-    daPartida.forEach((v, i) => { if (v.controle !== undefined) paraVaga(v.controle, { k: "lugar", indice: i, cor: CORES_JOGADORES[i], jogo: "bombas" }); });
+    if (numero === 1) jogoDaCopa.current = jogoAtual;
+    const jogo = numero === 1 || !copa ? jogoAtual : jogoDaCopa.current;
+    daPartida.forEach((v, i) => { if (v.controle !== undefined) paraVaga(v.controle, { k: "lugar", indice: i, cor: CORES_JOGADORES[i], jogo }); });
     const n = daPartida.length;
     // Sozinho: cada tentativa é uma partida; Times só com número par.
-    setPartida({ vagas: daPartida, modo: cfg.modo === "times" && n % 2 ? "sobrevivencia" : cfg.modo, bioma: cfg.bioma, vitorias: n === 1 ? 1 : cfg.vitorias, dificuldade: cfg.dificuldade, inicio: Date.now(), numero });
+    setPartida({ jogo, vagas: daPartida, modo: modoEfetivo(jogo, cfg.modo, n), cenario: cfg.cenario, vitorias: n === 1 ? 1 : cfg.vitorias, dificuldade: cfg.dificuldade, inicio: Date.now(), numero });
   };
 
   const jogar = () => {
@@ -220,14 +233,14 @@ export default function GamesPage() {
     partida.vagas.forEach((v, i) => {
       if (v.controle === undefined) return;
       const res = resultadoDe(i);
-      paraVaga(v.controle, { k: "fim", jogo: "bombas", modo: partida.modo, ...res, jogadores: partida.vagas.length, bots: nrBots, dificuldade: nrBots ? partida.dificuldade : null, duracao });
+      paraVaga(v.controle, { k: "fim", jogo: partida.jogo, modo: partida.modo, ...res, jogadores: partida.vagas.length, bots: nrBots, dificuldade: nrBots ? partida.dificuldade : null, duracao });
     });
     const eu = partida.vagas.findIndex(v => !v.bot && v.controle === undefined);
     if (eu < 0) return;
     const { venceu, pontos, colocacao } = resultadoDe(eu);
     setRegistro({ estado: "salvando" });
     gamesService.registrarPartida({
-      cdJogo: "bombas", cdModo: partida.modo, nrPontos: pontos, inVitoria: venceu, nrColocacao: colocacao,
+      cdJogo: partida.jogo, cdModo: partida.modo, nrPontos: pontos, inVitoria: venceu, nrColocacao: colocacao,
       nrJogadores: partida.vagas.length, nrBots, cdDificuldade: nrBots ? partida.dificuldade : null, nrDuracaoS: duracao,
     }).then(res => {
       setRegistro(res ? { estado: "salvo", pontos, r: res } : { estado: "erro" });
@@ -244,7 +257,7 @@ export default function GamesPage() {
     }
     setPodio({ copa: final, salvo: "salvando" });
     const minha = classificacao(final).find(l => l.vaga === eu)?.posicao ?? 1;
-    gamesService.registrarCopa(final.rodadas, minha, resumoDaCopa(final, "bombas"))
+    gamesService.registrarCopa(final.rodadas, minha, resumoDaCopa(final, jogoDaCopa.current))
       .then(() => { setPodio(p => p && { ...p, salvo: "salvo" }); setVersaoRecordes(v => v + 1); })
       .catch(() => setPodio(p => p && { ...p, salvo: "erro" }));
   };
@@ -259,21 +272,33 @@ export default function GamesPage() {
 
   if (partida) {
     const copaAcabou = copa ? terminou(copa) : false;
+    // O que todo jogo recebe: fim, celulares, Copa e o aviso de recorde/conquistas.
+    const comuns = {
+      vitoriasParaVencer: partida.vitorias,
+      onSair: sair,
+      onFim: aoTerminar,
+      remotas: sala ? remotas : undefined,
+      onFase: (f: FaseBombas) => paraTodos({ k: "fase", fase: f }),
+      onMorte: (i: number) => { const v = partida.vagas[i]; if (v?.controle !== undefined) paraVaga(v.controle, { k: "vibrar", ms: 300, texto: "Você caiu!" }); },
+      subtitulo: copa ? `Copa · partida ${Math.min(copa.rodadas, partida.numero)} de ${copa.rodadas}` : undefined,
+      avisoFim: <><AvisoRegistro registro={registro} />{copa && copa.partidas.length > 0 && <TabelaCopa copa={copa} />}</>,
+      acaoFim: copa ? (copaAcabou
+        ? { rotulo: "Ver o pódio", aoClicar: () => encerrarCopa(copa) }
+        : { rotulo: `Próxima partida (${copa.partidas.length + 1}/${copa.rodadas})`, aoClicar: () => comecar(partida.numero + 1) }) : undefined,
+    };
     return (
-      <BombasTaticas key={partida.numero} vagas={partida.vagas} modo={partida.modo} bioma={partida.bioma} vitoriasParaVencer={partida.vitorias}
-        onSair={sair} onFim={aoTerminar} remotas={sala ? remotas : undefined}
-        onFase={(f: FaseBombas) => paraTodos({ k: "fase", fase: f })}
-        onMorte={i => { const v = partida.vagas[i]; if (v?.controle !== undefined) paraVaga(v.controle, { k: "vibrar", ms: 300, texto: "Você caiu!" }); }}
-        subtitulo={copa ? `Copa · partida ${Math.min(copa.rodadas, partida.numero)} de ${copa.rodadas}` : undefined}
-        avisoFim={<><AvisoRegistro registro={registro} />{copa && copa.partidas.length > 0 && <TabelaCopa copa={copa} />}</>}
-        acaoFim={copa ? (copaAcabou
-          ? { rotulo: "Ver o pódio", aoClicar: () => encerrarCopa(copa) }
-          : { rotulo: `Próxima partida (${copa.partidas.length + 1}/${copa.rodadas})`, aoClicar: () => comecar(partida.numero + 1) }) : undefined} />
+      partida.jogo === "hexagonos" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando a arena 3D…</div>}>
+          <SumoHexagonos key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoHex} cenario={partida.cenario as CenarioHex} {...comuns} />
+        </Suspense>
+      ) : (
+        <BombasTaticas key={partida.numero} vagas={partida.vagas} modo={partida.modo as Modo} bioma={partida.cenario as Bioma} {...comuns} />
+      )
     );
   }
 
   if (modoTela) {
-    return <ModoTela sala={sala} erro={erroSala} vagas={vagas} cfg={cfg} mudarCfg={setCfg} euJogo={euJogo} onEuJogo={setEuJogo} onComecar={jogar} onSair={sairModoTela} />;
+    return <ModoTela jogo={jogoAtual} onJogo={setJogoAtual} sala={sala} erro={erroSala} vagas={vagas} cfg={cfg} mudarCfg={setCfg} euJogo={euJogo} onEuJogo={setEuJogo} onComecar={jogar} onSair={sairModoTela} />;
   }
 
   const chip = (ativo: boolean, rotulo: string, aoClicar: () => void) => (
@@ -323,11 +348,11 @@ export default function GamesPage() {
               <li className="flex items-center gap-1 rounded-lg bg-cyan-400/15 px-2 py-1 text-xs font-bold text-cyan-200"><Users className="h-3.5 w-3.5" />1–8 jogadores</li>
             </ul>
             <div className="mt-1 flex flex-wrap gap-2">
-              <button type="button" onClick={() => { setOndeJogar("tela"); setAberto(destaque); }}
+              <button type="button" onClick={() => { setOndeJogar("tela"); setJogoAtual(destaque.id); setAberto(destaque); }}
                 className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-3 text-lg font-black uppercase italic tracking-wider shadow-[0_0_30px_rgba(236,72,153,.55)] transition hover:scale-[1.03]">
                 <Play className="h-6 w-6" fill="currentColor" />Jogar
               </button>
-              <button type="button" onClick={() => { setOndeJogar("celulares"); setAberto(destaque); if (!sala) void abrirSala(); }}
+              <button type="button" onClick={() => { setOndeJogar("celulares"); setJogoAtual(destaque.id); setAberto(destaque); if (!sala) void abrirSala(); }}
                 className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-5 py-3 font-black uppercase tracking-wide ring-1 ring-white/20 hover:bg-white/20">
                 <Smartphone className="h-5 w-5" />Com celulares
               </button>
@@ -361,7 +386,7 @@ export default function GamesPage() {
         <ul data-tutorial="games-grade" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6" aria-label="Jogos">
           {lista.map(j => (
             <li key={j.id} className="group relative">
-              <button type="button" onClick={() => { setOndeJogar("tela"); setAberto(j); }} aria-label={`${j.nome}${j.disponivel ? "" : " (em breve)"}`}
+              <button type="button" onClick={() => { setOndeJogar("tela"); if (ehJogavel(j.id)) setJogoAtual(j.id); setAberto(j); }} aria-label={`${j.nome}${j.disponivel ? "" : " (em breve)"}`}
                 className="block w-full overflow-hidden rounded-2xl text-left ring-1 ring-white/10 transition duration-200 hover:-translate-y-1.5 hover:ring-2 hover:ring-cyan-300 hover:shadow-[0_0_34px_rgba(34,211,238,.45)] focus-visible:ring-4 focus-visible:ring-cyan-300">
                 <CapaJogo jogo={j} className={j.disponivel ? "" : "opacity-60 grayscale-[45%]"} />
                 <span className="absolute left-2 top-2 flex gap-1">
@@ -403,7 +428,7 @@ export default function GamesPage() {
                   <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-fuchsia-300">Controles</h3>
                   <ul className="mt-1 space-y-0.5 text-sm text-white/70">{aberto.controles.map(c => <li key={c}>{c}</li>)}</ul>
                 </div>
-                {aberto.id === "bombas" ? (
+                {ehJogavel(aberto.id) ? (
                   <div className="space-y-3 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10" data-tutorial="games-preparar">
                     <h3 className="text-sm font-black uppercase tracking-widest text-cyan-200">Preparar partida</h3>
                     <Pilulas rotulo="Onde jogar" valor={ondeJogar} aoMudar={v => { setOndeJogar(v); if (v === "celulares" && !sala) void abrirSala(); }}
@@ -413,7 +438,7 @@ export default function GamesPage() {
                     ) : (
                       <p className="rounded-xl bg-white/5 p-3 text-xs text-white/70" role={erroSala ? "alert" : undefined}>{erroSala ?? "Abrindo a sala…"}</p>
                     ))}
-                    <ConfigPartida cfg={cfg} mudar={setCfg} humanos={humanos} />
+                    <ConfigPartida jogo={aberto.id} cfg={cfg} mudar={setCfg} humanos={humanos} />
                     <ul className="flex flex-wrap gap-1.5" aria-label="Vagas">
                       {vagas.map((v, i) => (
                         <li key={i} className="flex items-end gap-1 rounded-xl bg-black/40 px-1.5 pt-0.5 text-xs font-bold ring-2" style={{ ["--tw-ring-color" as string]: CORES_JOGADORES[i] }}>

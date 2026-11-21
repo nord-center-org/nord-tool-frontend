@@ -4,7 +4,9 @@ import type { VagaBombas } from "@/react-app/components/games/jogos/bombas/Bomba
 import type { EstadoConexao } from "../rede/ClienteSala";
 import AvatarCorpo from "./AvatarCorpo";
 import ConfigPartida from "./ConfigPartida";
-import type { ConfigBombas } from "@/react-app/utils/games/configBombas";
+import { JOGAVEIS, type ConfigJogo } from "@/react-app/utils/games/registroJogos";
+import { JOGOS } from "@/react-app/utils/games/catalogo";
+import { Pilulas } from "./ConfigPartida";
 import FundoGamer from "./FundoGamer";
 import QrCode from "./QrCode";
 import { CORES_JOGADORES } from "./sprites";
@@ -13,9 +15,10 @@ import { CORES_JOGADORES } from "./sprites";
  * Modo Tela: o tablet, a TV ou o computador vira o "servidor" da jogatina. Mostra o QR Code e o código bem grandes,
  * quem já entrou pelo celular (com o avatar de corpo inteiro) e a preparação da partida. Ninguém precisa jogar na tela.
  */
-export default function ModoTela({ sala, erro, vagas, cfg, mudarCfg, euJogo, onEuJogo, onComecar, onSair }: {
+export default function ModoTela({ jogo, onJogo, sala, erro, vagas, cfg, mudarCfg, euJogo, onEuJogo, onComecar, onSair }: {
+  jogo: string; onJogo: (id: string) => void;
   sala: { codigo: string; estado: EstadoConexao; jogadores: JogadorSala[] } | null; erro: string | null; vagas: VagaBombas[];
-  cfg: ConfigBombas; mudarCfg: (c: ConfigBombas) => void; euJogo: boolean; onEuJogo: (v: boolean) => void; onComecar: () => void; onSair: () => void;
+  cfg: ConfigJogo; mudarCfg: (c: ConfigJogo) => void; euJogo: boolean; onEuJogo: (v: boolean) => void; onComecar: () => void; onSair: () => void;
 }) {
   const humanos = vagas.filter(v => !v.bot).length;
   const celulares = sala?.jogadores.filter(j => j.vaga > 0) ?? [];
@@ -54,9 +57,10 @@ export default function ModoTela({ sala, erro, vagas, cfg, mudarCfg, euJogo, onE
 
           <section aria-label="Jogadores e partida" className="flex flex-col gap-4 rounded-3xl bg-slate-950/60 p-5 ring-1 ring-fuchsia-300/20 backdrop-blur">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-lg font-black uppercase tracking-widest text-fuchsia-200">Na arena · Bombas Táticas</h2>
+              <h2 className="text-lg font-black uppercase tracking-widest text-fuchsia-200">Na arena · {JOGOS.find(j => j.id === jogo)?.nome}</h2>
               <span className="text-sm font-bold text-white/60">{celulares.filter(j => j.conectado).length} {celulares.length === 1 ? "celular" : "celulares"} · até {MAX_JOGADORES_SALA}</span>
             </div>
+            <Pilulas rotulo="Jogo" valor={jogo} aoMudar={onJogo} cor="fuchsia" opcoes={Object.keys(JOGAVEIS).map(id => ({ valor: id, rotulo: JOGOS.find(j => j.id === id)?.nome ?? id }))} />
             <ul className="grid grid-cols-4 gap-2 sm:grid-cols-8" aria-label="Vagas da partida">
               {Array.from({ length: 8 }, (_, i) => {
                 const v = vagas[i];
@@ -73,7 +77,7 @@ export default function ModoTela({ sala, erro, vagas, cfg, mudarCfg, euJogo, onE
               <input type="checkbox" checked={euJogo} onChange={e => onEuJogo(e.target.checked)} className="h-4 w-4 accent-cyan-400" />
               Eu também jogo nesta tela (teclado)
             </label>
-            <ConfigPartida cfg={cfg} mudar={mudarCfg} humanos={humanos} />
+            <ConfigPartida jogo={jogo} cfg={cfg} mudar={mudarCfg} humanos={humanos} />
             <button type="button" onClick={onComecar} disabled={vagas.length === 0}
               className="mt-auto inline-flex items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-4 text-xl font-black uppercase italic tracking-wider text-white shadow-[0_0_40px_rgba(236,72,153,.55)] transition hover:scale-[1.02] disabled:opacity-40">
               <Play className="h-7 w-7" fill="currentColor" />Começar
