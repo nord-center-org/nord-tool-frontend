@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-21-games-fase-1",
+    data: "2026-11-21",
+    titulo: "Games: a Central de jogos chegou",
+    texto: "Nova aba Games em Individual: a Central com os 21 jogos que estão chegando e o primeiro já jogável, o Bombas Táticas, contra bots (fácil, médio e difícil), em 3 biomas e 3 modos, até 8 jogadores. Tudo desenhado e tocado por código.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-19-lote-ceramica",
     data: "2026-11-19",
     titulo: "Controle de Lote de Cerâmica",

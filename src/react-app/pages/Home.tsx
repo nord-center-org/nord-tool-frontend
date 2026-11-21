@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Package, Map, Briefcase, UserCircle, LayoutDashboard, Database, BookOpen, Settings, ChevronDown, Key, Heart, PiggyBank, Ruler, CalendarDays, Wallet, Camera, Dumbbell, Layers, type LucideIcon } from "lucide-react";
+import { Package, Map, Briefcase, UserCircle, LayoutDashboard, Database, BookOpen, Settings, ChevronDown, Key, Heart, PiggyBank, Ruler, CalendarDays, Wallet, Camera, Dumbbell, Layers, Gamepad2, type LucideIcon } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/react-app/hooks/useAuth";
@@ -69,6 +69,7 @@ export default function HomePage() {
       { label: "Casamento", path: "/gestao/casamento", icon: Heart },
       { label: "Caixinha", path: "/gestao/caixinha", icon: PiggyBank },
       { label: "Treinos", path: "/gestao/treinos", icon: Dumbbell },
+      { label: "Games", path: "/gestao/games", icon: Gamepad2 },
       { label: "Configurações", path: "/configuracoes", icon: Settings },
     ]
   };

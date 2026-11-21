@@ -75,6 +75,7 @@ export const DESCRICAO_DAS_TELAS: Record<string, string> = {
   "/gestao/repertorio": "Envie uma música: tom, BPM, acordes e o baixo reconhecidos; mude o tom e o andamento, separe as faixas e toque junto com a cifra rolando e o instrumento ao lado (ou escreva a cifra tocando). Em Criar, monte músicas faixa por faixa; o instrumento online toca na tela.",
   "/gestao/academico": EM_BREVE,
   "/gestao/casamento": "Fornecedores, convidados e marcos do casamento, tudo num lugar só.",
+  "/gestao/games": "A Central de jogos: escolha um jogo, jogue sozinho contra bots, no celular ou com a turma (até 8).",
   "/gestao/caixinha": "As despesas da caixinha: quem gastou, o que foi pago e os comprovantes.",
   "/configuracoes": "Sua conta, senha, avatar e, para quem administra, obras, equipes e acessos.",
 };
@@ -291,6 +292,27 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         titulo: "Texto no caderno",
         texto: "Na caixa de texto, a barra de cima formata o que estiver selecionado e a alça da direita muda a largura. Em “Texto” fica o documento do caderno; “Lado a lado” mostra o documento e o desenho juntos.",
       },
+    ],
+  },
+  "/gestao/games": {
+    titulo: "Games",
+    passos: [
+      cabecalho("Games", "A Central de jogos do NordTool: tudo (capas, cenários, personagens e sons) é gerado por código, sem baixar nada."),
+      {
+        titulo: "Ache o jogo",
+        texto: "Busque pelo nome, filtre por categoria, quantidade de jogadores (1P a 8P), 2D ou 3D, e veja só os disponíveis ou os seus favoritos (♥ na capa).",
+        alvo: { css: '[data-tutorial="games-filtros"]' },
+      },
+      {
+        titulo: "Escolha na grade",
+        texto: "Toque numa capa para ver as regras, os controles e os modos. Os jogos com cadeado chegam nas próximas fases.",
+        alvo: { css: '[data-tutorial="games-grade"]' },
+      },
+      {
+        titulo: "Jogue contra bots",
+        texto: "No Bombas Táticas, escolha o modo (Sobrevivência, Times ou Caça às Moedas), o bioma, quantos jogadores (até 8) e a dificuldade dos bots. No celular aparecem o direcional e os botões na tela.",
+      },
+      ajudaNoCanto("Games"),
     ],
   },
   "/mapeamentos/lote-ceramica": {
