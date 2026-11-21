@@ -383,7 +383,8 @@ export default function Layout() {
           <HelpCircle className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12" />
         </button>
 
-        <div className="flex-1 overflow-auto h-full">
+        {/* Games: a área toda fica escura, no estilo da Central (sem moldura clara em volta). */}
+        <div className={`flex-1 overflow-auto h-full ${location.pathname.startsWith("/gestao/games") ? "bg-[#05060f]" : ""}`}>
           <div className={`transition-all duration-300 h-full px-3 pb-6 pt-16 sm:px-4 ${!sidebarOpen ? "md:pl-20 md:pr-20 md:pt-6" : "md:p-8 md:pr-20"}`}>
             <ErrorBoundary resetKey={location.pathname}>
               <ExigeModuloDaRota>

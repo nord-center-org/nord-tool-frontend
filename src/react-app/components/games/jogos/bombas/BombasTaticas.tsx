@@ -2,17 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Pause, Play, RotateCcw, Volume2, VolumeX, X } from "lucide-react";
 import type { AvatarConfig } from "@/react-app/utils/avatar";
 import {
-  ENTRADA_VAZIA, PASSOS_POR_SEGUNDO, novaPartida, passo, segundosRestantes, type Bioma, type Dificuldade, type Estado, type Evento, type Modo,
+  ENTRADA_VAZIA, META_MOEDAS_SOLO, PASSOS_POR_SEGUNDO, novaPartida, passo, segundosRestantes, type Bioma, type Dificuldade, type Estado, type Evento, type Modo,
 } from "@/react-app/utils/games/bombas";
 import { iniciarLaco } from "../../motor2d/laco";
 import { Particulas, Textos, Tremor, lerp, saidaVolta } from "../../motor2d/efeitos";
 import { som } from "../../audio/sintetizador";
 import { Controles, telaDeToque, vibrar } from "../../entrada/entrada";
 import ControleVirtual from "../../entrada/ControleVirtual";
-import { CORES_JOGADORES, spriteDoAvatar } from "../../central/sprites";
+import { CORES_JOGADORES, folhaDoCorpo } from "../../central/sprites";
 import type { EntradasRemotas } from "@/react-app/utils/games/sala";
 import Avatar from "@/react-app/components/avatar/Avatar";
-import { BIOMAS, NOME_ITEM, desenharBlocos, desenharBomba, desenharChama, desenharChao, desenharItem, desenharJogador, desenharMoeda } from "./desenho";
+import { BIOMAS, NOME_ITEM, desenharBlocos, desenharBomba, desenharChama, desenharChao, desenharItem, desenharJogador, desenharMoeda, desenharQueda } from "./desenho";
 
 /** Uma vaga da partida: bot, quem está na tela (teclado/toque) ou um celular da sala ({@code controle} = vaga na sala). */
 export interface VagaBombas { nome: string; bot: Dificuldade | null; avatar: AvatarConfig; controle?: number }
@@ -78,8 +78,8 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
   const [rodada, setRodada] = useState(1);
   const [ultimo, setUltimo] = useState<{ vencedor: number | null; time: number | null } | null>(null);
   const [toque] = useState(telaDeToque);
-  const sprites = useMemo(() => vagas.map((v, i) => spriteDoAvatar(v.avatar, `bombas-${i}-${JSON.stringify(v.avatar)}`)), [vagas]);
-  const efeitos = useMemo(() => ({ particulas: new Particulas(), textos: new Textos(), tremor: new Tremor(), quedas: [] as { x: number; y: number; t: number }[] }), []);
+  const sprites = useMemo(() => vagas.map(v => folhaDoCorpo(v.avatar, `corpo-${JSON.stringify(v.avatar)}`)), [vagas]);
+  const efeitos = useMemo(() => ({ particulas: new Particulas(), textos: new Textos(), tremor: new Tremor(), quedas: [] as { x: number; y: number; t: number }[], caidos: [] as { jogador: number; x: number; y: number; t: number }[] }), []);
 
   const mudarFase = (f: Fase) => {
     faseRef.current = f;
@@ -94,6 +94,7 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
     efeitos.particulas.lista = [];
     efeitos.textos.lista = [];
     efeitos.quedas = [];
+    efeitos.caidos = [];
     setUltimo(null);
     setContagem(3);
     mudarFase("contagem");
@@ -147,6 +148,7 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
           particulas.emitir(30, { x: ev.x + 0.5, y: ev.y + 0.5, cor: CORES_JOGADORES[ev.jogador % 8], tamanho: 0.16, gravidade: 7, total: 1.2, atrito: 0.96 }, 6);
           textos.mostrar(ev.x + 0.5, ev.y, `P${ev.jogador + 1} caiu!`, "#fff", 1.4);
           if (ev.jogador === local) vibrar([60, 40, 120]);
+          efeitos.caidos.push({ jogador: ev.jogador, x: ev.x, y: ev.y, t: 0 });
           onMorteRef.current?.(ev.jogador);
           break;
         case "escudo":
@@ -215,10 +217,12 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
         else if (vencedor !== null) novo[vencedor] += 1;
         vitoriasRef.current = novo;
         setVitorias(novo);
-        if (novo.some(n => n >= vitoriasParaVencer)) {
-          som.vitoria();
+        // Sozinho, cada rodada fecha a partida (cumpriu o desafio ou não).
+        if (novo.some(n => n >= vitoriasParaVencer) || vagas.length === 1) {
+          if (vencedor !== null || time !== null) som.vitoria(); else som.morte();
           mudarFase("fimPartida");
-          onFimRef.current?.({ vencedor: novo.findIndex(n => n >= vitoriasParaVencer), vitorias: novo, rodadas: rodada });
+          const campeao = novo.findIndex(n => n >= vitoriasParaVencer);
+          onFimRef.current?.({ vencedor: campeao >= 0 ? campeao : null, vitorias: novo, rodadas: rodada });
         } else {
           mudarFase("fimRodada");
         }
@@ -277,7 +281,12 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
       for (const j of vivos) {
         const ant = anteriores.current[j.id] ?? j;
         const pos = ativo ? { x: lerp(ant.x, j.x, alfa), y: lerp(ant.y, j.y, alfa) } : { x: j.x, y: j.y };
-        desenharJogador(ctx, j, pos, t, sprites[j.id], tempoTotal, e.passo);
+        desenharJogador(ctx, j, pos, t, sprites[j.id], tempoTotal, e.passo, faseRef.current !== "jogando" && faseRef.current !== "contagem");
+      }
+      efeitos.caidos = efeitos.caidos.filter(c => c.t < 0.9);
+      for (const c of efeitos.caidos) {
+        c.t += dt;
+        desenharQueda(ctx, sprites[c.jogador], c.x, c.y, t, c.t / 0.9);
       }
       efeitos.particulas.desenhar(ctx, t);
       efeitos.textos.desenhar(ctx, t);
@@ -297,6 +306,8 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
       controles.desligar();
     };
   }, [controles, efeitos, sprites, tratarEventos, vitoriasParaVencer, rodada, vagas, remotas, local]);
+  const solo = vagas.length === 1;
+  const tituloModo = solo ? (modo === "moedas" ? "Meta de moedas" : "Desafio") : TITULO_MODO[modo];
 
   const proximaRodada = () => {
     setRodada(r => r + 1);
@@ -322,8 +333,8 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
       <header className="flex flex-wrap items-center gap-2 px-3 py-2 sm:px-4">
         <button type="button" onClick={onSair} aria-label="Sair do jogo" className="rounded-xl bg-white/10 p-2 hover:bg-white/20"><X className="h-5 w-5" /></button>
         <div className="mr-auto min-w-0">
-          <p className="truncate text-sm font-black">Bombas Táticas · {TITULO_MODO[modo]}</p>
-          <p className="text-xs text-white/60">{subtitulo ? `${subtitulo} · ` : ""}{BIOMAS[bioma].nome} · rodada {rodada} · vence quem fizer {vitoriasParaVencer}</p>
+          <p className="truncate text-sm font-black">Bombas Táticas · {tituloModo}</p>
+          <p className="text-xs text-white/60">{subtitulo ? `${subtitulo} · ` : ""}{BIOMAS[bioma].nome} · {solo ? (modo === "moedas" ? `junte ${META_MOEDAS_SOLO} moedas em 2 min` : "exploda todas as caixas sem cair") : `rodada ${rodada} · vence quem fizer ${vitoriasParaVencer}`}</p>
         </div>
         <span className={`rounded-xl px-3 py-1.5 font-mono text-lg font-black tabular-nums ${hud?.morteSubita ? "animate-pulse bg-red-600" : "bg-white/10"}`} aria-label="Tempo restante">{minutos}</span>
         <button type="button" onClick={() => { som.definirMudo(!mudo); setMudo(!mudo); if (mudo && fase === "jogando") som.tocarMusica(); }} aria-label={mudo ? "Ligar som" : "Desligar som"} className="rounded-xl bg-white/10 p-2 hover:bg-white/20">
@@ -374,11 +385,11 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
                   <div className="mx-auto mt-3 w-24 rounded-2xl p-1" style={{ background: CORES_JOGADORES[campeao] }}>
                     <Avatar config={vagas[campeao].avatar} tamanho={88} />
                   </div>
-                  <p className="mt-3 text-2xl font-black">🏆 P{campeao + 1} venceu!</p>
+                  <p className="mt-3 text-2xl font-black">{solo ? "🏆 Desafio cumprido!" : `🏆 P${campeao + 1} venceu!`}</p>
                   <p className="text-sm text-slate-500">{vagas[campeao].nome}</p>
                 </>
               ) : (
-                <p className="mt-2 text-2xl font-black">{nomeVencedor === "Empate" ? "Empate!" : `${nomeVencedor} venceu a rodada`}</p>
+                <p className="mt-2 text-2xl font-black">{solo ? "Não foi dessa vez!" : nomeVencedor === "Empate" ? "Empate!" : `${nomeVencedor} venceu a rodada`}</p>
               )}
               <ol className="mt-4 space-y-1 text-left text-sm">
                 {vagas.map((v, i) => ({ v, i })).sort((a, b) => vitorias[b.i] - vitorias[a.i]).map(({ v, i }) => (

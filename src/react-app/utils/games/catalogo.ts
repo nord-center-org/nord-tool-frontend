@@ -47,9 +47,9 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "cartas", nome: "Cartas da Virada", resumo: "Descarte por cor ou número, acumule castigos e avise a última carta.",
-    categoria: "Cartas", dimensao: "2D", minJogadores: 2, maxJogadores: 8, fase: 5, disponivel: false,
+    categoria: "Cartas", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 5, disponivel: false,
     modos: ["Clássico", "Empilhamento Caótico", "Modo Rápido"],
-    regras: ["Jogue uma carta da mesma cor, número ou símbolo.", "+2 e +4 acumulam no modo Empilhamento.", "Bloqueio, Inverter, Troca de Mãos e Coringa.", "Esqueceu de avisar a última carta? Compra 2."],
+    regras: ["Jogue uma carta da mesma cor, número ou símbolo.", "+2 e +4 acumulam no modo Empilhamento.", "Bloqueio, Inverter, Troca de Mãos e Coringa.", "Esqueceu de avisar a última carta? Compra 2.", "Sozinho, joga contra bots que completam a mesa."],
     controles: ["Toque/Setas: escolher carta", "Espaço: jogar", "X: avisar última carta"], cores: ["#1e1b4b", "#e11d48", "#facc15"], motivo: "cartas",
   },
   {
@@ -78,14 +78,14 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "masmorra", nome: "Fuga da Masmorra", resumo: "Roguelite rápido: salas aleatórias, chaves, armadilhas e chefe.",
-    categoria: "Aventura", dimensao: "2D", minJogadores: 1, maxJogadores: 4, fase: 6, disponivel: false, modos: ["Fuga", "Desafio Diário"],
-    regras: ["Salas geradas a cada partida.", "Chaves abrem portas e baús.", "Armadilhas e padrões de inimigos.", "Derrote o chefe para escapar."],
+    categoria: "Aventura", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 6, disponivel: false, modos: ["Fuga", "Desafio Diário"],
+    regras: ["Salas geradas a cada partida.", "Chaves abrem portas e baús.", "Armadilhas e padrões de inimigos.", "Derrote o chefe para escapar.", "Até 8 na mesma masmorra: as salas crescem com o grupo."],
     controles: CONTROLES_PADRAO, cores: ["#1c1917", "#a8a29e", "#f59e0b"], motivo: "masmorra",
   },
   {
     id: "coroa", nome: "Coroa Maldita", resumo: "Pique-pega vertical: fique com a coroa até o tempo acabar.",
-    categoria: "Arena", dimensao: "2D", minJogadores: 2, maxJogadores: 8, fase: 6, disponivel: false, modos: ["Coroa", "Pega-Pega"],
-    regras: ["Encoste em quem está com a coroa para roubá-la.", "Molas, tirolesas, portais e plataformas móveis.", "Vence quem ficar mais tempo com a coroa."],
+    categoria: "Arena", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 6, disponivel: false, modos: ["Coroa", "Pega-Pega"],
+    regras: ["Encoste em quem está com a coroa para roubá-la.", "Molas, tirolesas, portais e plataformas móveis.", "Vence quem ficar mais tempo com a coroa.", "Sozinho, os bots disputam a coroa com você."],
     controles: CONTROLES_PADRAO, cores: ["#4a044e", "#c026d3", "#fde68a"], motivo: "coroa",
   },
   {

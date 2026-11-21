@@ -184,7 +184,7 @@ function sortearItem(r: number): PowerUp {
 }
 
 export function novaPartida(c: Configuracao): Estado {
-  const n = Math.max(2, Math.min(MAX_JOGADORES, c.jogadores.length));
+  const n = Math.max(1, Math.min(MAX_JOGADORES, c.jogadores.length));
   const largura = n > 4 ? 17 : 15;
   const altura = n > 4 ? 15 : 13;
   const semente = (c.semente ?? Math.floor(Math.random() * 2 ** 31)) >>> 0;
@@ -560,9 +560,24 @@ function morteSubita(e: Estado) {
   }
 }
 
+/** Sozinho na Caça às Moedas: a meta para vencer. */
+export const META_MOEDAS_SOLO = 10;
+
 function conferirFim(e: Estado) {
   const vivos = e.jogadores.filter(j => j.vivo);
   const acabouTempo = e.passo >= e.duracao;
+  // Sozinho (sem bots): Desafio (limpar todas as caixas antes do tempo, sem cair) ou meta de moedas.
+  if (e.jogadores.length === 1) {
+    const j = e.jogadores[0];
+    if (e.modo === "moedas") {
+      if (acabouTempo) terminar(e, j.moedas >= META_MOEDAS_SOLO ? j.id : null, null);
+    } else if (!j.vivo || acabouTempo) {
+      terminar(e, null, null);
+    } else if (!e.grade.includes("caixa")) {
+      terminar(e, j.id, null);
+    }
+    return;
+  }
   if (e.modo === "moedas") {
     if (!acabouTempo) return;
     const max = Math.max(...e.jogadores.map(j => j.moedas));

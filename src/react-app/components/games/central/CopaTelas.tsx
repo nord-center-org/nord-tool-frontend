@@ -1,5 +1,5 @@
 import { Trophy } from "lucide-react";
-import Avatar from "@/react-app/components/avatar/Avatar";
+import AvatarCorpo from "./AvatarCorpo";
 import type { AvatarConfig } from "@/react-app/utils/avatar";
 import { CORES_JOGADORES } from "./sprites";
 import { classificacao, pontosDaColocacao, type Copa } from "@/react-app/utils/games/copa";
@@ -43,8 +43,8 @@ export function PodioCopa({ copa, avatares, salvo, onSair, onDeNovo }: {
       <ol className="flex items-end justify-center gap-2 sm:gap-4" aria-label="Pódio">
         {podio.map(l => (
           <li key={l.vaga} className="flex w-24 flex-col items-center sm:w-32">
-            <div className="rounded-2xl p-1 shadow-lg" style={{ background: CORES_JOGADORES[l.vaga] }}>
-              <Avatar config={avatares[l.vaga]} tamanho={l.posicao === 1 ? 96 : 72} animado={l.posicao === 1} />
+            <div className="flex items-end justify-center rounded-2xl px-2 pt-1" style={{ boxShadow: `0 0 30px ${CORES_JOGADORES[l.vaga]}88`, background: `${CORES_JOGADORES[l.vaga]}22` }}>
+              <AvatarCorpo config={avatares[l.vaga]} altura={l.posicao === 1 ? 120 : 92} acao={l.posicao === 1 ? "vitoria" : "parado"} atraso={l.posicao * 0.3} />
             </div>
             <p className="mt-1 w-full truncate text-center text-sm font-black">{l.nome}</p>
             <p className="text-xs tabular-nums text-white/70">{l.pontos} pts</p>
