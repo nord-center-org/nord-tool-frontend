@@ -71,3 +71,22 @@ test("URL absoluta da API para o serviço do app", () => {
   assert.equal(apiAbsoluta("https://api.exemplo.com/api/v1/nord-tool/", "https://app.exemplo.com/x"), "https://api.exemplo.com/api/v1/nord-tool");
   assert.equal(apiAbsoluta("/api/v1/nord-tool", "https://app.exemplo.com/x"), "https://app.exemplo.com/api/v1/nord-tool");
 });
+
+test("informações do app instalado", async () => {
+  const { infoDoApp, situacaoDoApp } = await import("./appAndroid.ts");
+  assert.equal(infoDoApp("Mozilla/5.0 Chrome/130", {}), null);
+  const antigo = infoDoApp("Mozilla/5.0 (Linux; Android 14; wv) NordToolAndroid/4.0", { NordAndroid: { sair: () => undefined } });
+  assert.deepEqual(antigo && { versao: antigo.versao, nome: antigo.nomeVersao, verificar: antigo.verificar }, { versao: null, nome: null, verificar: null });
+  let pedidos = 0;
+  const novo = infoDoApp("NordToolAndroid/5.0", { NordAndroid: { versaoApp: () => 5, nomeVersaoApp: () => "5.0", verificarAtualizacao: () => { pedidos++; } } });
+  assert.equal(novo?.versao, 5);
+  assert.equal(novo?.nomeVersao, "5.0");
+  novo?.verificar?.();
+  assert.equal(pedidos, 1);
+  const quebrado = infoDoApp("NordToolAndroid/5.0", { NordAndroid: { versaoApp: () => { throw new Error("x"); } } });
+  assert.equal(quebrado?.versao, null);
+  assert.equal(situacaoDoApp(null, 5), "antigo");
+  assert.equal(situacaoDoApp(5, null), "desconhecido");
+  assert.equal(situacaoDoApp(5, 5), "atualizado");
+  assert.equal(situacaoDoApp(4, 5), "desatualizado");
+});
