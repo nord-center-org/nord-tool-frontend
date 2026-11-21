@@ -25,7 +25,7 @@ import {
   Home as HomeIcon, Briefcase, GraduationCap,
   ClipboardCheck, AlertTriangle, Camera, FileText, BookOpen, 
   TrendingUp, GitMerge, FileCheck, CalendarDays, Wallet, Dumbbell, Music, Book, Key, Heart, PiggyBank,
-  Ruler, ChevronDown, HelpCircle, Sparkles, LifeBuoy, Signpost, NotebookPen, Box, BrickWall, Smartphone, Layers, type LucideIcon
+  Ruler, ChevronDown, HelpCircle, Sparkles, LifeBuoy, Signpost, NotebookPen, Box, BrickWall, Smartphone, Layers, Gamepad2, type LucideIcon
 } from "lucide-react";
 
 const armazenamento = () => (typeof window === "undefined" ? undefined : window.localStorage);
@@ -90,6 +90,7 @@ export default function Layout() {
         { path: "/gestao/academico", label: "Desenvolvimento acadêmico", icon: Book },
         { path: "/gestao/casamento", label: "Casamento", icon: Heart },
         { path: "/gestao/caixinha", label: "Caixinha", icon: PiggyBank },
+        { path: "/gestao/games", label: "Games", icon: Gamepad2 },
       ]
     },
   ];

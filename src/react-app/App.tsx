@@ -39,6 +39,7 @@ const Placas = lazy(() => import("@/react-app/pages/Placas"));
 const BlocoNotas = lazy(() => import("@/react-app/pages/BlocoNotas"));
 const Cubicagem = lazy(() => import("@/react-app/pages/Cubicagem"));
 const LoteCeramica = lazy(() => import("@/react-app/pages/LoteCeramica"));
+const Games = lazy(() => import("@/react-app/pages/Games"));
 const Repertorio = lazy(() => import("@/react-app/pages/Repertorio"));
 
 function CarregandoTela() {
@@ -95,6 +96,7 @@ export default function App() {
             <Route path="gestao/repertorio" element={<Suspense fallback={<CarregandoTela />}><Repertorio /></Suspense>} />
             <Route path="gestao/academico" element={<ConcretagemInProgress />} />
             <Route path="gestao/casamento" element={<CasamentoPage />} />
+            <Route path="gestao/games" element={<Suspense fallback={<CarregandoTela />}><Games /></Suspense>} />
             <Route path="gestao/caixinha" element={<CaixinhaPage />} />
             <Route path="organizacional/medicoes" element={<MedicoesPage />} />
             <Route path="gestao/davi-job" element={<DaviJobPage />} />

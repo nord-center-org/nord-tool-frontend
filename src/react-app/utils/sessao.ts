@@ -30,6 +30,7 @@ export type Modulo =
   | "REPERTORIO"
   | "TELAS_EM_CONSTRUCAO"
   | "SESSAO_CONTINUA"
+  | "GAMES"
   | "CADASTROS"
   | "ADMINISTRACAO";
 
@@ -105,6 +106,7 @@ const MODULO_POR_ROTA: Array<[string, Modulo]> = [
   ["/mapeamentos/lote-ceramica", "MAPEAMENTOS"],
   ["/gestao/treinos", "TREINOS"],
   ["/gestao/repertorio", "REPERTORIO"],
+  ["/gestao/games", "GAMES"],
   // Telas ainda em construção: só aparecem para quem tem o acesso.
   ["/mapeamentos/pendencias", "TELAS_EM_CONSTRUCAO"],
   ["/organizacional/rte", "TELAS_EM_CONSTRUCAO"],
