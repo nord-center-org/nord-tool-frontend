@@ -73,3 +73,36 @@ export function pedirSessaoAoApp(esperaMs = 15_000, janela: unknown = typeof win
     try { ponte.pedirSessao(id); } catch { terminar(null); }
   });
 }
+
+/** O que o app instalado conta sobre si (app 5.0 em diante) para a seção "App Android" das Configurações. */
+export interface InfoDoApp {
+  /** versionCode instalado; null nos apps antigos, que não sabem dizer. */
+  versao: number | null;
+  nomeVersao: string | null;
+  /** Pede ao app para conferir agora (baixa e pede a autorização se houver versão nova); null nos apps antigos. */
+  verificar: (() => void) | null;
+}
+
+type PonteVersao = { versaoApp?: () => number; nomeVersaoApp?: () => string; verificarAtualizacao?: () => void };
+
+/** Null fora do app; dentro dele, a versão instalada e como pedir a verificação. */
+export function infoDoApp(agente: string | undefined, janela: unknown = typeof window === "undefined" ? undefined : window): InfoDoApp | null {
+  const p = (janela as { NordAndroid?: PonteVersao } | undefined)?.NordAndroid;
+  if (!(agente ?? "").includes(MARCA_APP_ANDROID) && !p) return null;
+  const ler = <T,>(f: (() => T) | undefined): T | null => {
+    try { return typeof f === "function" ? f.call(p) : null; } catch { return null; }
+  };
+  const versao = ler(p?.versaoApp);
+  return {
+    versao: typeof versao === "number" && versao > 0 ? versao : null,
+    nomeVersao: ler(p?.nomeVersaoApp),
+    verificar: typeof p?.verificarAtualizacao === "function" ? () => p.verificarAtualizacao?.() : null,
+  };
+}
+
+/** Situação comparando o instalado com o publicado em /app/versao.json. */
+export function situacaoDoApp(instalada: number | null, publicada: number | null): "atualizado" | "desatualizado" | "antigo" | "desconhecido" {
+  if (instalada === null) return "antigo";
+  if (publicada === null) return "desconhecido";
+  return instalada >= publicada ? "atualizado" : "desatualizado";
+}

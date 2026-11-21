@@ -849,6 +849,11 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         alvo: { css: '[aria-labelledby="config-conta"]' },
       },
       {
+        titulo: "App Android",
+        texto: "Só aparece dentro do app: mostra a versão instalada e a mais nova. Toque em Verificar atualizações para o app baixar a versão nova na hora; você só autoriza a instalação.",
+        alvo: { css: '[aria-labelledby="config-app-android"]' },
+      },
+      {
         titulo: "Aparência",
         texto: "Escolha o tema claro, escuro ou igual ao do aparelho para todas as telas, e veja quais telas têm tema próprio.",
         alvo: { css: '[aria-labelledby="config-aparencia"]' },

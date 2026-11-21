@@ -43,6 +43,20 @@ final class Atualizador {
 
     /** Confere em segundo plano; {@code abrindo} = o app acabou de abrir (ignora o intervalo). */
     static void verificar(Activity tela, boolean abrindo) {
+        conferir(tela, abrindo, false);
+    }
+
+    /** Botão "Verificar atualizações" das Configurações: confere na hora e sempre responde com um aviso. */
+    static void verificarAgora(Activity tela) {
+        if (emAndamento) {
+            Toast.makeText(tela, "Já estou conferindo a atualização…", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Toast.makeText(tela, "Conferindo se tem versão nova…", Toast.LENGTH_SHORT).show();
+        conferir(tela, true, true);
+    }
+
+    private static void conferir(Activity tela, boolean abrindo, boolean manual) {
         long agora = System.currentTimeMillis();
         if (emAndamento || (!abrindo && agora - ultimaVerificacao < INTERVALO_MS)) return;
         emAndamento = true;
@@ -54,11 +68,17 @@ final class Atualizador {
                     tela.runOnUiThread(() -> pedirPermissaoOuBaixar(tela, nova));
                     return;
                 }
-            } catch (IOException | RuntimeException ignorado) {
+                if (manual) avisar(tela, "Você já está na versão mais nova (" + BuildConfig.VERSION_NAME + ").");
+            } catch (IOException | RuntimeException e) {
                 // sem rede: confere de novo na próxima vez
+                if (manual) avisar(tela, "Sem conexão para conferir a atualização. Tente de novo em instantes.");
             }
             emAndamento = false;
         }, "nordtool-atualizacao").start();
+    }
+
+    private static void avisar(Activity tela, String texto) {
+        tela.runOnUiThread(() -> Toast.makeText(tela, texto, Toast.LENGTH_LONG).show());
     }
 
     static final class Versao {

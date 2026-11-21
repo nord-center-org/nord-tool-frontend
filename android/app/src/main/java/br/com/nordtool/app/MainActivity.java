@@ -376,6 +376,24 @@ public class MainActivity extends Activity {
         public void falhou() {
             avisar("Não foi possível baixar o arquivo.");
         }
+
+        /** Versão instalada (Configurações → App Android). */
+        @JavascriptInterface
+        public int versaoApp() {
+            return BuildConfig.VERSION_CODE;
+        }
+
+        @JavascriptInterface
+        public String nomeVersaoApp() {
+            return BuildConfig.VERSION_NAME;
+        }
+
+        /** Botão "Verificar atualizações": confere na hora e, havendo versão nova, baixa e pede a autorização. */
+        @JavascriptInterface
+        public void verificarAtualizacao() {
+            if (!noNordTool()) return;
+            runOnUiThread(() -> Atualizador.verificarAgora(MainActivity.this));
+        }
     }
 
     /** Mantém o NordTool dentro do app e abre os outros links no navegador. */
