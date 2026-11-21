@@ -25,9 +25,12 @@ import { CATEGORIAS, FILTROS_CENTRAL, JOGOS, filtrarJogos, type FiltrosCentral, 
 import type { Bioma, Dificuldade, Modo } from "@/react-app/utils/games/bombas";
 import type { ModoHex } from "@/react-app/utils/games/hexagonos";
 import type { CenarioHex } from "@/react-app/components/games/jogos/hexagonos/motorHexagonos";
+import type { TemaEncaixe } from "@/react-app/components/games/jogos/encaixe/motorEncaixe";
+import type { ModoEncaixe } from "@/react-app/utils/games/encaixe";
 
 // O 3D (three.js) só carrega quando alguém abre um jogo 3D.
 const SumoHexagonos = lazy(() => import("@/react-app/components/games/jogos/hexagonos/SumoHexagonos"));
+const EncaixeVersus = lazy(() => import("@/react-app/components/games/jogos/encaixe/EncaixeVersus"));
 
 const CHAVE_FAVORITOS = "@NordTool:games:favoritos";
 
@@ -217,7 +220,7 @@ export default function GamesPage() {
   };
 
   // Fim de uma partida: guarda na conta (recorde, conquistas) e, na Copa, soma a colocação na tabela.
-  const aoTerminar = useCallback((r: ResultadoBombas) => {
+  const aoTerminar = useCallback((r: ResultadoBombas & { pontos?: number[] }) => {
     if (!partida) return;
     const lugares = colocacoes(r.vitorias, r.vencedor);
     const nrBots = partida.vagas.filter(v => v.bot).length;
@@ -225,7 +228,8 @@ export default function GamesPage() {
     const resultadoDe = (i: number) => {
       const venceu = r.vencedor === i || (partida.modo === "times" && r.vencedor !== null && r.vencedor % 2 === i % 2);
       // Sem bots, os pontos não ganham peso de dificuldade.
-      const pontos = pontosBombas({ vitoriasRodada: r.vitorias[i], venceu, jogadores: partida.vagas.length, dificuldade: nrBots ? partida.dificuldade : null });
+      // Jogo com placar próprio (ex.: Encaixe) manda os pontos; os outros pontuam pelas rodadas vencidas.
+      const pontos = r.pontos ? Math.max(0, Math.round(r.pontos[i] ?? 0)) : pontosBombas({ vitoriasRodada: r.vitorias[i], venceu, jogadores: partida.vagas.length, dificuldade: nrBots ? partida.dificuldade : null });
       return { venceu, pontos, colocacao: venceu ? 1 : Math.min(partida.vagas.length, Math.max(2, lugares[i])) };
     };
     if (copa) setCopa(registrarPartida(copa, lugares));
@@ -290,6 +294,10 @@ export default function GamesPage() {
       partida.jogo === "hexagonos" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando a arena 3D…</div>}>
           <SumoHexagonos key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoHex} cenario={partida.cenario as CenarioHex} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "encaixe" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <EncaixeVersus key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoEncaixe} tema={partida.cenario as TemaEncaixe} {...comuns} />
         </Suspense>
       ) : (
         <BombasTaticas key={partida.numero} vagas={partida.vagas} modo={partida.modo as Modo} bioma={partida.cenario as Bioma} {...comuns} />

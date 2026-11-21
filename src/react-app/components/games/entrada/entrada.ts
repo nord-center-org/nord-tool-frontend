@@ -18,6 +18,8 @@ export class Controles {
   private apertadas = new Map<string, number>();
   /** Botões tocados desde a última leitura: um toque rápido (apertar e soltar entre dois passos) não se perde. */
   private tocados = new Set<"a" | "b" | "pausa">();
+  /** Direção tocada desde a última leitura (puzzles contam cada toque na seta, mesmo se soltar antes do passo). */
+  private direcaoTocada: Direcao | null = null;
   private ordem = 0;
   /** Estado do controle virtual (toque), somado ao teclado. */
   virtual: EstadoControle = vazio();
@@ -28,6 +30,7 @@ export class Controles {
     e.preventDefault();
     const acao = TECLAS_P1[e.code];
     if ((acao === "a" || acao === "b" || acao === "pausa") && !e.repeat) this.tocados.add(acao);
+    else if (!e.repeat && acao !== "a" && acao !== "b" && acao !== "pausa") this.direcaoTocada = acao as Direcao;
     if (!this.apertadas.has(e.code)) this.apertadas.set(e.code, ++this.ordem);
   };
   private aoSoltar = (e: KeyboardEvent) => this.apertadas.delete(e.code);
@@ -36,6 +39,11 @@ export class Controles {
   /** Toque de botão vindo do controle virtual (não se perde mesmo se soltar antes do próximo passo). */
   tocar(acao: "a" | "b" | "pausa") {
     this.tocados.add(acao);
+  }
+
+  /** Toque no direcional do controle virtual. */
+  tocarDirecao(d: Direcao) {
+    this.direcaoTocada = d;
   }
 
   ligar() {
@@ -64,6 +72,8 @@ export class Controles {
     }
     for (const t of this.tocados) s[t] = true;
     this.tocados.clear();
+    if (!s.direcao && !this.virtual.direcao && this.direcaoTocada) s.direcao = this.direcaoTocada;
+    this.direcaoTocada = null;
     return { direcao: this.virtual.direcao ?? s.direcao, a: s.a || this.virtual.a, b: s.b || this.virtual.b, pausa: s.pausa || this.virtual.pausa };
   }
 }

@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-21-games-v6",
+    data: "2026-11-21",
+    titulo: "Games: Encaixe Versus, o puzzle de peças que caem",
+    texto: "Até 8 tabuleiros lado a lado: linhas limpas mandam lixo para os rivais (Versus), corrida de 40 linhas (Sprint) e, sozinho, Maratona até 50 linhas. Segurar peça, fantasma, combos e bots que jogam de verdade. No celular: setas, Girar e Guardar.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-21-games-v5",
     data: "2026-11-21",
     titulo: "Games: chegou o primeiro jogo 3D, o Sumô dos Hexágonos",

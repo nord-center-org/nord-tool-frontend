@@ -19,7 +19,7 @@ export default function ControleVirtual({ controles, rotuloA = "Bomba", rotuloB 
   const mover = (e: PE<HTMLDivElement>) => {
     if (ponteiro.current !== e.pointerId) return;
     const d = direcaoDe(e);
-    if (d !== controles.virtual.direcao && d) vibrar(8);
+    if (d !== controles.virtual.direcao && d) { vibrar(8); controles.tocarDirecao(d); }
     controles.virtual.direcao = d;
   };
   const botao = (chave: "a" | "b", rotulo: string, cor: string) => (
