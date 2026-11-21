@@ -26,3 +26,11 @@ export const gamesService = {
     apiFetch<GameCopa>("/games/copas", { method: "POST", body: JSON.stringify({ nrRodadas, nrColocacao, txResultado: JSON.stringify(resultado) }) }),
   copas: async () => (await apiFetch<GameCopa[]>("/games/copas")) ?? [],
 };
+
+export interface GameSala { codigo: string; jogo: string; vaga: number; anfitriao: boolean; bilhete: string }
+
+/** Salas do multiplayer (celular como controle). */
+export const salasService = {
+  criar: (jogo: string) => apiFetch<GameSala>("/games/salas", { method: "POST", body: JSON.stringify({ jogo }) }),
+  entrar: (codigo: string) => apiFetch<GameSala>(`/games/salas/${encodeURIComponent(codigo)}/entrar`, { method: "POST" }),
+};

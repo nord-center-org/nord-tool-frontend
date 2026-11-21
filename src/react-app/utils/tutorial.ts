@@ -313,6 +313,10 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         texto: "No Bombas Táticas, escolha o modo (Sobrevivência, Times ou Caça às Moedas), o bioma, quantos jogadores (até 8) e a dificuldade dos bots. No celular aparecem o direcional e os botões na tela.",
       },
       {
+        titulo: "Jogue com a turma pelo celular",
+        texto: "Em \"Com celulares\", abra uma sala: aparece um QR Code e um código de 4 letras. Cada pessoa lê o QR (ou abre Games → Controle e digita o código) e o celular vira o controle. Até 8 jogadores; os bots completam as vagas e, se alguém cair, volta para a mesma vaga.",
+      },
+      {
         titulo: "Partida única ou Copa",
         texto: "Na Copa você joga 3, 5 ou 7 partidas seguidas: cada colocação vale pontos (1º 10, 2º 7, 3º 5…) e no fim aparece o pódio. A Copa fica salva no seu histórico.",
       },

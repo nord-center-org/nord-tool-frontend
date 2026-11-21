@@ -30,7 +30,7 @@ const ORDEM_PODIO = [1, 0, 2];
 
 /** Pódio do fim da Copa: 2º, 1º e 3º lado a lado, e a tabela completa embaixo. */
 export function PodioCopa({ copa, avatares, salvo, onSair, onDeNovo }: {
-  copa: Copa; avatares: AvatarConfig[]; salvo: "salvando" | "salvo" | "erro"; onSair: () => void; onDeNovo: () => void;
+  copa: Copa; avatares: AvatarConfig[]; salvo: "salvando" | "salvo" | "erro" | "fora"; onSair: () => void; onDeNovo: () => void;
 }) {
   const tabela = classificacao(copa);
   const podio = ORDEM_PODIO.map(i => tabela[i]).filter(Boolean);
@@ -63,7 +63,7 @@ export function PodioCopa({ copa, avatares, salvo, onSair, onDeNovo }: {
           </li>
         ))}
       </ol>
-      <p className="text-xs text-white/60" aria-live="polite">{salvo === "salvando" ? "Salvando a Copa na sua conta…" : salvo === "salvo" ? "Copa salva no seu histórico." : "Não deu para salvar a Copa agora; o resultado vale só nesta tela."}</p>
+      <p className="text-xs text-white/60" aria-live="polite">{salvo === "salvando" ? "Salvando a Copa na sua conta…" : salvo === "salvo" ? "Copa salva no seu histórico." : salvo === "fora" ? "A tela só hospedou: cada partida já foi para a conta de quem jogou." : "Não deu para salvar a Copa agora; o resultado vale só nesta tela."}</p>
       <div className="flex gap-2">
         <button type="button" autoFocus onClick={onDeNovo} className="rounded-xl bg-orange-500 px-5 py-2.5 font-black text-white hover:bg-orange-600">Nova Copa</button>
         <button type="button" onClick={onSair} className="rounded-xl bg-white/15 px-5 py-2.5 font-bold hover:bg-white/25">Central</button>
