@@ -313,6 +313,15 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         texto: "No Bombas Táticas, escolha o modo (Sobrevivência, Times ou Caça às Moedas), o bioma, quantos jogadores (até 8) e a dificuldade dos bots. No celular aparecem o direcional e os botões na tela.",
       },
       {
+        titulo: "Modo Tela",
+        texto: "Transforme o tablet, a TV ou o computador no servidor da jogatina: o botão Modo Tela mostra um QR Code e um código bem grandes, quem entra pelo celular aparece na arena e a tela só mostra o jogo.",
+        alvo: { css: '[data-tutorial="games-modo-tela"]' },
+      },
+      {
+        titulo: "Sozinho ou até 8",
+        texto: "Todos os jogos vão de 1 a 8 jogadores. No Bombas Táticas, escolha de 0 a 7 bots: sem bots, vira o Desafio (exploda todas as caixas sem cair) ou a meta de 10 moedas.",
+      },
+      {
         titulo: "Jogue com a turma pelo celular",
         texto: "Em \"Com celulares\", abra uma sala: aparece um QR Code e um código de 4 letras. Cada pessoa lê o QR (ou abre Games → Controle e digita o código) e o celular vira o controle. Até 8 jogadores; os bots completam as vagas e, se alguém cair, volta para a mesma vaga.",
       },

@@ -1,6 +1,6 @@
 import type { Bioma, Estado, Jogador, PowerUp } from "@/react-app/utils/games/bombas";
 import { celula, PAVIO } from "@/react-app/utils/games/bombas";
-import { CORES_JOGADORES } from "../../central/sprites";
+import { CORES_JOGADORES, desenharCorpo } from "../../central/sprites";
 
 /** Paleta de cada bioma: chão em xadrez, pilar com volume e caixa destrutível. Tudo desenhado por código. */
 export const BIOMAS: Record<Bioma, { nome: string; chaoA: string; chaoB: string; pilar: string; pilarTopo: string; pilarSombra: string; caixa: string; caixaFrisos: string; fundo: string }> = {
@@ -206,7 +206,8 @@ export function desenharChama(ctx: CanvasRenderingContext2D, x: number, y: numbe
 }
 
 /** Jogador: sombra, anel da cor P#, avatar pixel com balanço ao andar e o rótulo P#. */
-export function desenharJogador(ctx: CanvasRenderingContext2D, j: Jogador, pos: Interpolado, t: number, sprite: HTMLCanvasElement | undefined, tempo: number, passo: number) {
+/** Jogador com o avatar de corpo inteiro: anda nas 4 direções, respira parado e comemora no fim. */
+export function desenharJogador(ctx: CanvasRenderingContext2D, j: Jogador, pos: Interpolado, t: number, folha: HTMLCanvasElement | undefined, tempo: number, passo: number, comemorando = false) {
   const cx = pos.x * t + t / 2, cy = pos.y * t + t / 2;
   const cor = CORES_JOGADORES[j.id % 8];
   const andando = j.andou > 0 && (Math.abs(pos.x - j.alvoX) > 0.01 || Math.abs(pos.y - j.alvoY) > 0.01);
@@ -222,20 +223,14 @@ export function desenharJogador(ctx: CanvasRenderingContext2D, j: Jogador, pos: 
   ctx.ellipse(cx, cy + t * 0.36, t * 0.38, t * 0.13, 0, 0, Math.PI * 2);
   ctx.stroke();
   if (pisca) return;
-  const lado = t * 1.18;
-  const sx = 1 + balanco * 0.06, sy = 1 - balanco * 0.06;
-  ctx.save();
-  ctx.translate(cx, cy + t * 0.4 - balanco * t * 0.12);
-  if (j.direcao === "esquerda") ctx.scale(-1, 1);
-  ctx.scale(sx, sy);
-  if (sprite) {
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(sprite, -lado / 2, -lado, lado, lado);
+  const altura = t * 1.45;
+  const pulo = comemorando ? Math.abs(Math.sin(tempo * 7)) * t * 0.25 : 0;
+  if (folha) {
+    desenharCorpo(ctx, folha, comemorando ? "baixo" : j.direcao, comemorando ? "vitoria" : andando ? "andando" : "parado", tempo + j.id * 0.37, cx, cy + t * 0.42 - pulo, altura);
   } else {
     ctx.fillStyle = cor;
-    ctx.fillRect(-lado * 0.3, -lado * 0.8, lado * 0.6, lado * 0.7);
+    ctx.fillRect(cx - t * 0.3, cy - t * 0.6, t * 0.6, t);
   }
-  ctx.restore();
   if (j.escudo) {
     ctx.strokeStyle = `rgba(168,85,247,${0.5 + Math.sin(tempo * 6) * 0.25})`;
     ctx.lineWidth = Math.max(2, t * 0.06);
@@ -253,9 +248,21 @@ export function desenharJogador(ctx: CanvasRenderingContext2D, j: Jogador, pos: 
   ctx.textAlign = "center";
   ctx.lineWidth = Math.max(2, t * 0.06);
   ctx.strokeStyle = "rgba(0,0,0,.8)";
-  ctx.strokeText(`P${j.id + 1}`, cx, cy - t * 0.8);
+  ctx.strokeText(`P${j.id + 1}`, cx, cy - t * 1.08 - pulo);
   ctx.fillStyle = cor;
-  ctx.fillText(`P${j.id + 1}`, cx, cy - t * 0.8);
+  ctx.fillText(`P${j.id + 1}`, cx, cy - t * 1.08 - pulo);
+}
+
+/** Quem foi atingido cai de lado, gira e some (0,9 s). */
+export function desenharQueda(ctx: CanvasRenderingContext2D, folha: HTMLCanvasElement | undefined, x: number, y: number, t: number, progresso: number) {
+  if (!folha) return;
+  const p = Math.min(1, progresso);
+  ctx.save();
+  ctx.globalAlpha = 1 - p * p;
+  ctx.translate(x * t + t / 2, y * t + t * 0.9 - Math.sin(p * Math.PI) * t * 0.5);
+  ctx.rotate(p * Math.PI * 1.5);
+  desenharCorpo(ctx, folha, "baixo", "parado", 0, 0, 0, t * 1.45 * (1 - p * 0.3));
+  ctx.restore();
 }
 
 export function desenharMoeda(ctx: CanvasRenderingContext2D, cx: number, cy: number, t: number, tempo: number) {

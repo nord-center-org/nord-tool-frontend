@@ -8,7 +8,9 @@ test("21 jogos, ids únicos, 1 a 8 jogadores", () => {
   assert.equal(JOGOS.length, 21);
   assert.equal(new Set(JOGOS.map(j => j.id)).size, 21);
   for (const j of JOGOS) {
-    assert.ok(j.minJogadores >= 1 && j.maxJogadores <= 8 && j.minJogadores <= j.maxJogadores, j.id);
+    // Pedido do Nick: todos os jogos, sem exceção, de 1 (sozinho, com bots) a 8 jogadores.
+    assert.equal(j.minJogadores, 1, j.id);
+    assert.equal(j.maxJogadores, 8, j.id);
     assert.ok(j.regras.length > 0 && j.modos.length > 0, j.id);
   }
 });

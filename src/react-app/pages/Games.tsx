@@ -1,22 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Gamepad2, Heart, Lock, Medal, Monitor, Play, Search, Smartphone, Trophy, Users, X } from "lucide-react";
-import CabecalhoPagina from "@/react-app/components/ui/CabecalhoPagina";
+import { Link } from "react-router";
+import { Gamepad2, Heart, Lock, Medal, Monitor, Play, Search, Smartphone, Sparkles, Users, X } from "lucide-react";
 import CapaJogo from "@/react-app/components/games/central/CapaJogo";
 import { CORES_JOGADORES, avatarDaVaga } from "@/react-app/components/games/central/sprites";
 import PainelRecordes from "@/react-app/components/games/central/PainelRecordes";
 import { PodioCopa, TabelaCopa } from "@/react-app/components/games/central/CopaTelas";
 import SalaPainel from "@/react-app/components/games/central/SalaPainel";
+import ModoTela from "@/react-app/components/games/central/ModoTela";
+import FundoGamer from "@/react-app/components/games/central/FundoGamer";
+import AvatarCorpo from "@/react-app/components/games/central/AvatarCorpo";
+import ConfigPartida, { Pilulas } from "@/react-app/components/games/central/ConfigPartida";
+import { CONFIG_PADRAO, type ConfigBombas } from "@/react-app/utils/games/configBombas";
 import { ClienteSala, type EstadoConexao } from "@/react-app/components/games/rede/ClienteSala";
 import BombasTaticas, { type FaseBombas, type ResultadoBombas, type VagaBombas } from "@/react-app/components/games/jogos/bombas/BombasTaticas";
-import { BIOMAS } from "@/react-app/components/games/jogos/bombas/desenho";
 import { som } from "@/react-app/components/games/audio/sintetizador";
-import Avatar from "@/react-app/components/avatar/Avatar";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { avatarService } from "@/react-app/services/AvatarService";
 import { gamesService, salasService, type GameRegistro } from "@/react-app/services/GamesService";
 import { EntradasRemotas, type JogadorSala } from "@/react-app/utils/games/sala";
 import { lerAvatar } from "@/react-app/utils/avatar";
-import { RODADAS_COPA, classificacao, colocacoes, novaCopa, registrarPartida, resumoDaCopa, terminou, type Copa, type RodadasCopa } from "@/react-app/utils/games/copa";
+import { classificacao, colocacoes, novaCopa, registrarPartida, resumoDaCopa, terminou, type Copa } from "@/react-app/utils/games/copa";
 import { pontosBombas } from "@/react-app/utils/games/pontuacao";
 import { CATEGORIAS, FILTROS_CENTRAL, JOGOS, filtrarJogos, type FiltrosCentral, type Jogo } from "@/react-app/utils/games/catalogo";
 import type { Bioma, Dificuldade, Modo } from "@/react-app/utils/games/bombas";
@@ -35,14 +38,7 @@ function guardarFavoritos(f: Set<string>) {
   try { localStorage.setItem(CHAVE_FAVORITOS, JSON.stringify([...f])); } catch { /* sem armazenamento */ }
 }
 
-const DIFICULDADES: { valor: Dificuldade; rotulo: string }[] = [
-  { valor: "facil", rotulo: "Fácil" }, { valor: "medio", rotulo: "Médio" }, { valor: "dificil", rotulo: "Difícil" },
-];
-
 interface Partida { vagas: VagaBombas[]; modo: Modo; bioma: Bioma; vitorias: number; dificuldade: Dificuldade; inicio: number; numero: number }
-
-/** Partida única ou Copa de 3, 5 ou 7 partidas. */
-type Formato = "unica" | RodadasCopa;
 
 type Registro = { estado: "salvando" } | { estado: "salvo"; pontos: number; r: GameRegistro } | { estado: "erro" };
 
@@ -64,7 +60,7 @@ function AvisoRegistro({ registro }: { registro: Registro | null }) {
   );
 }
 
-/** Individual → Games: a Central de Jogos (estilo launcher) e as partidas. */
+/** Individual → Games: a Central de Jogos (estilo launcher de console) e as partidas. */
 export default function GamesPage() {
   const { usuario } = useAuth();
   const [filtros, setFiltros] = useState<FiltrosCentral>(FILTROS_CENTRAL);
@@ -72,13 +68,7 @@ export default function GamesPage() {
   const [aberto, setAberto] = useState<Jogo | null>(null);
   const [meuAvatar, setMeuAvatar] = useState<{ dsConfig: string | null; idUsuario: number } | null>(null);
   const [partida, setPartida] = useState<Partida | null>(null);
-  // Preparação da partida (Bombas Táticas).
-  const [modo, setModo] = useState<Modo>("sobrevivencia");
-  const [bioma, setBioma] = useState<Bioma>("fabrica");
-  const [qtd, setQtd] = useState(4);
-  const [dificuldade, setDificuldade] = useState<Dificuldade>("medio");
-  const [vitorias, setVitorias] = useState(2);
-  const [formato, setFormato] = useState<Formato>("unica");
+  const [cfg, setCfg] = useState<ConfigBombas>(CONFIG_PADRAO);
   const [copa, setCopa] = useState<Copa | null>(null);
   const [podio, setPodio] = useState<{ copa: Copa; salvo: "salvando" | "salvo" | "erro" | "fora" } | null>(null);
   const [registro, setRegistro] = useState<Registro | null>(null);
@@ -86,6 +76,7 @@ export default function GamesPage() {
   const favoritosDaConta = useRef(false);
   // Multiplayer: sala aberta nesta tela e os celulares como controle.
   const [ondeJogar, setOndeJogar] = useState<"tela" | "celulares">("tela");
+  const [modoTela, setModoTela] = useState(false);
   const [sala, setSala] = useState<{ codigo: string; estado: EstadoConexao; jogadores: JogadorSala[] } | null>(null);
   const [erroSala, setErroSala] = useState<string | null>(null);
   const [euJogo, setEuJogo] = useState(true);
@@ -115,6 +106,7 @@ export default function GamesPage() {
   }, []);
 
   const lista = useMemo(() => filtrarJogos(JOGOS, filtros, favoritos), [filtros, favoritos]);
+  const destaque = JOGOS.find(j => j.disponivel) ?? JOGOS[0];
 
   const alternarFavorito = (id: string) => {
     const novo = new Set(favoritos);
@@ -124,19 +116,21 @@ export default function GamesPage() {
     if (favoritosDaConta.current) gamesService.salvarFavoritos([...novo]).catch(() => undefined);
   };
 
-  // Vagas da partida: quem está na tela, os celulares conectados e bots completando até a quantidade escolhida.
+  const comSala = (ondeJogar === "celulares" || modoTela) && !!sala;
+  const euNaArena = !comSala || euJogo;
+  // Vagas: quem está na tela (se joga), os celulares conectados e os bots escolhidos (0 a 7: sozinho também vale).
   const vagas: VagaBombas[] = useMemo(() => {
     const lista: VagaBombas[] = [];
-    const comSala = ondeJogar === "celulares" && sala;
-    if (!comSala || euJogo) lista.push({ nome: usuario?.nome?.split(" ")[0] ?? "Você", bot: null, avatar: avatarDaVaga(0, meuAvatar) });
-    if (comSala) {
+    if (euNaArena) lista.push({ nome: usuario?.nome?.split(" ")[0] ?? "Você", bot: null, avatar: avatarDaVaga(0, meuAvatar) });
+    if (comSala && sala) {
       sala.jogadores.filter(j => j.vaga > 0 && j.conectado).slice(0, 8 - lista.length)
         .forEach(j => lista.push({ nome: j.nome.split(" ")[0], bot: null, avatar: lerAvatar(j.avatar, j.idUsuario), controle: j.vaga }));
     }
-    let n = 1;
-    while (lista.length < Math.max(qtd, 2) && lista.length < 8) lista.push({ nome: `Bot ${n++}`, bot: dificuldade, avatar: avatarDaVaga(lista.length, null) });
+    const bots = Math.min(cfg.bots, 8 - lista.length);
+    for (let n = 1; n <= bots; n++) lista.push({ nome: `Bot ${n}`, bot: cfg.dificuldade, avatar: avatarDaVaga(lista.length, null) });
     return lista;
-  }, [qtd, dificuldade, meuAvatar, usuario, ondeJogar, sala, euJogo]);
+  }, [cfg.bots, cfg.dificuldade, meuAvatar, usuario, comSala, sala, euNaArena]);
+  const humanos = vagas.filter(v => !v.bot).length;
 
   // Avisos para os celulares (a tela é quem manda).
   const paraTodos = (d: unknown) => clienteSala.current?.enviar({ t: "todos", d });
@@ -173,17 +167,33 @@ export default function GamesPage() {
 
   useEffect(() => () => clienteSala.current?.fechar({ t: "fechar" }), []);
 
+  // Modo Tela: esta tela vira o servidor; por padrão ninguém joga nela (todos pelos celulares).
+  const entrarModoTela = () => {
+    som.destravar();
+    setAberto(null);
+    setModoTela(true);
+    setEuJogo(false);
+    if (!sala) void abrirSala();
+  };
+  const sairModoTela = () => {
+    setModoTela(false);
+    setEuJogo(true);
+    fecharSala();
+  };
+
   const comecar = (numero: number) => {
     som.destravar();
     setRegistro(null);
     const daPartida = numero === 1 || !copa ? vagas : vagasDaCopa.current;
     if (numero === 1) vagasDaCopa.current = vagas;
     daPartida.forEach((v, i) => { if (v.controle !== undefined) paraVaga(v.controle, { k: "lugar", indice: i, cor: CORES_JOGADORES[i], jogo: "bombas" }); });
-    setPartida({ vagas: daPartida, modo: modo === "times" && daPartida.length % 2 ? "sobrevivencia" : modo, bioma, vitorias, dificuldade, inicio: Date.now(), numero });
+    const n = daPartida.length;
+    // Sozinho: cada tentativa é uma partida; Times só com número par.
+    setPartida({ vagas: daPartida, modo: cfg.modo === "times" && n % 2 ? "sobrevivencia" : cfg.modo, bioma: cfg.bioma, vitorias: n === 1 ? 1 : cfg.vitorias, dificuldade: cfg.dificuldade, inicio: Date.now(), numero });
   };
 
   const jogar = () => {
-    setCopa(formato === "unica" ? null : novaCopa(formato, vagas.map((v, i) => `P${i + 1} · ${v.nome}`)));
+    setCopa(cfg.formato === "unica" ? null : novaCopa(cfg.formato, vagas.map((v, i) => `P${i + 1} · ${v.nome}`)));
     comecar(1);
   };
 
@@ -203,7 +213,7 @@ export default function GamesPage() {
       const venceu = r.vencedor === i || (partida.modo === "times" && r.vencedor !== null && r.vencedor % 2 === i % 2);
       // Sem bots, os pontos não ganham peso de dificuldade.
       const pontos = pontosBombas({ vitoriasRodada: r.vitorias[i], venceu, jogadores: partida.vagas.length, dificuldade: nrBots ? partida.dificuldade : null });
-      return { venceu, pontos, colocacao: venceu ? 1 : Math.max(2, lugares[i]) };
+      return { venceu, pontos, colocacao: venceu ? 1 : Math.min(partida.vagas.length, Math.max(2, lugares[i])) };
     };
     if (copa) setCopa(registrarPartida(copa, lugares));
     // Cada celular registra a própria partida na própria conta.
@@ -262,154 +272,162 @@ export default function GamesPage() {
     );
   }
 
-  const filtroBotao = (ativo: boolean, rotulo: string, aoClicar: () => void) => (
+  if (modoTela) {
+    return <ModoTela sala={sala} erro={erroSala} vagas={vagas} cfg={cfg} mudarCfg={setCfg} euJogo={euJogo} onEuJogo={setEuJogo} onComecar={jogar} onSair={sairModoTela} />;
+  }
+
+  const chip = (ativo: boolean, rotulo: string, aoClicar: () => void) => (
     <button type="button" aria-pressed={ativo} onClick={aoClicar}
-      className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${ativo ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"}`}>
+      className={`rounded-full px-3 py-1.5 text-xs font-black uppercase tracking-wide transition ${ativo ? "bg-cyan-400 text-slate-950 shadow-[0_0_16px_rgba(34,211,238,.6)]" : "bg-white/5 text-white/70 ring-1 ring-white/10 hover:bg-white/10 hover:text-white"}`}>
       {rotulo}
     </button>
   );
 
   return (
-    <div className="space-y-5 p-3 sm:p-6">
-      <CabecalhoPagina icone={Gamepad2} titulo="Games" subtitulo="Central de jogos: sozinho contra bots, no celular ou com a turma (até 8)" />
-
-      <section data-tutorial="games-filtros" className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Filtros">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[12rem] flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input value={filtros.busca} onChange={e => setFiltros({ ...filtros, busca: e.target.value })} placeholder="Buscar jogo, modo ou categoria" aria-label="Buscar jogo"
-              className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+    <div className="relative isolate min-h-screen overflow-hidden text-white">
+      <FundoGamer />
+      <div className="relative space-y-6 p-3 sm:p-6">
+        <header className="flex flex-wrap items-center gap-4">
+          <div className="mr-auto flex min-w-0 items-center gap-3">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-fuchsia-500 via-pink-500 to-cyan-400 shadow-[0_0_30px_rgba(217,70,239,.6)]"><Gamepad2 className="h-7 w-7" /></span>
+            <div className="min-w-0">
+              <h1 className="bg-gradient-to-r from-cyan-300 via-fuchsia-400 to-lime-300 bg-clip-text text-3xl font-black uppercase italic tracking-tight text-transparent sm:text-4xl">Nord Games</h1>
+              <p className="text-sm text-white/60">Sozinho, contra bots ou com a turma pelo celular · 1 a 8 jogadores</p>
+            </div>
           </div>
-          {filtroBotao(filtros.soDisponiveis, "Disponíveis", () => setFiltros({ ...filtros, soDisponiveis: !filtros.soDisponiveis }))}
-          {filtroBotao(filtros.soFavoritos, "♥ Favoritos", () => setFiltros({ ...filtros, soFavoritos: !filtros.soFavoritos }))}
-          {filtroBotao(filtros.dimensao === "2D", "2D", () => setFiltros({ ...filtros, dimensao: filtros.dimensao === "2D" ? "" : "2D" }))}
-          {filtroBotao(filtros.dimensao === "3D", "3D", () => setFiltros({ ...filtros, dimensao: filtros.dimensao === "3D" ? "" : "3D" }))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select aria-label="Categoria" value={filtros.categoria} onChange={e => setFiltros({ ...filtros, categoria: e.target.value })}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700">
-            <option value="">Todas as categorias</option>
-            {CATEGORIAS.map(c => <option key={c}>{c}</option>)}
-          </select>
-          <span className="ml-2 flex items-center gap-1 text-xs font-bold text-slate-500"><Users className="h-4 w-4" />Jogadores:</span>
-          {[null, 1, 2, 4, 8].map(n => <span key={String(n)}>{filtroBotao(filtros.jogadores === n, n === null ? "Todos" : `${n}P`, () => setFiltros({ ...filtros, jogadores: n }))}</span>)}
-        </div>
-      </section>
+          <button type="button" onClick={entrarModoTela} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-sm font-black uppercase tracking-wide shadow-[0_0_24px_rgba(34,211,238,.45)] hover:brightness-110" data-tutorial="games-modo-tela">
+            <Monitor className="h-5 w-5" />Modo Tela
+          </button>
+          <Link to="/gestao/games/controle" className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-black uppercase tracking-wide ring-1 ring-white/15 hover:bg-white/20">
+            <Smartphone className="h-5 w-5" />Controle
+          </Link>
+          {meuAvatar && (
+            <span className="flex items-end gap-2 rounded-2xl bg-white/5 px-3 pt-1 ring-1 ring-white/10">
+              <AvatarCorpo config={avatarDaVaga(0, meuAvatar)} altura={48} />
+              <span className="pb-2 text-sm font-black">{usuario?.nome?.split(" ")[0]}</span>
+            </span>
+          )}
+        </header>
 
-      <ul data-tutorial="games-grade" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6" aria-label="Jogos">
-        {lista.map(j => (
-          <li key={j.id} className="group relative">
-            <button type="button" onClick={() => setAberto(j)} aria-label={`${j.nome}${j.disponivel ? "" : " (em breve)"}`}
-              className="block w-full overflow-hidden rounded-2xl text-left shadow-md ring-1 ring-black/10 transition hover:-translate-y-1 hover:shadow-xl focus-visible:ring-4 focus-visible:ring-blue-400">
-              <CapaJogo jogo={j} className={j.disponivel ? "" : "opacity-70 grayscale-[35%]"} />
-              <span className="absolute left-2 top-2 flex gap-1">
-                <span className="rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-black text-white">{j.dimensao}</span>
-                <span className="rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-black text-white">{j.minJogadores === j.maxJogadores ? `${j.maxJogadores}P` : `${j.minJogadores}–${j.maxJogadores}P`}</span>
-              </span>
-              {!j.disponivel && <span className="absolute right-2 top-2 flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-black text-white"><Lock className="h-3 w-3" />Fase {j.fase}</span>}
-            </button>
-            <button type="button" onClick={() => alternarFavorito(j.id)} aria-label={favoritos.has(j.id) ? `Tirar ${j.nome} dos favoritos` : `Favoritar ${j.nome}`} aria-pressed={favoritos.has(j.id)}
-              className={`absolute bottom-2 right-2 rounded-full p-1.5 shadow ${favoritos.has(j.id) ? "bg-rose-500 text-white" : "bg-white/85 text-slate-500 opacity-0 group-hover:opacity-100 focus:opacity-100"}`}>
-              <Heart className="h-4 w-4" fill={favoritos.has(j.id) ? "currentColor" : "none"} />
-            </button>
-          </li>
-        ))}
-        {lista.length === 0 && <li className="col-span-full rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">Nenhum jogo com esses filtros.</li>}
-      </ul>
+        <section aria-label="Em destaque" className="grid overflow-hidden rounded-3xl bg-slate-950/70 ring-1 ring-fuchsia-400/30 backdrop-blur md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          <div className="relative h-52 overflow-hidden sm:h-64 md:h-auto">
+            <CapaJogo jogo={destaque} className="w-full md:h-full" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent md:bg-gradient-to-r md:from-transparent md:via-transparent md:to-slate-950/90" />
+          </div>
+          <div className="flex flex-col justify-center gap-3 p-5 sm:p-8">
+            <p className="inline-flex w-fit items-center gap-1.5 rounded-full bg-lime-400/15 px-3 py-1 text-[11px] font-black uppercase tracking-[0.25em] text-lime-300 ring-1 ring-lime-300/40"><Sparkles className="h-3.5 w-3.5" />Em destaque</p>
+            <h2 className="text-4xl font-black uppercase italic leading-none tracking-tight drop-shadow-[0_0_18px_rgba(236,72,153,.5)] sm:text-5xl">{destaque.nome}</h2>
+            <p className="max-w-xl text-white/75">{destaque.resumo}</p>
+            <ul className="flex flex-wrap gap-1.5">
+              {destaque.modos.map(m => <li key={m} className="rounded-lg bg-white/10 px-2 py-1 text-xs font-bold text-white/80">{m}</li>)}
+              <li className="flex items-center gap-1 rounded-lg bg-cyan-400/15 px-2 py-1 text-xs font-bold text-cyan-200"><Users className="h-3.5 w-3.5" />1–8 jogadores</li>
+            </ul>
+            <div className="mt-1 flex flex-wrap gap-2">
+              <button type="button" onClick={() => { setOndeJogar("tela"); setAberto(destaque); }}
+                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-3 text-lg font-black uppercase italic tracking-wider shadow-[0_0_30px_rgba(236,72,153,.55)] transition hover:scale-[1.03]">
+                <Play className="h-6 w-6" fill="currentColor" />Jogar
+              </button>
+              <button type="button" onClick={() => { setOndeJogar("celulares"); setAberto(destaque); if (!sala) void abrirSala(); }}
+                className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-5 py-3 font-black uppercase tracking-wide ring-1 ring-white/20 hover:bg-white/20">
+                <Smartphone className="h-5 w-5" />Com celulares
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section data-tutorial="games-filtros" className="space-y-3 rounded-2xl bg-slate-950/60 p-4 ring-1 ring-white/10 backdrop-blur" aria-label="Filtros">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[12rem] flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cyan-300/70" />
+              <input value={filtros.busca} onChange={e => setFiltros({ ...filtros, busca: e.target.value })} placeholder="Buscar jogo, modo ou categoria" aria-label="Buscar jogo"
+                className="w-full rounded-xl border border-white/10 bg-slate-900/80 py-2 pl-9 pr-3 text-sm text-white placeholder:text-white/40 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30" />
+            </div>
+            {chip(filtros.soDisponiveis, "Disponíveis", () => setFiltros({ ...filtros, soDisponiveis: !filtros.soDisponiveis }))}
+            {chip(filtros.soFavoritos, "♥ Favoritos", () => setFiltros({ ...filtros, soFavoritos: !filtros.soFavoritos }))}
+            {chip(filtros.dimensao === "2D", "2D", () => setFiltros({ ...filtros, dimensao: filtros.dimensao === "2D" ? "" : "2D" }))}
+            {chip(filtros.dimensao === "3D", "3D", () => setFiltros({ ...filtros, dimensao: filtros.dimensao === "3D" ? "" : "3D" }))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select aria-label="Categoria" value={filtros.categoria} onChange={e => setFiltros({ ...filtros, categoria: e.target.value })}
+              className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-1.5 text-sm font-bold text-white">
+              <option value="">Todas as categorias</option>
+              {CATEGORIAS.map(c => <option key={c}>{c}</option>)}
+            </select>
+            <span className="ml-2 flex items-center gap-1 text-xs font-black uppercase tracking-wide text-white/60"><Users className="h-4 w-4" />Jogadores:</span>
+            {[null, 1, 2, 4, 8].map(n => <span key={String(n)}>{chip(filtros.jogadores === n, n === null ? "Todos" : `${n}P`, () => setFiltros({ ...filtros, jogadores: n }))}</span>)}
+          </div>
+        </section>
+
+        <ul data-tutorial="games-grade" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6" aria-label="Jogos">
+          {lista.map(j => (
+            <li key={j.id} className="group relative">
+              <button type="button" onClick={() => { setOndeJogar("tela"); setAberto(j); }} aria-label={`${j.nome}${j.disponivel ? "" : " (em breve)"}`}
+                className="block w-full overflow-hidden rounded-2xl text-left ring-1 ring-white/10 transition duration-200 hover:-translate-y-1.5 hover:ring-2 hover:ring-cyan-300 hover:shadow-[0_0_34px_rgba(34,211,238,.45)] focus-visible:ring-4 focus-visible:ring-cyan-300">
+                <CapaJogo jogo={j} className={j.disponivel ? "" : "opacity-60 grayscale-[45%]"} />
+                <span className="absolute left-2 top-2 flex gap-1">
+                  <span className="rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-black text-cyan-200">{j.dimensao}</span>
+                  <span className="rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-black text-white">1–8P</span>
+                </span>
+                {!j.disponivel && <span className="absolute right-2 top-2 flex items-center gap-1 rounded-md bg-black/75 px-1.5 py-0.5 text-[10px] font-black text-fuchsia-200"><Lock className="h-3 w-3" />Fase {j.fase}</span>}
+                {j.disponivel && <span className="absolute right-2 top-2 rounded-md bg-lime-400 px-1.5 py-0.5 text-[10px] font-black uppercase text-slate-950 shadow-[0_0_14px_rgba(163,230,53,.8)]">Jogar</span>}
+              </button>
+              <button type="button" onClick={() => alternarFavorito(j.id)} aria-label={favoritos.has(j.id) ? `Tirar ${j.nome} dos favoritos` : `Favoritar ${j.nome}`} aria-pressed={favoritos.has(j.id)}
+                className={`absolute bottom-2 right-2 rounded-full p-1.5 shadow ${favoritos.has(j.id) ? "bg-pink-500 text-white shadow-[0_0_14px_rgba(236,72,153,.8)]" : "bg-black/60 text-white/80 opacity-0 group-hover:opacity-100 focus:opacity-100"}`}>
+                <Heart className="h-4 w-4" fill={favoritos.has(j.id) ? "currentColor" : "none"} />
+              </button>
+            </li>
+          ))}
+          {lista.length === 0 && <li className="col-span-full rounded-2xl border border-dashed border-white/20 p-8 text-center text-sm text-white/60">Nenhum jogo com esses filtros.</li>}
+        </ul>
+      </div>
 
       {aberto && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/60 p-0 sm:items-center sm:p-4" onMouseDown={e => { if (e.target === e.currentTarget) setAberto(null); }}>
-          <div role="dialog" aria-modal="true" aria-label={aberto.nome} className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={e => { if (e.target === e.currentTarget) setAberto(null); }}>
+          <div role="dialog" aria-modal="true" aria-label={aberto.nome} className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-3xl bg-slate-950/95 text-white shadow-[0_0_60px_rgba(124,58,237,.45)] ring-1 ring-fuchsia-400/30 sm:rounded-3xl">
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sm:flex-row">
-              <div className="w-full shrink-0 sm:w-56"><CapaJogo jogo={aberto} /></div>
+              <div className="w-full shrink-0 sm:w-60"><CapaJogo jogo={aberto} /></div>
               <div className="min-w-0 flex-1 space-y-4 p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-2xl font-black text-slate-800">{aberto.nome}</h2>
-                    <p className="text-sm text-slate-500">{aberto.categoria} · {aberto.dimensao} · {aberto.minJogadores}–{aberto.maxJogadores} jogadores</p>
+                    <h2 className="text-3xl font-black uppercase italic tracking-tight">{aberto.nome}</h2>
+                    <p className="text-sm text-cyan-200/80">{aberto.categoria} · {aberto.dimensao} · 1 a 8 jogadores</p>
                   </div>
-                  <button type="button" onClick={() => setAberto(null)} aria-label="Fechar" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+                  <button type="button" onClick={() => setAberto(null)} aria-label="Fechar" className="rounded-lg p-1.5 text-white/60 hover:bg-white/10"><X className="h-5 w-5" /></button>
                 </div>
-                <p className="text-sm text-slate-700">{aberto.resumo}</p>
+                <p className="text-sm text-white/80">{aberto.resumo}</p>
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Regras</h3>
-                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">{aberto.regras.map(r => <li key={r}>{r}</li>)}</ul>
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-fuchsia-300">Regras</h3>
+                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-white/80 marker:text-fuchsia-400">{aberto.regras.map(r => <li key={r}>{r}</li>)}</ul>
                 </div>
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Controles</h3>
-                  <ul className="mt-1 space-y-0.5 text-sm text-slate-600">{aberto.controles.map(c => <li key={c}>{c}</li>)}</ul>
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-fuchsia-300">Controles</h3>
+                  <ul className="mt-1 space-y-0.5 text-sm text-white/70">{aberto.controles.map(c => <li key={c}>{c}</li>)}</ul>
                 </div>
                 {aberto.id === "bombas" ? (
-                  <div className="space-y-3 rounded-2xl bg-slate-50 p-4" data-tutorial="games-preparar">
-                    <h3 className="text-sm font-black text-slate-800">Jogo rápido</h3>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="text-xs font-bold text-slate-500">Modo
-                        <select value={modo} onChange={e => setModo(e.target.value as Modo)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800">
-                          <option value="sobrevivencia">Sobrevivência</option><option value="times">Times</option><option value="moedas">Caça às Moedas</option>
-                        </select>
-                      </label>
-                      <label className="text-xs font-bold text-slate-500">Bioma
-                        <select value={bioma} onChange={e => setBioma(e.target.value as Bioma)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800">
-                          {(Object.keys(BIOMAS) as Bioma[]).map(b => <option key={b} value={b}>{BIOMAS[b].nome}</option>)}
-                        </select>
-                      </label>
-                      <label className="text-xs font-bold text-slate-500">{ondeJogar === "celulares" ? "Jogadores (bots completam)" : "Jogadores (você + bots)"}
-                        <select value={qtd} onChange={e => setQtd(Number(e.target.value))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800">
-                          {[2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n}>{n} jogadores</option>)}
-                        </select>
-                      </label>
-                      <label className="text-xs font-bold text-slate-500">Vitórias para vencer
-                        <select value={vitorias} onChange={e => setVitorias(Number(e.target.value))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800">
-                          {[1, 2, 3, 5].map(n => <option key={n} value={n}>{n}</option>)}
-                        </select>
-                      </label>
-                    </div>
-                    <div role="radiogroup" aria-label="Onde jogar" className="flex gap-1 rounded-xl bg-white p-1 ring-1 ring-slate-200">
-                      {([["tela", "Nesta tela", Monitor], ["celulares", "Com celulares", Smartphone]] as const).map(([valor, rotulo, Icone]) => (
-                        <button key={valor} type="button" role="radio" aria-checked={ondeJogar === valor} onClick={() => setOndeJogar(valor)}
-                          className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-black ${ondeJogar === valor ? "bg-emerald-600 text-white" : "text-slate-500"}`}>
-                          <Icone className="h-3.5 w-3.5" />{rotulo}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="space-y-3 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10" data-tutorial="games-preparar">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-cyan-200">Preparar partida</h3>
+                    <Pilulas rotulo="Onde jogar" valor={ondeJogar} aoMudar={v => { setOndeJogar(v); if (v === "celulares" && !sala) void abrirSala(); }}
+                      opcoes={[{ valor: "tela", rotulo: <><Monitor className="h-3.5 w-3.5" />Nesta tela</> }, { valor: "celulares", rotulo: <><Smartphone className="h-3.5 w-3.5" />Com celulares</> }]} />
                     {ondeJogar === "celulares" && (sala ? (
-                      <SalaPainel codigo={sala.codigo} estado={sala.estado} jogadores={sala.jogadores} euJogo={euJogo} onEuJogo={setEuJogo} onFechar={fecharSala} />
+                      <SalaPainel codigo={sala.codigo} estado={sala.estado} jogadores={sala.jogadores} euJogo={euJogo} onEuJogo={setEuJogo} onFechar={() => { fecharSala(); setOndeJogar("tela"); }} />
                     ) : (
-                      <div className="space-y-2 rounded-2xl bg-emerald-50 p-3 text-xs text-emerald-900 ring-1 ring-emerald-100">
-                        <p>Abra uma sala nesta tela: cada pessoa entra pelo celular (QR Code ou código) e o celular vira o controle. Os bots completam as vagas que sobrarem.</p>
-                        <button type="button" onClick={() => void abrirSala()} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white hover:bg-emerald-700">Abrir sala</button>
-                        {erroSala && <p className="font-semibold text-rose-700" role="alert">{erroSala}</p>}
-                      </div>
+                      <p className="rounded-xl bg-white/5 p-3 text-xs text-white/70" role={erroSala ? "alert" : undefined}>{erroSala ?? "Abrindo a sala…"}</p>
                     ))}
-                    <div role="radiogroup" aria-label="Formato" className="flex gap-1 rounded-xl bg-white p-1 ring-1 ring-slate-200" data-tutorial="games-copa">
-                      {(["unica", ...RODADAS_COPA] as Formato[]).map(f => (
-                        <button key={String(f)} type="button" role="radio" aria-checked={formato === f} onClick={() => setFormato(f)}
-                          className={`flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-black ${formato === f ? "bg-indigo-600 text-white" : "text-slate-500"}`}>
-                          {f === "unica" ? <><span className="sm:hidden">Única</span><span className="hidden sm:inline">Partida única</span></> : <><Trophy className="h-3.5 w-3.5" />Copa {f}</>}
-                        </button>
-                      ))}
-                    </div>
-                    {formato !== "unica" && <p className="text-xs text-slate-500">Copa: {formato} partidas seguidas; cada colocação vale pontos (1º 10, 2º 7, 3º 5, 4º 3…). Quem somar mais fica com a taça.</p>}
-                    <div role="radiogroup" aria-label="Dificuldade dos bots" className="flex gap-1 rounded-xl bg-white p-1 ring-1 ring-slate-200">
-                      {DIFICULDADES.map(d => (
-                        <button key={d.valor} type="button" role="radio" aria-checked={dificuldade === d.valor} onClick={() => setDificuldade(d.valor)}
-                          className={`flex-1 rounded-lg py-1.5 text-xs font-black ${dificuldade === d.valor ? "bg-slate-900 text-white" : "text-slate-500"}`}>Bots {d.rotulo}</button>
-                      ))}
-                    </div>
-                    {modo === "times" && qtd % 2 === 1 && <p className="text-xs font-semibold text-amber-700">Times precisa de número par de jogadores: com {qtd}, a partida vira Sobrevivência.</p>}
+                    <ConfigPartida cfg={cfg} mudar={setCfg} humanos={humanos} />
                     <ul className="flex flex-wrap gap-1.5" aria-label="Vagas">
                       {vagas.map((v, i) => (
-                        <li key={i} className="flex items-center gap-1 rounded-lg bg-white px-1.5 py-1 text-xs font-bold ring-2" style={{ ["--tw-ring-color" as string]: CORES_JOGADORES[i] }}>
-                          <Avatar config={v.avatar} tamanho={22} semFundo /> P{i + 1}{v.bot ? "" : v.controle !== undefined ? ` · ${v.nome} 📱` : " (você)"}
+                        <li key={i} className="flex items-end gap-1 rounded-xl bg-black/40 px-1.5 pt-0.5 text-xs font-bold ring-2" style={{ ["--tw-ring-color" as string]: CORES_JOGADORES[i] }}>
+                          <AvatarCorpo config={v.avatar} altura={36} atraso={i * 0.2} /><span className="pb-1">P{i + 1}{v.bot ? "" : v.controle !== undefined ? ` · ${v.nome} 📱` : " (você)"}</span>
                         </li>
                       ))}
                     </ul>
-                    <button type="button" onClick={jogar} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-base font-black text-white shadow hover:bg-orange-600">
-                      <Play className="h-5 w-5" />{formato === "unica" ? "Jogar" : `Começar a Copa (${formato})`}
+                    <button type="button" onClick={jogar} disabled={vagas.length === 0}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-5 py-3.5 text-lg font-black uppercase italic tracking-wider shadow-[0_0_30px_rgba(236,72,153,.5)] transition hover:scale-[1.01] disabled:opacity-40">
+                      <Play className="h-6 w-6" fill="currentColor" />{cfg.formato === "unica" ? (vagas.length === 1 ? "Jogar sozinho" : "Jogar") : `Começar a Copa (${cfg.formato})`}
                     </button>
                   </div>
                 ) : (
-                  <p className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-600"><Lock className="mr-1 inline h-4 w-4" />Chega na fase {aberto.fase} do plano. Modos: {aberto.modos.join(", ")}.</p>
+                  <p className="rounded-2xl bg-white/5 p-4 text-sm font-semibold text-white/70 ring-1 ring-white/10"><Lock className="mr-1 inline h-4 w-4 text-fuchsia-300" />Chega na fase {aberto.fase} do plano. Modos: {aberto.modos.join(", ")}. Sozinho contra bots ou até 8 jogadores.</p>
                 )}
                 {aberto.disponivel && <PainelRecordes jogo={aberto.id} versao={versaoRecordes} />}
               </div>

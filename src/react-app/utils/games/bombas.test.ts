@@ -141,3 +141,39 @@ test("modo times: termina quando sobra um time", () => {
   while (!e.terminado) passo(e, []);
   if (e.timeVencedor !== null) assert.ok(e.jogadores.filter(j => j.vivo).every(j => j.time === e.timeVencedor));
 });
+
+test("sozinho: Desafio vence ao limpar todas as caixas e perde ao cair ou no fim do tempo", async () => {
+  const solo: Configuracao = { modo: "sobrevivencia", bioma: "fabrica", semente: 7, jogadores: [{ nome: "Eu", bot: null }] };
+  const e = novaPartida(solo);
+  assert.equal(e.jogadores.length, 1);
+  assert.ok(e.grade.includes("caixa"));
+  passo(e, [ENTRADA_VAZIA]);
+  assert.equal(e.terminado, false, "com caixas no mapa, continua");
+  e.grade = e.grade.map(c => (c === "caixa" ? "chao" : c));
+  passo(e, [ENTRADA_VAZIA]);
+  assert.equal(e.terminado, true);
+  assert.equal(e.vencedor, 0);
+
+  const caiu = novaPartida(solo);
+  caiu.jogadores[0].vivo = false;
+  passo(caiu, [ENTRADA_VAZIA]);
+  assert.equal(caiu.terminado, true);
+  assert.equal(caiu.vencedor, null);
+
+  const tempo = novaPartida({ ...solo, segundos: 1 });
+  for (let i = 0; i < 61 && !tempo.terminado; i++) passo(tempo, [ENTRADA_VAZIA]);
+  assert.equal(tempo.terminado, true);
+  assert.equal(tempo.vencedor, null);
+});
+
+test("sozinho na Caça às Moedas: vence quem bate a meta", async () => {
+  const { META_MOEDAS_SOLO } = await import("./bombas.ts");
+  const solo: Configuracao = { modo: "moedas", bioma: "gelo", semente: 3, segundos: 1, jogadores: [{ nome: "Eu", bot: null }] };
+  const pouco = novaPartida(solo);
+  for (let i = 0; i < 61 && !pouco.terminado; i++) passo(pouco, [ENTRADA_VAZIA]);
+  assert.equal(pouco.vencedor, null);
+  const meta = novaPartida(solo);
+  meta.jogadores[0].moedas = META_MOEDAS_SOLO;
+  for (let i = 0; i < 61 && !meta.terminado; i++) passo(meta, [ENTRADA_VAZIA]);
+  assert.equal(meta.vencedor, 0);
+});

@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-21-games-v4",
+    data: "2026-11-21",
+    titulo: "Games de cara nova: Modo Tela, avatares de corpo inteiro e jogo sozinho",
+    texto: "A Central ganhou visual gamer. O Modo Tela transforma o tablet ou o computador no servidor: QR Code grande e cada um entra pelo celular. Os avatares agora aparecem de corpo inteiro, andando, caindo e comemorando. E todos os jogos vão de 1 a 8: no Bombas Táticas dá para jogar sozinho, no Desafio ou na meta de moedas.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-21-games-fase-3",
     data: "2026-11-21",
     titulo: "Games: jogue com a turma usando o celular como controle",

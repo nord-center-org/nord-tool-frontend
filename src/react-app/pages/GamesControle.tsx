@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Gamepad2, LogOut, Pause, Wifi, WifiOff } from "lucide-react";
 import Avatar from "@/react-app/components/avatar/Avatar";
+import AvatarCorpo from "@/react-app/components/games/central/AvatarCorpo";
 import ControleVirtual from "@/react-app/components/games/entrada/ControleVirtual";
 import { Controles, vibrar } from "@/react-app/components/games/entrada/entrada";
 import { ClienteSala, type EstadoConexao, type MensagemSala } from "@/react-app/components/games/rede/ClienteSala";
@@ -149,7 +150,7 @@ export default function GamesControlePage() {
   return (
     <div className="fixed inset-0 z-[80] flex flex-col bg-slate-950 text-white" style={{ touchAction: "none" }}>
       <header className="flex items-center gap-3 px-4 py-3" style={{ boxShadow: `inset 0 -3px 0 ${cor}` }}>
-        {eu && <Avatar config={lerAvatar(eu.avatar, eu.idUsuario)} tamanho={40} semFundo className="[image-rendering:pixelated]" />}
+        {eu && <AvatarCorpo config={lerAvatar(eu.avatar, eu.idUsuario)} altura={48} acao={resultado?.venceu ? "vitoria" : "parado"} />}
         <div className="min-w-0 flex-1">
           <p className="truncate text-lg font-black" style={{ color: cor }}>{lugar ? `P${lugar.indice + 1}` : `Vaga ${minhaVaga ?? "-"}`} · {eu?.nome.split(" ")[0] ?? ""}</p>
           <p className="truncate text-xs text-white/60">{nomeDoJogo} · sala {cliente.current?.ingresso.codigo}</p>
