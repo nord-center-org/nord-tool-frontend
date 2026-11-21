@@ -318,6 +318,10 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         alvo: { css: '[data-tutorial="games-modo-tela"]' },
       },
       {
+        titulo: "Jogos 2D e 3D",
+        texto: "Os jogos 3D (como o Sumô dos Hexágonos) carregam o motor 3D só quando você abre a partida. A câmera acompanha a turma e, quando o jogo desce de camada, as de cima ficam transparentes.",
+      },
+      {
         titulo: "Sozinho ou até 8",
         texto: "Todos os jogos vão de 1 a 8 jogadores. No Bombas Táticas, escolha de 0 a 7 bots: sem bots, vira o Desafio (exploda todas as caixas sem cair) ou a meta de 10 moedas.",
       },

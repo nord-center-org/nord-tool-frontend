@@ -1,10 +1,7 @@
 import { Bot, Minus, Plus, Trophy } from "lucide-react";
-import { BIOMAS } from "@/react-app/components/games/jogos/bombas/desenho";
 import { RODADAS_COPA } from "@/react-app/utils/games/copa";
-import type { ConfigBombas, Formato } from "@/react-app/utils/games/configBombas";
-import type { Bioma, Dificuldade, Modo } from "@/react-app/utils/games/bombas";
-
-export type { ConfigBombas, Formato } from "@/react-app/utils/games/configBombas";
+import { JOGAVEIS, type ConfigJogo, type Formato } from "@/react-app/utils/games/registroJogos";
+import type { Dificuldade } from "@/react-app/utils/games/bombas";
 
 
 const DIFICULDADES: { valor: Dificuldade; rotulo: string }[] = [
@@ -32,28 +29,29 @@ const rotuloCampo = "text-[11px] font-black uppercase tracking-[0.18em] text-cya
 const seletor = "mt-1 w-full rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-sm font-bold text-white outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30";
 
 /**
- * Preparação do Bombas Táticas: modo, bioma, quantos bots (0 a 7: sozinho também vale), dificuldade, vitórias e Copa.
+ * Preparação de uma partida: modo, cenário, quantos bots (0 a 7: sozinho também vale), dificuldade, vitórias e Copa.
  * {@code humanos} = quantas pessoas já vão jogar (você e/ou os celulares).
  */
-export default function ConfigPartida({ cfg, mudar, humanos }: { cfg: ConfigBombas; mudar: (c: ConfigBombas) => void; humanos: number }) {
+export default function ConfigPartida({ jogo, cfg, mudar, humanos }: { jogo: string; cfg: ConfigJogo; mudar: (c: ConfigJogo) => void; humanos: number }) {
+  const def = JOGAVEIS[jogo] ?? JOGAVEIS.bombas;
   const maxBots = Math.max(0, 8 - humanos);
   const bots = Math.min(cfg.bots, maxBots);
   const total = humanos + bots;
   const solo = total === 1;
-  const set = <K extends keyof ConfigBombas>(k: K, v: ConfigBombas[K]) => mudar({ ...cfg, [k]: v });
+  const set = <K extends keyof ConfigJogo>(k: K, v: ConfigJogo[K]) => mudar({ ...cfg, [k]: v });
+  const modos = def.modos.filter(m => (solo ? !!m.rotuloSolo : true));
+  const modoAtual = def.modos.find(m => m.valor === cfg.modo);
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <label className={rotuloCampo}>Modo
-          <select value={cfg.modo} onChange={e => set("modo", e.target.value as Modo)} className={seletor}>
-            <option value="sobrevivencia">{solo ? "Desafio (limpe as caixas)" : "Sobrevivência"}</option>
-            {!solo && <option value="times">Times</option>}
-            <option value="moedas">{solo ? "Meta de moedas" : "Caça às Moedas"}</option>
+          <select value={modos.some(m => m.valor === cfg.modo) ? cfg.modo : modos[0]?.valor} onChange={e => set("modo", e.target.value)} className={seletor}>
+            {modos.map(m => <option key={m.valor} value={m.valor}>{solo ? m.rotuloSolo : m.rotulo}</option>)}
           </select>
         </label>
-        <label className={rotuloCampo}>Bioma
-          <select value={cfg.bioma} onChange={e => set("bioma", e.target.value as Bioma)} className={seletor}>
-            {(Object.keys(BIOMAS) as Bioma[]).map(b => <option key={b} value={b}>{BIOMAS[b].nome}</option>)}
+        <label className={rotuloCampo}>{def.rotuloCenario}
+          <select value={cfg.cenario} onChange={e => set("cenario", e.target.value)} className={seletor}>
+            {def.cenarios.map(c => <option key={c.valor} value={c.valor}>{c.rotulo}</option>)}
           </select>
         </label>
       </div>
@@ -84,8 +82,8 @@ export default function ConfigPartida({ cfg, mudar, humanos }: { cfg: ConfigBomb
       <Pilulas rotulo="Formato" valor={cfg.formato} aoMudar={v => set("formato", v)} cor="lime"
         opcoes={(["unica", ...RODADAS_COPA] as Formato[]).map(f => ({ valor: f, rotulo: f === "unica" ? <><span className="sm:hidden">Única</span><span className="hidden sm:inline">Partida única</span></> : <><Trophy className="h-3.5 w-3.5" />Copa {f}</> }))} />
       {cfg.formato !== "unica" && <p className="text-xs text-white/60">Copa: {cfg.formato} partidas seguidas; cada colocação vale pontos (1º 10, 2º 7, 3º 5, 4º 3…). Quem somar mais fica com a taça.</p>}
-      {solo && <p className="text-xs text-lime-300/90">Sozinho: {cfg.modo === "moedas" ? "junte 10 moedas em 2 minutos." : "exploda todas as caixas antes do tempo, sem cair."} Cada tentativa vale como uma partida.</p>}
-      {!solo && cfg.modo === "times" && total % 2 === 1 && <p className="text-xs font-semibold text-amber-300">Times precisa de número par: com {total}, a partida vira Sobrevivência.</p>}
+      {solo && <p className="text-xs text-lime-300/90">Sozinho: {(modoAtual?.regraSolo ? modoAtual : def.modos.find(m => m.regraSolo))?.regraSolo} Cada tentativa vale como uma partida.</p>}
+      {!solo && modoAtual?.par && total % 2 === 1 && <p className="text-xs font-semibold text-amber-300">{modoAtual.rotulo} precisa de número par: com {total}, a partida vira {def.modos[0].rotulo}.</p>}
     </div>
   );
 }

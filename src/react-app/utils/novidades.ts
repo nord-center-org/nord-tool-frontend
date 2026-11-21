@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-21-games-v5",
+    data: "2026-11-21",
+    titulo: "Games: chegou o primeiro jogo 3D, o Sumô dos Hexágonos",
+    texto: "Pisos hexagonais que brilham, racham e caem em três camadas (Queda) ou uma arena que desmorona pela borda enquanto todos se empurram com o dash (Sumô). De 1 a 8 jogadores, com bots, Copa, Modo Tela e celular como controle (Dash e Pular). Sozinho, o desafio é sobreviver 60 segundos.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-21-games-v4",
     data: "2026-11-21",
     titulo: "Games de cara nova: Modo Tela, avatares de corpo inteiro e jogo sozinho",

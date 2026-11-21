@@ -8,6 +8,7 @@ import { Controles, vibrar } from "@/react-app/components/games/entrada/entrada"
 import { ClienteSala, type EstadoConexao, type MensagemSala } from "@/react-app/components/games/rede/ClienteSala";
 import { CORES_JOGADORES } from "@/react-app/components/games/central/sprites";
 import { JOGOS } from "@/react-app/utils/games/catalogo";
+import { JOGAVEIS } from "@/react-app/utils/games/registroJogos";
 import { lerAvatar } from "@/react-app/utils/avatar";
 import { CONTROLE_SOLTO, lerAviso, mesmaEntrada, normalizarCodigo, type EntradaControle, type JogadorSala } from "@/react-app/utils/games/sala";
 import { gamesService, salasService, type GameRegistro } from "@/react-app/services/GamesService";
@@ -27,7 +28,7 @@ export default function GamesControlePage() {
   const [jogadores, setJogadores] = useState<JogadorSala[]>([]);
   const [minhaVaga, setMinhaVaga] = useState<number | null>(null);
   const [jogo, setJogo] = useState("");
-  const [lugar, setLugar] = useState<{ indice: number; cor: string } | null>(null);
+  const [lugar, setLugar] = useState<{ indice: number; cor: string; jogo: string } | null>(null);
   const [fase, setFase] = useState("lobby");
   const [aviso, setAviso] = useState<string | null>(null);
   const [resultado, setResultado] = useState<{ pontos: number; venceu: boolean; colocacao: number; registro: GameRegistro | null } | null>(null);
@@ -44,7 +45,7 @@ export default function GamesControlePage() {
     } else if (m.t === "host") {
       const a = lerAviso(m.d);
       if (!a) return;
-      if (a.k === "lugar") setLugar({ indice: a.indice, cor: a.cor });
+      if (a.k === "lugar") setLugar({ indice: a.indice, cor: a.cor, jogo: a.jogo });
       else if (a.k === "fase") {
         setFase(a.fase);
         if (a.fase === "contagem" || a.fase === "lobby") setResultado(null);
@@ -122,7 +123,9 @@ export default function GamesControlePage() {
 
   const eu = jogadores.find(j => j.vaga === minhaVaga);
   const cor = lugar?.cor ?? CORES_JOGADORES[minhaVaga ?? 0];
-  const nomeDoJogo = JOGOS.find(j => j.id === jogo)?.nome ?? "Games";
+  const jogoAtual = lugar?.jogo || jogo;
+  const nomeDoJogo = JOGOS.find(j => j.id === jogoAtual)?.nome ?? "Games";
+  const botoes = JOGAVEIS[jogoAtual]?.botoes ?? { a: "A", b: "B" };
 
   if (!conexao || (conexao === "fechada" && !cliente.current)) {
     return (
@@ -192,7 +195,7 @@ export default function GamesControlePage() {
         )}
       </main>
 
-      {conexao !== "fechada" && <ControleVirtual controles={controles} rotuloA="Bomba" rotuloB="Ação" />}
+      {conexao !== "fechada" && <ControleVirtual controles={controles} rotuloA={botoes.a} rotuloB={botoes.b} />}
     </div>
   );
 }

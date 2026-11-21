@@ -139,8 +139,8 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "hexagonos", nome: "Sumô dos Hexágonos", resumo: "Pisos que racham e caem: empurre os rivais com o dash.",
-    categoria: "Arena", dimensao: "3D", minJogadores: 1, maxJogadores: 8, fase: 4, disponivel: false, modos: ["Queda", "Sumô"],
-    regras: ["O piso pisado brilha, racha e cai.", "Várias camadas.", "Dash empurra.", "Último em pé vence."], controles: CONTROLES_PADRAO,
+    categoria: "Arena", dimensao: "3D", minJogadores: 1, maxJogadores: 8, fase: 4, disponivel: true, modos: ["Queda", "Sumô"],
+    regras: ["O piso pisado brilha, racha e cai.", "Três camadas: quem cai vai para a de baixo; caiu da última, está fora.", "Dash empurra (com recarga) e o pulo atravessa buracos.", "Sumô: a borda desmorona com o tempo; empurre os rivais para fora.", "Último em pé vence; sozinho, sobreviva 60 s."], controles: ["Setas/WASD: andar", "Espaço/Z: dash", "X/Shift: pular", "Esc/P: pausa"],
     cores: ["#312e81", "#a855f7", "#f9a8d4"], motivo: "hexagono",
   },
   {
