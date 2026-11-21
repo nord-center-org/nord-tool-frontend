@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Gamepad2, Heart, Lock, Medal, Play, Search, Trophy, Users, X } from "lucide-react";
+import { Gamepad2, Heart, Lock, Medal, Monitor, Play, Search, Smartphone, Trophy, Users, X } from "lucide-react";
 import CabecalhoPagina from "@/react-app/components/ui/CabecalhoPagina";
 import CapaJogo from "@/react-app/components/games/central/CapaJogo";
 import { CORES_JOGADORES, avatarDaVaga } from "@/react-app/components/games/central/sprites";
 import PainelRecordes from "@/react-app/components/games/central/PainelRecordes";
 import { PodioCopa, TabelaCopa } from "@/react-app/components/games/central/CopaTelas";
-import BombasTaticas, { type ResultadoBombas, type VagaBombas } from "@/react-app/components/games/jogos/bombas/BombasTaticas";
+import SalaPainel from "@/react-app/components/games/central/SalaPainel";
+import { ClienteSala, type EstadoConexao } from "@/react-app/components/games/rede/ClienteSala";
+import BombasTaticas, { type FaseBombas, type ResultadoBombas, type VagaBombas } from "@/react-app/components/games/jogos/bombas/BombasTaticas";
 import { BIOMAS } from "@/react-app/components/games/jogos/bombas/desenho";
 import { som } from "@/react-app/components/games/audio/sintetizador";
 import Avatar from "@/react-app/components/avatar/Avatar";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { avatarService } from "@/react-app/services/AvatarService";
-import { gamesService, type GameRegistro } from "@/react-app/services/GamesService";
+import { gamesService, salasService, type GameRegistro } from "@/react-app/services/GamesService";
+import { EntradasRemotas, type JogadorSala } from "@/react-app/utils/games/sala";
+import { lerAvatar } from "@/react-app/utils/avatar";
 import { RODADAS_COPA, classificacao, colocacoes, novaCopa, registrarPartida, resumoDaCopa, terminou, type Copa, type RodadasCopa } from "@/react-app/utils/games/copa";
 import { pontosBombas } from "@/react-app/utils/games/pontuacao";
 import { CATEGORIAS, FILTROS_CENTRAL, JOGOS, filtrarJogos, type FiltrosCentral, type Jogo } from "@/react-app/utils/games/catalogo";
@@ -76,10 +80,18 @@ export default function GamesPage() {
   const [vitorias, setVitorias] = useState(2);
   const [formato, setFormato] = useState<Formato>("unica");
   const [copa, setCopa] = useState<Copa | null>(null);
-  const [podio, setPodio] = useState<{ copa: Copa; salvo: "salvando" | "salvo" | "erro" } | null>(null);
+  const [podio, setPodio] = useState<{ copa: Copa; salvo: "salvando" | "salvo" | "erro" | "fora" } | null>(null);
   const [registro, setRegistro] = useState<Registro | null>(null);
   const [versaoRecordes, setVersaoRecordes] = useState(0);
   const favoritosDaConta = useRef(false);
+  // Multiplayer: sala aberta nesta tela e os celulares como controle.
+  const [ondeJogar, setOndeJogar] = useState<"tela" | "celulares">("tela");
+  const [sala, setSala] = useState<{ codigo: string; estado: EstadoConexao; jogadores: JogadorSala[] } | null>(null);
+  const [erroSala, setErroSala] = useState<string | null>(null);
+  const [euJogo, setEuJogo] = useState(true);
+  const clienteSala = useRef<ClienteSala | null>(null);
+  const remotas = useMemo(() => new EntradasRemotas(), []);
+  const vagasDaCopa = useRef<VagaBombas[]>([]);
 
   useEffect(() => {
     avatarService.meu().then(a => a && setMeuAvatar({ dsConfig: a.dsConfig, idUsuario: a.idUsuario })).catch(() => {
@@ -112,16 +124,62 @@ export default function GamesPage() {
     if (favoritosDaConta.current) gamesService.salvarFavoritos([...novo]).catch(() => undefined);
   };
 
-  const vagas: VagaBombas[] = useMemo(() => Array.from({ length: qtd }, (_, i) => ({
-    nome: i === 0 ? (usuario?.nome?.split(" ")[0] ?? "Você") : `Bot ${i}`,
-    bot: i === 0 ? null : dificuldade,
-    avatar: avatarDaVaga(i, meuAvatar),
-  })), [qtd, dificuldade, meuAvatar, usuario]);
+  // Vagas da partida: quem está na tela, os celulares conectados e bots completando até a quantidade escolhida.
+  const vagas: VagaBombas[] = useMemo(() => {
+    const lista: VagaBombas[] = [];
+    const comSala = ondeJogar === "celulares" && sala;
+    if (!comSala || euJogo) lista.push({ nome: usuario?.nome?.split(" ")[0] ?? "Você", bot: null, avatar: avatarDaVaga(0, meuAvatar) });
+    if (comSala) {
+      sala.jogadores.filter(j => j.vaga > 0 && j.conectado).slice(0, 8 - lista.length)
+        .forEach(j => lista.push({ nome: j.nome.split(" ")[0], bot: null, avatar: lerAvatar(j.avatar, j.idUsuario), controle: j.vaga }));
+    }
+    let n = 1;
+    while (lista.length < Math.max(qtd, 2) && lista.length < 8) lista.push({ nome: `Bot ${n++}`, bot: dificuldade, avatar: avatarDaVaga(lista.length, null) });
+    return lista;
+  }, [qtd, dificuldade, meuAvatar, usuario, ondeJogar, sala, euJogo]);
+
+  // Avisos para os celulares (a tela é quem manda).
+  const paraTodos = (d: unknown) => clienteSala.current?.enviar({ t: "todos", d });
+  const paraVaga = (vaga: number, d: unknown) => clienteSala.current?.enviar({ t: "para", vaga, d });
+
+  const abrirSala = async () => {
+    setErroSala(null);
+    try {
+      const ingresso = await salasService.criar("bombas");
+      if (!ingresso) throw new Error("Não deu para abrir a sala");
+      clienteSala.current?.fechar();
+      setSala({ codigo: ingresso.codigo, estado: "conectando", jogadores: [] });
+      clienteSala.current = new ClienteSala(ingresso, m => {
+        if (m.t === "entrada") remotas.receber(Number(m.vaga), m.d);
+        else if (m.t === "sala" || m.t === "jogadores") {
+          const lista = (m.jogadores as JogadorSala[]) ?? [];
+          lista.filter(j => !j.conectado).forEach(j => remotas.soltar(j.vaga));
+          setSala(atual => atual && { ...atual, jogadores: lista });
+        }
+      }, (estado, motivo) => {
+        setSala(atual => atual && { ...atual, estado });
+        if (estado === "fechada") setErroSala(motivo ?? "A sala foi fechada");
+      });
+    } catch (e) {
+      setErroSala((e as Error).message || "Não deu para abrir a sala");
+    }
+  };
+
+  const fecharSala = () => {
+    clienteSala.current?.fechar({ t: "fechar" });
+    clienteSala.current = null;
+    setSala(null);
+  };
+
+  useEffect(() => () => clienteSala.current?.fechar({ t: "fechar" }), []);
 
   const comecar = (numero: number) => {
     som.destravar();
     setRegistro(null);
-    setPartida({ vagas, modo: modo === "times" && qtd % 2 ? "sobrevivencia" : modo, bioma, vitorias, dificuldade, inicio: Date.now(), numero });
+    const daPartida = numero === 1 || !copa ? vagas : vagasDaCopa.current;
+    if (numero === 1) vagasDaCopa.current = vagas;
+    daPartida.forEach((v, i) => { if (v.controle !== undefined) paraVaga(v.controle, { k: "lugar", indice: i, cor: CORES_JOGADORES[i], jogo: "bombas" }); });
+    setPartida({ vagas: daPartida, modo: modo === "times" && daPartida.length % 2 ? "sobrevivencia" : modo, bioma, vitorias, dificuldade, inicio: Date.now(), numero });
   };
 
   const jogar = () => {
@@ -132,20 +190,35 @@ export default function GamesPage() {
   const sair = () => {
     setPartida(null);
     setCopa(null);
+    paraTodos({ k: "fase", fase: "lobby" });
   };
 
   // Fim de uma partida: guarda na conta (recorde, conquistas) e, na Copa, soma a colocação na tabela.
   const aoTerminar = useCallback((r: ResultadoBombas) => {
     if (!partida) return;
     const lugares = colocacoes(r.vitorias, r.vencedor);
-    const venceu = r.vencedor === 0 || (partida.modo === "times" && r.vencedor !== null && r.vencedor % 2 === 0);
-    const pontos = pontosBombas({ vitoriasRodada: r.vitorias[0], venceu, jogadores: partida.vagas.length, dificuldade: partida.dificuldade });
+    const nrBots = partida.vagas.filter(v => v.bot).length;
+    const duracao = Math.min(86_400, Math.round((Date.now() - partida.inicio) / 1000));
+    const resultadoDe = (i: number) => {
+      const venceu = r.vencedor === i || (partida.modo === "times" && r.vencedor !== null && r.vencedor % 2 === i % 2);
+      // Sem bots, os pontos não ganham peso de dificuldade.
+      const pontos = pontosBombas({ vitoriasRodada: r.vitorias[i], venceu, jogadores: partida.vagas.length, dificuldade: nrBots ? partida.dificuldade : null });
+      return { venceu, pontos, colocacao: venceu ? 1 : Math.max(2, lugares[i]) };
+    };
     if (copa) setCopa(registrarPartida(copa, lugares));
+    // Cada celular registra a própria partida na própria conta.
+    partida.vagas.forEach((v, i) => {
+      if (v.controle === undefined) return;
+      const res = resultadoDe(i);
+      paraVaga(v.controle, { k: "fim", jogo: "bombas", modo: partida.modo, ...res, jogadores: partida.vagas.length, bots: nrBots, dificuldade: nrBots ? partida.dificuldade : null, duracao });
+    });
+    const eu = partida.vagas.findIndex(v => !v.bot && v.controle === undefined);
+    if (eu < 0) return;
+    const { venceu, pontos, colocacao } = resultadoDe(eu);
     setRegistro({ estado: "salvando" });
     gamesService.registrarPartida({
-      cdJogo: "bombas", cdModo: partida.modo, nrPontos: pontos, inVitoria: venceu, nrColocacao: venceu ? 1 : Math.max(2, lugares[0]),
-      nrJogadores: partida.vagas.length, nrBots: partida.vagas.filter(v => v.bot).length, cdDificuldade: partida.dificuldade,
-      nrDuracaoS: Math.min(86_400, Math.round((Date.now() - partida.inicio) / 1000)),
+      cdJogo: "bombas", cdModo: partida.modo, nrPontos: pontos, inVitoria: venceu, nrColocacao: colocacao,
+      nrJogadores: partida.vagas.length, nrBots, cdDificuldade: nrBots ? partida.dificuldade : null, nrDuracaoS: duracao,
     }).then(res => {
       setRegistro(res ? { estado: "salvo", pontos, r: res } : { estado: "erro" });
       setVersaoRecordes(v => v + 1);
@@ -154,8 +227,13 @@ export default function GamesPage() {
 
   const encerrarCopa = (final: Copa) => {
     setPartida(null);
+    const eu = vagasDaCopa.current.findIndex(v => !v.bot && v.controle === undefined);
+    if (eu < 0) {
+      setPodio({ copa: final, salvo: "fora" });
+      return;
+    }
     setPodio({ copa: final, salvo: "salvando" });
-    const minha = classificacao(final).find(l => l.vaga === 0)?.posicao ?? 1;
+    const minha = classificacao(final).find(l => l.vaga === eu)?.posicao ?? 1;
     gamesService.registrarCopa(final.rodadas, minha, resumoDaCopa(final, "bombas"))
       .then(() => { setPodio(p => p && { ...p, salvo: "salvo" }); setVersaoRecordes(v => v + 1); })
       .catch(() => setPodio(p => p && { ...p, salvo: "erro" }));
@@ -163,8 +241,8 @@ export default function GamesPage() {
 
   if (podio) {
     return (
-      <PodioCopa copa={podio.copa} avatares={vagas.map(v => v.avatar)} salvo={podio.salvo}
-        onSair={() => { setPodio(null); setCopa(null); }}
+      <PodioCopa copa={podio.copa} avatares={vagasDaCopa.current.map(v => v.avatar)} salvo={podio.salvo}
+        onSair={() => { setPodio(null); setCopa(null); paraTodos({ k: "fase", fase: "lobby" }); }}
         onDeNovo={() => { setPodio(null); setCopa(novaCopa(podio.copa.rodadas, podio.copa.nomes)); comecar(1); }} />
     );
   }
@@ -173,7 +251,9 @@ export default function GamesPage() {
     const copaAcabou = copa ? terminou(copa) : false;
     return (
       <BombasTaticas key={partida.numero} vagas={partida.vagas} modo={partida.modo} bioma={partida.bioma} vitoriasParaVencer={partida.vitorias}
-        onSair={sair} onFim={aoTerminar}
+        onSair={sair} onFim={aoTerminar} remotas={sala ? remotas : undefined}
+        onFase={(f: FaseBombas) => paraTodos({ k: "fase", fase: f })}
+        onMorte={i => { const v = partida.vagas[i]; if (v?.controle !== undefined) paraVaga(v.controle, { k: "vibrar", ms: 300, texto: "Você caiu!" }); }}
         subtitulo={copa ? `Copa · partida ${Math.min(copa.rodadas, partida.numero)} de ${copa.rodadas}` : undefined}
         avisoFim={<><AvisoRegistro registro={registro} />{copa && copa.partidas.length > 0 && <TabelaCopa copa={copa} />}</>}
         acaoFim={copa ? (copaAcabou
@@ -273,7 +353,7 @@ export default function GamesPage() {
                           {(Object.keys(BIOMAS) as Bioma[]).map(b => <option key={b} value={b}>{BIOMAS[b].nome}</option>)}
                         </select>
                       </label>
-                      <label className="text-xs font-bold text-slate-500">Jogadores (você + bots)
+                      <label className="text-xs font-bold text-slate-500">{ondeJogar === "celulares" ? "Jogadores (bots completam)" : "Jogadores (você + bots)"}
                         <select value={qtd} onChange={e => setQtd(Number(e.target.value))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800">
                           {[2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n}>{n} jogadores</option>)}
                         </select>
@@ -284,6 +364,23 @@ export default function GamesPage() {
                         </select>
                       </label>
                     </div>
+                    <div role="radiogroup" aria-label="Onde jogar" className="flex gap-1 rounded-xl bg-white p-1 ring-1 ring-slate-200">
+                      {([["tela", "Nesta tela", Monitor], ["celulares", "Com celulares", Smartphone]] as const).map(([valor, rotulo, Icone]) => (
+                        <button key={valor} type="button" role="radio" aria-checked={ondeJogar === valor} onClick={() => setOndeJogar(valor)}
+                          className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-black ${ondeJogar === valor ? "bg-emerald-600 text-white" : "text-slate-500"}`}>
+                          <Icone className="h-3.5 w-3.5" />{rotulo}
+                        </button>
+                      ))}
+                    </div>
+                    {ondeJogar === "celulares" && (sala ? (
+                      <SalaPainel codigo={sala.codigo} estado={sala.estado} jogadores={sala.jogadores} euJogo={euJogo} onEuJogo={setEuJogo} onFechar={fecharSala} />
+                    ) : (
+                      <div className="space-y-2 rounded-2xl bg-emerald-50 p-3 text-xs text-emerald-900 ring-1 ring-emerald-100">
+                        <p>Abra uma sala nesta tela: cada pessoa entra pelo celular (QR Code ou código) e o celular vira o controle. Os bots completam as vagas que sobrarem.</p>
+                        <button type="button" onClick={() => void abrirSala()} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white hover:bg-emerald-700">Abrir sala</button>
+                        {erroSala && <p className="font-semibold text-rose-700" role="alert">{erroSala}</p>}
+                      </div>
+                    ))}
                     <div role="radiogroup" aria-label="Formato" className="flex gap-1 rounded-xl bg-white p-1 ring-1 ring-slate-200" data-tutorial="games-copa">
                       {(["unica", ...RODADAS_COPA] as Formato[]).map(f => (
                         <button key={String(f)} type="button" role="radio" aria-checked={formato === f} onClick={() => setFormato(f)}
@@ -303,7 +400,7 @@ export default function GamesPage() {
                     <ul className="flex flex-wrap gap-1.5" aria-label="Vagas">
                       {vagas.map((v, i) => (
                         <li key={i} className="flex items-center gap-1 rounded-lg bg-white px-1.5 py-1 text-xs font-bold ring-2" style={{ ["--tw-ring-color" as string]: CORES_JOGADORES[i] }}>
-                          <Avatar config={v.avatar} tamanho={22} semFundo /> P{i + 1}{v.bot ? "" : " (você)"}
+                          <Avatar config={v.avatar} tamanho={22} semFundo /> P{i + 1}{v.bot ? "" : v.controle !== undefined ? ` · ${v.nome} 📱` : " (você)"}
                         </li>
                       ))}
                     </ul>

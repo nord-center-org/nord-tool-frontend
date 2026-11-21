@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-21-games-fase-3",
+    data: "2026-11-21",
+    titulo: "Games: jogue com a turma usando o celular como controle",
+    texto: "Abra uma sala no Bombas Táticas, mostre o QR Code na tela grande e cada pessoa entra pelo celular, que vira o controle (direcional, bomba e ação). Até 8 jogadores, bots completam as vagas, quem cai volta para a mesma vaga, e cada um ganha a partida na própria conta.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-21-games-fase-2",
     data: "2026-11-21",
     titulo: "Games: recordes, ranking, conquistas e Modo Copa",
