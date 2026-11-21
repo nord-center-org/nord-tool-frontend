@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pause, Play, RotateCcw, Volume2, VolumeX, X } from "lucide-react";
 import type { AvatarConfig } from "@/react-app/utils/avatar";
 import {
@@ -24,6 +24,12 @@ interface Props {
   vitoriasParaVencer: number;
   onSair: () => void;
   onFim?: (r: ResultadoBombas) => void;
+  /** Aparece no cartão do fim da partida (recorde, conquistas novas, placar da Copa). */
+  avisoFim?: ReactNode;
+  /** Troca a Revanche por outra ação (na Copa: seguir para a próxima partida). */
+  acaoFim?: { rotulo: string; aoClicar: () => void };
+  /** Texto extra no topo (na Copa: "Copa · partida 2 de 5"). */
+  subtitulo?: string;
 }
 
 type Fase = "contagem" | "jogando" | "fimRodada" | "fimPartida";
@@ -37,7 +43,7 @@ interface Hud {
 const TITULO_MODO: Record<Modo, string> = { sobrevivencia: "Sobrevivência", times: "Times", moedas: "Caça às Moedas" };
 
 /** Bombas Táticas: a partida na tela (canvas 2D a 60 passos por segundo) com o placar por cima. */
-export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, onSair, onFim }: Props) {
+export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, onSair, onFim, avisoFim, acaoFim, subtitulo }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const caixa = useRef<HTMLDivElement>(null);
   const estado = useRef<Estado | null>(null);
@@ -52,6 +58,9 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
   const [hud, setHud] = useState<Hud | null>(null);
   const [vitorias, setVitorias] = useState<number[]>(() => vagas.map(() => 0));
   const vitoriasRef = useRef<number[]>(vagas.map(() => 0));
+  // Em ref: a tela de fora pode mandar uma função nova a cada render sem reiniciar o laço do jogo.
+  const onFimRef = useRef(onFim);
+  onFimRef.current = onFim;
   const [rodada, setRodada] = useState(1);
   const [ultimo, setUltimo] = useState<{ vencedor: number | null; time: number | null } | null>(null);
   const [toque] = useState(telaDeToque);
@@ -187,7 +196,7 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
         if (novo.some(n => n >= vitoriasParaVencer)) {
           som.vitoria();
           mudarFase("fimPartida");
-          onFim?.({ vencedor: novo.findIndex(n => n >= vitoriasParaVencer), vitorias: novo, rodadas: rodada });
+          onFimRef.current?.({ vencedor: novo.findIndex(n => n >= vitoriasParaVencer), vitorias: novo, rodadas: rodada });
         } else {
           mudarFase("fimRodada");
         }
@@ -265,7 +274,7 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
       laco.parar();
       controles.desligar();
     };
-  }, [controles, efeitos, sprites, tratarEventos, vitoriasParaVencer, onFim, rodada]);
+  }, [controles, efeitos, sprites, tratarEventos, vitoriasParaVencer, rodada]);
 
   const proximaRodada = () => {
     setRodada(r => r + 1);
@@ -292,7 +301,7 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
         <button type="button" onClick={onSair} aria-label="Sair do jogo" className="rounded-xl bg-white/10 p-2 hover:bg-white/20"><X className="h-5 w-5" /></button>
         <div className="mr-auto min-w-0">
           <p className="truncate text-sm font-black">Bombas Táticas · {TITULO_MODO[modo]}</p>
-          <p className="text-xs text-white/60">{BIOMAS[bioma].nome} · rodada {rodada} · vence quem fizer {vitoriasParaVencer}</p>
+          <p className="text-xs text-white/60">{subtitulo ? `${subtitulo} · ` : ""}{BIOMAS[bioma].nome} · rodada {rodada} · vence quem fizer {vitoriasParaVencer}</p>
         </div>
         <span className={`rounded-xl px-3 py-1.5 font-mono text-lg font-black tabular-nums ${hud?.morteSubita ? "animate-pulse bg-red-600" : "bg-white/10"}`} aria-label="Tempo restante">{minutos}</span>
         <button type="button" onClick={() => { som.definirMudo(!mudo); setMudo(!mudo); if (mudo && fase === "jogando") som.tocarMusica(); }} aria-label={mudo ? "Ligar som" : "Desligar som"} className="rounded-xl bg-white/10 p-2 hover:bg-white/20">
@@ -358,9 +367,12 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
                   </li>
                 ))}
               </ol>
+              {fase === "fimPartida" && avisoFim}
               <div className="mt-5 flex flex-wrap justify-center gap-2">
                 {fase === "fimRodada" ? (
                   <button type="button" autoFocus onClick={proximaRodada} className="rounded-xl bg-orange-500 px-5 py-2.5 font-black text-white hover:bg-orange-600">Próxima rodada</button>
+                ) : acaoFim ? (
+                  <button type="button" autoFocus onClick={acaoFim.aoClicar} className="rounded-xl bg-orange-500 px-5 py-2.5 font-black text-white hover:bg-orange-600">{acaoFim.rotulo}</button>
                 ) : (
                   <button type="button" autoFocus onClick={revanche} className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 font-black text-white hover:bg-orange-600"><RotateCcw className="h-4 w-4" />Revanche</button>
                 )}

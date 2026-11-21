@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-21-games-fase-2",
+    data: "2026-11-21",
+    titulo: "Games: recordes, ranking, conquistas e Modo Copa",
+    texto: "Cada partida agora vai para a sua conta: recorde, vitórias, ranking da turma, últimas partidas e 9 conquistas. Chegou o Modo Copa (3, 5 ou 7 partidas, pontos por colocação e pódio no fim), e os favoritos da Central acompanham você em qualquer aparelho.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-21-games-fase-1",
     data: "2026-11-21",
     titulo: "Games: a Central de jogos chegou",

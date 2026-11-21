@@ -1,14 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
-import { Gamepad2, Heart, Lock, Play, Search, Users, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Gamepad2, Heart, Lock, Medal, Play, Search, Trophy, Users, X } from "lucide-react";
 import CabecalhoPagina from "@/react-app/components/ui/CabecalhoPagina";
 import CapaJogo from "@/react-app/components/games/central/CapaJogo";
 import { CORES_JOGADORES, avatarDaVaga } from "@/react-app/components/games/central/sprites";
-import BombasTaticas, { type VagaBombas } from "@/react-app/components/games/jogos/bombas/BombasTaticas";
+import PainelRecordes from "@/react-app/components/games/central/PainelRecordes";
+import { PodioCopa, TabelaCopa } from "@/react-app/components/games/central/CopaTelas";
+import BombasTaticas, { type ResultadoBombas, type VagaBombas } from "@/react-app/components/games/jogos/bombas/BombasTaticas";
 import { BIOMAS } from "@/react-app/components/games/jogos/bombas/desenho";
 import { som } from "@/react-app/components/games/audio/sintetizador";
 import Avatar from "@/react-app/components/avatar/Avatar";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { avatarService } from "@/react-app/services/AvatarService";
+import { gamesService, type GameRegistro } from "@/react-app/services/GamesService";
+import { RODADAS_COPA, classificacao, colocacoes, novaCopa, registrarPartida, resumoDaCopa, terminou, type Copa, type RodadasCopa } from "@/react-app/utils/games/copa";
+import { pontosBombas } from "@/react-app/utils/games/pontuacao";
 import { CATEGORIAS, FILTROS_CENTRAL, JOGOS, filtrarJogos, type FiltrosCentral, type Jogo } from "@/react-app/utils/games/catalogo";
 import type { Bioma, Dificuldade, Modo } from "@/react-app/utils/games/bombas";
 
@@ -22,11 +27,38 @@ function lerFavoritos(): Set<string> {
   }
 }
 
+function guardarFavoritos(f: Set<string>) {
+  try { localStorage.setItem(CHAVE_FAVORITOS, JSON.stringify([...f])); } catch { /* sem armazenamento */ }
+}
+
 const DIFICULDADES: { valor: Dificuldade; rotulo: string }[] = [
   { valor: "facil", rotulo: "Fácil" }, { valor: "medio", rotulo: "Médio" }, { valor: "dificil", rotulo: "Difícil" },
 ];
 
-interface Partida { vagas: VagaBombas[]; modo: Modo; bioma: Bioma; vitorias: number }
+interface Partida { vagas: VagaBombas[]; modo: Modo; bioma: Bioma; vitorias: number; dificuldade: Dificuldade; inicio: number; numero: number }
+
+/** Partida única ou Copa de 3, 5 ou 7 partidas. */
+type Formato = "unica" | RodadasCopa;
+
+type Registro = { estado: "salvando" } | { estado: "salvo"; pontos: number; r: GameRegistro } | { estado: "erro" };
+
+/** O que aparece no fim da partida: pontos, recorde e conquistas novas. */
+function AvisoRegistro({ registro }: { registro: Registro | null }) {
+  if (!registro) return null;
+  if (registro.estado === "salvando") return <p className="mt-3 text-xs text-slate-400" aria-live="polite">Salvando o resultado…</p>;
+  if (registro.estado === "erro") return <p className="mt-3 text-xs text-amber-700" aria-live="polite">Não deu para salvar o resultado agora.</p>;
+  const { pontos, r } = registro;
+  return (
+    <div className="mt-3 space-y-1.5" aria-live="polite">
+      <p className="text-sm font-black text-slate-700">+{pontos.toLocaleString("pt-BR")} pts{r.inNovoRecorde ? <span className="ml-2 rounded-md bg-amber-400 px-1.5 py-0.5 text-xs text-amber-950">Novo recorde!</span> : null}</p>
+      {r.novas.map(c => (
+        <p key={c.cdConquista} className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-50 px-2 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-200">
+          <Medal className="h-4 w-4 text-amber-500" />Conquista: {c.nmConquista}
+        </p>
+      ))}
+    </div>
+  );
+}
 
 /** Individual → Games: a Central de Jogos (estilo launcher) e as partidas. */
 export default function GamesPage() {
@@ -42,6 +74,12 @@ export default function GamesPage() {
   const [qtd, setQtd] = useState(4);
   const [dificuldade, setDificuldade] = useState<Dificuldade>("medio");
   const [vitorias, setVitorias] = useState(2);
+  const [formato, setFormato] = useState<Formato>("unica");
+  const [copa, setCopa] = useState<Copa | null>(null);
+  const [podio, setPodio] = useState<{ copa: Copa; salvo: "salvando" | "salvo" | "erro" } | null>(null);
+  const [registro, setRegistro] = useState<Registro | null>(null);
+  const [versaoRecordes, setVersaoRecordes] = useState(0);
+  const favoritosDaConta = useRef(false);
 
   useEffect(() => {
     avatarService.meu().then(a => a && setMeuAvatar({ dsConfig: a.dsConfig, idUsuario: a.idUsuario })).catch(() => {
@@ -49,13 +87,29 @@ export default function GamesPage() {
     });
   }, [usuario]);
 
+  // Favoritos na conta (qualquer aparelho); o navegador guarda uma cópia para abrir rápido e sem rede.
+  useEffect(() => {
+    gamesService.favoritos().then(daConta => {
+      favoritosDaConta.current = true;
+      const locais = lerFavoritos();
+      if (daConta.length === 0 && locais.size > 0) {
+        gamesService.salvarFavoritos([...locais]).catch(() => undefined);
+        return;
+      }
+      const f = new Set(daConta);
+      setFavoritos(f);
+      guardarFavoritos(f);
+    }).catch(() => undefined);
+  }, []);
+
   const lista = useMemo(() => filtrarJogos(JOGOS, filtros, favoritos), [filtros, favoritos]);
 
   const alternarFavorito = (id: string) => {
     const novo = new Set(favoritos);
     if (novo.has(id)) novo.delete(id); else novo.add(id);
     setFavoritos(novo);
-    try { localStorage.setItem(CHAVE_FAVORITOS, JSON.stringify([...novo])); } catch { /* sem armazenamento */ }
+    guardarFavoritos(novo);
+    if (favoritosDaConta.current) gamesService.salvarFavoritos([...novo]).catch(() => undefined);
   };
 
   const vagas: VagaBombas[] = useMemo(() => Array.from({ length: qtd }, (_, i) => ({
@@ -64,13 +118,68 @@ export default function GamesPage() {
     avatar: avatarDaVaga(i, meuAvatar),
   })), [qtd, dificuldade, meuAvatar, usuario]);
 
-  const jogar = () => {
+  const comecar = (numero: number) => {
     som.destravar();
-    setPartida({ vagas, modo: modo === "times" && qtd % 2 ? "sobrevivencia" : modo, bioma, vitorias });
+    setRegistro(null);
+    setPartida({ vagas, modo: modo === "times" && qtd % 2 ? "sobrevivencia" : modo, bioma, vitorias, dificuldade, inicio: Date.now(), numero });
   };
 
+  const jogar = () => {
+    setCopa(formato === "unica" ? null : novaCopa(formato, vagas.map((v, i) => `P${i + 1} · ${v.nome}`)));
+    comecar(1);
+  };
+
+  const sair = () => {
+    setPartida(null);
+    setCopa(null);
+  };
+
+  // Fim de uma partida: guarda na conta (recorde, conquistas) e, na Copa, soma a colocação na tabela.
+  const aoTerminar = useCallback((r: ResultadoBombas) => {
+    if (!partida) return;
+    const lugares = colocacoes(r.vitorias, r.vencedor);
+    const venceu = r.vencedor === 0 || (partida.modo === "times" && r.vencedor !== null && r.vencedor % 2 === 0);
+    const pontos = pontosBombas({ vitoriasRodada: r.vitorias[0], venceu, jogadores: partida.vagas.length, dificuldade: partida.dificuldade });
+    if (copa) setCopa(registrarPartida(copa, lugares));
+    setRegistro({ estado: "salvando" });
+    gamesService.registrarPartida({
+      cdJogo: "bombas", cdModo: partida.modo, nrPontos: pontos, inVitoria: venceu, nrColocacao: venceu ? 1 : Math.max(2, lugares[0]),
+      nrJogadores: partida.vagas.length, nrBots: partida.vagas.filter(v => v.bot).length, cdDificuldade: partida.dificuldade,
+      nrDuracaoS: Math.min(86_400, Math.round((Date.now() - partida.inicio) / 1000)),
+    }).then(res => {
+      setRegistro(res ? { estado: "salvo", pontos, r: res } : { estado: "erro" });
+      setVersaoRecordes(v => v + 1);
+    }).catch(() => setRegistro({ estado: "erro" }));
+  }, [partida, copa]);
+
+  const encerrarCopa = (final: Copa) => {
+    setPartida(null);
+    setPodio({ copa: final, salvo: "salvando" });
+    const minha = classificacao(final).find(l => l.vaga === 0)?.posicao ?? 1;
+    gamesService.registrarCopa(final.rodadas, minha, resumoDaCopa(final, "bombas"))
+      .then(() => { setPodio(p => p && { ...p, salvo: "salvo" }); setVersaoRecordes(v => v + 1); })
+      .catch(() => setPodio(p => p && { ...p, salvo: "erro" }));
+  };
+
+  if (podio) {
+    return (
+      <PodioCopa copa={podio.copa} avatares={vagas.map(v => v.avatar)} salvo={podio.salvo}
+        onSair={() => { setPodio(null); setCopa(null); }}
+        onDeNovo={() => { setPodio(null); setCopa(novaCopa(podio.copa.rodadas, podio.copa.nomes)); comecar(1); }} />
+    );
+  }
+
   if (partida) {
-    return <BombasTaticas vagas={partida.vagas} modo={partida.modo} bioma={partida.bioma} vitoriasParaVencer={partida.vitorias} onSair={() => setPartida(null)} />;
+    const copaAcabou = copa ? terminou(copa) : false;
+    return (
+      <BombasTaticas key={partida.numero} vagas={partida.vagas} modo={partida.modo} bioma={partida.bioma} vitoriasParaVencer={partida.vitorias}
+        onSair={sair} onFim={aoTerminar}
+        subtitulo={copa ? `Copa · partida ${Math.min(copa.rodadas, partida.numero)} de ${copa.rodadas}` : undefined}
+        avisoFim={<><AvisoRegistro registro={registro} />{copa && copa.partidas.length > 0 && <TabelaCopa copa={copa} />}</>}
+        acaoFim={copa ? (copaAcabou
+          ? { rotulo: "Ver o pódio", aoClicar: () => encerrarCopa(copa) }
+          : { rotulo: `Próxima partida (${copa.partidas.length + 1}/${copa.rodadas})`, aoClicar: () => comecar(partida.numero + 1) }) : undefined} />
+    );
   }
 
   const filtroBotao = (ativo: boolean, rotulo: string, aoClicar: () => void) => (
@@ -175,6 +284,15 @@ export default function GamesPage() {
                         </select>
                       </label>
                     </div>
+                    <div role="radiogroup" aria-label="Formato" className="flex gap-1 rounded-xl bg-white p-1 ring-1 ring-slate-200" data-tutorial="games-copa">
+                      {(["unica", ...RODADAS_COPA] as Formato[]).map(f => (
+                        <button key={String(f)} type="button" role="radio" aria-checked={formato === f} onClick={() => setFormato(f)}
+                          className={`flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-black ${formato === f ? "bg-indigo-600 text-white" : "text-slate-500"}`}>
+                          {f === "unica" ? <><span className="sm:hidden">Única</span><span className="hidden sm:inline">Partida única</span></> : <><Trophy className="h-3.5 w-3.5" />Copa {f}</>}
+                        </button>
+                      ))}
+                    </div>
+                    {formato !== "unica" && <p className="text-xs text-slate-500">Copa: {formato} partidas seguidas; cada colocação vale pontos (1º 10, 2º 7, 3º 5, 4º 3…). Quem somar mais fica com a taça.</p>}
                     <div role="radiogroup" aria-label="Dificuldade dos bots" className="flex gap-1 rounded-xl bg-white p-1 ring-1 ring-slate-200">
                       {DIFICULDADES.map(d => (
                         <button key={d.valor} type="button" role="radio" aria-checked={dificuldade === d.valor} onClick={() => setDificuldade(d.valor)}
@@ -190,12 +308,13 @@ export default function GamesPage() {
                       ))}
                     </ul>
                     <button type="button" onClick={jogar} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-base font-black text-white shadow hover:bg-orange-600">
-                      <Play className="h-5 w-5" />Jogar
+                      <Play className="h-5 w-5" />{formato === "unica" ? "Jogar" : `Começar a Copa (${formato})`}
                     </button>
                   </div>
                 ) : (
                   <p className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-600"><Lock className="mr-1 inline h-4 w-4" />Chega na fase {aberto.fase} do plano. Modos: {aberto.modos.join(", ")}.</p>
                 )}
+                {aberto.disponivel && <PainelRecordes jogo={aberto.id} versao={versaoRecordes} />}
               </div>
             </div>
           </div>
