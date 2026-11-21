@@ -312,6 +312,14 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         titulo: "Jogue contra bots",
         texto: "No Bombas Táticas, escolha o modo (Sobrevivência, Times ou Caça às Moedas), o bioma, quantos jogadores (até 8) e a dificuldade dos bots. No celular aparecem o direcional e os botões na tela.",
       },
+      {
+        titulo: "Partida única ou Copa",
+        texto: "Na Copa você joga 3, 5 ou 7 partidas seguidas: cada colocação vale pontos (1º 10, 2º 7, 3º 5…) e no fim aparece o pódio. A Copa fica salva no seu histórico.",
+      },
+      {
+        titulo: "Recordes, ranking e conquistas",
+        texto: "Cada partida vai para a sua conta: recorde, vitórias, ranking da turma, últimas partidas e conquistas (como vencer os bots no Difícil). Os favoritos também ficam na conta, em qualquer aparelho.",
+      },
       ajudaNoCanto("Games"),
     ],
   },
