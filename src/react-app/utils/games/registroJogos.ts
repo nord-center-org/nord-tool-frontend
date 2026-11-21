@@ -47,6 +47,17 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Cenário",
     botoes: { a: "Dash", b: "Pular" },
   },
+  encaixe: {
+    id: "encaixe",
+    modos: [
+      { valor: "versus", rotulo: "Versus" },
+      { valor: "sprint", rotulo: "Sprint (40 linhas)", rotuloSolo: "Sprint (40 linhas)", regraSolo: "limpe 40 linhas antes de o topo encher." },
+      { valor: "maratona", rotulo: "Maratona", rotuloSolo: "Maratona (50 linhas)", regraSolo: "chegue a 50 linhas; a velocidade sobe a cada 10." },
+    ],
+    cenarios: [{ valor: "noite", rotulo: "Noite neon" }, { valor: "arcade", rotulo: "Arcade" }, { valor: "oceano", rotulo: "Oceano" }],
+    rotuloCenario: "Tema",
+    botoes: { a: "Girar", b: "Guardar" },
+  },
 };
 
 export const ehJogavel = (id: string) => id in JOGAVEIS;

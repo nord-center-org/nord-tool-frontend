@@ -15,10 +15,10 @@ export interface VagaJogo { nome: string; bot: Dificuldade | null; avatar: Avata
 
 export type FasePartida = "contagem" | "jogando" | "fimRodada" | "fimPartida";
 
-export interface ResultadoPartida { vencedor: number | null; vitorias: number[]; rodadas: number }
+export interface ResultadoPartida { vencedor: number | null; vitorias: number[]; rodadas: number; /** Pontos do próprio jogo (somados nas rodadas), quando o jogo tem placar. */ pontos?: number[] }
 
 /** O fim de uma rodada: quem venceu (ou o time) — null nos dois é empate/derrota sozinho. */
-export interface FimRodada { vencedor: number | null; time?: number | null }
+export interface FimRodada { vencedor: number | null; time?: number | null; pontos?: number[] }
 
 /** Estado resumido para o placar (atualizado algumas vezes por segundo). */
 export interface InfoPlacar { tempo: number; alerta?: boolean; jogadores: { vivo: boolean; texto?: string }[] }
@@ -87,6 +87,7 @@ export default function MolduraPartida({
   const [placar, setPlacar] = useState<InfoPlacar | null>(null);
   const [vitorias, setVitorias] = useState<number[]>(() => vagas.map(() => 0));
   const vitoriasRef = useRef<number[]>(vagas.map(() => 0));
+  const pontosRef = useRef<number[] | null>(null);
   const [rodada, setRodada] = useState(1);
   const rodadaRef = useRef(1);
   const [ultimo, setUltimo] = useState<FimRodada | null>(null);
@@ -176,6 +177,7 @@ export default function MolduraPartida({
       som.pararMusica();
       ultimoRef.current = fim;
       setUltimo(fim);
+      if (fim.pontos) pontosRef.current = (pontosRef.current ?? vagas.map(() => 0)).map((p, i) => p + (fim.pontos?.[i] ?? 0));
       const novo = [...vitoriasRef.current];
       if (fim.time !== null && fim.time !== undefined) vagas.forEach((_v, i) => { if (i % 2 === fim.time) novo[i] += 1; });
       else if (fim.vencedor !== null) novo[fim.vencedor] += 1;
@@ -185,7 +187,7 @@ export default function MolduraPartida({
         if (fim.vencedor !== null || (fim.time !== null && fim.time !== undefined)) som.vitoria(); else som.morte();
         mudarFase("fimPartida");
         const campeao = novo.findIndex(n => n >= vitoriasParaVencer);
-        onFimRef.current?.({ vencedor: campeao >= 0 ? campeao : null, vitorias: novo, rodadas: rodadaRef.current });
+        onFimRef.current?.({ vencedor: campeao >= 0 ? campeao : null, vitorias: novo, rodadas: rodadaRef.current, pontos: pontosRef.current ?? undefined });
       } else {
         mudarFase("fimRodada");
       }
@@ -207,6 +209,7 @@ export default function MolduraPartida({
   const proximaRodada = () => { rodadaRef.current += 1; setRodada(rodadaRef.current); novaRodada(); };
   const revanche = () => {
     vitoriasRef.current = vagas.map(() => 0);
+    pontosRef.current = null;
     setVitorias(vitoriasRef.current);
     rodadaRef.current = 1;
     setRodada(1);

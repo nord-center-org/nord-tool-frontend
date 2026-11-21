@@ -60,9 +60,9 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "encaixe", nome: "Encaixe Versus", resumo: "Puzzle de queda: combos mandam lixo para os rivais.",
-    categoria: "Puzzle", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 5, disponivel: false, modos: ["Versus", "Maratona", "Sprint"],
-    regras: ["Complete linhas para limpar.", "Combos e várias linhas enviam linhas de pressão.", "Topo cheio: fim de jogo."],
-    controles: ["Setas: mover/girar", "Espaço: queda rápida", "X: guardar peça"], cores: ["#082f49", "#06b6d4", "#a3e635"], motivo: "blocos",
+    categoria: "Puzzle", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 5, disponivel: true, modos: ["Versus", "Maratona", "Sprint"],
+    regras: ["Complete linhas para limpar; as 7 peças vêm em sacos de 7, iguais para todos.", "Versus: 2 linhas mandam 1 de lixo, 3 mandam 2, 4 mandam 4 (mais combo e seguida); limpar linha cancela o lixo que vinha.", "Sprint: 40 linhas, quem chegar primeiro. Maratona (sozinho): chegue a 50 linhas.", "Topo cheio: fim de jogo."],
+    controles: ["←/→: mover · ↓: descer · ↑: cair de vez", "Espaço/Z: girar", "X/Shift: guardar peça", "Esc/P: pausa"], cores: ["#082f49", "#06b6d4", "#a3e635"], motivo: "blocos",
   },
   {
     id: "naval", nome: "Guerra Naval", resumo: "Esconda a frota, use o radar e afunde os navios rivais.",
