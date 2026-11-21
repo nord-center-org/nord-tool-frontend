@@ -10,10 +10,12 @@ import { som } from "../../audio/sintetizador";
 import { Controles, telaDeToque, vibrar } from "../../entrada/entrada";
 import ControleVirtual from "../../entrada/ControleVirtual";
 import { CORES_JOGADORES, spriteDoAvatar } from "../../central/sprites";
+import type { EntradasRemotas } from "@/react-app/utils/games/sala";
 import Avatar from "@/react-app/components/avatar/Avatar";
 import { BIOMAS, NOME_ITEM, desenharBlocos, desenharBomba, desenharChama, desenharChao, desenharItem, desenharJogador, desenharMoeda } from "./desenho";
 
-export interface VagaBombas { nome: string; bot: Dificuldade | null; avatar: AvatarConfig }
+/** Uma vaga da partida: bot, quem está na tela (teclado/toque) ou um celular da sala ({@code controle} = vaga na sala). */
+export interface VagaBombas { nome: string; bot: Dificuldade | null; avatar: AvatarConfig; controle?: number }
 
 export interface ResultadoBombas { vencedor: number | null; vitorias: number[]; rodadas: number }
 
@@ -30,9 +32,15 @@ interface Props {
   acaoFim?: { rotulo: string; aoClicar: () => void };
   /** Texto extra no topo (na Copa: "Copa · partida 2 de 5"). */
   subtitulo?: string;
+  /** Entradas dos celulares (multiplayer). */
+  remotas?: EntradasRemotas;
+  /** Avisos para os celulares: mudança de fase e quem caiu. */
+  onFase?: (f: FaseBombas) => void;
+  onMorte?: (indice: number) => void;
 }
 
-type Fase = "contagem" | "jogando" | "fimRodada" | "fimPartida";
+export type FaseBombas = "contagem" | "jogando" | "fimRodada" | "fimPartida";
+type Fase = FaseBombas;
 
 interface Hud {
   tempo: number;
@@ -43,7 +51,7 @@ interface Hud {
 const TITULO_MODO: Record<Modo, string> = { sobrevivencia: "Sobrevivência", times: "Times", moedas: "Caça às Moedas" };
 
 /** Bombas Táticas: a partida na tela (canvas 2D a 60 passos por segundo) com o placar por cima. */
-export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, onSair, onFim, avisoFim, acaoFim, subtitulo }: Props) {
+export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, onSair, onFim, avisoFim, acaoFim, subtitulo, remotas, onFase, onMorte }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const caixa = useRef<HTMLDivElement>(null);
   const estado = useRef<Estado | null>(null);
@@ -61,6 +69,12 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
   // Em ref: a tela de fora pode mandar uma função nova a cada render sem reiniciar o laço do jogo.
   const onFimRef = useRef(onFim);
   onFimRef.current = onFim;
+  const onFaseRef = useRef(onFase);
+  onFaseRef.current = onFase;
+  const onMorteRef = useRef(onMorte);
+  onMorteRef.current = onMorte;
+  // Quem joga na própria tela (teclado ou toque); -1 quando a tela só mostra o jogo e todos estão nos celulares.
+  const local = useMemo(() => vagas.findIndex(v => !v.bot && v.controle === undefined), [vagas]);
   const [rodada, setRodada] = useState(1);
   const [ultimo, setUltimo] = useState<{ vencedor: number | null; time: number | null } | null>(null);
   const [toque] = useState(telaDeToque);
@@ -70,6 +84,7 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
   const mudarFase = (f: Fase) => {
     faseRef.current = f;
     setFase(f);
+    onFaseRef.current?.(f);
   };
 
   const novaRodada = useCallback(() => {
@@ -124,14 +139,15 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
           if (ev.item === "caveira") som.maldicao(); else som.powerup();
           particulas.emitir(12, { x: ev.x + 0.5, y: ev.y + 0.5, cor: ev.item === "caveira" ? "#9ca3af" : "#fde047", tamanho: 0.14, forma: "faisca", total: 0.5 }, 3);
           textos.mostrar(ev.x + 0.5, ev.y, NOME_ITEM[ev.item], ev.item === "caveira" ? "#d1d5db" : CORES_JOGADORES[ev.jogador % 8], 1.1);
-          if (ev.jogador === 0) vibrar(25);
+          if (ev.jogador === local) vibrar(25);
           break;
         case "morte":
           som.morte();
           tremor.adicionar(0.5);
           particulas.emitir(30, { x: ev.x + 0.5, y: ev.y + 0.5, cor: CORES_JOGADORES[ev.jogador % 8], tamanho: 0.16, gravidade: 7, total: 1.2, atrito: 0.96 }, 6);
           textos.mostrar(ev.x + 0.5, ev.y, `P${ev.jogador + 1} caiu!`, "#fff", 1.4);
-          if (ev.jogador === 0) vibrar([60, 40, 120]);
+          if (ev.jogador === local) vibrar([60, 40, 120]);
+          onMorteRef.current?.(ev.jogador);
           break;
         case "escudo":
           som.escudo();
@@ -158,7 +174,7 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
       }
     }
     if (explosoes) som.explosao(Math.min(3, explosoes));
-  }, [efeitos]);
+  }, [efeitos, local]);
 
   // Laço do jogo.
   useEffect(() => {
@@ -173,14 +189,20 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
       const e = estado.current;
       if (!e) return;
       const c = controles.ler();
-      if (c.pausa && !pausaAnterior && faseRef.current === "jogando") {
+      const deFora = vagas.map(v => (v.controle !== undefined && remotas ? remotas.ler(v.controle) : null));
+      const pausa = c.pausa || deFora.some(r => r?.p);
+      if (pausa && !pausaAnterior && faseRef.current === "jogando") {
         pausadoRef.current = !pausadoRef.current;
         setPausado(pausadoRef.current);
       }
-      pausaAnterior = c.pausa;
+      pausaAnterior = pausa;
       if (faseRef.current !== "jogando" || pausadoRef.current) return;
       anteriores.current = e.jogadores.map(j => ({ x: j.x, y: j.y }));
-      passo(e, [c.direcao || c.a || c.b ? { direcao: c.direcao, a: c.a, b: c.b } : ENTRADA_VAZIA]);
+      passo(e, vagas.map((_v, i) => {
+        const r = deFora[i];
+        if (r) return { direcao: r.x, a: r.a, b: r.b };
+        return i === local && (c.direcao || c.a || c.b) ? { direcao: c.direcao, a: c.a, b: c.b } : ENTRADA_VAZIA;
+      }));
       tratarEventos(e, e.eventos);
       if (e.duracao - e.passo === 10 * PASSOS_POR_SEGUNDO && e.modo === "moedas") som.acelerarMusica(175);
       if (e.terminado) {
@@ -274,7 +296,7 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
       laco.parar();
       controles.desligar();
     };
-  }, [controles, efeitos, sprites, tratarEventos, vitoriasParaVencer, rodada]);
+  }, [controles, efeitos, sprites, tratarEventos, vitoriasParaVencer, rodada, vagas, remotas, local]);
 
   const proximaRodada = () => {
     setRodada(r => r + 1);
@@ -319,7 +341,7 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
             <li key={i} className={`flex shrink-0 items-center gap-2 rounded-xl px-2 py-1 ${j && !j.vivo ? "opacity-40" : ""}`} style={{ background: `${CORES_JOGADORES[i]}26`, boxShadow: `inset 0 0 0 2px ${CORES_JOGADORES[i]}` }}>
               <Avatar config={v.avatar} tamanho={28} semFundo className="[image-rendering:pixelated]" />
               <div className="leading-tight">
-                <p className="text-xs font-black" style={{ color: CORES_JOGADORES[i] }}>P{i + 1}{v.bot ? " 🤖" : ""}</p>
+                <p className="text-xs font-black" style={{ color: CORES_JOGADORES[i] }}>P{i + 1}{v.bot ? " 🤖" : v.controle !== undefined ? " 📱" : ""}</p>
                 <p className="text-[11px] tabular-nums text-white/80">
                   {modo === "moedas" ? `🪙 ${j?.moedas ?? 0}` : `💣${j?.bombas ?? 1} 🔥${j?.fogo ?? 2}`}{j?.escudo ? " 🛡" : ""}{j?.maldicao ? " ☠" : ""} · ★{vitorias[i]}
                 </p>
@@ -383,7 +405,9 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
         )}
       </div>
 
-      {toque ? (
+      {local < 0 ? (
+        <p className="px-4 py-2 text-center text-xs text-white/50">Todos jogam pelos celulares · Esc pausa</p>
+      ) : toque ? (
         <ControleVirtual controles={controles} rotuloA="Bomba" rotuloB="Ação" />
       ) : (
         <p className="px-4 py-2 text-center text-xs text-white/50">Setas/WASD andam · Espaço/Z solta bomba · X/Shift detona ou arremessa · Esc pausa</p>

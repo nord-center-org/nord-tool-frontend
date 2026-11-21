@@ -48,7 +48,8 @@ export default defineConfig(({ command, mode }) => {
   }
 
   return {
-    plugins: [react(), cspDoBuild([origemApi, origemLugia].filter(Boolean).join(' '))],
+    // Games (multiplayer): o WebSocket das salas fica na mesma origem da API, em ws(s)://. Com API relativa, 'self' cobre.
+    plugins: [react(), cspDoBuild([origemApi, origemApi.replace(/^http/, 'ws'), origemLugia].filter(Boolean).join(' '))],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
