@@ -17,7 +17,7 @@ import { som } from "@/react-app/components/games/audio/sintetizador";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { avatarService } from "@/react-app/services/AvatarService";
 import { gamesService, salasService, type GameRegistro } from "@/react-app/services/GamesService";
-import { EntradasRemotas, type JogadorSala } from "@/react-app/utils/games/sala";
+import { EntradasRemotas, type JogadorSala, type MaoPrivada } from "@/react-app/utils/games/sala";
 import { lerAvatar } from "@/react-app/utils/avatar";
 import { classificacao, colocacoes, novaCopa, registrarPartida, resumoDaCopa, terminou, type Copa } from "@/react-app/utils/games/copa";
 import { pontosBombas } from "@/react-app/utils/games/pontuacao";
@@ -30,12 +30,15 @@ import type { ModoEncaixe } from "@/react-app/utils/games/encaixe";
 import type { ModoDuelo } from "@/react-app/utils/games/duelo";
 import type { CenarioDuelo } from "@/react-app/components/games/jogos/duelo/motorDuelo";
 import type { ModoNaval } from "@/react-app/utils/games/naval";
+import type { ModoCartas } from "@/react-app/utils/games/cartas";
+import type { MesaCartas } from "@/react-app/components/games/jogos/cartas/motorCartas";
 import type { TemaNaval } from "@/react-app/components/games/jogos/naval/motorNaval";
 
 // O 3D (three.js) só carrega quando alguém abre um jogo 3D.
 const SumoHexagonos = lazy(() => import("@/react-app/components/games/jogos/hexagonos/SumoHexagonos"));
 const EncaixeVersus = lazy(() => import("@/react-app/components/games/jogos/encaixe/EncaixeVersus"));
 const DueloMeioDia = lazy(() => import("@/react-app/components/games/jogos/duelo/DueloMeioDia"));
+const CartasDaVirada = lazy(() => import("@/react-app/components/games/jogos/cartas/CartasDaVirada"));
 const GuerraNaval = lazy(() => import("@/react-app/components/games/jogos/naval/GuerraNaval"));
 
 const CHAVE_FAVORITOS = "@NordTool:games:favoritos";
@@ -289,6 +292,7 @@ export default function GamesPage() {
       onFim: aoTerminar,
       remotas: sala ? remotas : undefined,
       onFase: (f: FaseBombas) => paraTodos({ k: "fase", fase: f }),
+      onPrivado: (i: number, d: MaoPrivada) => { const v = partida.vagas[i]; if (v?.controle !== undefined) paraVaga(v.controle, { k: "mao", ...d }); },
       onMorte: (i: number) => { const v = partida.vagas[i]; if (v?.controle !== undefined) paraVaga(v.controle, { k: "vibrar", ms: 300, texto: "Você caiu!" }); },
       subtitulo: copa ? `Copa · partida ${Math.min(copa.rodadas, partida.numero)} de ${copa.rodadas}` : undefined,
       avisoFim: <><AvisoRegistro registro={registro} />{copa && copa.partidas.length > 0 && <TabelaCopa copa={copa} />}</>,
@@ -308,6 +312,10 @@ export default function GamesPage() {
       ) : partida.jogo === "duelo" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
           <DueloMeioDia key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoDuelo} cenario={partida.cenario as CenarioDuelo} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "cartas" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <CartasDaVirada key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoCartas} mesa={partida.cenario as MesaCartas} {...comuns} />
         </Suspense>
       ) : partida.jogo === "naval" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>

@@ -68,6 +68,17 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Cenário",
     botoes: { a: "Atirar", b: "—" },
   },
+  cartas: {
+    id: "cartas",
+    modos: [
+      { valor: "classico", rotulo: "Clássico", rotuloSolo: "Clássico contra 3 bots", regraSolo: "zere a mão antes dos 3 bots da mesa." },
+      { valor: "caotico", rotulo: "Empilhamento Caótico", rotuloSolo: "Caótico contra 3 bots", regraSolo: "+2/+4 acumulam, 7 troca e 0 gira as mãos; zere antes dos bots." },
+      { valor: "rapido", rotulo: "Rápido (5 cartas, 8 s)", rotuloSolo: "Rápido contra 3 bots", regraSolo: "5 cartas e 8 s por vez; zere antes dos bots." },
+    ],
+    cenarios: [{ valor: "feltro", rotulo: "Feltro verde" }, { valor: "neon", rotulo: "Neon" }, { valor: "madeira", rotulo: "Madeira" }],
+    rotuloCenario: "Mesa",
+    botoes: { a: "Jogar", b: "Comprar" },
+  },
   naval: {
     id: "naval",
     modos: [

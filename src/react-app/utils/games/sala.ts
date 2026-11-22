@@ -80,7 +80,17 @@ export type AvisoDaTela =
   | { k: "lugar"; indice: number; cor: string; jogo: string }
   | { k: "fase"; fase: "lobby" | "contagem" | "jogando" | "fimRodada" | "fimPartida" }
   | { k: "vibrar"; ms: number; texto?: string }
+  | ({ k: "mao" } & MaoPrivada)
   | { k: "fim"; jogo: string; modo: string; pontos: number; venceu: boolean; colocacao: number; jogadores: number; bots: number; dificuldade: string | null; duracao: number };
+
+/**
+ * O que só o dono da vaga pode ver (a mão nos jogos de cartas), mandado só para o celular dele.
+ * {@code c}: cartas em texto (cor + valor); {@code sel}: a carta na mira; {@code vez}: é a vez dele;
+ * {@code topo}/{@code cor}: a mesa; {@code info}: uma linha de dica ("escolha a cor", "+4 acumulado"…).
+ */
+export interface MaoPrivada { c: string[]; sel: number; vez: boolean; topo: string; cor: string; info?: string; escolhendoCor?: number | null }
+
+const CARTA_VALIDA = /^[rgbyw](?:[0-9PIC]|\+2|\+4)$/;
 
 export function lerAviso(d: unknown): AvisoDaTela | null {
   if (!d || typeof d !== "object") return null;
@@ -90,6 +100,16 @@ export function lerAviso(d: unknown): AvisoDaTela | null {
     case "lugar": return { k: "lugar", indice: num(o.indice, 0, 7), cor: /^#[0-9a-f]{6}$/i.test(String(o.cor)) ? String(o.cor) : "#64748b", jogo: String(o.jogo ?? "").slice(0, 40) };
     case "fase": return ["lobby", "contagem", "jogando", "fimRodada", "fimPartida"].includes(o.fase as string) ? { k: "fase", fase: o.fase as "lobby" } : null;
     case "vibrar": return { k: "vibrar", ms: num(o.ms, 0, 1000), texto: typeof o.texto === "string" ? o.texto.slice(0, 80) : undefined };
+    case "mao": {
+      const c = Array.isArray(o.c) ? o.c.filter((x): x is string => typeof x === "string" && CARTA_VALIDA.test(x)).slice(0, 60) : [];
+      return {
+        k: "mao", c, sel: num(o.sel, 0, Math.max(0, c.length - 1)), vez: o.vez === true,
+        topo: typeof o.topo === "string" && CARTA_VALIDA.test(o.topo) ? o.topo : "",
+        cor: ["r", "g", "b", "y"].includes(o.cor as string) ? (o.cor as string) : "r",
+        info: typeof o.info === "string" ? o.info.slice(0, 80) : undefined,
+        escolhendoCor: typeof o.escolhendoCor === "number" ? num(o.escolhendoCor, 0, 3) : null,
+      };
+    }
     case "fim": return {
       k: "fim", jogo: String(o.jogo ?? "").slice(0, 40), modo: String(o.modo ?? "").slice(0, 40), pontos: num(o.pontos, 0, 10_000_000),
       venceu: o.venceu === true, colocacao: num(o.colocacao, 1, 8), jogadores: num(o.jogadores, 1, 8), bots: num(o.bots, 0, 7),

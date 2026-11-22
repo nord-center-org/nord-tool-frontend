@@ -10,7 +10,8 @@ import { CORES_JOGADORES } from "@/react-app/components/games/central/sprites";
 import { JOGOS } from "@/react-app/utils/games/catalogo";
 import { JOGAVEIS } from "@/react-app/utils/games/registroJogos";
 import { lerAvatar } from "@/react-app/utils/avatar";
-import { CONTROLE_SOLTO, lerAviso, mesmaEntrada, normalizarCodigo, type EntradaControle, type JogadorSala } from "@/react-app/utils/games/sala";
+import { CONTROLE_SOLTO, lerAviso, mesmaEntrada, normalizarCodigo, type EntradaControle, type JogadorSala, type MaoPrivada } from "@/react-app/utils/games/sala";
+import MaoNoCelular from "@/react-app/components/games/jogos/cartas/MaoNoCelular";
 import { gamesService, salasService, type GameRegistro } from "@/react-app/services/GamesService";
 
 const ENVIO_MS = 33;
@@ -31,6 +32,7 @@ export default function GamesControlePage() {
   const [lugar, setLugar] = useState<{ indice: number; cor: string; jogo: string } | null>(null);
   const [fase, setFase] = useState("lobby");
   const [aviso, setAviso] = useState<string | null>(null);
+  const [mao, setMao] = useState<MaoPrivada | null>(null);
   const [resultado, setResultado] = useState<{ pontos: number; venceu: boolean; colocacao: number; registro: GameRegistro | null } | null>(null);
   const cliente = useRef<ClienteSala | null>(null);
   const controles = useMemo(() => new Controles(), []);
@@ -48,7 +50,11 @@ export default function GamesControlePage() {
       if (a.k === "lugar") setLugar({ indice: a.indice, cor: a.cor, jogo: a.jogo });
       else if (a.k === "fase") {
         setFase(a.fase);
-        if (a.fase === "contagem" || a.fase === "lobby") setResultado(null);
+        if (a.fase === "contagem" || a.fase === "lobby") { setResultado(null); setMao(null); }
+      } else if (a.k === "mao") {
+        const { k: _k, ...resto } = a;
+        void _k;
+        setMao(resto);
       } else if (a.k === "vibrar") {
         vibrar(a.ms);
         if (a.texto) {
@@ -182,7 +188,7 @@ export default function GamesControlePage() {
           </>
         ) : (
           <>
-            <p className="text-xl font-black" aria-live="polite">{FASE[fase] ?? ""}</p>
+            {mao && fase === "jogando" ? <MaoNoCelular mao={mao} /> : <p className="text-xl font-black" aria-live="polite">{FASE[fase] ?? ""}</p>}
             {aviso && <p className="rounded-xl bg-white/10 px-3 py-1 text-sm font-bold">{aviso}</p>}
             <ul className="flex flex-wrap justify-center gap-1.5" aria-label="Jogadores na sala">
               {jogadores.map(j => (
