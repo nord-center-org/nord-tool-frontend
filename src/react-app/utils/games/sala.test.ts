@@ -42,6 +42,7 @@ test("toque rápido do celular não se perde entre dois passos", () => {
 test("avisos da tela são validados", () => {
   assert.deepEqual(lerAviso({ k: "lugar", indice: 12, cor: "#ef4444", jogo: "bombas" }), { k: "lugar", indice: 7, cor: "#ef4444", jogo: "bombas" });
   assert.equal(lerAviso({ k: "lugar", indice: 1, cor: "red" })?.k, "lugar");
+  assert.deepEqual(lerAviso({ k: "lugar", indice: 0, cor: "#ef4444", jogo: "pescaria", modo: "mergulho" }), { k: "lugar", indice: 0, cor: "#ef4444", jogo: "pescaria", modo: "mergulho" });
   assert.deepEqual(lerAviso({ k: "fase", fase: "jogando" }), { k: "fase", fase: "jogando" });
   assert.equal(lerAviso({ k: "fase", fase: "x" }), null);
   assert.deepEqual(lerAviso({ k: "vibrar", ms: 5000 }), { k: "vibrar", ms: 1000, texto: undefined });
