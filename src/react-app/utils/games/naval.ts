@@ -8,7 +8,7 @@
  *   em cruz (5 casas), cada um uma vez por partida; usar um especial gasta a vez.
  * - Com 5 ou mais frotas, cada uma tem 4 navios (4, 3, 3 e 2), para a partida não se arrastar.
  * - Quem perde a frota inteira está fora; vence a última frota de pé. Se a batalha passar de 6 minutos, vence
- *   quem tiver mais partes de navio intactas.
+ *   quem tiver mais partes de navio intactas (no empate, quem acertou mais).
  * - Sozinho (Caçada): afunde a frota escondida em até 60 tiros.
  */
 import { rng, type Dificuldade, type Direcao, type Entrada } from "./bombas.ts";
@@ -265,12 +265,13 @@ function verificarFim(e: EstadoNaval) {
 /** Partes de navio ainda intactas da frota. */
 export const partesIntactas = (f: Frota) => f.navios.reduce((s, n) => s + n.tam - n.acertos, 0);
 
-/** Tempo da batalha esgotado: vence quem tem mais partes intactas (empate = sem vencedor). */
+/** Tempo da batalha esgotado: vence quem tem mais partes intactas; no empate, quem acertou mais (persistindo, sem vencedor). */
 function fimPorPartes(e: EstadoNaval) {
   const vivos = e.jogadores.filter(j => j.frota !== null && e.frotas[j.frota].viva);
-  const pts = vivos.map(j => partesIntactas(e.frotas[j.frota!]));
-  const max = Math.max(...pts);
-  fim(e, pts.filter(p => p === max).length === 1 ? vivos[pts.indexOf(max)].id : null);
+  const nota = (j: Jogador) => partesIntactas(e.frotas[j.frota!]) * 1000 + j.acertos;
+  const max = Math.max(...vivos.map(nota));
+  const empatados = vivos.filter(j => nota(j) === max);
+  fim(e, empatados.length === 1 ? empatados[0].id : null);
 }
 
 function fim(e: EstadoNaval, vencedor: number | null) {

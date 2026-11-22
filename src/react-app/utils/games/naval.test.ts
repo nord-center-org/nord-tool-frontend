@@ -117,4 +117,12 @@ test("tempo da batalha esgotado: vence a frota mais inteira", () => {
   passoNaval(e, [P, P]);
   assert.equal(e.terminado, true);
   assert.equal(e.vencedor, quem);
+  // Empate nas partes: desempata quem acertou mais.
+  const d = novaPartidaNaval({ modo: "classico", semente: 8, jogadores: [{ bot: null }, { bot: null }] });
+  const a = d.vez, b2 = 1 - a;
+  disparar(d, a, b2, d.frotas[b2].navios[0].casas[0], "tiro");
+  d.frotas[a].navios[0].acertos = 1;
+  d.passo = LIMITE_BATALHA - 1;
+  passoNaval(d, [P, P]);
+  assert.equal(d.vencedor, a);
 });
