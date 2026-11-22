@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-22-games-v11",
+    data: "2026-11-22",
+    titulo: "Games: o jogo inteiro no seu celular",
+    texto: "Jogando com a turma, cada celular agora mostra a partida rodando, com o controle embaixo — dá para jogar sem TV. No mesmo Wi-Fi a conexão é direta entre os aparelhos (fluida e sem custo); fora dele, passa pela internet. Nas Cartas você vê só a sua mão e na Guerra Naval só a sua frota. Botão na barra do celular para voltar a ver só o controle.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-22-games-v10",
     data: "2026-11-22",
     titulo: "Games: controles do seu jeito e controle de videogame",

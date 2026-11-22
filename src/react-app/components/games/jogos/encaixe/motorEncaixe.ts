@@ -1,4 +1,5 @@
 import type { Entrada } from "@/react-app/utils/games/bombas";
+import { desserializar, serializar } from "@/react-app/utils/games/espelho";
 import {
   ALTURA, ESCONDIDAS, LARGURA, LIXO, META_MARATONA, META_SPRINT, TIPOS, alturaDeQueda, celulasDaPeca, nivelDe, novaPartidaEncaixe, passoEncaixe,
   segundosRestantesEncaixe, type EstadoEncaixe, type ModoEncaixe, type TipoPeca,
@@ -51,6 +52,27 @@ export function criarMotorEncaixe(caixa: HTMLDivElement, vagas: VagaJogo[], modo
   const cores = TEMAS_ENCAIXE[tema];
   const folhas = vagas.map(v => folhaDoCorpo(v.avatar, `corpo-${JSON.stringify(v.avatar)}`));
   let estado: EstadoEncaixe | null = null;
+  let pendentes: unknown[] = [];
+  function efeitosDoPasso(e: EstadoEncaixe) {
+    for (const ev of e.eventos) {
+      switch (ev.tipo) {
+        case "girou": if (!e.tabuleiros[ev.tabuleiro].bot) som.clique(); break;
+        case "travou": if (!e.tabuleiros[ev.tabuleiro].bot) som.colocar(); break;
+        case "linhas": {
+          const nome = ["", "", "Dupla!", "Tripla!", "ENCAIXE 4!"][ev.quantas] ?? "";
+          const tab = e.tabuleiros[ev.tabuleiro];
+          const texto = [nome, tab.combo >= 2 ? `combo ${tab.combo}` : "", ev.ataque ? `+${ev.ataque} lixo` : ""].filter(Boolean).join(" · ");
+          flashes.push({ tab: ev.tabuleiro, ys: ev.linhasY, t: 0, texto });
+          if (ev.quantas >= 4) som.vitoria(); else som.moeda();
+          ganchos.vibrarLocal(ev.tabuleiro, 30);
+          break;
+        }
+        case "lixo": tremor[ev.tabuleiro] = 0.6; som.alerta(); ganchos.vibrarLocal(ev.tabuleiro, [40, 30, 40]); break;
+        case "nocaute": ordemNocaute.push(ev.tabuleiro); som.morte(); ganchos.morte(ev.tabuleiro); break;
+        default: break;
+      }
+    }
+  }
   let tempo = 0;
   let w = 0, h = 0;
   const flashes: { tab: number; ys: number[]; t: number; texto: string }[] = [];
@@ -172,29 +194,14 @@ export function criarMotorEncaixe(caixa: HTMLDivElement, vagas: VagaJogo[], modo
       estado = novaPartidaEncaixe({ modo, jogadores: vagas.map(v => ({ bot: v.bot })) });
       flashes.length = 0;
       ordemNocaute.length = 0;
+      pendentes = [];
     },
     passo(entradas: Entrada[]) {
       const e = estado;
       if (!e) return null;
       passoEncaixe(e, entradas);
-      for (const ev of e.eventos) {
-        switch (ev.tipo) {
-          case "girou": if (!e.tabuleiros[ev.tabuleiro].bot) som.clique(); break;
-          case "travou": if (!e.tabuleiros[ev.tabuleiro].bot) som.colocar(); break;
-          case "linhas": {
-            const nome = ["", "", "Dupla!", "Tripla!", "ENCAIXE 4!"][ev.quantas] ?? "";
-            const tab = e.tabuleiros[ev.tabuleiro];
-            const texto = [nome, tab.combo >= 2 ? `combo ${tab.combo}` : "", ev.ataque ? `+${ev.ataque} lixo` : ""].filter(Boolean).join(" · ");
-            flashes.push({ tab: ev.tabuleiro, ys: ev.linhasY, t: 0, texto });
-            if (ev.quantas >= 4) som.vitoria(); else som.moeda();
-            ganchos.vibrarLocal(ev.tabuleiro, 30);
-            break;
-          }
-          case "lixo": tremor[ev.tabuleiro] = 0.6; som.alerta(); ganchos.vibrarLocal(ev.tabuleiro, [40, 30, 40]); break;
-          case "nocaute": ordemNocaute.push(ev.tabuleiro); som.morte(); ganchos.morte(ev.tabuleiro); break;
-          default: break;
-        }
-      }
+      efeitosDoPasso(e);
+      if (pendentes.length < 400) pendentes.push(...e.eventos);
       return e.terminado ? { vencedor: e.vencedor, pontos: e.tabuleiros.map(t => t.pontos) } : null;
     },
     desenhar(_alfa: number, dt: number, fase: FasePartida, vencedor: number | null) {
@@ -224,6 +231,22 @@ export function criarMotorEncaixe(caixa: HTMLDivElement, vagas: VagaJogo[], modo
       };
     },
     redimensionar,
+    quadro() {
+      return estado ? serializar({ ...estado, eventos: [] }) : null;
+    },
+    tirarEventos() {
+      const l = pendentes.map(x => serializar(x));
+      pendentes = [];
+      return l;
+    },
+    aplicar(s: unknown, eventos: unknown[]) {
+      const e = desserializar(s) as EstadoEncaixe | null;
+      if (!e || !Array.isArray(e.tabuleiros)) return;
+      if (estado && e.passo < estado.passo) { flashes.length = 0; ordemNocaute.length = 0; }
+      estado = e;
+      e.eventos = eventos.map(x => desserializar(x)) as EstadoEncaixe["eventos"];
+      efeitosDoPasso(e);
+    },
     destruir() { canvas.remove(); },
   };
 }

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Gamepad2, LogOut, Pause, Settings2, Wifi, WifiOff } from "lucide-react";
+import { Gamepad2, LogOut, Monitor, MonitorOff, Pause, Settings2, Volume2, VolumeX, Wifi, WifiOff } from "lucide-react";
+import TelaEspelho from "@/react-app/components/games/rede/TelaEspelho";
+import { ReceptorEspelho } from "@/react-app/components/games/rede/Espelho";
+import { lerPartida, lerQuadro, type PartidaEspelho, type QuadroEspelho } from "@/react-app/utils/games/espelho";
+import { som } from "@/react-app/components/games/audio/sintetizador";
 import PainelControles from "@/react-app/components/games/entrada/PainelControles";
 import Avatar from "@/react-app/components/avatar/Avatar";
 import AvatarCorpo from "@/react-app/components/games/central/AvatarCorpo";
@@ -38,6 +42,15 @@ export default function GamesControlePage() {
   /** O que o controle está mandando agora (mostrado na tela, para conferir que o toque chegou). */
   const [sinal, setSinal] = useState<EntradaControle>(CONTROLE_SOLTO);
   const [painel, setPainel] = useState(false);
+  // Espelho: o jogo inteiro neste celular.
+  const [verJogo, setVerJogo] = useState(() => { try { return localStorage.getItem("nord-games-ver-jogo") !== "0"; } catch { return true; } });
+  const [partidaEsp, setPartidaEsp] = useState<PartidaEspelho | null>(null);
+  const [caminho, setCaminho] = useState<"direto" | "sala">("sala");
+  const [mudo, setMudo] = useState(som.mudo);
+  const receptor = useRef<ReceptorEspelho | null>(null);
+  const ouvintes = useRef(new Set<(q: QuadroEspelho) => void>());
+  const assinar = useCallback((f: (q: QuadroEspelho) => void) => { ouvintes.current.add(f); return () => { ouvintes.current.delete(f); }; }, []);
+  const entregarQuadro = useCallback((d: unknown) => { const q = lerQuadro(d); if (q) ouvintes.current.forEach(f => f(q)); }, []);
   const [resultado, setResultado] = useState<{ pontos: number; venceu: boolean; colocacao: number; registro: GameRegistro | null } | null>(null);
   const cliente = useRef<ClienteSala | null>(null);
   const controles = useMemo(() => new Controles(), []);
@@ -50,12 +63,17 @@ export default function GamesControlePage() {
     } else if (m.t === "jogadores") {
       setJogadores((m.jogadores as JogadorSala[]) ?? []);
     } else if (m.t === "host") {
+      const d = (m.d && typeof m.d === "object" ? m.d : {}) as Record<string, unknown>;
+      if (d.k === "rtc") { void receptor.current?.receberSinal(d); return; }
+      if (d.k === "quadro") { entregarQuadro(d); return; }
+      if (d.k === "partida") { const p = lerPartida(d); if (p) setPartidaEsp(p); return; }
       const a = lerAviso(m.d);
       if (!a) return;
       if (a.k === "lugar") setLugar({ indice: a.indice, cor: a.cor, jogo: a.jogo });
       else if (a.k === "fase") {
         setFase(a.fase);
         if (a.fase === "contagem" || a.fase === "lobby") { setResultado(null); setMao(null); }
+        if (a.fase === "lobby") setPartidaEsp(null);
       } else if (a.k === "mao") {
         const { k: _k, ...resto } = a;
         void _k;
@@ -77,7 +95,7 @@ export default function GamesControlePage() {
     } else if (m.t === "erro") {
       setErro(String(m.m ?? "Erro na sala"));
     }
-  }, []);
+  }, [entregarQuadro]);
 
   const entrar = async (cod: string) => {
     setErro(null);
@@ -86,6 +104,8 @@ export default function GamesControlePage() {
       const ingresso = await salasService.entrar(cod);
       if (!ingresso) throw new Error("Sala não encontrada");
       cliente.current?.fechar();
+      receptor.current?.fechar();
+      receptor.current = new ReceptorEspelho(msg => cliente.current?.enviar(msg), entregarQuadro, setCaminho);
       cliente.current = new ClienteSala(ingresso, aoMensagem, (e, mot) => { setConexao(e); setMotivo(mot); });
     } catch (e) {
       setErro((e as Error).message || "Não deu para entrar na sala");
@@ -98,7 +118,7 @@ export default function GamesControlePage() {
   useEffect(() => {
     const c = normalizarCodigo(params.get("sala") ?? "");
     if (c.length === 4) void entrar(c);
-    return () => cliente.current?.fechar();
+    return () => { cliente.current?.fechar(); receptor.current?.fechar(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -172,7 +192,7 @@ export default function GamesControlePage() {
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex flex-col bg-slate-950 text-white" style={{ touchAction: "none" }}>
+    <div className="fixed inset-0 z-[80] flex flex-col bg-slate-950 text-white" style={{ touchAction: "none" }} onPointerDown={() => som.destravar()} onTouchStart={() => som.destravar()}>
       <header className="flex items-center gap-3 px-4 py-3" style={{ boxShadow: `inset 0 -3px 0 ${cor}` }}>
         {eu && <AvatarCorpo config={lerAvatar(eu.avatar, eu.idUsuario)} altura={48} acao={resultado?.venceu ? "vitoria" : "parado"} />}
         <div className="min-w-0 flex-1">
@@ -183,13 +203,24 @@ export default function GamesControlePage() {
           {conexao === "conectado" ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
           {conexao === "conectado" ? "Conectado" : conexao === "fechada" ? "Sala fechada" : "Reconectando…"}
         </span>
+        <button type="button" aria-pressed={verJogo} aria-label={verJogo ? "Ver só o controle" : "Ver o jogo aqui"} title={verJogo ? "Ver só o controle" : "Ver o jogo aqui"}
+          onClick={() => { const v = !verJogo; setVerJogo(v); try { localStorage.setItem("nord-games-ver-jogo", v ? "1" : "0"); } catch { /* sem armazenamento */ } }}
+          className={`rounded-xl p-2 ${verJogo ? "bg-cyan-500/30" : "bg-white/10"}`}>{verJogo ? <Monitor className="h-5 w-5" /> : <MonitorOff className="h-5 w-5" />}</button>
+        <button type="button" onClick={() => { som.definirMudo(!mudo); setMudo(!mudo); }} aria-label={mudo ? "Ligar som" : "Desligar som"} className="rounded-xl bg-white/10 p-2">
+          {mudo ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+        </button>
         <button type="button" onClick={() => setPainel(true)} aria-label="Ajustar o controle" className="rounded-xl bg-white/10 p-2"><Settings2 className="h-5 w-5" /></button>
         <button type="button" onClick={() => { controles.tocar("pausa"); }} aria-label="Pausar" className="rounded-xl bg-white/10 p-2"><Pause className="h-5 w-5" /></button>
         <button type="button" onClick={sair} aria-label="Sair da sala" className="rounded-xl bg-white/10 p-2"><LogOut className="h-5 w-5" /></button>
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-        {conexao === "fechada" ? (
+        {conexao !== "fechada" && !resultado && verJogo && partidaEsp && fase !== "lobby" ? (
+          <div className="flex h-full w-full flex-col pt-1">
+            <TelaEspelho key={partidaEsp.numero} partida={partidaEsp} assinar={assinar} />
+            <p className="shrink-0 pb-1 text-[10px] text-white/40" aria-live="polite">{caminho === "direto" ? "Conexão direta pelo Wi-Fi" : "Pela internet (mais lento) · no mesmo Wi-Fi da tela fica mais fluido"}</p>
+          </div>
+        ) : conexao === "fechada" ? (
           <>
             <p className="text-2xl font-black">Sala encerrada</p>
             <p className="text-sm text-white/60">{motivo}</p>
