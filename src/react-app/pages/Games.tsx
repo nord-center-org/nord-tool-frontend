@@ -37,6 +37,7 @@ import type { ModoNaval } from "@/react-app/utils/games/naval";
 import type { ModoHorda } from "@/react-app/utils/games/horda";
 import type { ModoMasmorra } from "@/react-app/utils/games/masmorra";
 import type { Arena as ArenaCoroa, ModoCoroa } from "@/react-app/utils/games/coroa";
+import type { ModoEspacial, Setor } from "@/react-app/utils/games/espacial";
 import type { TemaMasmorra } from "@/react-app/components/games/jogos/masmorra/motorMasmorra";
 import type { CenarioHorda } from "@/react-app/components/games/jogos/horda/motorHorda";
 import type { ModoCartas } from "@/react-app/utils/games/cartas";
@@ -48,6 +49,7 @@ const SumoHexagonos = lazy(() => import("@/react-app/components/games/jogos/hexa
 const EncaixeVersus = lazy(() => import("@/react-app/components/games/jogos/encaixe/EncaixeVersus"));
 const DueloMeioDia = lazy(() => import("@/react-app/components/games/jogos/duelo/DueloMeioDia"));
 const CartasDaVirada = lazy(() => import("@/react-app/components/games/jogos/cartas/CartasDaVirada"));
+const CorridaEspacial = lazy(() => import("@/react-app/components/games/jogos/espacial/CorridaEspacial"));
 const CoroaMaldita = lazy(() => import("@/react-app/components/games/jogos/coroa/CoroaMaldita"));
 const FugaMasmorra = lazy(() => import("@/react-app/components/games/jogos/masmorra/FugaMasmorra"));
 const HordaZumbi = lazy(() => import("@/react-app/components/games/jogos/horda/HordaZumbi"));
@@ -369,6 +371,10 @@ export default function GamesPage() {
       ) : partida.jogo === "cartas" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
           <CartasDaVirada key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoCartas} mesa={partida.cenario as MesaCartas} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "espacial" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <CorridaEspacial key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoEspacial} setor={partida.cenario as Setor} {...comuns} />
         </Suspense>
       ) : partida.jogo === "coroa" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>

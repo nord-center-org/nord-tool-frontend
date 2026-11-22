@@ -90,9 +90,9 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "espacial", nome: "Corrida Espacial", resumo: "Inércia, propulsores, lasers e a gravidade dos planetas.",
-    categoria: "Corrida", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 6, disponivel: false, modos: ["Corrida", "Asteroides", "Coleta"],
-    regras: ["A nave mantém o embalo (inércia).", "Planetas puxam a nave.", "Lasers quebram asteroides.", "Núcleos de energia dão pontos."],
-    controles: CONTROLES_PADRAO, cores: ["#020617", "#6366f1", "#f0abfc"], motivo: "estrelas",
+    categoria: "Corrida", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 6, disponivel: true, modos: ["Corrida", "Asteroides", "Coleta"],
+    regras: ["Naves com inércia: girar, acelerar e frear; o espaço dá a volta nas bordas.", "Planetas puxam pela gravidade; bater num planeta explode a nave (volta em 2 s).", "Laser atordoa outra nave por 1 s e quebra asteroides.", "Corrida: anéis na ordem, 2 voltas. Asteroides: mais pontos em 90 s. Coleta: mais cristais em 90 s.", "Sozinho: contra o relógio, meta de pontos ou de cristais."],
+    controles: ["←/→: girar", "Espaço/Z ou ↑: acelerar", "↓: frear", "X: laser"], cores: ["#020617", "#6366f1", "#f0abfc"], motivo: "estrelas",
   },
   {
     id: "torres", nome: "Torres em Colapso", resumo: "Construa e derrube: balística com vento e materiais.",
