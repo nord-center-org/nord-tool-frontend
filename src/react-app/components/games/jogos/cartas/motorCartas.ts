@@ -321,11 +321,15 @@ export function criarMotorCartas(caixa: HTMLDivElement, vagas: VagaJogo[], modo:
         desenharCarta(ctx, v.carta, v.de.x + (v.para.x - v.de.x) * q - lc / 2, v.de.y + (v.para.y - v.de.y) * q - lc * 0.75, lc);
       }
       // Balões.
+      const pilha = new Map<number, number>();
       for (let i = baloes.length - 1; i >= 0; i--) {
         const b = baloes[i];
         b.t += dt;
         if (b.t > 1.6) { baloes.splice(i, 1); continue; }
-        const p = pos[b.quem];
+        // Balões do mesmo jogador empilham em vez de se sobrepor.
+        const nivel = pilha.get(b.quem) ?? 0;
+        pilha.set(b.quem, nivel + 1);
+        const p = { x: pos[b.quem].x, y: pos[b.quem].y - nivel * Math.max(18, lc * 0.65) };
         ctx.globalAlpha = Math.min(1, (1.6 - b.t) * 3);
         ctx.font = `900 ${Math.max(16, lc * 0.6)}px system-ui, sans-serif`;
         ctx.textAlign = "center";
