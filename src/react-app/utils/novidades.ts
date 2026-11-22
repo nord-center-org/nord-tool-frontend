@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-22-games-v14",
+    data: "2026-11-22",
+    titulo: "Games: Coroa Maldita, o pique-pega das plataformas",
+    texto: "Pule, use o pulo duplo, dê investidas e caia na cabeça dos rivais para roubar a coroa: vence quem ficar mais tempo com ela. No Pega-Pega, passe a bomba antes que ela exploda. De 1 a 8 jogadores, em três arenas.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-22-games-v13",
     data: "2026-11-22",
     titulo: "Games: Fuga da Masmorra, aventura em equipe",
