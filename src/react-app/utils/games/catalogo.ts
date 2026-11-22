@@ -114,7 +114,7 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "mineracao", nome: "Corrida do Ouro", resumo: "Cave, use dinamite, cuide da carga e entregue no carrinho.",
-    categoria: "Estratégia", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 7, disponivel: false, modos: ["Corrida", "Sobrevivência"],
+    categoria: "Estratégia", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 7, disponivel: true, modos: ["Corrida", "Sobrevivência"],
     regras: ["Picareta e dinamite.", "Carga pesada deixa lento.", "Desmoronamentos."], controles: CONTROLES_PADRAO,
     cores: ["#292524", "#eab308", "#fef08a"], motivo: "picareta",
   },
