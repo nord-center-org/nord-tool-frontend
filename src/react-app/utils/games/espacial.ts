@@ -132,13 +132,21 @@ function decidirBot(e: EstadoEspacial, n: Nave): { giro: -1 | 0 | 1; acelera: bo
   const nivelVel = nivel === "facil" ? 0.12 : nivel === "medio" ? 0.17 : 0.22;
   const dx = delta(n.x, alvo.x, W), dy = delta(n.y, alvo.y, H), d = Math.max(0.01, Math.hypot(dx, dy));
   const vd = Math.min(nivelVel, 0.03 + d * 0.025);
-  let desx = (dx / d) * vd, desy = (dy / d) * vd;
+  // Asteroides: chega a uns 4 de distância e fica parado mirando (encostar explode).
+  const atirador = e.modo === "asteroides";
+  const sinal = atirador ? (d < 3.5 ? -1 : d < 5 ? 0 : 1) : 1;
+  let desx = (dx / d) * vd * sinal, desy = (dy / d) * vd * sinal;
+  for (const r of atirador ? e.rochas : []) {
+    const rx = delta(n.x, r.x, W), ry = delta(n.y, r.y, H), dr = Math.max(0.01, Math.hypot(rx, ry));
+    if (dr < 2.5 + r.r) { desx -= (rx / dr) * 0.15; desy -= (ry / dr) * 0.15; }
+  }
   for (const p of SETORES[e.setor].planetas) {
     const px = delta(n.x, p.x, W), py = delta(n.y, p.y, H), dp = Math.max(0.01, Math.hypot(px, py));
     if (dp < p.r + 3.6) { const f = 0.4 * (1 - (dp - p.r) / 3.6) ** 0.7; desx -= (px / dp) * f; desy -= (py / dp) * f; }
   }
   const sx = desx - n.vx, sy = desy - n.vy, sm = Math.hypot(sx, sy);
-  const quer = Math.atan2(sy, sx);
+  // Perto e com pouca correção a fazer, o atirador vira o bico para a rocha.
+  const quer = atirador && d < 6 && sm < 0.05 ? Math.atan2(dy, dx) : Math.atan2(sy, sx);
   let dif = quer - n.ang;
   while (dif > Math.PI) dif -= Math.PI * 2;
   while (dif < -Math.PI) dif += Math.PI * 2;
@@ -146,7 +154,7 @@ function decidirBot(e: EstadoEspacial, n: Nave): { giro: -1 | 0 | 1; acelera: bo
   const vel = Math.hypot(n.vx, n.vy);
   const contra = n.vx * desx + n.vy * desy < 0;
   const atira = e.modo !== "corrida" && Math.abs(dif) < 0.25 && (e.modo === "asteroides" ? e.sorteio() < 0.4 : e.naves.some(o => o.id !== n.id && distW(n, o) < 5 && e.sorteio() < 0.1));
-  return { giro: Math.abs(dif) < 0.05 ? 0 : dif > 0 ? 1 : -1, acelera: sm > 0.01 && Math.abs(dif) < tolera, freia: (contra && vel > 0.05) || vel > nivelVel * 1.3, atira };
+  return { giro: Math.abs(dif) < 0.05 ? 0 : dif > 0 ? 1 : -1, acelera: sm > (atirador ? 0.04 : 0.01) && Math.abs(dif) < tolera, freia: (contra && vel > 0.05) || vel > nivelVel * 1.3, atira };
 }
 
 // ---------------------------------------------------------------- passo
