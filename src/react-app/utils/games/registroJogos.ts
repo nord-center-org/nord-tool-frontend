@@ -79,6 +79,17 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Mesa",
     botoes: { a: "Jogar", b: "Comprar" },
   },
+  horda: {
+    id: "horda",
+    modos: [
+      { valor: "ondas", rotulo: "Ondas (até a 10ª)", rotuloSolo: "Ondas (até a 5ª)", regraSolo: "sobreviva a 5 ondas de zumbis." },
+      { valor: "resgate", rotulo: "Resgate", rotuloSolo: "Resgate", regraSolo: "leve os 3 sobreviventes ao centro da casa." },
+      { valor: "chefe", rotulo: "Chefão", rotuloSolo: "Chefão", regraSolo: "aguente 3 ondas e derrube o chefão." },
+    ],
+    cenarios: [{ valor: "bairro", rotulo: "Bairro à noite" }, { valor: "fazenda", rotulo: "Fazenda" }, { valor: "hospital", rotulo: "Hospital" }],
+    rotuloCenario: "Lugar",
+    botoes: { a: "Atirar", b: "Usar" },
+  },
   naval: {
     id: "naval",
     modos: [

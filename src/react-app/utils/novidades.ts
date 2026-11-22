@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-22-games-v12",
+    data: "2026-11-22",
+    titulo: "Games: Horda Zumbi, sobrevivência em equipe",
+    texto: "De 1 a 8 jogadores defendendo a casa à noite, só com a luz das lanternas: conserte as barricadas, compre armas nas bancadas e levante os amigos caídos. Modos Ondas, Resgate e Chefão, com bots que ajudam de verdade.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-22-games-v11",
     data: "2026-11-22",
     titulo: "Games: o jogo inteiro no seu celular",
