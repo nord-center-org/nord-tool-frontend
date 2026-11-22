@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-22-games-v9",
+    data: "2026-11-22",
+    titulo: "Games: Cartas da Virada, com a mão no seu celular",
+    texto: "O jogo de descarte por cor ou número de 2 a 8 na mesa: Pular, Inverter, +2, Coringa e +4, e não esqueça de avisar VIRADA! na última carta. Modos Clássico, Empilhamento Caótico (acumula +2/+4, o 7 troca e o 0 gira as mãos) e Rápido. Jogando pelo celular, a sua mão aparece só no seu aparelho.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-22-games-v8",
     data: "2026-11-22",
     titulo: "Games: Guerra Naval com até 8 frotas",

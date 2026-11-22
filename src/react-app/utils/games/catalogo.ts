@@ -47,10 +47,10 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "cartas", nome: "Cartas da Virada", resumo: "Descarte por cor ou número, acumule castigos e avise a última carta.",
-    categoria: "Cartas", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 5, disponivel: false,
+    categoria: "Cartas", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 5, disponivel: true,
     modos: ["Clássico", "Empilhamento Caótico", "Modo Rápido"],
-    regras: ["Jogue uma carta da mesma cor, número ou símbolo.", "+2 e +4 acumulam no modo Empilhamento.", "Bloqueio, Inverter, Troca de Mãos e Coringa.", "Esqueceu de avisar a última carta? Compra 2.", "Sozinho, joga contra bots que completam a mesa."],
-    controles: ["Toque/Setas: escolher carta", "Espaço: jogar", "X: avisar última carta"], cores: ["#1e1b4b", "#e11d48", "#facc15"], motivo: "cartas",
+    regras: ["Descarte uma carta da mesma cor, número ou símbolo; Coringa troca a cor e o +4 só vale sem carta da cor da mesa.", "Sem jogada, compre uma: se servir, pode jogá-la na hora.", "Pular, Inverter e +2/+4 (o próximo compra e perde a vez).", "Ficou com 1 carta? Avise VIRADA! (↑) a tempo ou compre 2.", "Caótico: +2/+4 acumulam, 7 troca a mão com quem tem menos e 0 gira as mãos. Rápido: 5 cartas e 8 s.", "No celular, a sua mão aparece só para você; sozinho, contra 3 bots."],
+    controles: ["←/→: escolher carta (ou cor)", "Espaço/Z: jogar", "X: comprar ou passar", "↑: avisar VIRADA!"], cores: ["#1e1b4b", "#e11d48", "#facc15"], motivo: "cartas",
   },
   {
     id: "duelo", nome: "Duelo ao Meio-Dia", resumo: "Reflexo puro: finta, cobertura e o tiro no tempo exato.",

@@ -3,7 +3,7 @@ import { Pause, Play, RotateCcw, Volume2, VolumeX, X } from "lucide-react";
 import Avatar from "@/react-app/components/avatar/Avatar";
 import type { AvatarConfig } from "@/react-app/utils/avatar";
 import type { Dificuldade, Entrada } from "@/react-app/utils/games/bombas";
-import type { EntradasRemotas } from "@/react-app/utils/games/sala";
+import type { EntradasRemotas, MaoPrivada } from "@/react-app/utils/games/sala";
 import { iniciarLaco } from "../motor2d/laco";
 import { som } from "../audio/sintetizador";
 import { Controles, telaDeToque, vibrar } from "../entrada/entrada";
@@ -41,6 +41,8 @@ export interface GanchosMotor {
   morte(indice: number): void;
   /** Vibração curta para quem está na tela (ex.: pegou item). */
   vibrarLocal(indice: number, padrao: number | number[]): void;
+  /** Manda o que só esta vaga pode ver (a mão) para o celular dela; vagas sem celular ignoram. */
+  privado(indice: number, dados: MaoPrivada): void;
 }
 
 interface Props {
@@ -64,6 +66,8 @@ interface Props {
   remotas?: EntradasRemotas;
   onFase?: (f: FasePartida) => void;
   onMorte?: (indice: number) => void;
+  /** Dados privados de uma vaga (vão só para o celular dela). */
+  onPrivado?: (indice: number, dados: MaoPrivada) => void;
   /** Sozinho: rótulos do fim (cumpriu o desafio ou não). */
   textosSolo?: { venceu: string; perdeu: string };
 }
@@ -73,7 +77,7 @@ const VAZIA: Entrada = { direcao: null, a: false, b: false };
 /** Moldura comum das partidas: placar, contagem, rodadas, pausa, fim e controles (teclado, toque e celulares). */
 export default function MolduraPartida({
   titulo, modoRotulo, detalhe, vagas, vitoriasParaVencer, botoes, ajudaTeclado, bpm = 128, criarMotor, onSair, onFim, avisoFim, acaoFim,
-  subtitulo, remotas, onFase, onMorte, textosSolo = { venceu: "🏆 Desafio cumprido!", perdeu: "Não foi dessa vez!" },
+  subtitulo, remotas, onFase, onMorte, onPrivado, textosSolo = { venceu: "🏆 Desafio cumprido!", perdeu: "Não foi dessa vez!" },
 }: Props) {
   const caixa = useRef<HTMLDivElement>(null);
   const motor = useRef<MotorJogo | null>(null);
@@ -99,6 +103,8 @@ export default function MolduraPartida({
   onFaseRef.current = onFase;
   const onMorteRef = useRef(onMorte);
   onMorteRef.current = onMorte;
+  const onPrivadoRef = useRef(onPrivado);
+  onPrivadoRef.current = onPrivado;
   const criarRef = useRef(criarMotor);
   criarRef.current = criarMotor;
   const local = useMemo(() => vagas.findIndex(v => !v.bot && v.controle === undefined), [vagas]);
@@ -125,6 +131,7 @@ export default function MolduraPartida({
     const m = criarRef.current(el, {
       morte: i => { if (i === local) vibrar([60, 40, 120]); onMorteRef.current?.(i); },
       vibrarLocal: (i, p) => { if (i === local) vibrar(p); },
+      privado: (i, d) => onPrivadoRef.current?.(i, d),
     });
     motor.current = m;
     m.iniciarRodada();

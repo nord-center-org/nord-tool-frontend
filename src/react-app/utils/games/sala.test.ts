@@ -55,3 +55,15 @@ test("avisos da tela são validados", () => {
 test("espera para reconectar cresce até 10 s", () => {
   assert.deepEqual([0, 1, 2, 3, 4, 9].map(esperaDaTentativa), [1000, 2000, 4000, 8000, 10000, 10000]);
 });
+
+test("aviso da mão: só cartas válidas, seleção dentro da mão e cor conhecida", () => {
+  const a = lerAviso({ k: "mao", c: ["r5", "w+4", "x9", "<b>", "gP", 7], sel: 99, vez: true, topo: "b+2", cor: "z", info: "x".repeat(200) });
+  assert.ok(a && a.k === "mao");
+  if (a?.k !== "mao") return;
+  assert.deepEqual(a.c, ["r5", "w+4", "gP"]);
+  assert.equal(a.sel, 2);
+  assert.equal(a.topo, "b+2");
+  assert.equal(a.cor, "r");
+  assert.equal(a.info?.length, 80);
+  assert.equal(a.escolhendoCor, null);
+});
