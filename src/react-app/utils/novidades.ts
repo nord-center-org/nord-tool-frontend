@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-22-games-v13",
+    data: "2026-11-22",
+    titulo: "Games: Fuga da Masmorra, aventura em equipe",
+    texto: "Uma masmorra nova a cada partida: salas que trancam até vencer os monstros, baús com melhorias, espinhos, a chave escondida e o guardião no fim. Espada e esquiva, de 1 a 8 jogadores, e o Desafio Diário com a mesma masmorra para todo mundo.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-22-games-v12",
     data: "2026-11-22",
     titulo: "Games: Horda Zumbi, sobrevivência em equipe",

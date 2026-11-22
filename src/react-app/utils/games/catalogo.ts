@@ -78,9 +78,9 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "masmorra", nome: "Fuga da Masmorra", resumo: "Roguelite rápido: salas aleatórias, chaves, armadilhas e chefe.",
-    categoria: "Aventura", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 6, disponivel: false, modos: ["Fuga", "Desafio Diário"],
-    regras: ["Salas geradas a cada partida.", "Chaves abrem portas e baús.", "Armadilhas e padrões de inimigos.", "Derrote o chefe para escapar.", "Até 8 na mesma masmorra: as salas crescem com o grupo."],
-    controles: CONTROLES_PADRAO, cores: ["#1c1917", "#a8a29e", "#f59e0b"], motivo: "masmorra",
+    categoria: "Aventura", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 6, disponivel: true, modos: ["Fuga", "Desafio Diário"],
+    regras: ["Masmorra sorteada: salas ligadas por portas, do início até o guardião.", "Entrou em sala com monstros, as portas trancam até todos caírem.", "A sala do guardião só abre com a chave, que fica fora do caminho principal.", "Baús dão melhorias (vida, dano, velocidade); espinhos sobem e descem.", "Quem zera vira fantasma e volta quando a sala for limpa; todos fantasmas = fim.", "Desafio Diário: a mesma masmorra para todo mundo no dia."],
+    controles: ["Setas: andar", "Espaço/Z: espada", "X: esquiva"], cores: ["#1c1917", "#a8a29e", "#f59e0b"], motivo: "masmorra",
   },
   {
     id: "coroa", nome: "Coroa Maldita", resumo: "Pique-pega vertical: fique com a coroa até o tempo acabar.",

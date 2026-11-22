@@ -79,6 +79,16 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Mesa",
     botoes: { a: "Jogar", b: "Comprar" },
   },
+  masmorra: {
+    id: "masmorra",
+    modos: [
+      { valor: "fuga", rotulo: "Fuga", rotuloSolo: "Fuga", regraSolo: "ache a chave e derrote o guardião sem virar fantasma." },
+      { valor: "diario", rotulo: "Desafio Diário", rotuloSolo: "Desafio Diário", regraSolo: "a mesma masmorra para todo mundo hoje." },
+    ],
+    cenarios: [{ valor: "pedra", rotulo: "Pedra" }, { valor: "gelo", rotulo: "Gelo" }, { valor: "lava", rotulo: "Fornalha" }],
+    rotuloCenario: "Masmorra",
+    botoes: { a: "Espada", b: "Esquiva" },
+  },
   horda: {
     id: "horda",
     modos: [
