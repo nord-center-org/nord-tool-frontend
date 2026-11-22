@@ -58,6 +58,16 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Tema",
     botoes: { a: "Girar", b: "Guardar" },
   },
+  duelo: {
+    id: "duelo",
+    modos: [
+      { valor: "duelo", rotulo: "Duelo (todos juntos)", rotuloSolo: "Treino de reflexo", regraSolo: "5 sinais; acerte todos com média abaixo de 450 ms." },
+      { valor: "torneio", rotulo: "Torneio (1 × 1)" },
+    ],
+    cenarios: [{ valor: "meiodia", rotulo: "Meio-dia" }, { valor: "poente", rotulo: "Pôr do sol" }, { valor: "lua", rotulo: "Lua cheia" }],
+    rotuloCenario: "Cenário",
+    botoes: { a: "Atirar", b: "—" },
+  },
 };
 
 export const ehJogavel = (id: string) => id in JOGAVEIS;
