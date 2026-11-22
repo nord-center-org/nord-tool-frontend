@@ -63,7 +63,7 @@ export function criarMotorMasmorra(caixa: HTMLDivElement, vagas: VagaJogo[], mod
           if (ev.inimigo === "chefe") som.vitoria(); else som.bloco();
           break;
         case "ferido": ganchos.vibrarLocal(ev.jogador, 50); tremor = 0.15; som.alerta(); break;
-        case "fantasma": som.morte(); ganchos.morte(ev.jogador); faixa = { texto: `${vagas[ev.jogador].nome} virou fantasma — limpem a sala para trazê-lo de volta`, cor: "#c4b5fd", t: 0 }; break;
+        case "fantasma": som.morte(); ganchos.morte(ev.jogador); faixa = { texto: `${vagas[ev.jogador].nome} virou fantasma`, cor: "#c4b5fd", t: 0 }; break;
         case "voltou": som.escudo(); break;
         case "sala": som.colocar(); if (ev.tipoSala === "tesouro") faixa = { texto: "Sala do tesouro", cor: "#fde047", t: 0 }; break;
         case "trancou": faixa = { texto: "As portas trancaram!", cor: "#f87171", t: 0 }; som.alerta(); break;
@@ -163,7 +163,10 @@ export function criarMotorMasmorra(caixa: HTMLDivElement, vagas: VagaJogo[], mod
     const x0 = w - c * 5.6 - 6, y0 = 6;
     ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(x0 - 4, y0 - 4, c * 5.6 + 8, c * 4.6 + 8);
     e.salas.forEach((s, i) => {
-      const viz = s.visitada || e.salas.some(o => o.visitada && Math.abs(o.gx - s.gx) + Math.abs(o.gy - s.gy) === 1);
+      // Aparece a sala visitada e as vizinhas que têm porta para uma visitada.
+      const porta = (o: typeof s) => (o.gx === s.gx + 1 && o.gy === s.gy && o.portas.l) || (o.gx === s.gx - 1 && o.gy === s.gy && o.portas.o)
+        || (o.gy === s.gy + 1 && o.gx === s.gx && o.portas.n) || (o.gy === s.gy - 1 && o.gx === s.gx && o.portas.s);
+      const viz = s.visitada || e.salas.some(o => o.visitada && porta(o));
       if (!viz) return;
       ctx.fillStyle = i === e.atual ? "#fafafa" : !s.visitada ? "#44403c" : s.tipo === "chefe" ? "#dc2626" : s.tipo === "chave" ? "#facc15" : s.tipo === "tesouro" ? "#f59e0b" : "#a8a29e";
       ctx.fillRect(x0 + s.gx * c * 1.1, y0 + s.gy * c * 1.1, c, c);

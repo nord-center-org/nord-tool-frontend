@@ -166,7 +166,7 @@ function povoar(e: EstadoMasmorra, s: Sala) {
   const n = e.jogadores.length;
   const nivel = Math.min(4, Math.abs(s.gx - 2) + (GH - 1 - s.gy));
   if (s.tipo === "chefe") {
-    const hp = Math.round(40 * (0.6 + 0.4 * n));
+    const hp = Math.round(30 * (0.6 + 0.3 * n));
     e.inimigos.push({ id: e.proximoId++, tipo: "chefe", x: SW / 2, y: 2.5, hp, hpMax: hp, vx: 0, vy: 0, tiroEm: e.passo + 120, atordoadoAte: 0, fase: 0 });
     e.eventos.push({ tipo: "chefe" });
     return;
@@ -265,16 +265,16 @@ function passoInimigos(e: EstadoMasmorra) {
     } else {
       // Chefe: anda atrás, investe e solta anéis de ossos; na metade da vida chama morcegos.
       if (m.fase === 0 && m.hp < m.hpMax / 2) { m.fase = 1; for (let k = 0; k < 4; k++) e.inimigos.push({ id: e.proximoId++, tipo: "morcego", x: m.x, y: m.y, hp: 1, hpMax: 1, vx: 0, vy: 0, tiroEm: 0, atordoadoAte: e.passo + 30, fase: 0 }); }
-      if (e.passo % 240 < 40) mover(m, ((alvo.x - m.x) / d) * 0.12, ((alvo.y - m.y) / d) * 0.12, false, s, false, false);
+      if (e.passo % 360 < 30) mover(m, ((alvo.x - m.x) / d) * 0.1, ((alvo.y - m.y) / d) * 0.12, false, s, false, false);
       else mover(m, ((alvo.x - m.x) / d) * 0.02, ((alvo.y - m.y) / d) * 0.02, false, s, false, false);
       if (e.passo >= m.tiroEm) {
-        m.tiroEm = e.passo + (m.fase ? 120 : 170);
-        const n = m.fase ? 12 : 8;
+        m.tiroEm = e.passo + (m.fase ? 150 : 200);
+        const n = m.fase ? 10 : 6;
         for (let k = 0; k < n; k++) { const a = (k / n) * Math.PI * 2 + e.passo; e.projeteis.push({ x: m.x, y: m.y, vx: Math.cos(a) * 0.09, vy: Math.sin(a) * 0.09, vida: 200 }); }
       }
     }
     const raio = m.tipo === "chefe" ? 1.1 : 0.55;
-    for (const j of vivos) if (dist(m, j) < raio) ferir(e, j, m.tipo === "chefe" ? 2 : 1);
+    for (const j of vivos) if (dist(m, j) < raio) ferir(e, j, 1);
   }
   for (const p of e.projeteis) {
     p.x += p.vx; p.y += p.vy; p.vida--;
