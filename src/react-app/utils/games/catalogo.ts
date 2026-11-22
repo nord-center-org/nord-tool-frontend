@@ -66,9 +66,9 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "naval", nome: "Guerra Naval", resumo: "Esconda a frota, use o radar e afunde os navios rivais.",
-    categoria: "Estratégia", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 5, disponivel: false, modos: ["Clássico", "Salva", "Especiais"],
-    regras: ["Posicione os navios na grade.", "Um tiro por turno (ou salva).", "Especiais: sonar e bombardeio em cruz."],
-    controles: ["Toque/Setas: mirar", "Espaço: atirar", "X: especial"], cores: ["#0c4a6e", "#0ea5e9", "#e0f2fe"], motivo: "mar",
+    categoria: "Estratégia", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 5, disponivel: true, modos: ["Clássico", "Salva", "Especiais"],
+    regras: ["Cada frota tem 5 navios (5, 4, 3, 3 e 2) escondidos numa grade 10 × 10.", "Na sua vez, mire numa frota rival e atire: água, acerto ou afundou (o navio afundado é anunciado).", "Clássico: um tiro por vez. Salva: um tiro por navio seu de pé.", "Especiais: sonar (conta partes de navio num 3 × 3) e bombardeio em cruz, uma vez cada.", "Perdeu a frota inteira, está fora; vence a última frota. Sozinho: Caçada em até 60 tiros."],
+    controles: ["Setas: mirar (na borda, passa para a próxima frota)", "Espaço/Z: atirar", "X: trocar arma (Especiais) ou frota"], cores: ["#0c4a6e", "#0ea5e9", "#e0f2fe"], motivo: "mar",
   },
   {
     id: "horda", nome: "Horda Zumbi", resumo: "Visão de cima: lanterna, barricadas e ondas cada vez maiores.",

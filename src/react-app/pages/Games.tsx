@@ -29,11 +29,14 @@ import type { TemaEncaixe } from "@/react-app/components/games/jogos/encaixe/mot
 import type { ModoEncaixe } from "@/react-app/utils/games/encaixe";
 import type { ModoDuelo } from "@/react-app/utils/games/duelo";
 import type { CenarioDuelo } from "@/react-app/components/games/jogos/duelo/motorDuelo";
+import type { ModoNaval } from "@/react-app/utils/games/naval";
+import type { TemaNaval } from "@/react-app/components/games/jogos/naval/motorNaval";
 
 // O 3D (three.js) só carrega quando alguém abre um jogo 3D.
 const SumoHexagonos = lazy(() => import("@/react-app/components/games/jogos/hexagonos/SumoHexagonos"));
 const EncaixeVersus = lazy(() => import("@/react-app/components/games/jogos/encaixe/EncaixeVersus"));
 const DueloMeioDia = lazy(() => import("@/react-app/components/games/jogos/duelo/DueloMeioDia"));
+const GuerraNaval = lazy(() => import("@/react-app/components/games/jogos/naval/GuerraNaval"));
 
 const CHAVE_FAVORITOS = "@NordTool:games:favoritos";
 
@@ -305,6 +308,10 @@ export default function GamesPage() {
       ) : partida.jogo === "duelo" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
           <DueloMeioDia key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoDuelo} cenario={partida.cenario as CenarioDuelo} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "naval" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <GuerraNaval key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoNaval} tema={partida.cenario as TemaNaval} {...comuns} />
         </Suspense>
       ) : (
         <BombasTaticas key={partida.numero} vagas={partida.vagas} modo={partida.modo as Modo} bioma={partida.cenario as Bioma} {...comuns} />

@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-22-games-v8",
+    data: "2026-11-22",
+    titulo: "Games: Guerra Naval com até 8 frotas",
+    texto: "A batalha naval de turnos: esconda a frota, mire e afunde os navios rivais. Clássico (um tiro por vez), Salva (um tiro por navio de pé) e Especiais com sonar e bombardeio em cruz. Bots que caçam de verdade e, sozinho, a Caçada: afunde a frota escondida em até 60 tiros.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-21-games-v7",
     data: "2026-11-21",
     titulo: "Games: Duelo ao Meio-Dia, o saque mais rápido do Oeste",
