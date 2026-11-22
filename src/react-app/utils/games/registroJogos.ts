@@ -68,6 +68,17 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Cenário",
     botoes: { a: "Atirar", b: "—" },
   },
+  naval: {
+    id: "naval",
+    modos: [
+      { valor: "classico", rotulo: "Clássico (um tiro por vez)", rotuloSolo: "Caçada (afunde a frota)", regraSolo: "afunde os 5 navios escondidos em até 60 tiros." },
+      { valor: "salva", rotulo: "Salva (um tiro por navio)" },
+      { valor: "especiais", rotulo: "Especiais (sonar e cruz)" },
+    ],
+    cenarios: [{ valor: "oceano", rotulo: "Mar aberto" }, { valor: "noite", rotulo: "Noite de radar" }, { valor: "artico", rotulo: "Ártico" }],
+    rotuloCenario: "Mar",
+    botoes: { a: "Atirar", b: "Trocar" },
+  },
 };
 
 export const ehJogavel = (id: string) => id in JOGAVEIS;
