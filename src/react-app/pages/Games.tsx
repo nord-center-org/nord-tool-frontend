@@ -34,6 +34,8 @@ import type { ModoEncaixe } from "@/react-app/utils/games/encaixe";
 import type { ModoDuelo } from "@/react-app/utils/games/duelo";
 import type { CenarioDuelo } from "@/react-app/components/games/jogos/duelo/motorDuelo";
 import type { ModoNaval } from "@/react-app/utils/games/naval";
+import type { ModoHorda } from "@/react-app/utils/games/horda";
+import type { CenarioHorda } from "@/react-app/components/games/jogos/horda/motorHorda";
 import type { ModoCartas } from "@/react-app/utils/games/cartas";
 import type { MesaCartas } from "@/react-app/components/games/jogos/cartas/motorCartas";
 import type { TemaNaval } from "@/react-app/components/games/jogos/naval/motorNaval";
@@ -43,6 +45,7 @@ const SumoHexagonos = lazy(() => import("@/react-app/components/games/jogos/hexa
 const EncaixeVersus = lazy(() => import("@/react-app/components/games/jogos/encaixe/EncaixeVersus"));
 const DueloMeioDia = lazy(() => import("@/react-app/components/games/jogos/duelo/DueloMeioDia"));
 const CartasDaVirada = lazy(() => import("@/react-app/components/games/jogos/cartas/CartasDaVirada"));
+const HordaZumbi = lazy(() => import("@/react-app/components/games/jogos/horda/HordaZumbi"));
 const GuerraNaval = lazy(() => import("@/react-app/components/games/jogos/naval/GuerraNaval"));
 
 const CHAVE_FAVORITOS = "@NordTool:games:favoritos";
@@ -361,6 +364,10 @@ export default function GamesPage() {
       ) : partida.jogo === "cartas" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
           <CartasDaVirada key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoCartas} mesa={partida.cenario as MesaCartas} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "horda" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <HordaZumbi key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoHorda} cenario={partida.cenario as CenarioHorda} {...comuns} />
         </Suspense>
       ) : partida.jogo === "naval" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>

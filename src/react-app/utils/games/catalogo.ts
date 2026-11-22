@@ -72,9 +72,9 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "horda", nome: "Horda Zumbi", resumo: "Visão de cima: lanterna, barricadas e ondas cada vez maiores.",
-    categoria: "Cooperativo", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 6, disponivel: false, modos: ["Ondas", "Resgate", "Chefe"],
-    regras: ["Sobreviva às ondas.", "Compre melhorias entre ondas.", "Barricadas seguram a horda.", "Resgate aliados caídos."],
-    controles: CONTROLES_PADRAO, cores: ["#052e16", "#16a34a", "#d9f99d"], motivo: "zumbi",
+    categoria: "Cooperativo", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 6, disponivel: true, modos: ["Ondas", "Resgate", "Chefe"],
+    regras: ["Todos juntos contra ondas de zumbis cada vez maiores; a casa tem 4 portas com barricadas.", "Zumbis quebram as tábuas; segure B na porta para repor (cada tábua dá dinheiro).", "Abates dão dinheiro: compre arma, vida e dano nas bancadas da casa.", "Caiu? Um aliado segura B perto por 2 s para levantar; sem ajuda em 30 s, volta na próxima onda.", "Ondas: até a 10ª (sozinho, 5ª). Resgate: leve 3 sobreviventes ao centro. Chefão: 3 ondas e o gigante."],
+    controles: ["Setas: andar e mirar", "Espaço/Z: atirar (com mira assistida)", "X segurado: consertar, levantar aliado, comprar"], cores: ["#052e16", "#16a34a", "#d9f99d"], motivo: "zumbi",
   },
   {
     id: "masmorra", nome: "Fuga da Masmorra", resumo: "Roguelite rápido: salas aleatórias, chaves, armadilhas e chefe.",
