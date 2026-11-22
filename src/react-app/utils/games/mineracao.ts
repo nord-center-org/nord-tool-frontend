@@ -287,7 +287,9 @@ export function decisaoDoBot(e: EstadoMineracao, j: Mineiro): { direcao: Direcao
         const b = bloco(e, x, y);
         const d = dist[y * LW + x];
         if (!ehMinerio(b) || d === Infinity) continue;
-        const n = (d + Math.abs(x - faixa) * 0.8 + (y - CHAO) * 0.5) / (VALOR[b as Bloco] ?? 1);
+        // Minério já escolhido por outro bot (ou vizinho dele) fica bem menos atraente.
+        const disputado = e.jogadores.some(o => o.id !== j.id && o.alvo && Math.abs(o.alvo.x - x) + Math.abs(o.alvo.y - y) <= 3);
+        const n = (d + Math.abs(x - faixa) * 0.8 + (y - CHAO) * 0.5 + (disputado ? 40 : 0)) / (VALOR[b as Bloco] ?? 1);
         if (n < nota) { nota = n; alvo = y * LW + x; }
       }
       if (alvo >= 0) { j.alvo = { x: alvo % LW, y: Math.floor(alvo / LW) }; j.alvoDesde = e.passo; }
