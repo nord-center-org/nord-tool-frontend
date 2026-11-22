@@ -102,7 +102,7 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "defesa", nome: "Defesa de Base", resumo: "Engenheiros coletam, constroem torres e atiram juntos.",
-    categoria: "Cooperativo", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 7, disponivel: false, modos: ["Cooperativo", "Infinito"],
+    categoria: "Cooperativo", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 7, disponivel: true, modos: ["Cooperativo", "Infinito"],
     regras: ["Colete recursos no mapa.", "Erga torres nos pontos livres.", "Atire manualmente nas ondas."],
     controles: CONTROLES_PADRAO, cores: ["#172554", "#3b82f6", "#bfdbfe"], motivo: "muralha",
   },

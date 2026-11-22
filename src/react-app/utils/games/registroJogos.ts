@@ -79,6 +79,16 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Mesa",
     botoes: { a: "Jogar", b: "Comprar" },
   },
+  defesa: {
+    id: "defesa",
+    modos: [
+      { valor: "cooperativo", rotulo: "Cooperativo (10 ondas)", rotuloSolo: "Cooperativo (8 ondas)", regraSolo: "aguente 8 ondas; a última traz o chefão." },
+      { valor: "infinito", rotulo: "Infinito", rotuloSolo: "Infinito", regraSolo: "aguente o máximo de ondas; chefão a cada 5." },
+    ],
+    cenarios: [{ valor: "campo", rotulo: "Campo" }, { valor: "vulcao", rotulo: "Vulcão" }, { valor: "gelo", rotulo: "Geleira" }],
+    rotuloCenario: "Mapa",
+    botoes: { a: "Atirar", b: "Construir" },
+  },
   torres: {
     id: "torres",
     modos: [{ valor: "batalha", rotulo: "Batalha de torres", rotuloSolo: "Tiro ao alvo", regraSolo: "derrube 5 alvos em 12 tiros." }],

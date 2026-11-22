@@ -39,6 +39,8 @@ import type { ModoMasmorra } from "@/react-app/utils/games/masmorra";
 import type { Arena as ArenaCoroa, ModoCoroa } from "@/react-app/utils/games/coroa";
 import type { ModoEspacial, Setor } from "@/react-app/utils/games/espacial";
 import type { ModoTorres, Paisagem } from "@/react-app/utils/games/torres";
+import type { ModoDefesa } from "@/react-app/utils/games/defesa";
+import type { MapaDefesa } from "@/react-app/components/games/jogos/defesa/motorDefesa";
 import type { TemaMasmorra } from "@/react-app/components/games/jogos/masmorra/motorMasmorra";
 import type { CenarioHorda } from "@/react-app/components/games/jogos/horda/motorHorda";
 import type { ModoCartas } from "@/react-app/utils/games/cartas";
@@ -51,6 +53,7 @@ const EncaixeVersus = lazy(() => import("@/react-app/components/games/jogos/enca
 const DueloMeioDia = lazy(() => import("@/react-app/components/games/jogos/duelo/DueloMeioDia"));
 const CartasDaVirada = lazy(() => import("@/react-app/components/games/jogos/cartas/CartasDaVirada"));
 const TorresColapso = lazy(() => import("@/react-app/components/games/jogos/torres/TorresColapso"));
+const DefesaBase = lazy(() => import("@/react-app/components/games/jogos/defesa/DefesaBase"));
 const CorridaEspacial = lazy(() => import("@/react-app/components/games/jogos/espacial/CorridaEspacial"));
 const CoroaMaldita = lazy(() => import("@/react-app/components/games/jogos/coroa/CoroaMaldita"));
 const FugaMasmorra = lazy(() => import("@/react-app/components/games/jogos/masmorra/FugaMasmorra"));
@@ -373,6 +376,10 @@ export default function GamesPage() {
       ) : partida.jogo === "cartas" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
           <CartasDaVirada key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoCartas} mesa={partida.cenario as MesaCartas} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "defesa" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <DefesaBase key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoDefesa} mapa={partida.cenario as MapaDefesa} {...comuns} />
         </Suspense>
       ) : partida.jogo === "torres" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>

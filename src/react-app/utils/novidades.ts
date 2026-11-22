@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-22-games-v17",
+    data: "2026-11-22",
+    titulo: "Games: Defesa de Base, tower defense em equipe",
+    texto: "Juntem cristais, ergam torres de Flecha, Canhão e Gelo nos pontos de obra, melhorem até o nível 3 e atirem junto para segurar as ondas antes que cheguem à base. De 1 a 8; Cooperativo com chefão no fim ou Infinito.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-22-games-v16",
     data: "2026-11-22",
     titulo: "Games: Torres em Colapso, artilharia com vento",
