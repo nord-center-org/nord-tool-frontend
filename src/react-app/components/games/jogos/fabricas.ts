@@ -1,0 +1,35 @@
+import type { GanchosMotor, MotorJogo, VagaJogo } from "../comum/MolduraPartida";
+
+/** Cria o motor de um jogo (carregado sob demanda): usado pelo celular para desenhar o jogo que roda na tela. */
+export type FabricaMotor = (caixa: HTMLDivElement, vagas: VagaJogo[], modo: string, cenario: string, ganchos: GanchosMotor) => MotorJogo;
+
+export async function fabricaDoMotor(jogo: string): Promise<FabricaMotor | null> {
+  switch (jogo) {
+    case "bombas": {
+      const m = await import("./bombas/motorBombas");
+      return (c, v, modo, cen, g) => m.criarMotorBombas(c, v, modo as Parameters<typeof m.criarMotorBombas>[2], cen as Parameters<typeof m.criarMotorBombas>[3], g);
+    }
+    case "hexagonos": {
+      const m = await import("./hexagonos/motorHexagonos");
+      return (c, v, modo, cen, g) => m.criarMotorHexagonos(c, v, modo as Parameters<typeof m.criarMotorHexagonos>[2], cen as Parameters<typeof m.criarMotorHexagonos>[3], g);
+    }
+    case "encaixe": {
+      const m = await import("./encaixe/motorEncaixe");
+      return (c, v, modo, cen, g) => m.criarMotorEncaixe(c, v, modo as Parameters<typeof m.criarMotorEncaixe>[2], cen as Parameters<typeof m.criarMotorEncaixe>[3], g);
+    }
+    case "duelo": {
+      const m = await import("./duelo/motorDuelo");
+      return (c, v, modo, cen, g) => m.criarMotorDuelo(c, v, modo as Parameters<typeof m.criarMotorDuelo>[2], cen as Parameters<typeof m.criarMotorDuelo>[3], g);
+    }
+    case "naval": {
+      const m = await import("./naval/motorNaval");
+      return (c, v, modo, cen, g) => m.criarMotorNaval(c, v, modo as Parameters<typeof m.criarMotorNaval>[2], cen as Parameters<typeof m.criarMotorNaval>[3], g);
+    }
+    case "cartas": {
+      const m = await import("./cartas/motorCartas");
+      return (c, v, modo, cen, g) => m.criarMotorCartas(c, v, modo as Parameters<typeof m.criarMotorCartas>[2], cen as Parameters<typeof m.criarMotorCartas>[3], g);
+    }
+    default:
+      return null;
+  }
+}

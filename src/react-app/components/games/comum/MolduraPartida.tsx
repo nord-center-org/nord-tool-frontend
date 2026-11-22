@@ -4,6 +4,7 @@ import Avatar from "@/react-app/components/avatar/Avatar";
 import type { AvatarConfig } from "@/react-app/utils/avatar";
 import type { Dificuldade, Entrada } from "@/react-app/utils/games/bombas";
 import type { EntradasRemotas, MaoPrivada } from "@/react-app/utils/games/sala";
+import type { MetaEspelho } from "@/react-app/utils/games/espelho";
 import { iniciarLaco } from "../motor2d/laco";
 import { som } from "../audio/sintetizador";
 import { Controles, LeitorDaPartida, mostrarControleNaTela, vibrar } from "../entrada/entrada";
@@ -12,7 +13,7 @@ import ControleVirtual from "../entrada/ControleVirtual";
 import { CORES_JOGADORES } from "../central/sprites";
 
 /** Uma vaga da partida: bot, quem está na tela (teclado/toque) ou um celular da sala ({@code controle} = vaga na sala). */
-export interface VagaJogo { nome: string; bot: Dificuldade | null; avatar: AvatarConfig; controle?: number; /** Gamepad próprio nesta tela (2º, 3º… controle). */ gamepad?: number }
+export interface VagaJogo { nome: string; bot: Dificuldade | null; avatar: AvatarConfig; controle?: number; /** Gamepad próprio nesta tela (2º, 3º… controle). */ gamepad?: number; /** Esta tela é só desta vaga (o celular dela): pode mostrar o que é segredo dela. */ privada?: boolean }
 
 export type FasePartida = "contagem" | "jogando" | "fimRodada" | "fimPartida";
 
@@ -35,6 +36,12 @@ export interface MotorJogo {
   placar(): InfoPlacar;
   redimensionar(): void;
   destruir(): void;
+  /** Espelho (tela): o estado como a vaga {@code para} pode ver, já pronto para JSON (sem segredos dos outros). */
+  quadro?(para: number): unknown;
+  /** Espelho (tela): os eventos desde o último quadro (para os celulares tocarem sons e efeitos); esvazia a lista. */
+  tirarEventos?(): unknown[];
+  /** Espelho (celular): aplica um quadro recebido e roda os efeitos dos eventos. */
+  aplicar?(estado: unknown, eventos: unknown[]): void;
 }
 
 export interface GanchosMotor {
@@ -69,6 +76,11 @@ interface Props {
   onMorte?: (indice: number) => void;
   /** Dados privados de uma vaga (vão só para o celular dela). */
   onPrivado?: (indice: number, dados: MaoPrivada) => void;
+  /**
+   * Espelho: chamado ~30 vezes por segundo durante o jogo (e devagar fora dele) com o que os celulares precisam para
+   * desenhar a partida; {@code quadro(i)} dá o estado como a vaga i pode ver.
+   */
+  onQuadros?: (q: { n: number; eventos: unknown[]; meta: MetaEspelho; quadro: (i: number) => unknown }) => void;
   /** Sozinho: rótulos do fim (cumpriu o desafio ou não). */
   textosSolo?: { venceu: string; perdeu: string };
 }
@@ -77,7 +89,7 @@ interface Props {
 /** Moldura comum das partidas: placar, contagem, rodadas, pausa, fim e controles (teclado, toque e celulares). */
 export default function MolduraPartida({
   titulo, modoRotulo, detalhe, vagas, vitoriasParaVencer, botoes, ajudaTeclado, bpm = 128, criarMotor, onSair, onFim, avisoFim, acaoFim,
-  subtitulo, remotas, onFase, onMorte, onPrivado, textosSolo = { venceu: "🏆 Desafio cumprido!", perdeu: "Não foi dessa vez!" },
+  subtitulo, remotas, onFase, onMorte, onPrivado, onQuadros, textosSolo = { venceu: "🏆 Desafio cumprido!", perdeu: "Não foi dessa vez!" },
 }: Props) {
   const caixa = useRef<HTMLDivElement>(null);
   const motor = useRef<MotorJogo | null>(null);
@@ -106,6 +118,9 @@ export default function MolduraPartida({
   onMorteRef.current = onMorte;
   const onPrivadoRef = useRef(onPrivado);
   onPrivadoRef.current = onPrivado;
+  const onQuadrosRef = useRef(onQuadros);
+  onQuadrosRef.current = onQuadros;
+  const contagemRef = useRef(3);
   const criarRef = useRef(criarMotor);
   criarRef.current = criarMotor;
   const local = useMemo(() => vagas.findIndex(v => !v.bot && v.controle === undefined && v.gamepad === undefined), [vagas]);
@@ -142,6 +157,7 @@ export default function MolduraPartida({
   }, [local]);
 
   useEffect(() => {
+    contagemRef.current = contagem;
     if (fase !== "contagem") return;
     if (contagem <= 0) {
       som.contagem(true);
@@ -161,6 +177,24 @@ export default function MolduraPartida({
     controles.ligar();
     const leitor = new LeitorDaPartida(vagas, controles, local);
     let pausaAnterior = false;
+    let passos = 0;
+    let nQuadro = 0;
+    // Espelho: manda o quadro para os celulares (30/s jogando; 4/s parado, para as telas de contagem e fim).
+    const espelhar = (m: MotorJogo) => {
+      const cb = onQuadrosRef.current;
+      if (!cb || !m.quadro) return;
+      const ativo = faseRef.current === "jogando" && !pausadoRef.current;
+      if (passos % (ativo ? 2 : 15) !== 0) return;
+      cb({
+        n: ++nQuadro,
+        eventos: m.tirarEventos?.() ?? [],
+        meta: {
+          fase: faseRef.current, contagem: contagemRef.current, pausado: pausadoRef.current, rodada: rodadaRef.current,
+          vitorias: vitoriasRef.current, placar: m.placar(), ultimo: ultimoRef.current ? { vencedor: ultimoRef.current.vencedor, time: ultimoRef.current.time ?? null } : null,
+        },
+        quadro: i => m.quadro!(i),
+      });
+    };
     let ultimoPlacar = 0;
     let tempoTotal = 0;
     const atualizar = () => {
@@ -173,8 +207,10 @@ export default function MolduraPartida({
         if (pausadoRef.current) som.pararMusica(); else som.tocarMusica(bpm);
       }
       pausaAnterior = pausa;
-      if (faseRef.current !== "jogando" || pausadoRef.current) return;
+      passos++;
+      if (faseRef.current !== "jogando" || pausadoRef.current) { espelhar(m); return; }
       const fim = m.passo(entradas);
+      espelhar(m);
       if (!fim) return;
       som.pararMusica();
       ultimoRef.current = fim;

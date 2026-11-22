@@ -1,4 +1,5 @@
 import type { Entrada } from "@/react-app/utils/games/bombas";
+import { desserializar, serializar } from "@/react-app/utils/games/espelho";
 import {
   AVISO_PASSOS, CORES, NOME_COR, corDe, ehCoringa, novaPartidaCartas, passoCartas, podeJogar, pontosCartas, topo, valorDe,
   type Carta, type Cor, type EstadoCartas, type ModoCartas,
@@ -86,9 +87,11 @@ export function criarMotorCartas(caixa: HTMLDivElement, vagas: VagaJogo[], modo:
   caixa.appendChild(canvas);
   const ctx = canvas.getContext("2d")!;
   const tema = MESAS_CARTAS[mesa];
-  const local = vagas.findIndex(v => !v.bot && v.controle === undefined);
+  const privada = vagas.findIndex(v => v.privada);
+  const local = privada >= 0 ? privada : vagas.findIndex(v => !v.bot && v.controle === undefined && v.gamepad === undefined);
   let folhas: HTMLCanvasElement[] = [];
   let estado: EstadoCartas | null = null;
+  let pendentes: unknown[] = [];
   let w = 0, h = 0, tempo = 0, giro = 0;
   const voos: Voo[] = [];
   const baloes: { quem: number; texto: string; cor: string; t: number }[] = [];
@@ -182,6 +185,7 @@ export function criarMotorCartas(caixa: HTMLDivElement, vagas: VagaJogo[], modo:
       voos.length = 0;
       baloes.length = 0;
       enviados.clear();
+      pendentes = [];
       avisarCelulares(estado);
     },
     passo(entradas: Entrada[]) {
@@ -190,6 +194,7 @@ export function criarMotorCartas(caixa: HTMLDivElement, vagas: VagaJogo[], modo:
       if (e.terminado) return { vencedor: passoParaVencedor(e), pontos: pontosCartas(e) };
       passoCartas(e, entradas);
       tratarEventos(e);
+      if (pendentes.length < 400) pendentes.push(...e.eventos);
       avisarCelulares(e);
       if (e.terminado) return { vencedor: passoParaVencedor(e), pontos: pontosCartas(e) };
       return null;
@@ -354,6 +359,32 @@ export function criarMotorCartas(caixa: HTMLDivElement, vagas: VagaJogo[], modo:
       };
     },
     redimensionar,
+    quadro(para: number) {
+      const e = estado;
+      if (!e) return null;
+      // Cada um recebe só a própria mão; das outras, só quantas cartas têm. O monte vai só com o tamanho.
+      const esconder = (n: number) => Array.from({ length: n }, () => "x");
+      return serializar({
+        ...e,
+        jogadores: e.jogadores.map(j => (j.id === para || e.terminado ? j : { ...j, mao: esconder(j.mao.length) })),
+        monte: esconder(e.monte.length),
+        comprada: e.vez === para ? e.comprada : null,
+        eventos: [],
+      });
+    },
+    tirarEventos() {
+      const l = pendentes.map(x => serializar(x));
+      pendentes = [];
+      return l;
+    },
+    aplicar(s: unknown, eventos: unknown[]) {
+      const e = desserializar(s) as EstadoCartas | null;
+      if (!e || !Array.isArray(e.jogadores)) return;
+      if (estado && e.passo < estado.passo) { voos.length = 0; baloes.length = 0; }
+      estado = e;
+      e.eventos = eventos.map(x => desserializar(x)) as EstadoCartas["eventos"];
+      tratarEventos(e);
+    },
     destruir() { canvas.remove(); },
   };
 }

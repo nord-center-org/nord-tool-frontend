@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { desserializar, serializar } from "@/react-app/utils/games/espelho";
 import type { Entrada } from "@/react-app/utils/games/bombas";
 import {
   ALTURA_CAMADA, CAI_APOS, alturaDaCamada, camadaDoJogador, novaPartidaHex, passoHex, segundosRestantesHex, type EstadoHex, type EventoHex, type ModoHex,
@@ -58,6 +59,15 @@ export function criarMotorHexagonos(caixa: HTMLDivElement, vagas: VagaJogo[], mo
   const geoFaisca = new THREE.BoxGeometry(0.12, 0.12, 0.12);
 
   let estado: EstadoHex | null = null;
+  let pendentes: unknown[] = [];
+  function efeitosDoPasso(e: EstadoHex) {
+    let pisadas = 0;
+    for (const ev of e.eventos) {
+      if (ev.tipo === "pisou") pisadas++;
+      tratar(ev);
+    }
+    if (pisadas && Math.random() < 0.3) som.bloco();
+  }
   // Uma malha por camada (para apagar as de cima quando o jogo desce) e o endereço de cada piso nelas.
   let camadasMesh: THREE.InstancedMesh[] = [];
   let enderecos: { camada: number; local: number }[] = [];
@@ -156,6 +166,7 @@ export function criarMotorHexagonos(caixa: HTMLDivElement, vagas: VagaJogo[], mo
     iniciarRodada() {
       estado = novaPartidaHex({ modo, jogadores: vagas.map(v => ({ nome: v.nome, bot: v.bot })) });
       montarPisos(estado);
+      pendentes = [];
       anteriores.length = 0;
       estado.jogadores.forEach(j => anteriores.push({ x: j.x, y: j.y, z: j.z }));
       faiscas.splice(0).forEach(f => cena.remove(f.m));
@@ -166,12 +177,8 @@ export function criarMotorHexagonos(caixa: HTMLDivElement, vagas: VagaJogo[], mo
       if (!e) return null;
       e.jogadores.forEach((j, i) => { anteriores[i] = { x: j.x, y: j.y, z: j.z }; });
       passoHex(e, entradas);
-      let pisadas = 0;
-      for (const ev of e.eventos) {
-        if (ev.tipo === "pisou") pisadas++;
-        tratar(ev);
-      }
-      if (pisadas && Math.random() < 0.3) som.bloco();
+      efeitosDoPasso(e);
+      if (pendentes.length < 400) pendentes.push(...e.eventos);
       return e.terminado ? { vencedor: e.vencedor } : null;
     },
     desenhar(alfa: number, dt: number, fase: FasePartida, vencedor: number | null) {
@@ -274,6 +281,24 @@ export function criarMotorHexagonos(caixa: HTMLDivElement, vagas: VagaJogo[], mo
       };
     },
     redimensionar,
+    quadro() {
+      return estado ? serializar({ ...estado, eventos: [] }) : null;
+    },
+    tirarEventos() {
+      const l = pendentes.map(x => serializar(x));
+      pendentes = [];
+      return l;
+    },
+    aplicar(s: unknown, eventos: unknown[]) {
+      const e = desserializar(s) as EstadoHex | null;
+      if (!e || !Array.isArray(e.pisos) || !Array.isArray(e.jogadores)) return;
+      // Rodada nova (ou o primeiro quadro): monta o piso de novo.
+      if (!estado || estado.pisos.length !== e.pisos.length || e.passo < estado.passo) { montarPisos(e); anteriores.length = 0; }
+      e.jogadores.forEach((j, i) => { const a = estado?.jogadores[i]; anteriores[i] = a ? { x: a.x, y: a.y, z: a.z } : { x: j.x, y: j.y, z: j.z }; });
+      estado = e;
+      e.eventos = eventos.map(x => desserializar(x)) as EstadoHex["eventos"];
+      efeitosDoPasso(e);
+    },
     destruir() {
       camadasMesh.forEach(m => { (m.material as THREE.Material).dispose(); m.dispose(); });
       renderer.dispose();

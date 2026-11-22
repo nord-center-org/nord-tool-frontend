@@ -1,4 +1,5 @@
 import type { Entrada } from "@/react-app/utils/games/bombas";
+import { desserializar, serializar } from "@/react-app/utils/games/espelho";
 import {
   LIMITE_BATALHA, LIMITE_CACADA, N, TEMPO_VEZ, casasDaCruz, coordenadas, naviosDePe, novaPartidaNaval, passoNaval, pontosNaval,
   type EstadoNaval, type ModoNaval,
@@ -29,6 +30,9 @@ export function criarMotorNaval(caixa: HTMLDivElement, vagas: VagaJogo[], modo: 
   const t = TEMAS_NAVAL[tema];
   const folhas = vagas.map(v => folhaDoCorpo(v.avatar, `corpo-${JSON.stringify(v.avatar)}`));
   let estado: EstadoNaval | null = null;
+  let pendentes: unknown[] = [];
+  /** No celular de quem joga, a própria frota aparece (em nenhum outro lugar). */
+  const minha = vagas.findIndex(v => v.privada);
   let w = 0, h = 0, tempo = 0, tremor = 0;
   const parts: Particula[] = [];
   const avisos: { texto: string; cor: string; t: number; frota: number }[] = [];
@@ -192,11 +196,11 @@ export function criarMotorNaval(caixa: HTMLDivElement, vagas: VagaJogo[], modo: 
     // Navios afundados e, no fim, todos.
     const revelar = e.terminado;
     f.navios.forEach(n => {
-      if (!n.afundado && !revelar) return;
+      if (!n.afundado && !revelar && !(f.dono === minha && n.casas.length)) return;
       const [ax, ay] = coordenadas(n.casas[0]);
       const hor = n.casas.length > 1 && n.casas[1] - n.casas[0] === 1;
       const cx = x + (ax + (hor ? n.tam / 2 : 0.5)) * cel, cy = y + (ay + (hor ? 0.5 : n.tam / 2)) * cel;
-      casco(cx, cy, n.tam, hor, cel, n.afundado ? "#3f3f46" : "#94a3b8");
+      casco(cx, cy, n.tam, hor, cel, n.afundado ? "#3f3f46" : revelar ? "#94a3b8" : "rgba(148,163,184,.55)");
     });
     // Tiros.
     f.tiros.forEach((s, c) => {
@@ -275,6 +279,7 @@ export function criarMotorNaval(caixa: HTMLDivElement, vagas: VagaJogo[], modo: 
       parts.length = 0;
       avisos.length = 0;
       faixa = null;
+      pendentes = [];
       tratarEventos(estado);
     },
     passo(entradas: Entrada[]) {
@@ -282,6 +287,7 @@ export function criarMotorNaval(caixa: HTMLDivElement, vagas: VagaJogo[], modo: 
       if (!e || e.terminado) return e?.terminado ? { vencedor: e.vencedor, pontos: e.jogadores.map(j => pontosNaval(e, j)) } : null;
       passoNaval(e, entradas);
       tratarEventos(e);
+      if (pendentes.length < 400) pendentes.push(...e.eventos);
       if (e.terminado) return { vencedor: e.vencedor, pontos: e.jogadores.map(j => pontosNaval(e, j)) };
       return null;
     },
@@ -322,10 +328,11 @@ export function criarMotorNaval(caixa: HTMLDivElement, vagas: VagaJogo[], modo: 
       ctx.fillText(`${quem}${extra}${arma}`, 16, 26);
       if (e.modo !== "cacada") {
         const seg = Math.max(0, Math.ceil((LIMITE_BATALHA - e.passo) / 60));
-        ctx.font = "700 14px system-ui, sans-serif";
-        ctx.textAlign = "center";
+        const estreita = w < 760;
+        ctx.font = `700 ${estreita ? 11 : 14}px system-ui, sans-serif`;
+        ctx.textAlign = estreita ? "left" : "center";
         ctx.fillStyle = seg <= 60 ? "#f87171" : "rgba(226,232,240,.8)";
-        ctx.fillText(`Batalha: ${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, "0")}${seg <= 60 ? " · depois vence a frota mais inteira" : ""}`, w / 2, 26);
+        ctx.fillText(`Batalha: ${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, "0")}${seg <= 60 ? " · depois vence a frota mais inteira" : ""}`, estreita ? 16 : w / 2, estreita ? 45 : 26);
         ctx.textAlign = "left";
       }
       if (e.modo !== "cacada" && !j.bot && !e.terminado) {
@@ -383,6 +390,27 @@ export function criarMotorNaval(caixa: HTMLDivElement, vagas: VagaJogo[], modo: 
       };
     },
     redimensionar,
+    quadro(para: number) {
+      const e = estado;
+      if (!e) return null;
+      // Navios inteiros dos outros ficam escondidos (só a própria frota e os afundados vão; no fim, todos).
+      const frotas = e.frotas.map(f => (e.terminado || f.dono === para ? f
+        : { ...f, navios: f.navios.map(n => (n.afundado ? n : { ...n, casas: [] })) }));
+      return serializar({ ...e, frotas, eventos: [] });
+    },
+    tirarEventos() {
+      const l = pendentes.map(x => serializar(x));
+      pendentes = [];
+      return l;
+    },
+    aplicar(s: unknown, eventos: unknown[]) {
+      const e = desserializar(s) as EstadoNaval | null;
+      if (!e || !Array.isArray(e.frotas)) return;
+      if (estado && e.passo < estado.passo) { parts.length = 0; avisos.length = 0; faixa = null; }
+      estado = e;
+      e.eventos = eventos.map(x => desserializar(x)) as EstadoNaval["eventos"];
+      tratarEventos(e);
+    },
     destruir() { canvas.remove(); },
   };
 }

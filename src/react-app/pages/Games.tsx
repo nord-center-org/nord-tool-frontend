@@ -20,6 +20,8 @@ import { useAuth } from "@/react-app/hooks/useAuth";
 import { avatarService } from "@/react-app/services/AvatarService";
 import { gamesService, salasService, type GameRegistro } from "@/react-app/services/GamesService";
 import { EntradasRemotas, type JogadorSala, type MaoPrivada } from "@/react-app/utils/games/sala";
+import type { MetaEspelho } from "@/react-app/utils/games/espelho";
+import { TransmissorEspelho } from "@/react-app/components/games/rede/Espelho";
 import { lerAvatar } from "@/react-app/utils/avatar";
 import { classificacao, colocacoes, novaCopa, registrarPartida, resumoDaCopa, terminou, type Copa } from "@/react-app/utils/games/copa";
 import { pontosBombas } from "@/react-app/utils/games/pontuacao";
@@ -120,6 +122,9 @@ export default function GamesPage() {
     return () => { window.removeEventListener("gamepadconnected", atualizar); window.removeEventListener("gamepaddisconnected", atualizar); window.clearInterval(t); };
   }, []);
   const clienteSala = useRef<ClienteSala | null>(null);
+  // Espelho: o jogo inteiro em cada celular (conexão direta pelo Wi-Fi ou, na falta dela, pela sala).
+  const transmissor = useRef<TransmissorEspelho | null>(null);
+  const conectadosEspelho = useRef(new Set<number>());
   const remotas = useMemo(() => new EntradasRemotas(), []);
   const vagasDaCopa = useRef<VagaBombas[]>([]);
 
@@ -183,12 +188,21 @@ export default function GamesPage() {
       const ingresso = await salasService.criar(jogoAtual);
       if (!ingresso) throw new Error("Não deu para abrir a sala");
       clienteSala.current?.fechar();
+      transmissor.current?.fechar();
+      conectadosEspelho.current.clear();
+      transmissor.current = new TransmissorEspelho(msg => clienteSala.current?.enviar(msg));
       setSala({ codigo: ingresso.codigo, estado: "conectando", jogadores: [] });
       clienteSala.current = new ClienteSala(ingresso, m => {
         if (m.t === "entrada") remotas.receber(Number(m.vaga), m.d);
+        else if (m.t === "sinal") void transmissor.current?.receberSinal(Number(m.vaga), m.d);
         else if (m.t === "sala" || m.t === "jogadores") {
           const lista = (m.jogadores as JogadorSala[]) ?? [];
           lista.filter(j => !j.conectado).forEach(j => remotas.soltar(j.vaga));
+          // Conexão direta com cada celular que entrou (ou voltou); fecha a de quem saiu.
+          const agora = new Set(lista.filter(j => j.vaga > 0 && j.conectado).map(j => j.vaga));
+          agora.forEach(v => { if (!conectadosEspelho.current.has(v)) void transmissor.current?.conectar(v); });
+          conectadosEspelho.current.forEach(v => { if (!agora.has(v)) transmissor.current?.desconectar(v); });
+          conectadosEspelho.current = agora;
           setSala(atual => atual && { ...atual, jogadores: lista });
         }
       }, (estado, motivo) => {
@@ -201,6 +215,9 @@ export default function GamesPage() {
   };
 
   const fecharSala = () => {
+    transmissor.current?.fechar();
+    transmissor.current = null;
+    conectadosEspelho.current.clear();
     clienteSala.current?.fechar({ t: "fechar" });
     clienteSala.current = null;
     setSala(null);
@@ -231,8 +248,15 @@ export default function GamesPage() {
     const jogo = numero === 1 || !copa ? jogoAtual : jogoDaCopa.current;
     daPartida.forEach((v, i) => { if (v.controle !== undefined) paraVaga(v.controle, { k: "lugar", indice: i, cor: CORES_JOGADORES[i], jogo }); });
     const n = daPartida.length;
+    const modo = modoEfetivo(jogo, cfg.modo, n);
+    const vitorias = n === 1 ? 1 : cfg.vitorias;
+    // Cada celular recebe o que precisa para desenhar o mesmo jogo (nome, avatar e se é bot; nada da conta).
+    const vagasEspelho = daPartida.map(v => ({ nome: v.nome, bot: v.bot, avatar: v.avatar }));
+    daPartida.forEach((v, i) => {
+      if (v.controle !== undefined) transmissor.current?.partida(v.controle, { jogo, modo, cenario: cfg.cenario, vagas: vagasEspelho, eu: i, vitoriasParaVencer: vitorias, numero });
+    });
     // Sozinho: cada tentativa é uma partida; Times só com número par.
-    setPartida({ jogo, vagas: daPartida, modo: modoEfetivo(jogo, cfg.modo, n), cenario: cfg.cenario, vitorias: n === 1 ? 1 : cfg.vitorias, dificuldade: cfg.dificuldade, inicio: Date.now(), numero });
+    setPartida({ jogo, vagas: daPartida, modo, cenario: cfg.cenario, vitorias, dificuldade: cfg.dificuldade, inicio: Date.now(), numero });
   };
 
   const jogar = () => {
@@ -310,6 +334,9 @@ export default function GamesPage() {
       onFim: aoTerminar,
       remotas: sala ? remotas : undefined,
       onFase: (f: FaseBombas) => paraTodos({ k: "fase", fase: f }),
+      onQuadros: sala ? (q: { n: number; eventos: unknown[]; meta: MetaEspelho; quadro: (i: number) => unknown }) => {
+        partida.vagas.forEach((v, i) => { if (v.controle !== undefined) transmissor.current?.quadro(v.controle, { n: q.n, s: q.quadro(i), ev: q.eventos, m: q.meta }); });
+      } : undefined,
       onPrivado: (i: number, d: MaoPrivada) => { const v = partida.vagas[i]; if (v?.controle !== undefined) paraVaga(v.controle, { k: "mao", ...d }); },
       onMorte: (i: number) => { const v = partida.vagas[i]; if (v?.controle !== undefined) paraVaga(v.controle, { k: "vibrar", ms: 300, texto: "Você caiu!" }); },
       subtitulo: copa ? `Copa · partida ${Math.min(copa.rodadas, partida.numero)} de ${copa.rodadas}` : undefined,

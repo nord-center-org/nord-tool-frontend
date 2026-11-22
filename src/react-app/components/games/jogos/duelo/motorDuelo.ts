@@ -1,4 +1,5 @@
 import type { Entrada } from "@/react-app/utils/games/bombas";
+import { desserializar, serializar } from "@/react-app/utils/games/espelho";
 import { mediaReacao, novaPartidaDuelo, passoDuelo, pontosDuelo, type EstadoDuelo, type ModoDuelo } from "@/react-app/utils/games/duelo";
 import type { FasePartida, GanchosMotor, MotorJogo, VagaJogo } from "../../comum/MolduraPartida";
 import { som } from "../../audio/sintetizador";
@@ -165,6 +166,32 @@ export function criarMotorDuelo(caixa: HTMLDivElement, vagas: VagaJogo[], modo: 
     ctx.fillRect(x - tam * 0.12, y - tam * 0.95, tam * 0.06, tam * 0.5);
   }
 
+  let pendentes: unknown[] = [];
+  function efeitosDoPasso(e: EstadoDuelo) {
+    const pos = posicoes(e);
+    for (const ev of e.eventos) {
+      switch (ev.tipo) {
+        case "finta": aviso = { texto: TEXTO_FINTA[ev.finta], t: 0, cor: "#fef3c7" }; som.clique(); break;
+        case "sinal": aviso = { texto: "FOGO!", t: 0, cor: "#dc2626" }; flash = 0.35; som.contagem(true); break;
+        case "queimou": textos.push({ quem: ev.atirador, texto: "QUEIMOU!", cor: "#f87171", t: 0 }); som.morte(); ganchos.morte(ev.atirador); break;
+        case "errou": textos.push({ quem: ev.atirador, texto: "ERROU! (vento)", cor: "#fbbf24", t: 0 }); som.chute(); break;
+        case "acertou": {
+          som.explosao(1);
+          textos.push({ quem: ev.atirador, texto: `${ev.ms} ms`, cor: "#ffffff", t: 0 });
+          const p = pos[ev.atirador];
+          const alvo = p.garrafa ?? { x: e.modo === "torneio" ? (p.dir === "direita" ? w * 0.72 : w * 0.28) : p.x, y: h * 0.55 };
+          quebradas.add(ev.atirador);
+          for (let k = 0; k < 18; k++) cacos.push({ x: alvo.x, y: alvo.y - 20, vx: (Math.random() - 0.5) * 260, vy: -Math.random() * 240, t: 0, cor: k % 3 ? "#22c55e" : "#d9f99d", vida: 0.9 });
+          if (ev.decisivo) { lento = 0.7; focoLento = ev.atirador; ganchos.vibrarLocal(ev.atirador, 60); }
+          break;
+        }
+        case "duelo": quebradas.clear(); break;
+        default: break;
+      }
+    }
+    if (e.fase === "espera" && e.passo === e.inicioDuelo + 1) { quebradas.clear(); aviso = { texto: "Mãos ao coldre… espere o sinal", t: 0, cor: "#fff7ed" }; }
+  }
+
   return {
     iniciarRodada() {
       estado = novaPartidaDuelo({ modo, jogadores: vagas.map(v => ({ bot: v.bot })) });
@@ -172,33 +199,14 @@ export function criarMotorDuelo(caixa: HTMLDivElement, vagas: VagaJogo[], modo: 
       cacos.length = 0;
       textos.length = 0;
       aviso = null;
+      pendentes = [];
     },
     passo(entradas: Entrada[]) {
       const e = estado;
       if (!e) return null;
       passoDuelo(e, entradas);
-      const pos = posicoes(e);
-      for (const ev of e.eventos) {
-        switch (ev.tipo) {
-          case "finta": aviso = { texto: TEXTO_FINTA[ev.finta], t: 0, cor: "#fef3c7" }; som.clique(); break;
-          case "sinal": aviso = { texto: "FOGO!", t: 0, cor: "#dc2626" }; flash = 0.35; som.contagem(true); break;
-          case "queimou": textos.push({ quem: ev.atirador, texto: "QUEIMOU!", cor: "#f87171", t: 0 }); som.morte(); ganchos.morte(ev.atirador); break;
-          case "errou": textos.push({ quem: ev.atirador, texto: "ERROU! (vento)", cor: "#fbbf24", t: 0 }); som.chute(); break;
-          case "acertou": {
-            som.explosao(1);
-            textos.push({ quem: ev.atirador, texto: `${ev.ms} ms`, cor: "#ffffff", t: 0 });
-            const p = pos[ev.atirador];
-            const alvo = p.garrafa ?? { x: e.modo === "torneio" ? (p.dir === "direita" ? w * 0.72 : w * 0.28) : p.x, y: h * 0.55 };
-            quebradas.add(ev.atirador);
-            for (let k = 0; k < 18; k++) cacos.push({ x: alvo.x, y: alvo.y - 20, vx: (Math.random() - 0.5) * 260, vy: -Math.random() * 240, t: 0, cor: k % 3 ? "#22c55e" : "#d9f99d", vida: 0.9 });
-            if (ev.decisivo) { lento = 0.7; focoLento = ev.atirador; ganchos.vibrarLocal(ev.atirador, 60); }
-            break;
-          }
-          case "duelo": quebradas.clear(); break;
-          default: break;
-        }
-      }
-      if (e.fase === "espera" && e.passo === e.inicioDuelo + 1) { quebradas.clear(); aviso = { texto: "Mãos ao coldre… espere o sinal", t: 0, cor: "#fff7ed" }; }
+      efeitosDoPasso(e);
+      if (pendentes.length < 400) pendentes.push(...e.eventos);
       if (!e.terminado) return null;
       return { vencedor: e.vencedor, pontos: e.atiradores.map(pontosDuelo) };
     },
@@ -319,6 +327,22 @@ export function criarMotorDuelo(caixa: HTMLDivElement, vagas: VagaJogo[], modo: 
       };
     },
     redimensionar,
+    quadro() {
+      return estado ? serializar({ ...estado, eventos: [] }) : null;
+    },
+    tirarEventos() {
+      const l = pendentes.map(x => serializar(x));
+      pendentes = [];
+      return l;
+    },
+    aplicar(s: unknown, eventos: unknown[]) {
+      const e = desserializar(s) as EstadoDuelo | null;
+      if (!e || !Array.isArray(e.atiradores)) return;
+      if (estado && e.passo < estado.passo) { quebradas.clear(); cacos.length = 0; textos.length = 0; aviso = null; }
+      estado = e;
+      e.eventos = eventos.map(x => desserializar(x)) as EstadoDuelo["eventos"];
+      efeitosDoPasso(e);
+    },
     destruir() { canvas.remove(); },
   };
 }
