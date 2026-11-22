@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-21-games-v7",
+    data: "2026-11-21",
+    titulo: "Games: Duelo ao Meio-Dia, o saque mais rápido do Oeste",
+    texto: "Espere o FOGO! (quem atira antes queima a largada), desconfie das fintas e compense o vento. Duelo com todos ao mesmo tempo ou Torneio 1 × 1 até a final, com câmera lenta no tiro decisivo. Sozinho: treino de reflexo de 5 sinais.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-21-games-v6",
     data: "2026-11-21",
     titulo: "Games: Encaixe Versus, o puzzle de peças que caem",

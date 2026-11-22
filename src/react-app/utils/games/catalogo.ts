@@ -54,9 +54,9 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "duelo", nome: "Duelo ao Meio-Dia", resumo: "Reflexo puro: finta, cobertura e o tiro no tempo exato.",
-    categoria: "Ação", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 5, disponivel: false, modos: ["Duelo", "Torneio"],
-    regras: ["Saque cedo demais e perde.", "Fintas e cobertura entre os sinais.", "Vento desvia o tiro.", "Câmera lenta no golpe decisivo."],
-    controles: CONTROLES_PADRAO, cores: ["#451a03", "#d97706", "#fef3c7"], motivo: "sol",
+    categoria: "Ação", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 5, disponivel: true, modos: ["Duelo", "Torneio"],
+    regras: ["Espere o FOGO!: atirar antes queima a largada e você está fora do duelo.", "Fintas: pássaro, \"FO… FOGUETE!\" e o sino tentam te enganar.", "Vento: segure a seta contra o vento ao atirar; errar faz recarregar.", "Duelo: todos juntos, vence o mais rápido. Torneio: 1 × 1 até a final.", "Câmera lenta no tiro decisivo; sozinho, treino de 5 sinais."],
+    controles: ["Espaço/Z: atirar", "←/→: compensar o vento (segure contra o vento)", "Esc/P: pausa"], cores: ["#451a03", "#d97706", "#fef3c7"], motivo: "sol",
   },
   {
     id: "encaixe", nome: "Encaixe Versus", resumo: "Puzzle de queda: combos mandam lixo para os rivais.",
