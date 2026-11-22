@@ -79,6 +79,17 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Mesa",
     botoes: { a: "Jogar", b: "Comprar" },
   },
+  espacial: {
+    id: "espacial",
+    modos: [
+      { valor: "corrida", rotulo: "Corrida (2 voltas)", rotuloSolo: "Contra o relógio", regraSolo: "complete 2 voltas pelos anéis em 75 segundos." },
+      { valor: "asteroides", rotulo: "Asteroides", rotuloSolo: "Asteroides", regraSolo: "faça 1500 pontos quebrando asteroides em 90 s." },
+      { valor: "coleta", rotulo: "Coleta de cristais", rotuloSolo: "Coleta de cristais", regraSolo: "junte 25 cristais em 90 s." },
+    ],
+    cenarios: [{ valor: "nebulosa", rotulo: "Nebulosa" }, { valor: "aneis", rotulo: "Cinturão" }, { valor: "binario", rotulo: "Sistema binário" }],
+    rotuloCenario: "Setor",
+    botoes: { a: "Acelerar", b: "Laser" },
+  },
   coroa: {
     id: "coroa",
     modos: [

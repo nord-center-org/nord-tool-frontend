@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-22-games-v15",
+    data: "2026-11-22",
+    titulo: "Games: Corrida Espacial com gravidade de verdade",
+    texto: "Naves com inércia, planetas que puxam e um laser que atordoa: corra pelos anéis, quebre asteroides ou dispute cristais, de 1 a 8 jogadores. Sozinho, contra o relógio.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-22-games-v14",
     data: "2026-11-22",
     titulo: "Games: Coroa Maldita, o pique-pega das plataformas",
