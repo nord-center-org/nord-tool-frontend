@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Gamepad2, LogOut, Pause, Wifi, WifiOff } from "lucide-react";
+import { Gamepad2, LogOut, Pause, Settings2, Wifi, WifiOff } from "lucide-react";
+import PainelControles from "@/react-app/components/games/entrada/PainelControles";
 import Avatar from "@/react-app/components/avatar/Avatar";
 import AvatarCorpo from "@/react-app/components/games/central/AvatarCorpo";
 import ControleVirtual from "@/react-app/components/games/entrada/ControleVirtual";
@@ -15,6 +16,7 @@ import MaoNoCelular from "@/react-app/components/games/jogos/cartas/MaoNoCelular
 import { gamesService, salasService, type GameRegistro } from "@/react-app/services/GamesService";
 
 const ENVIO_MS = 33;
+const REENVIO_MS = 400;
 const FASE: Record<string, string> = { lobby: "Esperando a tela grande começar", contagem: "Prepare-se…", jogando: "Valendo!", fimRodada: "Fim da rodada", fimPartida: "Fim da partida" };
 
 /** Individual → Games → Controle: o celular vira o controle de uma sala aberta na tela grande. */
@@ -33,6 +35,9 @@ export default function GamesControlePage() {
   const [fase, setFase] = useState("lobby");
   const [aviso, setAviso] = useState<string | null>(null);
   const [mao, setMao] = useState<MaoPrivada | null>(null);
+  /** O que o controle está mandando agora (mostrado na tela, para conferir que o toque chegou). */
+  const [sinal, setSinal] = useState<EntradaControle>(CONTROLE_SOLTO);
+  const [painel, setPainel] = useState(false);
   const [resultado, setResultado] = useState<{ pontos: number; venceu: boolean; colocacao: number; registro: GameRegistro | null } | null>(null);
   const cliente = useRef<ClienteSala | null>(null);
   const controles = useMemo(() => new Controles(), []);
@@ -97,19 +102,29 @@ export default function GamesControlePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Lê o controle 30 vezes por segundo e manda só quando muda.
+  // Lê o controle 60 vezes por segundo e manda assim que muda; repete o estado de tempos em tempos (se uma mensagem
+  // se perder numa reconexão, a tela não fica com a direção "presa").
   useEffect(() => {
     controles.ligar();
     let anterior: EntradaControle = CONTROLE_SOLTO;
-    const t = window.setInterval(() => {
+    let ultimoEnvio = 0;
+    let quadro = 0;
+    const ler = () => {
       const c = controles.ler();
       const agora: EntradaControle = { x: c.direcao, a: c.a, b: c.b, p: c.pausa };
-      if (!mesmaEntrada(agora, anterior)) {
+      const instante = performance.now();
+      if (!mesmaEntrada(agora, anterior) || instante - ultimoEnvio > REENVIO_MS) {
         cliente.current?.enviar({ t: "entrada", d: agora });
         anterior = agora;
+        ultimoEnvio = instante;
+        setSinal(agora);
       }
-    }, ENVIO_MS);
-    return () => { window.clearInterval(t); controles.desligar(); };
+      quadro = requestAnimationFrame(ler);
+    };
+    quadro = requestAnimationFrame(ler);
+    // Com a aba em segundo plano o requestAnimationFrame para: um intervalo de reserva mantém o envio.
+    const reserva = window.setInterval(() => { if (document.hidden) { cancelAnimationFrame(quadro); ler(); } }, ENVIO_MS);
+    return () => { cancelAnimationFrame(quadro); window.clearInterval(reserva); controles.desligar(); };
   }, [controles]);
 
   // Tela acesa enquanto joga (quando o navegador deixa).
@@ -168,6 +183,7 @@ export default function GamesControlePage() {
           {conexao === "conectado" ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
           {conexao === "conectado" ? "Conectado" : conexao === "fechada" ? "Sala fechada" : "Reconectando…"}
         </span>
+        <button type="button" onClick={() => setPainel(true)} aria-label="Ajustar o controle" className="rounded-xl bg-white/10 p-2"><Settings2 className="h-5 w-5" /></button>
         <button type="button" onClick={() => { controles.tocar("pausa"); }} aria-label="Pausar" className="rounded-xl bg-white/10 p-2"><Pause className="h-5 w-5" /></button>
         <button type="button" onClick={sair} aria-label="Sair da sala" className="rounded-xl bg-white/10 p-2"><LogOut className="h-5 w-5" /></button>
       </header>
@@ -201,7 +217,20 @@ export default function GamesControlePage() {
         )}
       </main>
 
-      {conexao !== "fechada" && <ControleVirtual controles={controles} rotuloA={botoes.a} rotuloB={botoes.b} />}
+      {conexao !== "fechada" && (
+        <>
+          <p className="flex items-center justify-center gap-1.5 text-[11px] font-bold text-white/50" aria-label="O que o controle está mandando">
+            Mandando:
+            {(["cima", "baixo", "esquerda", "direita"] as const).map(d => (
+              <span key={d} className={`rounded px-1.5 ${sinal.x === d ? "bg-emerald-400 text-slate-950" : "bg-white/10"}`}>{{ cima: "↑", baixo: "↓", esquerda: "←", direita: "→" }[d]}</span>
+            ))}
+            <span className={`rounded px-1.5 ${sinal.a ? "bg-emerald-400 text-slate-950" : "bg-white/10"}`}>A</span>
+            <span className={`rounded px-1.5 ${sinal.b ? "bg-emerald-400 text-slate-950" : "bg-white/10"}`}>B</span>
+          </p>
+          <ControleVirtual controles={controles} rotuloA={botoes.a} rotuloB={botoes.b} />
+        </>
+      )}
+      {painel && <PainelControles soToque onFechar={() => setPainel(false)} />}
     </div>
   );
 }

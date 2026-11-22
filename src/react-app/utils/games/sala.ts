@@ -46,12 +46,15 @@ export function lerEntrada(d: unknown): EntradaControle {
 export class EntradasRemotas {
   private atual = new Map<number, EntradaControle>();
   private apertados = new Map<number, Set<"a" | "b" | "p">>();
+  /** Direção tocada desde a última leitura: um toque rápido na seta do celular também conta. */
+  private direcaoTocada = new Map<number, Direcao>();
 
   receber(vaga: number, d: unknown) {
     const nova = lerEntrada(d);
     const antes = this.atual.get(vaga) ?? CONTROLE_SOLTO;
     const trinco = this.apertados.get(vaga) ?? new Set<"a" | "b" | "p">();
     (["a", "b", "p"] as const).forEach(k => { if (nova[k] && !antes[k]) trinco.add(k); });
+    if (nova.x && nova.x !== antes.x) this.direcaoTocada.set(vaga, nova.x);
     this.apertados.set(vaga, trinco);
     this.atual.set(vaga, nova);
   }
@@ -60,8 +63,9 @@ export class EntradasRemotas {
   ler(vaga: number): EntradaControle {
     const e = this.atual.get(vaga) ?? CONTROLE_SOLTO;
     const t = this.apertados.get(vaga);
-    const lida = { x: e.x, a: e.a || !!t?.has("a"), b: e.b || !!t?.has("b"), p: e.p || !!t?.has("p") };
+    const lida = { x: e.x ?? this.direcaoTocada.get(vaga) ?? null, a: e.a || !!t?.has("a"), b: e.b || !!t?.has("b"), p: e.p || !!t?.has("p") };
     t?.clear();
+    this.direcaoTocada.delete(vaga);
     return lida;
   }
 
@@ -69,6 +73,7 @@ export class EntradasRemotas {
   soltar(vaga: number) {
     this.atual.delete(vaga);
     this.apertados.delete(vaga);
+    this.direcaoTocada.delete(vaga);
   }
 }
 

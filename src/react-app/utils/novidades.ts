@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-22-games-v10",
+    data: "2026-11-22",
+    titulo: "Games: controles do seu jeito e controle de videogame",
+    texto: "Novo botão Controles: troque as teclas, escolha se o controle aparece na tela, analógico ou setas, tamanho, modo canhoto e vibração. Controles de videogame (Bluetooth ou USB) agora funcionam no computador, no tablet e no celular — e cada controle a mais pode entrar como um jogador. O direcional do celular ficou mais firme e mostra o que está mandando.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-22-games-v9",
     data: "2026-11-22",
     titulo: "Games: Cartas da Virada, com a mão no seu celular",

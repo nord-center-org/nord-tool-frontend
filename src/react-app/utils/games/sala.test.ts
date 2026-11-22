@@ -67,3 +67,14 @@ test("aviso da mão: só cartas válidas, seleção dentro da mão e cor conheci
   assert.equal(a.info?.length, 80);
   assert.equal(a.escolhendoCor, null);
 });
+
+test("celular: um toque rápido na seta (aperta e solta antes do passo) ainda conta uma vez", () => {
+  const r = new EntradasRemotas();
+  r.receber(2, { x: "esquerda" });
+  r.receber(2, { x: null });
+  assert.equal(r.ler(2).x, "esquerda");
+  assert.equal(r.ler(2).x, null, "só uma vez");
+  r.receber(2, { x: "cima" });
+  assert.equal(r.ler(2).x, "cima");
+  assert.equal(r.ler(2).x, "cima", "segurando continua");
+});
