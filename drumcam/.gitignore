@@ -1,0 +1,8 @@
+.gradle/
+build/
+app/build/
+local.properties
+# A chave de assinatura e as senhas nunca vão para o repositório.
+*.jks
+*.keystore
+assinatura.properties
