@@ -79,6 +79,16 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Mesa",
     botoes: { a: "Jogar", b: "Comprar" },
   },
+  coroa: {
+    id: "coroa",
+    modos: [
+      { valor: "coroa", rotulo: "Coroa", rotuloSolo: "Caça às moedas", regraSolo: "pegue 20 moedas em 60 segundos." },
+      { valor: "pegapega", rotulo: "Pega-Pega (bomba)" },
+    ],
+    cenarios: [{ valor: "castelo", rotulo: "Castelo" }, { valor: "floresta", rotulo: "Floresta" }, { valor: "nuvens", rotulo: "Nuvens" }],
+    rotuloCenario: "Arena",
+    botoes: { a: "Pular", b: "Investida" },
+  },
   masmorra: {
     id: "masmorra",
     modos: [

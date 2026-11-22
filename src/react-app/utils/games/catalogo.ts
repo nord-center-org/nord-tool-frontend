@@ -84,9 +84,9 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "coroa", nome: "Coroa Maldita", resumo: "Pique-pega vertical: fique com a coroa até o tempo acabar.",
-    categoria: "Arena", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 6, disponivel: false, modos: ["Coroa", "Pega-Pega"],
-    regras: ["Encoste em quem está com a coroa para roubá-la.", "Molas, tirolesas, portais e plataformas móveis.", "Vence quem ficar mais tempo com a coroa.", "Sozinho, os bots disputam a coroa com você."],
-    controles: CONTROLES_PADRAO, cores: ["#4a044e", "#c026d3", "#fde68a"], motivo: "coroa",
+    categoria: "Arena", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 6, disponivel: true, modos: ["Coroa", "Pega-Pega"],
+    regras: ["Plataformas: pulo com pulo duplo, investida e pisão (cair na cabeça atordoa).", "Coroa: encoste em quem está com ela para roubar; quem pega fica protegido 1 s.", "Com a coroa se anda um pouco mais devagar; vence quem somar mais tempo em 90 s.", "Pega-Pega: passe a bomba encostando; a cada 20 s ela explode e quem estiver com ela sai.", "Sozinho: pegue 20 moedas em 60 s."],
+    controles: ["←/→: andar", "Espaço/Z ou ↑: pular", "↓: descer da plataforma", "X: investida"], cores: ["#4a044e", "#c026d3", "#fde68a"], motivo: "coroa",
   },
   {
     id: "espacial", nome: "Corrida Espacial", resumo: "Inércia, propulsores, lasers e a gravidade dos planetas.",
