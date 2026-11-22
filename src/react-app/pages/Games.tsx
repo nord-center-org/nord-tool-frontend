@@ -1,6 +1,8 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
-import { Gamepad2, Heart, Lock, Medal, Monitor, Play, Search, Smartphone, Sparkles, Users, X } from "lucide-react";
+import { Gamepad2, Heart, Joystick, Lock, Medal, Monitor, Play, Search, Smartphone, Sparkles, Users, X } from "lucide-react";
+import PainelControles from "@/react-app/components/games/entrada/PainelControles";
+import { gamepadsConectados } from "@/react-app/components/games/entrada/entrada";
 import CapaJogo from "@/react-app/components/games/central/CapaJogo";
 import { CORES_JOGADORES, avatarDaVaga } from "@/react-app/components/games/central/sprites";
 import PainelRecordes from "@/react-app/components/games/central/PainelRecordes";
@@ -102,6 +104,21 @@ export default function GamesPage() {
   const [sala, setSala] = useState<{ codigo: string; estado: EstadoConexao; jogadores: JogadorSala[] } | null>(null);
   const [erroSala, setErroSala] = useState<string | null>(null);
   const [euJogo, setEuJogo] = useState(true);
+  const [painelControles, setPainelControles] = useState(false);
+  // Controles de videogame conectados nesta tela e quais entram como jogadores próprios (o 1º livre joga com você).
+  const [pads, setPads] = useState(gamepadsConectados);
+  const [padsJogando, setPadsJogando] = useState<number[]>([]);
+  useEffect(() => {
+    const atualizar = () => {
+      const agora = gamepadsConectados();
+      setPads(p => (p.map(x => x.indice).join() === agora.map(x => x.indice).join() ? p : agora));
+      setPadsJogando(j => j.filter(i => agora.some(x => x.indice === i)));
+    };
+    window.addEventListener("gamepadconnected", atualizar);
+    window.addEventListener("gamepaddisconnected", atualizar);
+    const t = window.setInterval(atualizar, 1500);
+    return () => { window.removeEventListener("gamepadconnected", atualizar); window.removeEventListener("gamepaddisconnected", atualizar); window.clearInterval(t); };
+  }, []);
   const clienteSala = useRef<ClienteSala | null>(null);
   const remotas = useMemo(() => new EntradasRemotas(), []);
   const vagasDaCopa = useRef<VagaBombas[]>([]);
@@ -145,6 +162,7 @@ export default function GamesPage() {
   const vagas: VagaBombas[] = useMemo(() => {
     const lista: VagaBombas[] = [];
     if (euNaArena) lista.push({ nome: usuario?.nome?.split(" ")[0] ?? "Você", bot: null, avatar: avatarDaVaga(0, meuAvatar) });
+    padsJogando.slice(0, 8 - lista.length).forEach(i => lista.push({ nome: `Controle ${i + 1}`, bot: null, avatar: avatarDaVaga(lista.length, null), gamepad: i }));
     if (comSala && sala) {
       sala.jogadores.filter(j => j.vaga > 0 && j.conectado).slice(0, 8 - lista.length)
         .forEach(j => lista.push({ nome: j.nome.split(" ")[0], bot: null, avatar: lerAvatar(j.avatar, j.idUsuario), controle: j.vaga }));
@@ -152,7 +170,7 @@ export default function GamesPage() {
     const bots = Math.min(cfg.bots, 8 - lista.length);
     for (let n = 1; n <= bots; n++) lista.push({ nome: `Bot ${n}`, bot: cfg.dificuldade, avatar: avatarDaVaga(lista.length, null) });
     return lista;
-  }, [cfg.bots, cfg.dificuldade, meuAvatar, usuario, comSala, sala, euNaArena]);
+  }, [cfg.bots, cfg.dificuldade, meuAvatar, usuario, comSala, sala, euNaArena, padsJogando]);
   const humanos = vagas.filter(v => !v.bot).length;
 
   // Avisos para os celulares (a tela é quem manda).
@@ -353,6 +371,9 @@ export default function GamesPage() {
           <button type="button" onClick={entrarModoTela} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-sm font-black uppercase tracking-wide shadow-[0_0_24px_rgba(34,211,238,.45)] hover:brightness-110" data-tutorial="games-modo-tela">
             <Monitor className="h-5 w-5" />Modo Tela
           </button>
+          <button type="button" onClick={() => setPainelControles(true)} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-black uppercase tracking-wide ring-1 ring-white/15 hover:bg-white/20">
+            <Joystick className="h-5 w-5" />Controles{pads.length ? ` · 🎮${pads.length}` : ""}
+          </button>
           <Link to="/gestao/games/controle" className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-black uppercase tracking-wide ring-1 ring-white/15 hover:bg-white/20">
             <Smartphone className="h-5 w-5" />Controle
           </Link>
@@ -468,11 +489,29 @@ export default function GamesPage() {
                     ) : (
                       <p className="rounded-xl bg-white/5 p-3 text-xs text-white/70" role={erroSala ? "alert" : undefined}>{erroSala ?? "Abrindo a sala…"}</p>
                     ))}
+                    {pads.length > 0 && (
+                      <div className="space-y-1.5 rounded-xl bg-white/5 p-3 ring-1 ring-white/10">
+                        <p className="text-xs font-bold text-white/70">🎮 Controles de videogame nesta tela · o 1º livre joga junto com você; os outros podem entrar como jogadores</p>
+                        <ul className="flex flex-wrap gap-1.5" aria-label="Controles de videogame">
+                          {pads.map(p => {
+                            const entra = padsJogando.includes(p.indice);
+                            return (
+                              <li key={p.indice}>
+                                <button type="button" aria-pressed={entra} onClick={() => setPadsJogando(j => (entra ? j.filter(x => x !== p.indice) : [...j, p.indice]))}
+                                  className={`rounded-lg px-2.5 py-1 text-xs font-black ${entra ? "bg-cyan-400 text-slate-950" : "bg-white/10 hover:bg-white/20"}`}>
+                                  Controle {p.indice + 1} · {entra ? "jogando" : "entrar"}
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
                     <ConfigPartida jogo={aberto.id} cfg={cfg} mudar={setCfg} humanos={humanos} />
                     <ul className="flex flex-wrap gap-1.5" aria-label="Vagas">
                       {vagas.map((v, i) => (
                         <li key={i} className="flex items-end gap-1 rounded-xl bg-black/40 px-1.5 pt-0.5 text-xs font-bold ring-2" style={{ ["--tw-ring-color" as string]: CORES_JOGADORES[i] }}>
-                          <AvatarCorpo config={v.avatar} altura={36} atraso={i * 0.2} /><span className="pb-1">P{i + 1}{v.bot ? "" : v.controle !== undefined ? ` · ${v.nome} 📱` : " (você)"}</span>
+                          <AvatarCorpo config={v.avatar} altura={36} atraso={i * 0.2} /><span className="pb-1">P{i + 1}{v.bot ? "" : v.controle !== undefined ? ` · ${v.nome} 📱` : v.gamepad !== undefined ? ` · 🎮${v.gamepad + 1}` : " (você)"}</span>
                         </li>
                       ))}
                     </ul>
@@ -490,6 +529,7 @@ export default function GamesPage() {
           </div>
         </div>
       )}
+      {painelControles && <PainelControles onFechar={() => setPainelControles(false)} />}
     </div>
   );
 }

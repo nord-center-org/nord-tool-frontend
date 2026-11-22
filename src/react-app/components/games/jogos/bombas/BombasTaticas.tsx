@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Pause, Play, RotateCcw, Volume2, VolumeX, X } from "lucide-react";
+import { Gamepad2, Pause, Play, RotateCcw, Volume2, VolumeX, X } from "lucide-react";
 import type { AvatarConfig } from "@/react-app/utils/avatar";
 import {
-  ENTRADA_VAZIA, META_MOEDAS_SOLO, PASSOS_POR_SEGUNDO, novaPartida, passo, segundosRestantes, type Bioma, type Dificuldade, type Estado, type Evento, type Modo,
+  META_MOEDAS_SOLO, PASSOS_POR_SEGUNDO, novaPartida, passo, segundosRestantes, type Bioma, type Dificuldade, type Estado, type Evento, type Modo,
 } from "@/react-app/utils/games/bombas";
 import { iniciarLaco } from "../../motor2d/laco";
 import { Particulas, Textos, Tremor, lerp, saidaVolta } from "../../motor2d/efeitos";
 import { som } from "../../audio/sintetizador";
-import { Controles, telaDeToque, vibrar } from "../../entrada/entrada";
+import { Controles, LeitorDaPartida, mostrarControleNaTela, vibrar } from "../../entrada/entrada";
+import PainelControles from "../../entrada/PainelControles";
 import ControleVirtual from "../../entrada/ControleVirtual";
 import { CORES_JOGADORES, folhaDoCorpo } from "../../central/sprites";
 import type { EntradasRemotas } from "@/react-app/utils/games/sala";
@@ -15,7 +16,7 @@ import Avatar from "@/react-app/components/avatar/Avatar";
 import { BIOMAS, NOME_ITEM, desenharBlocos, desenharBomba, desenharChama, desenharChao, desenharItem, desenharJogador, desenharMoeda, desenharQueda } from "./desenho";
 
 /** Uma vaga da partida: bot, quem está na tela (teclado/toque) ou um celular da sala ({@code controle} = vaga na sala). */
-export interface VagaBombas { nome: string; bot: Dificuldade | null; avatar: AvatarConfig; controle?: number }
+export interface VagaBombas { nome: string; bot: Dificuldade | null; avatar: AvatarConfig; controle?: number; gamepad?: number }
 
 export interface ResultadoBombas { vencedor: number | null; vitorias: number[]; rodadas: number }
 
@@ -74,10 +75,11 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
   const onMorteRef = useRef(onMorte);
   onMorteRef.current = onMorte;
   // Quem joga na própria tela (teclado ou toque); -1 quando a tela só mostra o jogo e todos estão nos celulares.
-  const local = useMemo(() => vagas.findIndex(v => !v.bot && v.controle === undefined), [vagas]);
+  const local = useMemo(() => vagas.findIndex(v => !v.bot && v.controle === undefined && v.gamepad === undefined), [vagas]);
   const [rodada, setRodada] = useState(1);
   const [ultimo, setUltimo] = useState<{ vencedor: number | null; time: number | null } | null>(null);
-  const [toque] = useState(telaDeToque);
+  const [toque, setToque] = useState(() => mostrarControleNaTela());
+  const [painel, setPainel] = useState(false);
   const sprites = useMemo(() => vagas.map(v => folhaDoCorpo(v.avatar, `corpo-${JSON.stringify(v.avatar)}`)), [vagas]);
   const efeitos = useMemo(() => ({ particulas: new Particulas(), textos: new Textos(), tremor: new Tremor(), quedas: [] as { x: number; y: number; t: number }[], caidos: [] as { jogador: number; x: number; y: number; t: number }[] }), []);
 
@@ -181,6 +183,7 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
   // Laço do jogo.
   useEffect(() => {
     controles.ligar();
+    const leitor = new LeitorDaPartida(vagas, controles, local);
     const el = canvas.current!;
     const ctx = el.getContext("2d")!;
     let ultimoHud = 0;
@@ -190,9 +193,7 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
     const atualizar = () => {
       const e = estado.current;
       if (!e) return;
-      const c = controles.ler();
-      const deFora = vagas.map(v => (v.controle !== undefined && remotas ? remotas.ler(v.controle) : null));
-      const pausa = c.pausa || deFora.some(r => r?.p);
+      const { entradas, pausa } = leitor.ler(remotas);
       if (pausa && !pausaAnterior && faseRef.current === "jogando") {
         pausadoRef.current = !pausadoRef.current;
         setPausado(pausadoRef.current);
@@ -200,11 +201,7 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
       pausaAnterior = pausa;
       if (faseRef.current !== "jogando" || pausadoRef.current) return;
       anteriores.current = e.jogadores.map(j => ({ x: j.x, y: j.y }));
-      passo(e, vagas.map((_v, i) => {
-        const r = deFora[i];
-        if (r) return { direcao: r.x, a: r.a, b: r.b };
-        return i === local && (c.direcao || c.a || c.b) ? { direcao: c.direcao, a: c.a, b: c.b } : ENTRADA_VAZIA;
-      }));
+      passo(e, entradas);
       tratarEventos(e, e.eventos);
       if (e.duracao - e.passo === 10 * PASSOS_POR_SEGUNDO && e.modo === "moedas") som.acelerarMusica(175);
       if (e.terminado) {
@@ -340,6 +337,9 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
         <button type="button" onClick={() => { som.definirMudo(!mudo); setMudo(!mudo); if (mudo && fase === "jogando") som.tocarMusica(); }} aria-label={mudo ? "Ligar som" : "Desligar som"} className="rounded-xl bg-white/10 p-2 hover:bg-white/20">
           {mudo ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
         </button>
+        <button type="button" aria-label="Controles" title="Controles (teclas, toque e controle de videogame)"
+          onClick={() => { if (faseRef.current === "jogando" && !pausadoRef.current) alternarPausa(); setPainel(true); }}
+          className="rounded-xl bg-white/10 p-2 hover:bg-white/20"><Gamepad2 className="h-5 w-5" /></button>
         <button type="button" onClick={alternarPausa} disabled={fase !== "jogando"} aria-label={pausado ? "Continuar" : "Pausar"} className="rounded-xl bg-white/10 p-2 hover:bg-white/20 disabled:opacity-40">
           {pausado ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
         </button>
@@ -423,6 +423,7 @@ export default function BombasTaticas({ vagas, modo, bioma, vitoriasParaVencer, 
       ) : (
         <p className="px-4 py-2 text-center text-xs text-white/50">Setas/WASD andam · Espaço/Z solta bomba · X/Shift detona ou arremessa · Esc pausa</p>
       )}
+      {painel && <PainelControles onFechar={() => { setPainel(false); setToque(mostrarControleNaTela()); }} />}
     </div>
   );
 }

@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Pause, Play, RotateCcw, Volume2, VolumeX, X } from "lucide-react";
+import { Gamepad2, Pause, Play, RotateCcw, Volume2, VolumeX, X } from "lucide-react";
 import Avatar from "@/react-app/components/avatar/Avatar";
 import type { AvatarConfig } from "@/react-app/utils/avatar";
 import type { Dificuldade, Entrada } from "@/react-app/utils/games/bombas";
 import type { EntradasRemotas, MaoPrivada } from "@/react-app/utils/games/sala";
 import { iniciarLaco } from "../motor2d/laco";
 import { som } from "../audio/sintetizador";
-import { Controles, telaDeToque, vibrar } from "../entrada/entrada";
+import { Controles, LeitorDaPartida, mostrarControleNaTela, vibrar } from "../entrada/entrada";
+import PainelControles from "../entrada/PainelControles";
 import ControleVirtual from "../entrada/ControleVirtual";
 import { CORES_JOGADORES } from "../central/sprites";
 
 /** Uma vaga da partida: bot, quem está na tela (teclado/toque) ou um celular da sala ({@code controle} = vaga na sala). */
-export interface VagaJogo { nome: string; bot: Dificuldade | null; avatar: AvatarConfig; controle?: number }
+export interface VagaJogo { nome: string; bot: Dificuldade | null; avatar: AvatarConfig; controle?: number; /** Gamepad próprio nesta tela (2º, 3º… controle). */ gamepad?: number }
 
 export type FasePartida = "contagem" | "jogando" | "fimRodada" | "fimPartida";
 
@@ -72,7 +73,6 @@ interface Props {
   textosSolo?: { venceu: string; perdeu: string };
 }
 
-const VAZIA: Entrada = { direcao: null, a: false, b: false };
 
 /** Moldura comum das partidas: placar, contagem, rodadas, pausa, fim e controles (teclado, toque e celulares). */
 export default function MolduraPartida({
@@ -96,7 +96,8 @@ export default function MolduraPartida({
   const rodadaRef = useRef(1);
   const [ultimo, setUltimo] = useState<FimRodada | null>(null);
   const ultimoRef = useRef<FimRodada | null>(null);
-  const [toque] = useState(telaDeToque);
+  const [toque, setToque] = useState(() => mostrarControleNaTela());
+  const [painel, setPainel] = useState(false);
   const onFimRef = useRef(onFim);
   onFimRef.current = onFim;
   const onFaseRef = useRef(onFase);
@@ -107,7 +108,7 @@ export default function MolduraPartida({
   onPrivadoRef.current = onPrivado;
   const criarRef = useRef(criarMotor);
   criarRef.current = criarMotor;
-  const local = useMemo(() => vagas.findIndex(v => !v.bot && v.controle === undefined), [vagas]);
+  const local = useMemo(() => vagas.findIndex(v => !v.bot && v.controle === undefined && v.gamepad === undefined), [vagas]);
   const solo = vagas.length === 1;
 
   const mudarFase = useCallback((f: FasePartida) => {
@@ -158,15 +159,14 @@ export default function MolduraPartida({
   // Laço: lê os controles, avança o motor e desenha.
   useEffect(() => {
     controles.ligar();
+    const leitor = new LeitorDaPartida(vagas, controles, local);
     let pausaAnterior = false;
     let ultimoPlacar = 0;
     let tempoTotal = 0;
     const atualizar = () => {
       const m = motor.current;
       if (!m) return;
-      const c = controles.ler();
-      const deFora = vagas.map(v => (v.controle !== undefined && remotas ? remotas.ler(v.controle) : null));
-      const pausa = c.pausa || deFora.some(r => r?.p);
+      const { entradas, pausa } = leitor.ler(remotas);
       if (pausa && !pausaAnterior && faseRef.current === "jogando") {
         pausadoRef.current = !pausadoRef.current;
         setPausado(pausadoRef.current);
@@ -174,11 +174,6 @@ export default function MolduraPartida({
       }
       pausaAnterior = pausa;
       if (faseRef.current !== "jogando" || pausadoRef.current) return;
-      const entradas = vagas.map((_v, i) => {
-        const r = deFora[i];
-        if (r) return { direcao: r.x, a: r.a, b: r.b };
-        return i === local && (c.direcao || c.a || c.b) ? { direcao: c.direcao, a: c.a, b: c.b } : VAZIA;
-      });
       const fim = m.passo(entradas);
       if (!fim) return;
       som.pararMusica();
@@ -243,6 +238,9 @@ export default function MolduraPartida({
         <button type="button" onClick={() => { som.definirMudo(!mudo); setMudo(!mudo); if (mudo && fase === "jogando") som.tocarMusica(bpm); }} aria-label={mudo ? "Ligar som" : "Desligar som"} className="rounded-xl bg-white/10 p-2 hover:bg-white/20">
           {mudo ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
         </button>
+        <button type="button" aria-label="Controles" title="Controles (teclas, toque e controle de videogame)"
+          onClick={() => { if (faseRef.current === "jogando" && !pausadoRef.current) alternarPausa(); setPainel(true); }}
+          className="rounded-xl bg-white/10 p-2 hover:bg-white/20"><Gamepad2 className="h-5 w-5" /></button>
         <button type="button" onClick={alternarPausa} disabled={fase !== "jogando"} aria-label={pausado ? "Continuar" : "Pausar"} className="rounded-xl bg-white/10 p-2 hover:bg-white/20 disabled:opacity-40">
           {pausado ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
         </button>
@@ -325,6 +323,7 @@ export default function MolduraPartida({
       ) : (
         <p className="px-4 py-2 text-center text-xs text-white/50">{ajudaTeclado}</p>
       )}
+      {painel && <PainelControles onFechar={() => { setPainel(false); setToque(mostrarControleNaTela()); }} />}
     </div>
   );
 }
