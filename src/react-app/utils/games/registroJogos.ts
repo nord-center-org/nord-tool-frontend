@@ -79,6 +79,13 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Mesa",
     botoes: { a: "Jogar", b: "Comprar" },
   },
+  torres: {
+    id: "torres",
+    modos: [{ valor: "batalha", rotulo: "Batalha de torres", rotuloSolo: "Tiro ao alvo", regraSolo: "derrube 5 alvos em 12 tiros." }],
+    cenarios: [{ valor: "campo", rotulo: "Campo" }, { valor: "deserto", rotulo: "Deserto" }, { valor: "neve", rotulo: "Neve" }],
+    rotuloCenario: "Paisagem",
+    botoes: { a: "Atirar", b: "Bomba" },
+  },
   espacial: {
     id: "espacial",
     modos: [

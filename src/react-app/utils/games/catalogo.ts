@@ -96,9 +96,9 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "torres", nome: "Torres em Colapso", resumo: "Construa e derrube: balística com vento e materiais.",
-    categoria: "Estratégia", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 7, disponivel: false, modos: ["Duelo", "Desafio"],
-    regras: ["Mire com trajetória e vento.", "Madeira, pedra e aço resistem diferente.", "A torre desaba com física."],
-    controles: CONTROLES_PADRAO, cores: ["#422006", "#ca8a04", "#fef9c3"], motivo: "torre",
+    categoria: "Estratégia", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 7, disponivel: true, modos: ["Duelo", "Desafio"],
+    regras: ["Cada um tem uma torre de blocos (madeira, pedra e aço) com o rei no topo.", "Na sua vez: ajuste ângulo e força e atire; o vento muda a cada vez.", "A explosão enfraquece os blocos; bloco sem apoio cai e a torre desaba.", "Rei atingido (ou esmagado por bloco) está fora; o último rei de pé vence.", "Bomba pesada: raio maior, uma por partida. Sozinho: 5 alvos em 12 tiros."],
+    controles: ["←/→: ângulo", "↑/↓: força", "Espaço/Z: atirar", "X: bomba pesada"], cores: ["#422006", "#ca8a04", "#fef9c3"], motivo: "torre",
   },
   {
     id: "defesa", nome: "Defesa de Base", resumo: "Engenheiros coletam, constroem torres e atiram juntos.",

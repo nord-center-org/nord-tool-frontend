@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-22-games-v16",
+    data: "2026-11-22",
+    titulo: "Games: Torres em Colapso, artilharia com vento",
+    texto: "Cada um com sua torre e seu rei no topo: ajuste ângulo e força, preste atenção no vento e derrube as torres rivais — blocos sem apoio desabam. Bomba pesada uma vez por partida. De 1 a 8; sozinho, tiro ao alvo.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-22-games-v15",
     data: "2026-11-22",
     titulo: "Games: Corrida Espacial com gravidade de verdade",
