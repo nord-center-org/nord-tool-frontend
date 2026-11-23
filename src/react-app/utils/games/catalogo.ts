@@ -164,8 +164,8 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "chefao", nome: "Chefão Colossal", resumo: "Chefe gigante em várias fases, de 1 a 8 jogadores.",
-    categoria: "Cooperativo", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 9, disponivel: false, modos: ["Cooperativo", "Competitivo", "Boss Rush"],
-    regras: ["Ataques telegrafados.", "Escudos quebráveis.", "Fases com padrões novos."], controles: CONTROLES_PADRAO,
+    categoria: "Cooperativo", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 9, disponivel: true, modos: ["Cooperativo", "Competitivo", "Boss Rush"],
+    regras: ["Ataques telegrafados.", "Escudos quebráveis.", "Fases com padrões novos."], controles: ["Setas/WASD: andar", "Espaço/Z: atirar (mira sozinha)", "X/Shift: esquiva invulnerável", "Esc/P: pausa"],
     cores: ["#450a0a", "#dc2626", "#fca5a5"], motivo: "chefao",
   },
 ];

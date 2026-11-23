@@ -29,6 +29,10 @@ export async function fabricaDoMotor(jogo: string): Promise<FabricaMotor | null>
       const m = await import("./caos/motorCaos");
       return (c, v, modo, cen, g) => m.criarMotorCaos(c, v, modo as Parameters<typeof m.criarMotorCaos>[2], cen as Parameters<typeof m.criarMotorCaos>[3], g);
     }
+    case "chefao": {
+      const m = await import("./chefao/motorChefao");
+      return (c, v, modo, cen, g) => m.criarMotorChefao(c, v, modo as Parameters<typeof m.criarMotorChefao>[2], cen as Parameters<typeof m.criarMotorChefao>[3], g);
+    }
     case "ritmo": {
       const m = await import("./ritmo/motorRitmo");
       return (c, v, modo, cen, g) => m.criarMotorRitmo(c, v, modo as Parameters<typeof m.criarMotorRitmo>[2], cen as Parameters<typeof m.criarMotorRitmo>[3], g);
