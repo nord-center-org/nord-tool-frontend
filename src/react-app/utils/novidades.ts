@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-23-games-v20",
+    data: "2026-11-23",
+    titulo: "Games: Kart Turbo & Balões em 3D",
+    texto: "Pistas 3D com drift que carrega o turbo (azul, laranja e roxo), caixas de item com míssil, escudo, óleo e turbo, 3 voltas de Grande Prêmio ou a Arena de Balões. De 1 a 8; no celular, a câmera segue o seu kart.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-22-games-v19",
     data: "2026-11-22",
     titulo: "Games: Corrida do Ouro",
