@@ -22,8 +22,19 @@ const LIMITE_MB = 60;
 const relogio = (s: number) => { const t = Math.max(0, Math.floor(s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
 const novoId = () => `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 
+/** Barrinhas de equalizador, só enfeite do cabeçalho (paradas quando a pessoa prefere menos movimento). */
+function Equalizador() {
+  return (
+    <span aria-hidden className="ml-1 hidden h-5 items-end gap-[3px] sm:flex">
+      {[0, 1, 2, 3, 4].map(i => (
+        <span key={i} className="nt-eq w-[3px] rounded-full bg-gradient-to-t from-orange-500 to-pink-400" style={{ animationDelay: `${i * 0.13}s` }} />
+      ))}
+    </span>
+  );
+}
+
 /**
- * Repertório: as músicas que a pessoa enviou, guardadas no próprio aparelho. Ao abrir uma, o player reconhece o
+ * Estúdio (antigo Repertório): as músicas que a pessoa enviou, guardadas no próprio aparelho. Ao abrir uma, o player reconhece o
  * tom, o BPM, os acordes e o baixo, e mostra a cifra rolando com o instrumento ao lado.
  */
 export default function RepertorioPage() {
@@ -45,10 +56,11 @@ export default function RepertorioPage() {
   // v6: sub-abas "Músicas" e "Criar" (na URL, para o link das novidades abrir direto) e o instrumento online
   const [busca, setBusca] = useSearchParams();
   // Drumcam v2: sub-aba "Drumcam" (celular-câmera da bateria, no Wi-Fi e pela internet).
-  // Drumcam v3: a sub-aba vira "Estúdio" (?aba=estudio); o link antigo ?aba=drumcam continua abrindo.
-  const pedida = busca.get("aba") === "estudio" ? "drumcam" : busca.get("aba");
+  // Drumcam v4: a tela toda virou "Estúdio" e a sub-aba das câmeras é "Gravação" (?aba=gravacao); os links antigos
+  // ?aba=estudio (v3) e ?aba=drumcam (v2) continuam abrindo.
+  const pedida = ["gravacao", "estudio"].includes(busca.get("aba") ?? "") ? "drumcam" : busca.get("aba");
   const aba = pedida === "criar" || pedida === "recebidas" || pedida === "drumcam" ? pedida : "musicas";
-  const mudarAba = (a: "musicas" | "criar" | "recebidas" | "drumcam") => setBusca(b => { const n = new URLSearchParams(b); if (a !== "musicas") n.set("aba", a === "drumcam" ? "estudio" : a); else n.delete("aba"); return n; }, { replace: true });
+  const mudarAba = (a: "musicas" | "criar" | "recebidas" | "drumcam") => setBusca(b => { const n = new URLSearchParams(b); if (a !== "musicas") n.set("aba", a === "drumcam" ? "gravacao" : a); else n.delete("aba"); return n; }, { replace: true });
   // v12: cifras que compartilharam comigo (o número das novas aparece na aba)
   const [naoLidas, setNaoLidas] = useState(0);
   useEffect(() => { repertorioService.cifrasRecebidas().then(l => setNaoLidas(l.filter(c => !c.dhLeitura).length)).catch(() => undefined); }, []);
@@ -132,14 +144,21 @@ export default function RepertorioPage() {
   return (
     <div className={`mx-auto ${aba === "drumcam" ? "max-w-[1700px]" : aba === "criar" ? "max-w-6xl" : "max-w-4xl"}`}>
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="mr-auto flex items-center gap-2 text-xl font-bold text-slate-800"><Music className="h-5 w-5 text-orange-500" />Repertório</h1>
+        <h1 className="mr-auto flex items-center gap-3">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-orange-500 via-pink-500 to-violet-600 text-white shadow-lg shadow-pink-900/40"><Music className="h-5 w-5" /></span>
+          <span>
+            <span className="block text-xl font-black tracking-tight text-white">Estúdio</span>
+            <span className="block text-[11px] font-medium text-[#9d93a8]">Músicas, cifras, criação e gravação</span>
+          </span>
+          <Equalizador />
+        </h1>
         <button type="button" onClick={() => setInstrumentoOnline(true)}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-100"><Piano className="h-4 w-4" />Instrumento online</button>
+          className="inline-flex items-center gap-1.5 rounded-xl border border-violet-400/30 bg-violet-500/15 px-3 py-2 text-xs font-bold text-violet-200 hover:bg-violet-500/25"><Piano className="h-4 w-4" />Instrumento online</button>
       </div>
-      <div className="mb-4 flex gap-1 rounded-xl border border-slate-200 bg-white p-1" role="tablist" aria-label="Repertório">
-        {([["musicas", "Músicas"], ["criar", "Criar"], ["recebidas", "Recebidas"], ["drumcam", "Estúdio"]] as const).map(([a, r]) => (
+      <div className="mb-4 flex gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1 backdrop-blur" role="tablist" aria-label="Estúdio">
+        {([["musicas", "Músicas"], ["criar", "Criar"], ["recebidas", "Recebidas"], ["drumcam", "Gravação"]] as const).map(([a, r]) => (
           <button key={a} type="button" role="tab" aria-selected={aba === a} onClick={() => mudarAba(a)}
-            className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${aba === a ? "bg-slate-800 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
+            className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold transition ${aba === a ? "bg-gradient-to-r from-orange-500 to-pink-600 text-white shadow" : "text-[#b9aec6] hover:bg-white/[0.06] hover:text-white"}`}>
             {r}{a === "recebidas" && naoLidas > 0 && <span className="rounded-full bg-red-500 px-1.5 text-[10px] text-white" aria-label={`${naoLidas} novas`}>{naoLidas}</span>}
           </button>
         ))}
@@ -147,7 +166,7 @@ export default function RepertorioPage() {
       {instrumentoOnline && <Suspense fallback={null}><PainelInstrumentoOnline onFechar={() => setInstrumentoOnline(false)} /></Suspense>}
       {aba === "drumcam" ? (
         <Suspense fallback={<p className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Abrindo…</p>}>
-          <DrumcamRepertorio />
+          <div data-tema-fixo><DrumcamRepertorio /></div>
         </Suspense>
       ) : aba === "recebidas" ? (
         <Suspense fallback={<p className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Abrindo…</p>}>
@@ -196,7 +215,7 @@ export default function RepertorioPage() {
               <SeloConta situacao={situacao.get(m.id)} />
               {autoria.get(m.id)?.minha !== false && (
                 <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Excluir ${m.titulo}`}
-                  onClick={async () => { if (window.confirm(`Excluir "${m.titulo}"? Ela sai do Repertório de todos.`)) { await excluirMusica(m.id); void carregar(); } }}>
+                  onClick={async () => { if (window.confirm(`Excluir "${m.titulo}"? Ela sai do Estúdio de todos.`)) { await excluirMusica(m.id); void carregar(); } }}>
                   <Trash2 className="h-4 w-4" />
                 </button>
               )}

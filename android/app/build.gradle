@@ -17,8 +17,8 @@ android {
         applicationId "br.com.nordtool.app"
         minSdk 24
         targetSdk 35
-        versionCode 8
-        versionName "8.0"
+        versionCode 9
+        versionName "9.0"
         // Endereço que o app abre (o NordTool publicado).
         buildConfigField "String", "ENDERECO", "\"${project.findProperty("enderecoNordTool") ?: "https://nordtoolfrontend-develop.up.railway.app"}\""
     }

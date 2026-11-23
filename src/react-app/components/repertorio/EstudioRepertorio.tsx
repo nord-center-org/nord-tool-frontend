@@ -18,6 +18,7 @@ import { nomeDaNota } from "@/react-app/utils/musica/teoria";
 import { nomeDaNotaExibida, type Notacao } from "@/react-app/utils/musica/notacao";
 import { useNotacao } from "./useNotacao";
 import { textoAutoria, type Autoria } from "@/react-app/utils/musica/repertorioConta";
+import { desenhoEscuro } from "./ambiente";
 
 const botao = "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40";
 const quadrado = "inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40";
@@ -83,7 +84,7 @@ export default function EstudioRepertorio({ onMandado }: { onMandado: (m: Musica
               </button>
               {autoria.get(p.id)?.minha !== false && (
                 <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Excluir ${p.titulo}`}
-                  onClick={async () => { if (window.confirm(`Excluir "${p.titulo}"? Ela sai do Repertório de todos.`)) { await excluirProjeto(p.id); void carregar(); } }}>
+                  onClick={async () => { if (window.confirm(`Excluir "${p.titulo}"? Ela sai do Estúdio de todos.`)) { await excluirProjeto(p.id); void carregar(); } }}>
                   <Trash2 className="h-4 w-4" />
                 </button>
               )}
@@ -490,7 +491,7 @@ function Grade({ faixa, total, cabeca, modo, sel, cursor, onPor, onEsticar, onRe
   const altLinha = faixa.timbre === "bateria" ? 28 : 18;
   const passos = total * PASSOS_POR_TEMPO;
   const larg = passos * LARG_PASSO, alt = linhas.length * altLinha;
-  const escuro = typeof document !== "undefined" && document.documentElement.classList.contains("nt-escuro");
+  const escuro = desenhoEscuro();
 
   useLayoutEffect(() => {
     const c = tela.current;

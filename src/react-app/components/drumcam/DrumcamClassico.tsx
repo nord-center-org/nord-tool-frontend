@@ -129,7 +129,7 @@ export default function DrumcamClassico() {
       ) : (
         <p className="flex items-start gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
           <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>Para usar um celular como câmera, abra o NordTool pelo <b>app Android</b> (versão 6.0 ou mais nova) nele e entre aqui em Repertório → Drumcam.
+          <span>Para usar um celular como câmera, abra o NordTool pelo <b>app Android</b> (versão 6.0 ou mais nova) nele e entre aqui em Estúdio → Gravação.
             <a href="/app/nordtool.apk" className="ml-1 inline-flex items-center gap-1 font-bold underline"><Download className="h-3 w-3" />Baixar o app</a></span>
         </p>
       )}
@@ -144,7 +144,7 @@ export default function DrumcamClassico() {
         {cameras.length === 0 ? (
           <p className="flex items-center gap-2 text-sm text-slate-400">
             {estado === "conectando" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Nenhuma câmera ligada na sua conta. No celular-câmera, abra o app NordTool (com a sua conta), entre em Repertório → Drumcam e toque em “Usar este celular como câmera”.
+            Nenhuma câmera ligada na sua conta. No celular-câmera, abra o app NordTool (com a sua conta), entre em Estúdio → Gravação e toque em “Usar este celular como câmera”.
           </p>
         ) : (
           <div className="mb-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Câmera">

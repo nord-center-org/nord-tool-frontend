@@ -85,7 +85,7 @@ public class MainActivity extends Activity {
         super.onCreate(estado);
         hostDoApp = Uri.parse(BuildConfig.ENDERECO).getHost();
 
-        webView = new WebView(this);
+        webView = new PaginaSempreAcordada(this);
         setContentView(montarTela(webView));
 
         WebSettings ajustes = webView.getSettings();
@@ -116,6 +116,29 @@ public class MainActivity extends Activity {
             ServicoSegundoPlano.iniciar(this);
         }
         Atualizador.verificar(this, true);
+    }
+
+    @Override
+    protected void onDestroy() {
+        // Fechou o app: a câmera ao vivo sai do ar junto (a página que transmitia não existe mais).
+        if (ServicoAoVivo.ativo) ServicoAoVivo.ligar(this, false, null);
+        super.onDestroy();
+    }
+
+    /**
+     * Drumcam v4: enquanto o celular é câmera ao vivo, o WebView continua se vendo como visível com a tela apagada
+     * ou com o app em segundo plano. Assim o Chromium não suspende a câmera, o vídeo nem os timers da página, e o
+     * serviço {@link ServicoAoVivo} mantém a câmera liberada pelo Android. Fora disso, o comportamento é o normal.
+     */
+    private static final class PaginaSempreAcordada extends WebView {
+        PaginaSempreAcordada(Context contexto) {
+            super(contexto);
+        }
+
+        @Override
+        protected void onWindowVisibilityChanged(int visibilidade) {
+            super.onWindowVisibilityChanged(ServicoAoVivo.ativo ? View.VISIBLE : visibilidade);
+        }
     }
 
     @Override
@@ -405,6 +428,28 @@ public class MainActivity extends Activity {
         public void drumcamControlar() {
             if (!noNordTool()) return;
             runOnUiThread(() -> startActivity(new Intent(MainActivity.this, br.com.nordtool.app.drumcam.ControleActivity.class)));
+        }
+
+        /**
+         * Drumcam ao vivo (v4, app 9.0): a câmera fica no ar em segundo plano e com a tela apagada (serviço em primeiro
+         * plano com notificação, CPU e Wi-Fi seguros, renderizador da página com prioridade alta).
+         */
+        @JavascriptInterface
+        public boolean aoVivo(boolean ligar, String nome) {
+            if (!noNordTool()) return false;
+            String nomeLimpo = nome == null ? "" : nome.replaceAll("[\\p{Cntrl}]", "").trim();
+            if (nomeLimpo.length() > 60) nomeLimpo = nomeLimpo.substring(0, 60);
+            final String rotulo = nomeLimpo;
+            runOnUiThread(() -> {
+                if (ligar) {
+                    ServicoAoVivo.ligar(MainActivity.this, true, rotulo);
+                    if (Build.VERSION.SDK_INT >= 26) webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
+                } else {
+                    ServicoAoVivo.ligar(MainActivity.this, false, null);
+                    if (Build.VERSION.SDK_INT >= 26) webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true);
+                }
+            });
+            return true;
         }
 
         /** Drumcam ao vivo (v3): mantém a tela ligada enquanto o celular é câmera ao vivo. */

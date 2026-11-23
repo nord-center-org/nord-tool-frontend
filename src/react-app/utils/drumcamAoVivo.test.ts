@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   CANAL_PADRAO, FILTRO_NEUTRO, PRESETS, alinhamento, botoesDeZoom, cssDoFiltro, dbDoGanho, diferencaDeRelogio, duracaoTexto, formatoDeGravacao,
   fracaoDeMovimento, ganhoDoDb, ganhoEfetivo, layoutPadrao, lenteParaZoom, lentesDosDispositivos, lerComando, lerSinal, limiarDaSensibilidade,
-  moverCamada, nivelDoMedidor, nomeDoArquivo, novoAvisoDeMovimento, paraFrente, partesDoArquivo, redimensionarCamada, retanguloDeDesenho,
+  moverCamada, nivelDoMedidor, ponteAoVivo, nomeDoArquivo, novoAvisoDeMovimento, paraFrente, partesDoArquivo, redimensionarCamada, retanguloDeDesenho,
   tamanhoTexto, zoomPorPinca,
 } from "./drumcamAoVivo.ts";
 
@@ -153,4 +153,19 @@ test("formato de gravação, nome, duração e tamanho", () => {
   assert.equal(tamanhoTexto(1536), "1,5 KB");
   assert.equal(tamanhoTexto(3_500_000), "3,3 MB");
   assert.equal(tamanhoTexto(12), "12 B");
+});
+
+test("câmera em segundo plano: só no app com a ponte aoVivo", () => {
+  assert.equal(ponteAoVivo(undefined), null);
+  assert.equal(ponteAoVivo({}), null);
+  assert.equal(ponteAoVivo({ NordAndroid: { manterTelaLigada: () => undefined } }), null);
+  const chamadas: [boolean, string][] = [];
+  const ponte = { aoVivo(l: boolean, n: string) { chamadas.push([l, n]); return true; } };
+  const f = ponteAoVivo({ NordAndroid: ponte });
+  assert.ok(f);
+  assert.equal(f(true, "Bateria"), true);
+  assert.equal(f(false, ""), true);
+  assert.deepEqual(chamadas, [[true, "Bateria"], [false, ""]]);
+  assert.equal(ponteAoVivo({ NordAndroid: { aoVivo: () => false } })?.(true, "x"), false);
+  assert.equal(ponteAoVivo({ NordAndroid: { aoVivo: () => { throw new Error("x"); } } })?.(true, "x"), false);
 });

@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-23-drumcam-v4-estudio",
+    data: "2026-11-23",
+    titulo: "Repertório agora é o Estúdio",
+    texto: "O Repertório virou o Estúdio, um ambiente só seu para música: tela escura de palco, cifras, músicas, Criar e Recebidas no mesmo estilo, e as câmeras na aba Gravação. E no app Android (versão 9.0, que se atualiza sozinho) a câmera ao vivo continua no ar com a tela apagada ou com o app em segundo plano, com um aviso nas notificações.",
+    onde: { rotulo: "Gestão Individual → Estúdio", caminho: "/gestao/repertorio" },
+  },
+  {
     id: "2026-11-23-drumcam-v3",
     data: "2026-11-23",
     titulo: "Estúdio: várias câmeras ao vivo num vídeo só",

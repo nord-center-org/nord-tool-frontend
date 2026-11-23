@@ -29,6 +29,7 @@ import { blocoNoTempo, sincronizar } from "@/react-app/utils/musica/sincronia";
 import { lerAcorde, nomeDoTom, transporAcorde, transporTom } from "@/react-app/utils/musica/teoria";
 import { acordeExibido, nomeDaNotaExibida, tomExibido } from "@/react-app/utils/musica/notacao";
 import { mudarNotacao, useNotacao } from "./useNotacao";
+import { desenhoEscuro } from "./ambiente";
 
 const PainelInstrumentoOnline = lazy(() => import("@/react-app/components/repertorio/PainelInstrumentoOnline"));
 
@@ -326,7 +327,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
           const prox = s.acordes.find(a => a.inicio > t);
           const d = destaque.current && performance.now() < destaque.current.ateMs ? destaque.current : null;
           acharNota.current = (s.mapa ? desenharMapa : desenhar)(ctx, c.width / dpr, c.height / dpr, {
-            instrumento: s.ins, eventos: d ? d.eventos : s.eventos, casas: s.casas, janela: s.janela, escuro: document.documentElement.classList.contains("nt-escuro"), notacao: s.notacao, todasNotas: s.todasNotas,
+            instrumento: s.ins, eventos: d ? d.eventos : s.eventos, casas: s.casas, janela: s.janela, escuro: desenhoEscuro(), notacao: s.notacao, todasNotas: s.todasNotas,
             acordeAtual: d ? d.nome : i >= 0 ? acordeExibido(s.acordes[i].nome, s.notacao) : null, proximoAcorde: d ? null : prox ? acordeExibido(prox.nome, s.notacao) : null,
           }, t);
         }

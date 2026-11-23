@@ -63,8 +63,13 @@ export default function GaleriaDrumcam({ abrir, aoAbrir }: { abrir?: string | nu
 
 /** Assistir (ou ver a foto) aqui mesmo, sem baixar. */
 function Visualizador({ item, fechar }: { item: ItemGaleria; fechar: () => void }) {
-  const url = useMemo(() => URL.createObjectURL(item.blob), [item.blob]);
-  useEffect(() => () => URL.revokeObjectURL(url), [url]);
+  // O endereço nasce e morre no mesmo efeito (no modo estrito do React, um useMemo seria revogado e o vídeo não tocaria).
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    const u = URL.createObjectURL(item.blob);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [item.blob]);
   const [nome, setNome] = useState(item.nome);
   const [editando, setEditando] = useState(false);
   useEffect(() => {
@@ -86,7 +91,7 @@ function Visualizador({ item, fechar }: { item: ItemGaleria; fechar: () => void 
           <BotaoIcone rotulo="Apagar" onClick={() => { if (confirm(`Apagar "${nome}" deste aparelho?`)) { void galeria.apagar(item.id); fechar(); } }}><Trash2 className="h-4 w-4" /></BotaoIcone>
           <BotaoIcone rotulo="Fechar" onClick={fechar}><X className="h-4 w-4" /></BotaoIcone>
         </div>
-        {item.tipo === "video"
+        {!url ? null : item.tipo === "video"
           ? <video src={url} controls autoPlay playsInline className="max-h-[75vh] w-full rounded bg-black" />
           : <img src={url} alt={nome} className="mx-auto max-h-[75vh] rounded" />}
       </div>

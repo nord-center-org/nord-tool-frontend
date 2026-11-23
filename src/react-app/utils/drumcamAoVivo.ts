@@ -384,3 +384,15 @@ export function tamanhoTexto(bytes: number): string {
   while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
   return `${v.toFixed(v < 10 ? 1 : 0).replace(".", ",")} ${u[i]}`;
 }
+
+/**
+ * Drumcam v4: no app Android 9.0+, a câmera ao vivo continua no ar com a tela apagada e em segundo plano (serviço com
+ * notificação). Devolve a função da ponte, ou null fora do app (ou em app antigo), quando só dá para manter a tela ligada.
+ */
+export type PonteAoVivo = (ligar: boolean, nome: string) => boolean;
+export function ponteAoVivo(janela: unknown = typeof window === "undefined" ? undefined : window): PonteAoVivo | null {
+  const p = (janela as { NordAndroid?: { aoVivo?: unknown } } | undefined)?.NordAndroid;
+  if (!p || typeof p.aoVivo !== "function") return null;
+  const f = p.aoVivo as (ligar: boolean, nome: string) => unknown;
+  return (ligar, nome) => { try { return f.call(p, ligar, nome) !== false; } catch { return false; } };
+}
