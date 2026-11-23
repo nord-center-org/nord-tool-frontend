@@ -81,9 +81,11 @@ export interface InfoDoApp {
   nomeVersao: string | null;
   /** Pede ao app para conferir agora (baixa e pede a autorização se houver versão nova); null nos apps antigos. */
   verificar: (() => void) | null;
+  /** App 10.0+: baixa e instala a versão publicada mesmo que seja a mesma (reinstalar à mão); null nos apps antigos. */
+  instalar: (() => void) | null;
 }
 
-type PonteVersao = { versaoApp?: () => number; nomeVersaoApp?: () => string; verificarAtualizacao?: () => void };
+type PonteVersao = { versaoApp?: () => number; nomeVersaoApp?: () => string; verificarAtualizacao?: () => void; instalarUltimaVersao?: () => void };
 
 /** Null fora do app; dentro dele, a versão instalada e como pedir a verificação. */
 export function infoDoApp(agente: string | undefined, janela: unknown = typeof window === "undefined" ? undefined : window): InfoDoApp | null {
@@ -97,6 +99,7 @@ export function infoDoApp(agente: string | undefined, janela: unknown = typeof w
     versao: typeof versao === "number" && versao > 0 ? versao : null,
     nomeVersao: ler(p?.nomeVersaoApp),
     verificar: typeof p?.verificarAtualizacao === "function" ? () => p.verificarAtualizacao?.() : null,
+    instalar: typeof p?.instalarUltimaVersao === "function" ? () => p.instalarUltimaVersao?.() : null,
   };
 }
 

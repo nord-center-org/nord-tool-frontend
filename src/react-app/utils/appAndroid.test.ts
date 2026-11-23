@@ -83,6 +83,11 @@ test("informações do app instalado", async () => {
   assert.equal(novo?.nomeVersao, "5.0");
   novo?.verificar?.();
   assert.equal(pedidos, 1);
+  assert.equal(novo?.instalar, null);
+  let instalacoes = 0;
+  const com10 = infoDoApp("NordToolAndroid/10.0", { NordAndroid: { versaoApp: () => 10, instalarUltimaVersao: () => { instalacoes++; } } });
+  com10?.instalar?.();
+  assert.equal(instalacoes, 1);
   const quebrado = infoDoApp("NordToolAndroid/5.0", { NordAndroid: { versaoApp: () => { throw new Error("x"); } } });
   assert.equal(quebrado?.versao, null);
   assert.equal(situacaoDoApp(null, 5), "antigo");
