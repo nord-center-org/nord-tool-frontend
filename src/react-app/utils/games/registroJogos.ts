@@ -93,6 +93,16 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Cidade",
     botoes: { a: "Nitro", b: "Freio de mão" },
   },
+  cozinha: {
+    id: "cozinha",
+    modos: [
+      { valor: "coop", rotulo: "Cooperativo (todos numa cozinha)", rotuloSolo: "Desafio Solo", regraSolo: "faça 250 pontos em pedidos em 3 minutos." },
+      { valor: "duelo", rotulo: "Duelo de Cozinhas (vermelho × azul)", par: true },
+    ],
+    cenarios: [{ valor: "bistro", rotulo: "Bistrô" }, { valor: "food", rotulo: "Food truck" }, { valor: "navio", rotulo: "Navio" }],
+    rotuloCenario: "Cozinha",
+    botoes: { a: "Pegar", b: "Usar" },
+  },
   fps: {
     id: "fps",
     modos: [

@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-23-games-v24",
+    data: "2026-11-23",
+    titulo: "Games: Cozinha Caótica",
+    texto: "Pedidos chegando sem parar: corte na tábua, frite a carne, cozinhe a sopa, monte o prato e entregue antes do tempo. Panela esquecida queima e pega fogo (o extintor está na ilha), e o prato volta sujo para lavar. Cooperativo com estrelas ou Duelo de Cozinhas, de 1 a 8.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-23-games-v23",
     data: "2026-11-23",
     titulo: "Games: Arena Voxel em primeira pessoa",
