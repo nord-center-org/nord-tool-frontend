@@ -12,7 +12,7 @@ function nomeSalvo(): string {
 /**
  * Este aparelho é uma câmera ao vivo (tela cheia). Transmite para o Estúdio e o Monitoramento de qualquer aparelho
  * da mesma conta. Mostra quantos estão vendo, a bateria e se está gravando em alta qualidade; dá para escurecer a
- * tela (economiza bateria e não chama atenção) sem parar a câmera.
+ * tela (economiza bateria e não chama atenção) sem parar a câmera. No app 9.0+ (v4), dá até para apagar a tela.
  */
 export default function CameraAoVivoTela({ sair }: { sair: () => void }) {
   const [nome, setNome] = useState(() => nomeSalvo() || `Câmera ${Math.floor(Math.random() * 90 + 10)}`);
@@ -55,6 +55,13 @@ export default function CameraAoVivoTela({ sair }: { sair: () => void }) {
           {estado && <span className="rounded-full bg-black/50 px-2 py-1">{estado.largura}×{estado.altura}</span>}
         </div>
         {erro && <p className="absolute inset-x-4 top-16 rounded-lg bg-red-600/90 p-3 text-sm">{erro}</p>}
+        {!erro && camera && (
+          <p className="absolute inset-x-3 top-12 text-center text-[11px] text-white/70">
+            {camera.segundoPlano
+              ? "Pode apagar a tela ou sair do app: a câmera continua transmitindo (aviso nas notificações)."
+              : "No navegador, a câmera precisa da tela ligada. No app NordTool 9.0+, ela continua com a tela apagada."}
+          </p>
+        )}
         {estado && (
           <div className="absolute inset-x-0 bottom-3 flex justify-center">
             <span className="flex gap-1 rounded-full bg-black/60 p-1">

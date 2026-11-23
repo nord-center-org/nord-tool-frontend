@@ -1,5 +1,5 @@
 import {
-  ICE_SERVERS, QUALIDADES, formatoDeGravacao, lenteParaZoom, lentesDosDispositivos, lerComando, lerSinal,
+  ICE_SERVERS, QUALIDADES, formatoDeGravacao, lenteParaZoom, lentesDosDispositivos, lerComando, lerSinal, ponteAoVivo,
   type Comando, type EstadoCamera, type Lente, type Qualidade,
 } from "@/react-app/utils/drumcamAoVivo";
 import { partes } from "./armazenamento";
@@ -340,7 +340,12 @@ export class CameraLocal {
     }
   }
 
+  /** No app 9.0+, a câmera segue no ar com a tela apagada; no navegador (ou app antigo), a tela fica ligada. */
+  readonly segundoPlano = ponteAoVivo() !== null;
+
   private async manterTela(ligada: boolean) {
+    const aoVivo = ponteAoVivo();
+    if (aoVivo && aoVivo(ligada, this.nome)) return;
     (window as unknown as { NordAndroid?: { manterTelaLigada?: (l: boolean) => void } }).NordAndroid?.manterTelaLigada?.(ligada);
     const wl = (navigator as Navigator & { wakeLock?: { request(t: "screen"): Promise<{ release(): Promise<void> }> } }).wakeLock;
     if (ligada && wl) this.wakeLock = await wl.request("screen").catch(() => null);

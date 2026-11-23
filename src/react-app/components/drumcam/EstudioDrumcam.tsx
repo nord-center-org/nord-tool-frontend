@@ -212,7 +212,7 @@ function Estudio({ comp, aoGravar }: { comp: Compositor; aoGravar?: (id: string)
         </Painel>
         <Painel titulo="Fontes" acoes={<span className="text-[10px] text-slate-500">{usadas.length} no vídeo</span>}>
           {aoVivo.length === 0 ? (
-            <p className="p-2 text-xs text-slate-400">Nenhuma câmera ao vivo. Em outro celular, abra Repertório → Estúdio → Câmeras e toque em “Usar este aparelho como câmera”.</p>
+            <p className="p-2 text-xs text-slate-400">Nenhuma câmera ao vivo. Em outro celular, abra Estúdio → Gravação → Câmeras e toque em “Usar este aparelho como câmera”.</p>
           ) : (
             <ul className="space-y-1">
               {aoVivo.map(c => {

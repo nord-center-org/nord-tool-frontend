@@ -86,7 +86,7 @@ export default function Layout() {
       items: [
         { path: "/gestao/financeiro", label: "Gestão financeira", icon: Wallet },
         { path: "/gestao/treinos", label: "Treinos", icon: Dumbbell },
-        { path: "/gestao/repertorio", label: "Repertório", icon: Music },
+        { path: "/gestao/repertorio", label: "Estúdio", icon: Music },
         { path: "/gestao/academico", label: "Desenvolvimento acadêmico", icon: Book },
         { path: "/gestao/casamento", label: "Casamento", icon: Heart },
         { path: "/gestao/caixinha", label: "Caixinha", icon: PiggyBank },
@@ -383,8 +383,8 @@ export default function Layout() {
           <HelpCircle className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12" />
         </button>
 
-        {/* Games: a área toda fica escura, no estilo da Central (sem moldura clara em volta). */}
-        <div className={`flex-1 overflow-auto h-full ${location.pathname.startsWith("/gestao/games") ? "bg-[#05060f]" : ""}`}>
+        {/* Games e Estúdio: a área toda fica escura, cada um com o seu ambiente (sem moldura clara em volta). */}
+        <div className={`flex-1 overflow-auto h-full ${location.pathname.startsWith("/gestao/games") ? "bg-[#05060f]" : location.pathname.startsWith("/gestao/repertorio") ? "nt-estudio nt-estudio-fundo" : ""}`}>
           <div className={`transition-all duration-300 h-full px-3 pb-6 pt-16 sm:px-4 ${!sidebarOpen ? "md:pl-20 md:pr-20 md:pt-6" : "md:p-8 md:pr-20"}`}>
             <ErrorBoundary resetKey={location.pathname}>
               <ExigeModuloDaRota>

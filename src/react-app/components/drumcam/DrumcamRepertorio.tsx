@@ -10,14 +10,14 @@ const GaleriaDrumcam = lazy(() => import("./GaleriaDrumcam"));
 
 type Aba = "estudio" | "monitor" | "galeria" | "cameras";
 const ABAS: { id: Aba; nome: string; icone: typeof Video }[] = [
-  { id: "estudio", nome: "Estúdio", icone: Clapperboard },
+  { id: "estudio", nome: "Mesa", icone: Clapperboard },
   { id: "monitor", nome: "Monitoramento", icone: MonitorPlay },
   { id: "galeria", nome: "Galeria", icone: FolderOpen },
   { id: "cameras", nome: "Câmeras", icone: Camera },
 ];
 
 /**
- * Repertório → Estúdio (Drumcam v3): mesa de transmissão no estilo dos programas de live. Várias câmeras ao vivo
+ * Estúdio → Gravação (Drumcam v3; v4: a tela toda virou Estúdio e esta parte, Gravação): mesa de transmissão no estilo dos programas de live. Várias câmeras ao vivo
  * (WebRTC) num vídeo só, com cenas, posições, filtros e mixer; monitoramento das câmeras em grade; galeria para
  * assistir sem baixar; e as câmeras (este aparelho como câmera ao vivo, e a câmera do app com YouTube).
  */
@@ -41,12 +41,12 @@ function Mesa() {
   const mudar = (a: Aba) => { setAba(a); try { localStorage.setItem("drumcam-aba", a); } catch { /* sem armazenamento */ } };
 
   return (
-    <div className="nt-estudio rounded-xl bg-[#0f1115] p-2 text-slate-200 shadow-xl ring-1 ring-black/40 sm:p-3">
+    <div className="rounded-xl bg-[#0f1115] p-2 text-slate-200 shadow-xl ring-1 ring-black/40 sm:p-3">
       <header className="mb-2 flex flex-wrap items-center gap-2">
         <p className="mr-2 flex items-center gap-2 text-sm font-black tracking-wide text-white">
-          <span className="grid h-7 w-7 place-items-center rounded-md bg-red-600"><Radio className="h-4 w-4" /></span>Estúdio
+          <span className="grid h-7 w-7 place-items-center rounded-md bg-red-600"><Radio className="h-4 w-4" /></span>Gravação
         </p>
-        <nav className="flex flex-1 flex-wrap gap-1 rounded-lg bg-black/30 p-1" role="tablist" aria-label="Estúdio">
+        <nav className="flex flex-1 flex-wrap gap-1 rounded-lg bg-black/30 p-1" role="tablist" aria-label="Gravação">
           {ABAS.map(a => (
             <button key={a.id} type="button" role="tab" aria-selected={aba === a.id} onClick={() => mudar(a.id)}
               className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition ${aba === a.id ? "bg-[#2a2f3a] text-white shadow" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`}>
@@ -89,7 +89,7 @@ function Cameras({ serCamera }: { serCamera: () => void }) {
         <button type="button" onClick={serCamera} className="flex items-start gap-3 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-left hover:bg-red-500/20">
           <Smartphone className="mt-0.5 h-6 w-6 shrink-0 text-red-400" />
           <span><span className="block font-bold text-white">Usar este aparelho como câmera ao vivo</span>
-            <span className="block text-xs text-slate-400">Celular (no app NordTool 8.0+ ou no navegador) ou notebook com webcam. Aparece no Estúdio e no Monitoramento de qualquer aparelho da sua conta. Deixe na tomada.</span></span>
+            <span className="block text-xs text-slate-400">Celular (no app NordTool 9.0+, que segue com a tela apagada, ou no navegador, com a tela ligada) ou notebook com webcam. Aparece na Mesa e no Monitoramento de qualquer aparelho da sua conta. Deixe na tomada.</span></span>
         </button>
         <div className="rounded-lg border border-white/10 bg-[#181b22] p-3">
           <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">Na sua conta agora</p>

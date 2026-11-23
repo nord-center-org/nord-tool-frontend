@@ -6,6 +6,7 @@ import { acordesEmOrdem, empurrar, moverSo, picos, temposDosAcordes } from "@/re
 import { decodificar } from "./motorAudio";
 import { acordeExibido, type Notacao } from "@/react-app/utils/musica/notacao";
 import { transporAcorde } from "@/react-app/utils/musica/teoria";
+import { desenhoEscuro } from "./ambiente";
 
 const botao = "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40";
 const ZOOMS = [20, 35, 60, 100, 160];
@@ -94,7 +95,7 @@ export default function LinhaDoTempoAcordes(props: Props) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
     if (!onda) return;
-    ctx.fillStyle = document.documentElement.classList.contains("nt-escuro") ? "#475569" : "#cbd5e1";
+    ctx.fillStyle = desenhoEscuro() ? "#475569" : "#cbd5e1";
     const meio = h / 2;
     for (let x = 0; x < w; x++) {
       const s0 = (t.scrollLeft + x) / px, s1 = (t.scrollLeft + x + 1) / px;

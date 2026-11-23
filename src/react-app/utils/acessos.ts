@@ -33,7 +33,7 @@ export const MODULOS: Record<string, { nome: string; telas: string }> = {
   CASAMENTO: { nome: "Casamento", telas: "Fornecedores, convidados e marcos" },
   TREINOS: { nome: "Treinos", telas: "Treinos e sessões de academia" },
   GAMES: { nome: "Games", telas: "Central de jogos: partidas contra bots, no celular e com a turma (até 8)" },
-  REPERTORIO: { nome: "Repertório", telas: "Músicas, cifras e estúdio (Ver: tocar; Editar: criar, mudar e compartilhar)" },
+  REPERTORIO: { nome: "Estúdio", telas: "Músicas, cifras, criar e gravar (Ver: tocar; Editar: criar, mudar e compartilhar)" },
   TELAS_EM_CONSTRUCAO: { nome: "Telas em construção", telas: "Pendências, RTE, Diário de obras, Fluxo de atividades, FVs, Projetos, Treinamentos e Acadêmico" },
   SESSAO_CONTINUA: { nome: "Manter conectado no app", telas: "No app Android a sessão não cai (sem ele, o app pede a senha como o navegador)" },
   LUGIA: { nome: "Lugia (IA)", telas: "Chat com Claude, ChatGPT e Gemini (Editar e Admin: para as próximas fases)" },

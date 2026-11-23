@@ -738,9 +738,9 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
     ],
   },
   "/gestao/repertorio": {
-    titulo: "Repertório",
+    titulo: "Estúdio",
     passos: [
-      cabecalho("Repertório", "As músicas de todos do NordTool, para tocar junto."),
+      cabecalho("Estúdio", "O seu canto musical: as músicas e cifras de todos do NordTool, para tocar junto, criar e gravar."),
       {
         titulo: "Enviar uma música",
         texto: "Escolha ou arraste um MP3, WAV, M4A, OGG ou FLAC. Ao abrir, reconheço o tom, o BPM, os acordes e as notas do baixo. A música vai para o NordTool (até 15 MB cada) e abre em qualquer aparelho, com a cifra e os ajustes; a nuvem verde mostra o que já está lá. A aba é aberta a todos: qualquer pessoa toca e edita as músicas e as criações, cada uma mostra quem criou (e quem editou por último) e só quem criou exclui.",
@@ -786,7 +786,7 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         texto: "Monte uma música faixa por faixa: escolha o BPM e os compassos, adicione bateria, baixo, teclado, violão ou sintetizador e escreva as notas na grade (no modo \"Pôr notas\", um clique marca um quadradinho e arrastar estica; no modo \"Selecionar\", arraste um retângulo para copiar, colar em qualquer faixa, duplicar, apagar ou mover com as setas), ou toque em \"Gravar\" e toque o instrumento com o metrônomo (um compasso de contagem antes). Cada faixa tem volume, mudo e solo; \"Dobrar\" repete a música, \"WAV\" baixa o áudio e \"Mandar para Músicas\" abre no player.",
         alvo: { css: '[role="tab"]', texto: "Criar" },
       },
-      ajudaNoCanto("Repertório"),
+      ajudaNoCanto("Estúdio"),
     ],
   },
   "/gestao/casamento": {

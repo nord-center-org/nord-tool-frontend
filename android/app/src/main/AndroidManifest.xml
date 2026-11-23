@@ -68,6 +68,12 @@
             </intent-filter>
         </receiver>
 
+        <!-- v8 (app 9.0): câmera ao vivo do Estúdio com a tela apagada ou em segundo plano. -->
+        <service
+            android:name=".ServicoAoVivo"
+            android:exported="false"
+            android:foregroundServiceType="camera|microphone" />
+
         <service
             android:name=".ServicoSegundoPlano"
             android:exported="false"
