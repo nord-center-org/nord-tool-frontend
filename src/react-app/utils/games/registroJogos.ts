@@ -81,6 +81,16 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Mesa",
     botoes: { a: "Jogar", b: "Comprar" },
   },
+  tanques: {
+    id: "tanques",
+    modos: [
+      { valor: "matamata", rotulo: "Mata-Mata", rotuloSolo: "Tiro ao alvo", regraSolo: "destrua os 10 alvos em 90 segundos." },
+      { valor: "times", rotulo: "Times (vermelho × azul)", par: true },
+    ],
+    cenarios: [{ valor: "deserto", rotulo: "Deserto" }, { valor: "neve", rotulo: "Neve" }, { valor: "fabrica", rotulo: "Fábrica" }],
+    rotuloCenario: "Arena",
+    botoes: { a: "Atirar", b: "Mina" },
+  },
   kart: {
     id: "kart",
     modos: [
