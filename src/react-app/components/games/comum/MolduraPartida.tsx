@@ -63,7 +63,7 @@ interface Props {
   /** Rótulos dos botões A e B no controle da tela. */
   botoes: { a: string; b: string };
   ajudaTeclado: string;
-  /** Música da partida (bpm). */
+  /** Música da partida (bpm); 0 = sem trilha (o próprio jogo toca, como no Ritmo). */
   bpm?: number;
   criarMotor: (caixa: HTMLDivElement, ganchos: GanchosMotor) => MotorJogo;
   onSair: () => void;
@@ -161,7 +161,7 @@ export default function MolduraPartida({
     if (fase !== "contagem") return;
     if (contagem <= 0) {
       som.contagem(true);
-      som.tocarMusica(bpm);
+      if (bpm > 0) som.tocarMusica(bpm);
       mudarFase("jogando");
       return;
     }
@@ -204,7 +204,7 @@ export default function MolduraPartida({
       if (pausa && !pausaAnterior && faseRef.current === "jogando") {
         pausadoRef.current = !pausadoRef.current;
         setPausado(pausadoRef.current);
-        if (pausadoRef.current) som.pararMusica(); else som.tocarMusica(bpm);
+        if (pausadoRef.current) som.pararMusica(); else if (bpm > 0) som.tocarMusica(bpm);
       }
       pausaAnterior = pausa;
       passos++;
@@ -256,7 +256,7 @@ export default function MolduraPartida({
   const alternarPausa = () => {
     pausadoRef.current = !pausadoRef.current;
     setPausado(pausadoRef.current);
-    if (pausadoRef.current) som.pararMusica(); else som.tocarMusica(bpm);
+    if (pausadoRef.current) som.pararMusica(); else if (bpm > 0) som.tocarMusica(bpm);
   };
   const tempo = placar ? `${Math.floor(placar.tempo / 60)}:${String(placar.tempo % 60).padStart(2, "0")}` : "--:--";
   const nomeVencedor = ultimo ? (ultimo.time !== null && ultimo.time !== undefined ? `Time ${ultimo.time === 0 ? "Ímpar (P1, P3…)" : "Par (P2, P4…)"}` : ultimo.vencedor !== null ? `P${ultimo.vencedor + 1} · ${vagas[ultimo.vencedor].nome}` : "Empate") : "";
@@ -271,7 +271,7 @@ export default function MolduraPartida({
           <p className="text-xs text-white/60">{subtitulo ? `${subtitulo} · ` : ""}{detalhe}{solo ? "" : ` · rodada ${rodada} · vence quem fizer ${vitoriasParaVencer}`}</p>
         </div>
         <span className={`rounded-xl px-3 py-1.5 font-mono text-lg font-black tabular-nums ${placar?.alerta ? "animate-pulse bg-red-600" : "bg-white/10"}`} aria-label="Tempo restante">{tempo}</span>
-        <button type="button" onClick={() => { som.definirMudo(!mudo); setMudo(!mudo); if (mudo && fase === "jogando") som.tocarMusica(bpm); }} aria-label={mudo ? "Ligar som" : "Desligar som"} className="rounded-xl bg-white/10 p-2 hover:bg-white/20">
+        <button type="button" onClick={() => { som.definirMudo(!mudo); setMudo(!mudo); if (mudo && fase === "jogando" && bpm > 0) som.tocarMusica(bpm); }} aria-label={mudo ? "Ligar som" : "Desligar som"} className="rounded-xl bg-white/10 p-2 hover:bg-white/20">
           {mudo ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
         </button>
         <button type="button" aria-label="Controles" title="Controles (teclas, toque e controle de videogame)"

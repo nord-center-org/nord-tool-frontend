@@ -7,7 +7,7 @@ test("todo jogo disponível no catálogo está no registro (e vice-versa)", () =
   const disponiveis = JOGOS.filter(j => j.disponivel).map(j => j.id).sort();
   assert.deepEqual(Object.keys(JOGAVEIS).sort(), disponiveis);
   assert.equal(ehJogavel("bombas"), true);
-  assert.equal(ehJogavel("kart"), false);
+  assert.equal(ehJogavel("jogo-inexistente"), false);
 });
 
 test("todo jogo jogável tem um modo para jogar sozinho", () => {

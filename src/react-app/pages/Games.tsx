@@ -40,6 +40,17 @@ import type { Arena as ArenaCoroa, ModoCoroa } from "@/react-app/utils/games/cor
 import type { ModoEspacial, Setor } from "@/react-app/utils/games/espacial";
 import type { ModoTorres, Paisagem } from "@/react-app/utils/games/torres";
 import type { ModoDefesa } from "@/react-app/utils/games/defesa";
+import type { ModoPescaria } from "@/react-app/utils/games/pescaria";
+import type { ModoMineracao } from "@/react-app/utils/games/mineracao";
+import type { ModoKart, PistaKart } from "@/react-app/utils/games/kart";
+import type { ArenaTanques, ModoTanques } from "@/react-app/utils/games/tanques";
+import type { MapaFps, ModoFps } from "@/react-app/utils/games/fps";
+import type { ModoCozinha, TemaCozinha } from "@/react-app/utils/games/cozinha";
+import type { Andamento, ModoRitmo } from "@/react-app/utils/games/ritmo";
+import type { ModoChefao, TipoChefe } from "@/react-app/utils/games/chefao";
+import type { CidadeCaos, ModoCaos } from "@/react-app/utils/games/caos";
+import type { MinaMineracao } from "@/react-app/components/games/jogos/mineracao/motorMineracao";
+import type { MarPescaria } from "@/react-app/components/games/jogos/pescaria/motorPescaria";
 import type { MapaDefesa } from "@/react-app/components/games/jogos/defesa/motorDefesa";
 import type { TemaMasmorra } from "@/react-app/components/games/jogos/masmorra/motorMasmorra";
 import type { CenarioHorda } from "@/react-app/components/games/jogos/horda/motorHorda";
@@ -54,6 +65,15 @@ const DueloMeioDia = lazy(() => import("@/react-app/components/games/jogos/duelo
 const CartasDaVirada = lazy(() => import("@/react-app/components/games/jogos/cartas/CartasDaVirada"));
 const TorresColapso = lazy(() => import("@/react-app/components/games/jogos/torres/TorresColapso"));
 const DefesaBase = lazy(() => import("@/react-app/components/games/jogos/defesa/DefesaBase"));
+const PescariaSubmarino = lazy(() => import("@/react-app/components/games/jogos/pescaria/PescariaSubmarino"));
+const CorridaOuro = lazy(() => import("@/react-app/components/games/jogos/mineracao/CorridaOuro"));
+const KartTurbo = lazy(() => import("@/react-app/components/games/jogos/kart/KartTurbo"));
+const TanquesAco = lazy(() => import("@/react-app/components/games/jogos/tanques/TanquesAco"));
+const ArenaVoxel = lazy(() => import("@/react-app/components/games/jogos/fps/ArenaVoxel"));
+const CozinhaCaotica = lazy(() => import("@/react-app/components/games/jogos/cozinha/CozinhaCaotica"));
+const BatalhaBanda = lazy(() => import("@/react-app/components/games/jogos/ritmo/BatalhaBanda"));
+const ChefaoColossal = lazy(() => import("@/react-app/components/games/jogos/chefao/ChefaoColossal"));
+const CaosUrbano = lazy(() => import("@/react-app/components/games/jogos/caos/CaosUrbano"));
 const CorridaEspacial = lazy(() => import("@/react-app/components/games/jogos/espacial/CorridaEspacial"));
 const CoroaMaldita = lazy(() => import("@/react-app/components/games/jogos/coroa/CoroaMaldita"));
 const FugaMasmorra = lazy(() => import("@/react-app/components/games/jogos/masmorra/FugaMasmorra"));
@@ -261,9 +281,9 @@ export default function GamesPage() {
     if (numero === 1) vagasDaCopa.current = vagas;
     if (numero === 1) jogoDaCopa.current = jogoAtual;
     const jogo = numero === 1 || !copa ? jogoAtual : jogoDaCopa.current;
-    daPartida.forEach((v, i) => { if (v.controle !== undefined) paraVaga(v.controle, { k: "lugar", indice: i, cor: CORES_JOGADORES[i], jogo }); });
     const n = daPartida.length;
     const modo = modoEfetivo(jogo, cfg.modo, n);
+    daPartida.forEach((v, i) => { if (v.controle !== undefined) paraVaga(v.controle, { k: "lugar", indice: i, cor: CORES_JOGADORES[i], jogo, modo }); });
     const vitorias = n === 1 ? 1 : cfg.vitorias;
     // Cada celular recebe o que precisa para desenhar o mesmo jogo (nome, avatar e se é bot; nada da conta).
     const vagasEspelho = daPartida.map(v => ({ nome: v.nome, bot: v.bot, avatar: v.avatar }));
@@ -376,6 +396,42 @@ export default function GamesPage() {
       ) : partida.jogo === "cartas" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
           <CartasDaVirada key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoCartas} mesa={partida.cenario as MesaCartas} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "caos" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <CaosUrbano key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoCaos} cidade={partida.cenario as CidadeCaos} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "chefao" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <ChefaoColossal key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoChefao} chefe={partida.cenario as TipoChefe} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "ritmo" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <BatalhaBanda key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoRitmo} andamento={partida.cenario as Andamento} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "cozinha" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <CozinhaCaotica key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoCozinha} tema={partida.cenario as TemaCozinha} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "fps" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <ArenaVoxel key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoFps} mapa={partida.cenario as MapaFps} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "tanques" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <TanquesAco key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoTanques} arena={partida.cenario as ArenaTanques} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "kart" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <KartTurbo key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoKart} pista={partida.cenario as PistaKart} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "mineracao" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <CorridaOuro key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoMineracao} mina={partida.cenario as MinaMineracao} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "pescaria" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <PescariaSubmarino key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoPescaria} mar={partida.cenario as MarPescaria} {...comuns} />
         </Suspense>
       ) : partida.jogo === "defesa" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>

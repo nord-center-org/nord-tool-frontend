@@ -93,6 +93,16 @@ class Sintetizador {
   alerta() { this.tom(880, 0.12, "square", 0.2); this.tom(660, 0.12, "square", 0.2, undefined, 0.14); }
   vitoria() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => this.tom(f, i === 5 ? 0.6 : 0.14, "square", 0.2, undefined, i * 0.13)); }
 
+  // ---- notas avulsas (o jogo de ritmo toca a própria música no compasso das notas).
+  /** Uma nota musical (frequência em Hz) agora ou daqui a {@code atraso} segundos. */
+  nota(freq: number, dur = 0.2, onda: Onda = "triangle", vol = 0.2, atraso = 0) { this.tom(freq, dur, onda, vol, undefined, atraso); }
+  /** Bateria: bumbo, caixa ou chimbal. */
+  bateria(peca: "bumbo" | "caixa" | "chimbal", atraso = 0) {
+    if (peca === "bumbo") this.tom(120, 0.12, "sine", 0.4, 45, atraso);
+    else if (peca === "caixa") this.chiado(0.1, 0.22, 1800, "bandpass", undefined, atraso);
+    else this.chiado(0.03, 0.07, 8000, "highpass", undefined, atraso);
+  }
+
   // ---- trilha: baixo + caixa + chimbal num loop de 16 tempos, com o BPM ajustável (acelera no fim da partida).
   tocarMusica(bpm = 132, escala = [0, 3, 5, 7, 10]) {
     this.pararMusica();

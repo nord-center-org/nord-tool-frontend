@@ -25,6 +25,42 @@ export async function fabricaDoMotor(jogo: string): Promise<FabricaMotor | null>
       const m = await import("./naval/motorNaval");
       return (c, v, modo, cen, g) => m.criarMotorNaval(c, v, modo as Parameters<typeof m.criarMotorNaval>[2], cen as Parameters<typeof m.criarMotorNaval>[3], g);
     }
+    case "caos": {
+      const m = await import("./caos/motorCaos");
+      return (c, v, modo, cen, g) => m.criarMotorCaos(c, v, modo as Parameters<typeof m.criarMotorCaos>[2], cen as Parameters<typeof m.criarMotorCaos>[3], g);
+    }
+    case "chefao": {
+      const m = await import("./chefao/motorChefao");
+      return (c, v, modo, cen, g) => m.criarMotorChefao(c, v, modo as Parameters<typeof m.criarMotorChefao>[2], cen as Parameters<typeof m.criarMotorChefao>[3], g);
+    }
+    case "ritmo": {
+      const m = await import("./ritmo/motorRitmo");
+      return (c, v, modo, cen, g) => m.criarMotorRitmo(c, v, modo as Parameters<typeof m.criarMotorRitmo>[2], cen as Parameters<typeof m.criarMotorRitmo>[3], g);
+    }
+    case "cozinha": {
+      const m = await import("./cozinha/motorCozinha");
+      return (c, v, modo, cen, g) => m.criarMotorCozinha(c, v, modo as Parameters<typeof m.criarMotorCozinha>[2], cen as Parameters<typeof m.criarMotorCozinha>[3], g);
+    }
+    case "fps": {
+      const m = await import("./fps/motorFps");
+      return (c, v, modo, cen, g) => m.criarMotorFps(c, v, modo as Parameters<typeof m.criarMotorFps>[2], cen as Parameters<typeof m.criarMotorFps>[3], g);
+    }
+    case "tanques": {
+      const m = await import("./tanques/motorTanques");
+      return (c, v, modo, cen, g) => m.criarMotorTanques(c, v, modo as Parameters<typeof m.criarMotorTanques>[2], cen as Parameters<typeof m.criarMotorTanques>[3], g);
+    }
+    case "kart": {
+      const m = await import("./kart/motorKart");
+      return (c, v, modo, cen, g) => m.criarMotorKart(c, v, modo as Parameters<typeof m.criarMotorKart>[2], cen as Parameters<typeof m.criarMotorKart>[3], g);
+    }
+    case "mineracao": {
+      const m = await import("./mineracao/motorMineracao");
+      return (c, v, modo, cen, g) => m.criarMotorMineracao(c, v, modo as Parameters<typeof m.criarMotorMineracao>[2], cen as Parameters<typeof m.criarMotorMineracao>[3], g);
+    }
+    case "pescaria": {
+      const m = await import("./pescaria/motorPescaria");
+      return (c, v, modo, cen, g) => m.criarMotorPescaria(c, v, modo as Parameters<typeof m.criarMotorPescaria>[2], cen as Parameters<typeof m.criarMotorPescaria>[3], g);
+    }
     case "defesa": {
       const m = await import("./defesa/motorDefesa");
       return (c, v, modo, cen, g) => m.criarMotorDefesa(c, v, modo as Parameters<typeof m.criarMotorDefesa>[2], cen as Parameters<typeof m.criarMotorDefesa>[3], g);

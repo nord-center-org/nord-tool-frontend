@@ -15,6 +15,8 @@ export interface ModoJogo {
   regraSolo?: string;
   /** Precisa de número par (times). */
   par?: boolean;
+  /** Nomes dos botões no celular quando mudam conforme o modo. */
+  botoes?: { a: string; b: string };
 }
 
 export interface DefJogo {
@@ -78,6 +80,101 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     cenarios: [{ valor: "feltro", rotulo: "Feltro verde" }, { valor: "neon", rotulo: "Neon" }, { valor: "madeira", rotulo: "Madeira" }],
     rotuloCenario: "Mesa",
     botoes: { a: "Jogar", b: "Comprar" },
+  },
+  caos: {
+    id: "caos",
+    modos: [
+      { valor: "fuga", rotulo: "Fuga Policial", rotuloSolo: "Fuga Policial", regraSolo: "fique livre da polícia por 2 minutos." },
+      { valor: "entregas", rotulo: "Entrega Expressa", rotuloSolo: "Entrega Expressa", regraSolo: "faça 6 entregas em 3 minutos." },
+      { valor: "derby", rotulo: "Derby de Demolição", rotuloSolo: "Derby de Demolição", regraSolo: "destrua as 6 sucatas da arena em 2 minutos." },
+      { valor: "corrida", rotulo: "Corrida de Rua", rotuloSolo: "Corrida de Rua", regraSolo: "passe pelos 8 postos antes do tempo." },
+    ],
+    cenarios: [{ valor: "centro", rotulo: "Centro" }, { valor: "porto", rotulo: "Porto" }, { valor: "noite", rotulo: "Cidade à noite" }],
+    rotuloCenario: "Cidade",
+    botoes: { a: "Nitro", b: "Freio de mão" },
+  },
+  chefao: {
+    id: "chefao",
+    modos: [
+      { valor: "coop", rotulo: "Cooperativo", rotuloSolo: "Cooperativo (3 vidas)", regraSolo: "derrube o chefe com 3 vidas antes de 6 minutos." },
+      { valor: "competitivo", rotulo: "Competitivo (mais dano vence)" },
+      { valor: "rush", rotulo: "Boss Rush (três chefes)", rotuloSolo: "Boss Rush (três chefes)", regraSolo: "derrube os três chefes seguidos com 3 vidas." },
+    ],
+    cenarios: [{ valor: "golem", rotulo: "Golem de Pedra" }, { valor: "hidra", rotulo: "Hidra do Pântano" }, { valor: "maquina", rotulo: "Máquina de Guerra" }],
+    rotuloCenario: "Chefe",
+    botoes: { a: "Atirar", b: "Esquiva" },
+  },
+  ritmo: {
+    id: "ritmo",
+    modos: [
+      { valor: "duelo", rotulo: "Duelo (obstáculos no líder)", rotuloSolo: "Solo", regraSolo: "termine a música com 70% de acertos sem ser vaiado." },
+      { valor: "banda", rotulo: "Banda (todos juntos)" },
+    ],
+    cenarios: [{ valor: "medio", rotulo: "Médio (128 BPM)" }, { valor: "lento", rotulo: "Lento (100 BPM)" }, { valor: "rapido", rotulo: "Rápido (156 BPM)" }],
+    rotuloCenario: "Andamento",
+    botoes: { a: "Ataque", b: "Show" },
+  },
+  cozinha: {
+    id: "cozinha",
+    modos: [
+      { valor: "coop", rotulo: "Cooperativo (todos numa cozinha)", rotuloSolo: "Desafio Solo", regraSolo: "faça 250 pontos em pedidos em 3 minutos." },
+      { valor: "duelo", rotulo: "Duelo de Cozinhas (vermelho × azul)", par: true },
+    ],
+    cenarios: [{ valor: "bistro", rotulo: "Bistrô" }, { valor: "food", rotulo: "Food truck" }, { valor: "navio", rotulo: "Navio" }],
+    rotuloCenario: "Cozinha",
+    botoes: { a: "Pegar", b: "Usar" },
+  },
+  fps: {
+    id: "fps",
+    modos: [
+      { valor: "matamata", rotulo: "Mata-Mata", rotuloSolo: "Contra Bots", regraSolo: "faça 10 abates contra os bots em 3 minutos." },
+      { valor: "bandeira", rotulo: "Captura de Bandeira (vermelho × azul)", par: true },
+      { valor: "colina", rotulo: "Rei da Colina" },
+      { valor: "bots", rotulo: "Contra Bots (todos juntos)" },
+    ],
+    cenarios: [{ valor: "templo", rotulo: "Templo" }, { valor: "fabrica", rotulo: "Fábrica" }, { valor: "gelo", rotulo: "Gelo" }],
+    rotuloCenario: "Mapa",
+    botoes: { a: "Atirar", b: "Pular" },
+  },
+  tanques: {
+    id: "tanques",
+    modos: [
+      { valor: "matamata", rotulo: "Mata-Mata", rotuloSolo: "Tiro ao alvo", regraSolo: "destrua os 10 alvos em 90 segundos." },
+      { valor: "times", rotulo: "Times (vermelho × azul)", par: true },
+    ],
+    cenarios: [{ valor: "deserto", rotulo: "Deserto" }, { valor: "neve", rotulo: "Neve" }, { valor: "fabrica", rotulo: "Fábrica" }],
+    rotuloCenario: "Arena",
+    botoes: { a: "Atirar", b: "Mina" },
+  },
+  kart: {
+    id: "kart",
+    modos: [
+      { valor: "gp", rotulo: "Grande Prêmio (3 voltas)", rotuloSolo: "Contra o relógio", regraSolo: "complete 3 voltas antes do tempo da pista." },
+      { valor: "baloes", rotulo: "Arena de Balões", rotuloSolo: "Arena de Balões", regraSolo: "estoure os 10 balões-alvo em 90 segundos." },
+    ],
+    cenarios: [{ valor: "verde", rotulo: "Circuito Verde" }, { valor: "deserto", rotulo: "Cânion do Deserto" }, { valor: "neon", rotulo: "Cidade Neon" }],
+    rotuloCenario: "Pista",
+    botoes: { a: "Drift", b: "Item" },
+  },
+  mineracao: {
+    id: "mineracao",
+    modos: [
+      { valor: "corrida", rotulo: "Corrida (4 minutos)", rotuloSolo: "Corrida (meta 600)", regraSolo: "entregue 600 pontos em minério em 4 minutos." },
+      { valor: "sobrevivencia", rotulo: "Sobrevivência (lava subindo)", rotuloSolo: "Sobrevivência (meta 400)", regraSolo: "entregue 400 pontos antes de a lava tomar a mina." },
+    ],
+    cenarios: [{ valor: "classica", rotulo: "Mina clássica" }, { valor: "cristal", rotulo: "Caverna de cristal" }, { valor: "deserto", rotulo: "Deserto" }],
+    rotuloCenario: "Mina",
+    botoes: { a: "Picareta", b: "Dinamite" },
+  },
+  pescaria: {
+    id: "pescaria",
+    modos: [
+      { valor: "pescaria", rotulo: "Pescaria (linha e tensão)", rotuloSolo: "Pescaria (meta 500)", regraSolo: "faça 500 pontos pescando em 3 minutos.", botoes: { a: "Puxar", b: "Soltar" } },
+      { valor: "mergulho", rotulo: "Mergulho (oxigênio e tesouros)", rotuloSolo: "Mergulho (meta 400)", regraSolo: "entregue 400 pontos em tesouros e peixes em 3 minutos.", botoes: { a: "Arpão", b: "Impulso" } },
+    ],
+    cenarios: [{ valor: "tropical", rotulo: "Mar tropical" }, { valor: "entardecer", rotulo: "Entardecer" }, { valor: "abissal", rotulo: "Fossa abissal" }],
+    rotuloCenario: "Mar",
+    botoes: { a: "Puxar", b: "Soltar" },
   },
   defesa: {
     id: "defesa",

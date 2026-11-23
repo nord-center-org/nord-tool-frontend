@@ -82,7 +82,7 @@ export interface JogadorSala { vaga: number; idUsuario: number; nome: string; av
 
 /** O que a tela grande manda para os celulares (campo "d" das mensagens "host"). */
 export type AvisoDaTela =
-  | { k: "lugar"; indice: number; cor: string; jogo: string }
+  | { k: "lugar"; indice: number; cor: string; jogo: string; modo?: string }
   | { k: "fase"; fase: "lobby" | "contagem" | "jogando" | "fimRodada" | "fimPartida" }
   | { k: "vibrar"; ms: number; texto?: string }
   | ({ k: "mao" } & MaoPrivada)
@@ -102,7 +102,10 @@ export function lerAviso(d: unknown): AvisoDaTela | null {
   const o = d as Record<string, unknown>;
   const num = (v: unknown, min: number, max: number) => (typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : min);
   switch (o.k) {
-    case "lugar": return { k: "lugar", indice: num(o.indice, 0, 7), cor: /^#[0-9a-f]{6}$/i.test(String(o.cor)) ? String(o.cor) : "#64748b", jogo: String(o.jogo ?? "").slice(0, 40) };
+    case "lugar": {
+      const l = { k: "lugar" as const, indice: num(o.indice, 0, 7), cor: /^#[0-9a-f]{6}$/i.test(String(o.cor)) ? String(o.cor) : "#64748b", jogo: String(o.jogo ?? "").slice(0, 40) };
+      return typeof o.modo === "string" ? { ...l, modo: o.modo.slice(0, 40) } : l;
+    }
     case "fase": return ["lobby", "contagem", "jogando", "fimRodada", "fimPartida"].includes(o.fase as string) ? { k: "fase", fase: o.fase as "lobby" } : null;
     case "vibrar": return { k: "vibrar", ms: num(o.ms, 0, 1000), texto: typeof o.texto === "string" ? o.texto.slice(0, 80) : undefined };
     case "mao": {
