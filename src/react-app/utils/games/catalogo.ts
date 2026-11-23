@@ -132,7 +132,7 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "caos", nome: "Caos Urbano", resumo: "Cidade 3D procedural: fuga, entregas, derby e corrida de rua.",
-    categoria: "Corrida", dimensao: "3D", minJogadores: 1, maxJogadores: 8, fase: 8, disponivel: false,
+    categoria: "Corrida", dimensao: "3D", minJogadores: 1, maxJogadores: 8, fase: 8, disponivel: true,
     modos: ["Fuga Policial", "Entrega Expressa", "Derby de Demolição", "Corrida de Rua"],
     regras: ["Drift com marcas e fumaça.", "Nitro.", "Níveis de procurado.", "Física de colisão."], controles: CONTROLES_PADRAO,
     cores: ["#18181b", "#f43f5e", "#22d3ee"], motivo: "estrada",

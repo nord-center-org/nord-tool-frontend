@@ -81,6 +81,18 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Mesa",
     botoes: { a: "Jogar", b: "Comprar" },
   },
+  caos: {
+    id: "caos",
+    modos: [
+      { valor: "fuga", rotulo: "Fuga Policial", rotuloSolo: "Fuga Policial", regraSolo: "fique livre da polícia por 2 minutos." },
+      { valor: "entregas", rotulo: "Entrega Expressa", rotuloSolo: "Entrega Expressa", regraSolo: "faça 6 entregas em 3 minutos." },
+      { valor: "derby", rotulo: "Derby de Demolição", rotuloSolo: "Derby de Demolição", regraSolo: "destrua as 6 sucatas da arena em 2 minutos." },
+      { valor: "corrida", rotulo: "Corrida de Rua", rotuloSolo: "Corrida de Rua", regraSolo: "passe pelos 8 postos antes do tempo." },
+    ],
+    cenarios: [{ valor: "centro", rotulo: "Centro" }, { valor: "porto", rotulo: "Porto" }, { valor: "noite", rotulo: "Cidade à noite" }],
+    rotuloCenario: "Cidade",
+    botoes: { a: "Nitro", b: "Freio de mão" },
+  },
   tanques: {
     id: "tanques",
     modos: [
