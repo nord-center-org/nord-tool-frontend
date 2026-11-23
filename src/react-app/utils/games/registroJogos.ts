@@ -93,6 +93,17 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Cidade",
     botoes: { a: "Nitro", b: "Freio de mão" },
   },
+  chefao: {
+    id: "chefao",
+    modos: [
+      { valor: "coop", rotulo: "Cooperativo", rotuloSolo: "Cooperativo (3 vidas)", regraSolo: "derrube o chefe com 3 vidas antes de 6 minutos." },
+      { valor: "competitivo", rotulo: "Competitivo (mais dano vence)" },
+      { valor: "rush", rotulo: "Boss Rush (três chefes)", rotuloSolo: "Boss Rush (três chefes)", regraSolo: "derrube os três chefes seguidos com 3 vidas." },
+    ],
+    cenarios: [{ valor: "golem", rotulo: "Golem de Pedra" }, { valor: "hidra", rotulo: "Hidra do Pântano" }, { valor: "maquina", rotulo: "Máquina de Guerra" }],
+    rotuloCenario: "Chefe",
+    botoes: { a: "Atirar", b: "Esquiva" },
+  },
   ritmo: {
     id: "ritmo",
     modos: [

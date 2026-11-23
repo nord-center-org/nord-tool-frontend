@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-23-games-v26",
+    data: "2026-11-23",
+    titulo: "Games: Chefão Colossal",
+    texto: "Um chefe gigante em três fases: quebre os pilares para derrubar o escudo, fuja das áreas avisadas no chão (martelo, raio, onda com brecha e investida), esquive com B e levante os amigos caídos. Cooperativo, Competitivo ou Boss Rush com três chefes, de 1 a 8.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-23-games-v25",
     data: "2026-11-23",
     titulo: "Games: Batalha de Banda",
