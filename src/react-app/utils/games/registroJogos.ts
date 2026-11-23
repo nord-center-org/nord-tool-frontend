@@ -93,6 +93,16 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Cidade",
     botoes: { a: "Nitro", b: "Freio de mão" },
   },
+  ritmo: {
+    id: "ritmo",
+    modos: [
+      { valor: "duelo", rotulo: "Duelo (obstáculos no líder)", rotuloSolo: "Solo", regraSolo: "termine a música com 70% de acertos sem ser vaiado." },
+      { valor: "banda", rotulo: "Banda (todos juntos)" },
+    ],
+    cenarios: [{ valor: "medio", rotulo: "Médio (128 BPM)" }, { valor: "lento", rotulo: "Lento (100 BPM)" }, { valor: "rapido", rotulo: "Rápido (156 BPM)" }],
+    rotuloCenario: "Andamento",
+    botoes: { a: "Ataque", b: "Show" },
+  },
   cozinha: {
     id: "cozinha",
     modos: [
