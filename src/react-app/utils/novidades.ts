@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-23-drumcam-v3",
+    data: "2026-11-23",
+    titulo: "Estúdio: várias câmeras ao vivo num vídeo só",
+    texto: "A aba Drumcam virou o Estúdio, com cara de programa de live: junte duas ou mais câmeras no mesmo vídeo, arraste e redimensione cada uma, aplique filtros (brilho, contraste, P&B…), ajuste o volume de cada câmera no mixer e grave (rápido ou em alta qualidade). Assista na Galeria sem baixar. E o Monitoramento mostra todas as câmeras ao vivo e fluidas, com zoom por pinça (0,5×, 1×, 2×…), foto, renomear e detecção de movimento.",
+    onde: { rotulo: "Repertório → Estúdio", caminho: "/gestao/repertorio?aba=estudio" },
+  },
+  {
     id: "2026-11-23-logo-oficial",
     data: "2026-11-23",
     titulo: "Logo nova do NordTool",
