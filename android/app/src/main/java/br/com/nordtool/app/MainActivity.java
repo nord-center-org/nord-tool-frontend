@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
+import android.content.MutableContextWrapper;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -29,6 +30,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
@@ -74,6 +76,14 @@ public class MainActivity extends Activity {
             + "})();";
 
     private WebView webView;
+    /**
+     * App 10.0: a página que está como câmera ao vivo sobrevive ao fechar o app (voltar ou tirar dos recentes). Ela fica
+     * guardada aqui, presa ao processo que o {@link ServicoAoVivo} mantém vivo, e volta para a tela ao abrir o app de novo.
+     * Só sai do ar quando a pessoa desliga a câmera na própria página.
+     */
+    private static PaginaSempreAcordada paginaViva;
+    /** A tela aberta agora: a ponte da página guardada fala sempre com ela (a tela de quando a página abriu pode ter fechado). */
+    private static volatile MainActivity atual;
     private ValueCallback<Uri[]> retornoArquivo;
     private String hostDoApp;
     /** Página aberta no momento: a ponte da sessão só responde com o NordTool aberto (nunca outro site). */
@@ -85,26 +95,40 @@ public class MainActivity extends Activity {
         super.onCreate(estado);
         hostDoApp = Uri.parse(BuildConfig.ENDERECO).getHost();
 
-        webView = new PaginaSempreAcordada(this);
+        atual = this;
+        boolean reaproveitada = ServicoAoVivo.ativo && paginaViva != null;
+        if (reaproveitada) {
+            webView = paginaViva;
+            ((MutableContextWrapper) webView.getContext()).setBaseContext(this);
+            ViewGroup pai = (ViewGroup) webView.getParent();
+            if (pai != null) pai.removeView(webView);
+            String url = webView.getUrl();
+            hostAtual = url == null ? null : Uri.parse(url).getHost();
+        } else {
+            webView = new PaginaSempreAcordada(new MutableContextWrapper(this));
+        }
         setContentView(montarTela(webView));
 
-        WebSettings ajustes = webView.getSettings();
-        ajustes.setJavaScriptEnabled(true);
-        ajustes.setDomStorageEnabled(true);
-        ajustes.setDatabaseEnabled(true);
-        ajustes.setMediaPlaybackRequiresUserGesture(false);
-        ajustes.setAllowFileAccess(false);
-        ajustes.setUserAgentString(ajustes.getUserAgentString() + " NordToolAndroid/" + BuildConfig.VERSION_NAME);
-        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
-
-        webView.addJavascriptInterface(new Ponte(), "NordAndroid");
+        if (!reaproveitada) {
+            WebSettings ajustes = webView.getSettings();
+            ajustes.setJavaScriptEnabled(true);
+            ajustes.setDomStorageEnabled(true);
+            ajustes.setDatabaseEnabled(true);
+            ajustes.setMediaPlaybackRequiresUserGesture(false);
+            ajustes.setAllowFileAccess(false);
+            ajustes.setUserAgentString(ajustes.getUserAgentString() + " NordToolAndroid/" + BuildConfig.VERSION_NAME);
+            CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
+            webView.addJavascriptInterface(new Ponte(), "NordAndroid");
+        }
         webView.setWebViewClient(new Navegacao());
         webView.setWebChromeClient(new Janela());
         webView.setDownloadListener((url, agente, disposicao, tipo, tamanho) -> baixar(url, agente, disposicao, tipo));
 
         ServicoSegundoPlano.criarCanais(this);
         String destino = enderecoDoAviso(getIntent());
-        if (destino != null) {
+        if (reaproveitada) {
+            // a câmera ao vivo continua na tela, do jeito que estava
+        } else if (destino != null) {
             webView.loadUrl(destino);
         } else if (estado != null) {
             webView.restoreState(estado);
@@ -120,8 +144,14 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        // Fechou o app: a câmera ao vivo sai do ar junto (a página que transmitia não existe mais).
-        if (ServicoAoVivo.ativo) ServicoAoVivo.ligar(this, false, null);
+        if (atual == this) atual = null;
+        // Fechou o app com a câmera ao vivo: a página sai desta tela e continua transmitindo, guardada até o app abrir de
+        // novo (o serviço segura o processo). Ela só para quando a pessoa desliga a câmera.
+        if (ServicoAoVivo.ativo && webView == paginaViva && paginaViva != null) {
+            ViewGroup pai = (ViewGroup) webView.getParent();
+            if (pai != null) pai.removeView(webView);
+            ((MutableContextWrapper) webView.getContext()).setBaseContext(getApplicationContext());
+        }
         super.onDestroy();
     }
 
@@ -131,7 +161,7 @@ public class MainActivity extends Activity {
      * serviço {@link ServicoAoVivo} mantém a câmera liberada pelo Android. Fora disso, o comportamento é o normal.
      */
     private static final class PaginaSempreAcordada extends WebView {
-        PaginaSempreAcordada(Context contexto) {
+        PaginaSempreAcordada(MutableContextWrapper contexto) {
             super(contexto);
         }
 
@@ -230,7 +260,10 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) {
+        if (ServicoAoVivo.ativo) {
+            // Câmera ao vivo: voltar só manda o app para o segundo plano (a câmera continua).
+            moveTaskToBack(true);
+        } else if (webView.canGoBack()) {
             webView.goBack();
         } else {
             super.onBackPressed();
@@ -332,34 +365,40 @@ public class MainActivity extends Activity {
 
     /** Ponte chamada pela página: downloads (SCRIPT_DOWNLOADS) e, desde a v2, a sessão pelo aparelho. */
     private final class Ponte {
+        /** A tela aberta agora (a página da câmera ao vivo pode ter passado para outra tela do app). */
+        private MainActivity tela() {
+            MainActivity a = atual;
+            return a != null ? a : MainActivity.this;
+        }
+
         /** Depois de entrar com a senha: guarda o token do aparelho e liga o segundo plano. */
         @JavascriptInterface
         public void registrar(String token, String api) {
-            if (!noNordTool() || token == null || token.isEmpty() || api == null || !api.startsWith("https://")) return;
-            Armazenamento dados = new Armazenamento(MainActivity.this);
+            if (!tela().noNordTool() || token == null || token.isEmpty() || api == null || !api.startsWith("https://")) return;
+            Armazenamento dados = new Armazenamento(tela());
             String anterior = dados.token();
             String apiAnterior = dados.api();
             dados.guardar(token, api.replaceAll("/+$", ""));
             if (anterior != null && apiAnterior != null && !anterior.equals(token)) {
                 new Thread(() -> Api.sair(apiAnterior, anterior), "nordtool-sair").start();
             }
-            runOnUiThread(() -> {
-                pedirPermissaoDeNotificacao();
-                ServicoSegundoPlano.iniciar(MainActivity.this);
-                pedirParaNaoPausar();
+            tela().runOnUiThread(() -> {
+                tela().pedirPermissaoDeNotificacao();
+                ServicoSegundoPlano.iniciar(tela());
+                tela().pedirParaNaoPausar();
             });
         }
 
         @JavascriptInterface
         public boolean temAparelho() {
-            return noNordTool() && new Armazenamento(MainActivity.this).temAparelho();
+            return tela().noNordTool() && new Armazenamento(tela()).temAparelho();
         }
 
         /** Sessão nova pelo token do aparelho; responde em window.__nordAndroidSessao(id, json ou ""). */
         @JavascriptInterface
         public void pedirSessao(String id) {
-            if (!noNordTool()) return;
-            Armazenamento dados = new Armazenamento(MainActivity.this);
+            if (!tela().noNordTool()) return;
+            Armazenamento dados = new Armazenamento(tela());
             String api = dados.api();
             String token = dados.token();
             new Thread(() -> {
@@ -369,40 +408,40 @@ public class MainActivity extends Activity {
                         resposta = Api.entrar(api, token).toString();
                     } catch (Api.Desconectado e) {
                         dados.esquecer();
-                        runOnUiThread(() -> ServicoSegundoPlano.parar(MainActivity.this));
+                        tela().runOnUiThread(() -> ServicoSegundoPlano.parar(tela()));
                     } catch (java.io.IOException | RuntimeException e) {
                         resposta = "";
                     }
                 }
                 String js = "window.__nordAndroidSessao && window.__nordAndroidSessao(" + JSONObject.quote(id) + "," + JSONObject.quote(resposta) + ")";
-                runOnUiThread(() -> webView.evaluateJavascript(js, null));
+                tela().runOnUiThread(() -> tela().webView.evaluateJavascript(js, null));
             }, "nordtool-sessao").start();
         }
 
         /** Saiu da conta: desconecta o aparelho e para o segundo plano. */
         @JavascriptInterface
         public void sair() {
-            if (!noNordTool()) return;
-            Armazenamento dados = new Armazenamento(MainActivity.this);
+            if (!tela().noNordTool()) return;
+            Armazenamento dados = new Armazenamento(tela());
             String api = dados.api();
             String token = dados.token();
             dados.esquecer();
-            runOnUiThread(() -> ServicoSegundoPlano.parar(MainActivity.this));
+            tela().runOnUiThread(() -> ServicoSegundoPlano.parar(tela()));
             if (api != null && token != null) new Thread(() -> Api.sair(api, token), "nordtool-sair").start();
         }
 
         @JavascriptInterface
         public void salvar(String dataUrl, String nome) {
             try {
-                salvarNosDownloads(dataUrl, nome);
+                tela().salvarNosDownloads(dataUrl, nome);
             } catch (IOException | IllegalArgumentException erro) {
-                avisar("Não foi possível salvar o arquivo.");
+                tela().avisar("Não foi possível salvar o arquivo.");
             }
         }
 
         @JavascriptInterface
         public void falhou() {
-            avisar("Não foi possível baixar o arquivo.");
+            tela().avisar("Não foi possível baixar o arquivo.");
         }
 
         /** Versão instalada (Configurações → App Android). */
@@ -419,15 +458,15 @@ public class MainActivity extends Activity {
         /** Repertório → Drumcam: este celular vira a câmera (grava e é achado no Wi-Fi e pela internet). */
         @JavascriptInterface
         public void drumcamCamera() {
-            if (!noNordTool()) return;
-            runOnUiThread(() -> startActivity(new Intent(MainActivity.this, br.com.nordtool.app.drumcam.CameraActivity.class)));
+            if (!tela().noNordTool()) return;
+            tela().runOnUiThread(() -> tela().startActivity(new Intent(tela(), br.com.nordtool.app.drumcam.CameraActivity.class)));
         }
 
         /** Repertório → Drumcam: procura a câmera no Wi-Fi e abre o painel completo dela (com download dos vídeos). */
         @JavascriptInterface
         public void drumcamControlar() {
-            if (!noNordTool()) return;
-            runOnUiThread(() -> startActivity(new Intent(MainActivity.this, br.com.nordtool.app.drumcam.ControleActivity.class)));
+            if (!tela().noNordTool()) return;
+            tela().runOnUiThread(() -> tela().startActivity(new Intent(tela(), br.com.nordtool.app.drumcam.ControleActivity.class)));
         }
 
         /**
@@ -436,17 +475,19 @@ public class MainActivity extends Activity {
          */
         @JavascriptInterface
         public boolean aoVivo(boolean ligar, String nome) {
-            if (!noNordTool()) return false;
+            if (!tela().noNordTool()) return false;
             String nomeLimpo = nome == null ? "" : nome.replaceAll("[\\p{Cntrl}]", "").trim();
             if (nomeLimpo.length() > 60) nomeLimpo = nomeLimpo.substring(0, 60);
             final String rotulo = nomeLimpo;
-            runOnUiThread(() -> {
+            tela().runOnUiThread(() -> {
                 if (ligar) {
-                    ServicoAoVivo.ligar(MainActivity.this, true, rotulo);
-                    if (Build.VERSION.SDK_INT >= 26) webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
+                    paginaViva = (PaginaSempreAcordada) tela().webView;
+                    ServicoAoVivo.ligar(tela(), true, rotulo);
+                    if (Build.VERSION.SDK_INT >= 26) tela().webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
                 } else {
-                    ServicoAoVivo.ligar(MainActivity.this, false, null);
-                    if (Build.VERSION.SDK_INT >= 26) webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true);
+                    paginaViva = null;
+                    ServicoAoVivo.ligar(tela(), false, null);
+                    if (Build.VERSION.SDK_INT >= 26) tela().webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true);
                 }
             });
             return true;
@@ -455,30 +496,37 @@ public class MainActivity extends Activity {
         /** Drumcam ao vivo (v3): mantém a tela ligada enquanto o celular é câmera ao vivo. */
         @JavascriptInterface
         public void manterTelaLigada(boolean ligada) {
-            if (!noNordTool()) return;
-            runOnUiThread(() -> {
-                if (ligada) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            if (!tela().noNordTool()) return;
+            tela().runOnUiThread(() -> {
+                if (ligada) tela().getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                else tela().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             });
         }
 
         /** O app (7.x+) libera câmera e microfone para a página (Drumcam ao vivo). */
         @JavascriptInterface
         public boolean cameraNaPagina() {
-            return noNordTool();
+            return tela().noNordTool();
         }
 
         /** Repertório → Drumcam: este celular está como câmera agora? */
         @JavascriptInterface
         public boolean drumcamAtiva() {
-            return noNordTool() && br.com.nordtool.app.drumcam.ServicoCamera.ativa();
+            return tela().noNordTool() && br.com.nordtool.app.drumcam.ServicoCamera.ativa();
+        }
+
+        /** Botão "Instalar a última versão" (10.0+): baixa e instala a versão publicada, mesmo que seja a mesma. */
+        @JavascriptInterface
+        public void instalarUltimaVersao() {
+            if (!tela().noNordTool()) return;
+            tela().runOnUiThread(() -> Atualizador.instalarUltima(tela()));
         }
 
         /** Botão "Verificar atualizações": confere na hora e, havendo versão nova, baixa e pede a autorização. */
         @JavascriptInterface
         public void verificarAtualizacao() {
-            if (!noNordTool()) return;
-            runOnUiThread(() -> Atualizador.verificarAgora(MainActivity.this));
+            if (!tela().noNordTool()) return;
+            tela().runOnUiThread(() -> Atualizador.verificarAgora(tela()));
         }
     }
 

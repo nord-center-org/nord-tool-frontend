@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-23-app-android-10",
+    data: "2026-11-23",
+    titulo: "App 10.0: câmera não para ao fechar o app e reinstalar à mão",
+    texto: "No app Android 10.0 (se atualiza sozinho), a câmera ao vivo do Estúdio continua transmitindo mesmo se você fechar o app; ela só para quando você abre de novo e toca em Parar. E em Configurações → App Android tem o botão \"Instalar a última versão\", para baixar e instalar o app na hora quando precisar.",
+    onde: { rotulo: "Configurações → App Android", caminho: "/configuracoes" },
+  },
+  {
     id: "2026-11-23-drumcam-v4-estudio",
     data: "2026-11-23",
     titulo: "Repertório agora é o Estúdio",

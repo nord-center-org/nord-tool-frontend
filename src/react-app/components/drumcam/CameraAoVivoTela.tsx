@@ -58,7 +58,7 @@ export default function CameraAoVivoTela({ sair }: { sair: () => void }) {
         {!erro && camera && (
           <p className="absolute inset-x-3 top-12 text-center text-[11px] text-white/70">
             {camera.segundoPlano
-              ? "Pode apagar a tela ou sair do app: a câmera continua transmitindo (aviso nas notificações)."
+              ? "Pode apagar a tela ou fechar o app: a câmera continua transmitindo até você tocar em Parar aqui (aviso nas notificações)."
               : "No navegador, a câmera precisa da tela ligada. No app NordTool 9.0+, ela continua com a tela apagada."}
           </p>
         )}

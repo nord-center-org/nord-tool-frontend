@@ -56,6 +56,38 @@ final class Atualizador {
         conferir(tela, true, true);
     }
 
+    /**
+     * Botão "Instalar a última versão" (app 10.0+): baixa o APK publicado e manda instalar mesmo que seja a versão que já
+     * está no celular (reinstalar por cima). Só não aceita versão mais velha (o Android também não deixaria).
+     */
+    static void instalarUltima(Activity tela) {
+        if (emAndamento) {
+            Toast.makeText(tela, "Já estou cuidando da atualização…", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        emAndamento = true;
+        Toast.makeText(tela, "Conferindo a última versão…", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            try {
+                Versao publicada = versaoPublicada();
+                if (publicada == null || publicada.codigo <= 0) {
+                    emAndamento = false;
+                    avisar(tela, "Não achei a versão publicada do app. Tente de novo em instantes.");
+                    return;
+                }
+                if (publicada.codigo < BuildConfig.VERSION_CODE) {
+                    emAndamento = false;
+                    avisar(tela, "Este celular já tem uma versão mais nova (" + BuildConfig.VERSION_NAME + ") que a publicada.");
+                    return;
+                }
+                tela.runOnUiThread(() -> pedirPermissaoOuBaixar(tela, publicada, true));
+            } catch (IOException | RuntimeException e) {
+                emAndamento = false;
+                avisar(tela, "Sem conexão para baixar o app. Tente de novo em instantes.");
+            }
+        }, "nordtool-reinstalar").start();
+    }
+
     private static void conferir(Activity tela, boolean abrindo, boolean manual) {
         long agora = System.currentTimeMillis();
         if (emAndamento || (!abrindo && agora - ultimaVerificacao < INTERVALO_MS)) return;
@@ -65,7 +97,7 @@ final class Atualizador {
             try {
                 Versao nova = versaoPublicada();
                 if (nova != null && nova.codigo > BuildConfig.VERSION_CODE) {
-                    tela.runOnUiThread(() -> pedirPermissaoOuBaixar(tela, nova));
+                    tela.runOnUiThread(() -> pedirPermissaoOuBaixar(tela, nova, false));
                     return;
                 }
                 if (manual) avisar(tela, "Você já está na versão mais nova (" + BuildConfig.VERSION_NAME + ").");
@@ -119,11 +151,12 @@ final class Atualizador {
     }
 
     /** Android 8+: instalar exige a permissão "Instalar apps desconhecidos" para o NordTool (pedida uma vez). */
-    private static void pedirPermissaoOuBaixar(Activity tela, Versao nova) {
+    private static void pedirPermissaoOuBaixar(Activity tela, Versao nova, boolean mesmaVersao) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !tela.getPackageManager().canRequestPackageInstalls()) {
             new AlertDialog.Builder(tela)
                     .setTitle("Atualização do NordTool")
-                    .setMessage("Tem uma versão nova do app (" + nova.nome + "). Para o NordTool se atualizar sozinho, "
+                    .setMessage((mesmaVersao ? "Para instalar a versão " + nova.nome + " do app" : "Tem uma versão nova do app (" + nova.nome + "). Para o NordTool se atualizar sozinho")
+                            + ", "
                             + "permita \"Instalar apps desconhecidos\" na próxima tela e volte para o app.")
                     .setPositiveButton("Permitir", (d, w) -> {
                         emAndamento = false;
@@ -139,13 +172,14 @@ final class Atualizador {
                     .show();
             return;
         }
-        Toast.makeText(tela, "Baixando a versão nova do NordTool (" + nova.nome + ")…", Toast.LENGTH_LONG).show();
+        Toast.makeText(tela, "Baixando a versão " + (mesmaVersao ? "" : "nova ") + "do NordTool (" + nova.nome + ")…", Toast.LENGTH_LONG).show();
         Context app = tela.getApplicationContext();
         new Thread(() -> {
             try {
                 File apk = baixar(app);
                 PackageInfo info = app.getPackageManager().getPackageArchiveInfo(apk.getPath(), 0);
-                if (info == null || !app.getPackageName().equals(info.packageName) || codigo(info) <= BuildConfig.VERSION_CODE) {
+                if (info == null || !app.getPackageName().equals(info.packageName) || codigo(info) < BuildConfig.VERSION_CODE
+                        || (!mesmaVersao && codigo(info) == BuildConfig.VERSION_CODE)) {
                     throw new IOException("APK inválido");
                 }
                 instalar(app, apk);
