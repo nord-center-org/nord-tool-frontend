@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-23-games-v22",
+    data: "2026-11-23",
+    titulo: "Games: Caos Urbano em 3D",
+    texto: "Uma cidade inteira para quatro modos: fuja da polícia (com estrelas de procurado), faça entregas contra o relógio, destrua tudo no Derby ou corra pelos postos. Nitro, freio de mão com derrapagem e fumaça. De 1 a 8.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-23-games-v21",
     data: "2026-11-23",
     titulo: "Games: Tanques de Aço em 3D",
