@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f0f0f">
+<title>Drumcam</title>
+<style>
+  :root {
+    --fundo: #0f0f0f; --cartao: #1f1f1f; --cartao2: #2a2a2a; --borda: #333;
+    --texto: #f1f1f1; --suave: #aaa; --vermelho: #ff3b30; --verde: #34c759; --amarelo: #ffcc00; --azul: #3ea6ff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--fundo); color: var(--texto);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  header { position: sticky; top: 0; z-index: 5; background: var(--fundo); padding: 14px 16px 10px;
+    display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #1c1c1c; }
+  header h1 { font-size: 20px; margin: 0; flex: 1; }
+  .pill { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--cartao2); color: var(--suave); white-space: nowrap; }
+  .pill.rec { background: var(--vermelho); color: #fff; }
+  main { padding: 12px 16px; max-width: 720px; margin: 0 auto; }
+  section[hidden] { display: none; }
+  .cartao { background: var(--cartao); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+  .cartao h2 { font-size: 16px; margin: 0 0 10px; }
+  .grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .dado { background: var(--cartao2); border-radius: 12px; padding: 10px; }
+  .dado b { display: block; font-size: 18px; }
+  .dado span { font-size: 12px; color: var(--suave); }
+  .previa { position: relative; background: #000; border-radius: 16px; overflow: hidden; display: flex;
+    align-items: center; justify-content: center; min-height: 220px; margin-bottom: 12px; }
+  .previa img { display: block; max-width: 100%; max-height: 60vh; }
+  .previa .msg { position: absolute; color: var(--suave); padding: 16px; text-align: center; }
+  .botao { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 12px;
+    padding: 12px 16px; font: inherit; font-weight: 600; color: var(--texto); background: var(--cartao2); cursor: pointer;
+    text-decoration: none; min-height: 44px; }
+  .botao:disabled { opacity: .5; }
+  .botao.prim { background: var(--vermelho); color: #fff; }
+  .botao.azul { background: var(--azul); color: #000; }
+  .botao.largo { width: 100%; }
+  .gravar { width: 100%; min-height: 72px; font-size: 22px; border-radius: 18px; }
+  .gravar.parar { background: #fff; color: #000; }
+  .linha { display: flex; gap: 8px; flex-wrap: wrap; }
+  .linha > * { flex: 1; }
+  label { display: block; font-size: 13px; color: var(--suave); margin: 10px 0 4px; }
+  input, select, textarea { width: 100%; font: inherit; color: var(--texto); background: var(--cartao2); border: 1px solid var(--borda);
+    border-radius: 10px; padding: 10px 12px; }
+  textarea { min-height: 84px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--azul); outline-offset: 0; }
+  .ajuda { font-size: 13px; color: var(--suave); }
+  .erro { color: #ff6b6b; }
+  .video { display: flex; gap: 12px; background: var(--cartao); border-radius: 16px; padding: 10px; margin-bottom: 10px; }
+  .video .capa { width: 96px; flex: none; aspect-ratio: 9/16; background: #000; border-radius: 10px; overflow: hidden; position: relative; }
+  .video .capa img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .video .capa .dur { position: absolute; right: 4px; bottom: 4px; background: rgba(0,0,0,.8); font-size: 12px; padding: 1px 5px; border-radius: 4px; }
+  .video .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .video .tit { font-weight: 600; overflow-wrap: anywhere; }
+  .video .meta { font-size: 13px; color: var(--suave); }
+  .video .acoes { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+  .video .acoes .botao { padding: 8px 12px; min-height: 38px; font-size: 14px; }
+  .status { font-size: 13px; }
+  .barra { height: 6px; background: var(--cartao2); border-radius: 3px; overflow: hidden; }
+  .barra i { display: block; height: 100%; background: var(--vermelho); }
+  .thumbs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .thumb { position: relative; border-radius: 10px; overflow: hidden; background: #000; aspect-ratio: 16/9; border: 3px solid transparent; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb.sel { border-color: var(--vermelho); }
+  .thumb .x { position: absolute; top: 4px; right: 4px; width: 32px; height: 32px; border-radius: 50%; border: 0;
+    background: rgba(0,0,0,.75); color: #fff; font-size: 16px; }
+  .thumb.nenhuma { display: flex; align-items: center; justify-content: center; color: var(--suave); font-size: 14px; background: var(--cartao2); }
+  nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: flex; background: #121212; border-top: 1px solid #222;
+    padding-bottom: env(safe-area-inset-bottom); }
+  nav button { flex: 1; background: none; border: 0; color: var(--suave); font: inherit; font-size: 12px; padding: 8px 0 10px; }
+  nav button span { display: block; font-size: 22px; line-height: 1.2; }
+  nav button[aria-current="page"] { color: var(--texto); }
+  .modal { position: fixed; inset: 0; z-index: 10; background: rgba(0,0,0,.7); display: flex; align-items: flex-end; justify-content: center; }
+  .modal[hidden] { display: none; }
+  .folha { background: var(--fundo); width: 100%; max-width: 720px; max-height: 94vh; overflow: auto; border-radius: 20px 20px 0 0;
+    padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); }
+  .folha h2 { margin: 0 0 4px; font-size: 20px; }
+  .codigo { font: 700 34px/1.2 ui-monospace, Menlo, monospace; letter-spacing: 3px; text-align: center; background: var(--cartao2);
+    border-radius: 12px; padding: 14px; margin: 10px 0; user-select: all; }
+  .titulo-previo { background: var(--cartao2); border-radius: 10px; padding: 10px 12px; font-weight: 600; }
+  .vazio { text-align: center; color: var(--suave); padding: 32px 16px; }
+  .toast { position: fixed; left: 16px; right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 20; background: #333; color: #fff;
+    padding: 12px 14px; border-radius: 12px; text-align: center; transition: opacity .2s; }
+  .toast[hidden] { display: none; }
+  details summary { cursor: pointer; color: var(--azul); }
+  ol { padding-left: 20px; } ol li { margin-bottom: 6px; }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>🥁 Drumcam</h1>
+  <span id="pill" class="pill">conectando…</span>
+</header>
+
+<main>
+  <!-- ================= CÂMERA ================= -->
+  <section id="aba-camera">
+    <div class="previa" id="previa">
+      <img id="previa-img" alt="Prévia da câmera" hidden>
+      <div class="msg" id="previa-msg">Abrindo a câmera…</div>
+    </div>
+    <button id="btn-gravar" class="botao prim gravar" type="button">● Gravar</button>
+    <p id="erro-camera" class="erro" hidden></p>
+    <div class="cartao" style="margin-top:12px">
+      <div class="grade">
+        <div class="dado"><b id="d-bateria">–</b><span>Bateria</span></div>
+        <div class="dado"><b id="d-temp">–</b><span>Temperatura</span></div>
+        <div class="dado"><b id="d-livre">–</b><span>Espaço livre</span></div>
+        <div class="dado"><b id="d-res">–</b><span>Qualidade</span></div>
+      </div>
+    </div>
+    <div class="cartao">
+      <h2>Câmera</h2>
+      <div class="linha">
+        <div><label for="a-orientacao">Celular</label>
+          <select id="a-orientacao"><option value="retrato">Em pé (vertical)</option><option value="paisagem">Deitado (horizontal)</option></select></div>
+        <div><label for="a-qualidade">Qualidade</label>
+          <select id="a-qualidade"><option value="1080">1080p</option><option value="720">720p (arquivo menor)</option></select></div>
+      </div>
+      <label for="a-audio">Áudio</label>
+      <select id="a-audio">
+        <option value="padrao">Padrão do celular</option>
+        <option value="cru">Sem processamento (melhor para bateria, se o celular aceitar)</option>
+      </select>
+      <p class="ajuda">Com o iRig ligado no celular-câmera, o áudio vem dele. Ajuste o volume no próprio iRig para não estourar.</p>
+    </div>
+  </section>
+
+  <!-- ================= VÍDEOS ================= -->
+  <section id="aba-videos" hidden>
+    <div id="lista-videos"></div>
+  </section>
+
+  <!-- ================= THUMBS ================= -->
+  <section id="aba-thumbs" hidden>
+    <div class="cartao">
+      <h2>Thumbs salvas</h2>
+      <p class="ajuda">Guarde aqui as imagens que você gera. Na hora de publicar é só escolher uma. Elas ficam no celular-câmera e
+        são ajustadas para no máximo 1280×720 e 2 MB, o limite do YouTube.</p>
+      <label class="botao prim largo" for="nova-thumb" style="margin:10px 0 0;color:#fff">＋ Adicionar imagens</label>
+      <input id="nova-thumb" type="file" accept="image/*" multiple hidden>
+    </div>
+    <div id="grade-thumbs" class="thumbs"></div>
+  </section>
+
+  <!-- ================= AJUSTES ================= -->
+  <section id="aba-ajustes" hidden>
+    <div class="cartao" id="cartao-youtube">
+      <h2>YouTube</h2>
+      <div id="yt-conteudo">Carregando…</div>
+    </div>
+
+    <div class="cartao">
+      <h2>Modelo da publicação</h2>
+      <p class="ajuda">Use {evento}, {musica} e {data} (data da gravação). Ex.: “AD Brás Vila Industrial - Maranata - Drumcam 25/10/2026”.</p>
+      <label for="m-titulo">Título</label>
+      <input id="m-titulo" maxlength="300">
+      <label for="m-descricao">Descrição</label>
+      <textarea id="m-descricao"></textarea>
+      <label for="m-tags">Tags (separadas por vírgula)</label>
+      <input id="m-tags">
+      <button class="botao prim largo" id="salvar-modelo" type="button" style="margin-top:12px">Salvar modelo</button>
+    </div>
+
+    <div class="cartao">
+      <h2>Este controle</h2>
+      <p class="ajuda" id="info-aparelho"></p>
+      <div class="linha">
+        <button class="botao" id="btn-trocar-camera" type="button">Trocar de câmera</button>
+        <button class="botao" id="btn-novo-pin" type="button">Gerar PIN novo</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button type="button" data-aba="camera" aria-current="page"><span>📷</span>Câmera</button>
+  <button type="button" data-aba="videos"><span>🎬</span>Vídeos</button>
+  <button type="button" data-aba="thumbs"><span>🖼️</span>Thumbs</button>
+  <button type="button" data-aba="ajustes"><span>⚙️</span>Ajustes</button>
+</nav>
+
+<!-- PIN -->
+<div class="modal" id="modal-pin" hidden>
+  <div class="folha">
+    <h2>PIN da câmera</h2>
+    <p class="ajuda">Digite o PIN que aparece na tela (ou na notificação) do celular-câmera.</p>
+    <input id="campo-pin" inputmode="numeric" maxlength="6" autocomplete="off" style="font-size:28px;text-align:center;letter-spacing:6px">
+    <p id="erro-pin" class="erro" hidden></p>
+    <button class="botao prim largo" id="btn-pin" type="button" style="margin-top:12px">Entrar</button>
+  </div>
+</div>
+
+<!-- PUBLICAR -->
+<div class="modal" id="modal-publicar" hidden>
+  <div class="folha">
+    <h2>Publicar no YouTube</h2>
+    <p class="ajuda" id="pub-arquivo"></p>
+    <label for="p-evento">Evento / local</label>
+    <input id="p-evento" list="eventos" placeholder="AD Brás Vila Industrial">
+    <datalist id="eventos"></datalist>
+    <label for="p-musica">Música</label>
+    <input id="p-musica" placeholder="Maranata">
+    <label for="p-data">Data</label>
+    <input id="p-data" placeholder="dd/mm/aaaa">
+    <label>Título</label>
+    <div class="titulo-previo" id="p-titulo-previo"></div>
+    <p class="ajuda" id="p-titulo-conta"></p>
+    <details style="margin-top:8px"><summary>Editar título, descrição e tags</summary>
+      <label for="p-titulo">Título</label>
+      <input id="p-titulo" maxlength="100">
+      <label for="p-descricao">Descrição</label>
+      <textarea id="p-descricao"></textarea>
+      <label for="p-tags">Tags</label>
+      <input id="p-tags">
+    </details>
+    <div class="linha">
+      <div><label for="p-privacidade">Visibilidade</label>
+        <select id="p-privacidade">
+          <option value="private">Privado</option>
+          <option value="unlisted">Não listado</option>
+          <option value="public">Público</option>
+        </select></div>
+      <div><label for="p-playlist">Playlist</label>
+        <select id="p-playlist"><option value="">Nenhuma</option></select></div>
+    </div>
+    <p class="ajuda" id="p-aviso-privado">Enquanto o Google não aprovar o app, o YouTube deixa o vídeo privado mesmo escolhendo outra
+      opção. Depois é só mudar para público no app do YouTube.</p>
+    <label>Thumb</label>
+    <div id="p-thumbs" class="thumbs"></div>
+    <p id="p-erro" class="erro" hidden></p>
+    <div class="linha" style="margin-top:14px">
+      <button class="botao" type="button" id="p-cancelar">Cancelar</button>
+      <button class="botao prim" type="button" id="p-enviar">Publicar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+"use strict";
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const MODELO_PADRAO = {
+    modeloTitulo: "{evento} - {musica} - Drumcam {data}",
+    modeloDescricao: "🥁 {musica}\n{evento} · {data}\n\nDrumcam",
+    modeloTags: "drumcam, bateria, drum cam, louvor",
+  };
+
+  let pin = lerPin();
+  let ajustes = {};
+  let estado = null;
+  let diferencaRelogio = 0;
+  let aba = "camera";
+  let videos = [];
+  let thumbs = [];
+  let publicando = null;
+  let tituloEditado = false;
+  let descricaoEditada = false;
+  let previaUrl = null;
+  let youtubeTimer = null;
+
+  function lerPin() { try { return localStorage.getItem("drumcam-pin") || ""; } catch (e) { return ""; } }
+  function salvarPin(v) { try { localStorage.setItem("drumcam-pin", v); } catch (e) { /* sem armazenamento */ } }
+
+  // ---------- API ----------
+  class ErroApi extends Error { constructor(status, msg) { super(msg); this.status = status; } }
+
+  async function api(metodo, caminho, corpo, tipo) {
+    const op = { method: metodo, headers: { "X-Pin": pin } };
+    if (corpo !== undefined) {
+      if (corpo instanceof Blob) { op.body = corpo; op.headers["Content-Type"] = tipo || corpo.type || "application/octet-stream"; }
+      else { op.body = JSON.stringify(corpo); op.headers["Content-Type"] = "application/json"; }
+    }
+    let r;
+    try { r = await fetch("/api/" + caminho, op); }
+    catch (e) { marcarOffline(); throw new ErroApi(0, "A câmera não respondeu. Confira se ela está ligada e no mesmo Wi-Fi."); }
+    if (r.status === 401) { pedirPin(); throw new ErroApi(401, "PIN errado."); }
+    const tipoResp = r.headers.get("Content-Type") || "";
+    if (!r.ok) {
+      let msg = "Erro " + r.status;
+      if (tipoResp.includes("json")) { try { msg = (await r.json()).erro || msg; } catch (e) { /* corpo inválido */ } }
+      throw new ErroApi(r.status, msg);
+    }
+    if (tipoResp.includes("json")) return r.json();
+    return r.blob();
+  }
+
+  const urlComPin = (caminho) => "/api/" + caminho + (caminho.includes("?") ? "&" : "?") + "pin=" + encodeURIComponent(pin);
+
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg; t.hidden = false;
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => { t.hidden = true; }, 3500);
+  }
+
+  // ---------- PIN ----------
+  function pedirPin(msg) {
+    $("modal-pin").hidden = false;
+    $("erro-pin").hidden = !msg && !pin;
+    $("erro-pin").textContent = msg || (pin ? "PIN errado. Confira no celular-câmera." : "");
+    $("campo-pin").value = "";
+    setTimeout(() => $("campo-pin").focus(), 50);
+  }
+  $("btn-pin").onclick = async () => {
+    pin = $("campo-pin").value.trim();
+    try {
+      await api("GET", "estado");
+      salvarPin(pin);
+      $("modal-pin").hidden = true;
+      iniciar();
+    } catch (e) {
+      if (e.status !== 401) pedirPin(e.message);
+    }
+  };
+  $("campo-pin").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-pin").click(); });
+
+  // ---------- abas ----------
+  document.querySelectorAll("nav button").forEach((b) => { b.onclick = () => irPara(b.dataset.aba); });
+  function irPara(nome) {
+    aba = nome;
+    document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-current", b.dataset.aba === nome ? "page" : "false"));
+    ["camera", "videos", "thumbs", "ajustes"].forEach((n) => { $("aba-" + n).hidden = n !== nome; });
+    window.scrollTo(0, 0);
+    if (nome === "videos") carregarVideos();
+    if (nome === "thumbs") carregarThumbs();
+    if (nome === "ajustes") carregarAjustes();
+  }
+  window.voltar = function () {
+    if (!$("modal-publicar").hidden) { $("modal-publicar").hidden = true; publicando = null; return true; }
+    if (aba !== "camera") { irPara("camera"); return true; }
+    return false;
+  };
+
+  // ---------- estado da câmera ----------
+  function marcarOffline() { $("pill").textContent = "sem conexão"; $("pill").className = "pill"; }
+
+  async function atualizarEstado() {
+    try {
+      estado = await api("GET", "estado");
+      diferencaRelogio = estado.agora - Date.now();
+      mostrarEstado();
+    } catch (e) { /* mostrado pelo marcarOffline */ }
+  }
+
+  function mostrarEstado() {
+    if (!estado) return;
+    const g = estado.gravando;
+    const pill = $("pill");
+    if (g) { pill.className = "pill rec"; pill.textContent = "● REC " + tempo(Date.now() + diferencaRelogio - estado.desde); }
+    else { pill.className = "pill"; pill.textContent = "pronta"; }
+    const b = $("btn-gravar");
+    b.textContent = g ? "■ Parar  " + tempo(Date.now() + diferencaRelogio - estado.desde) : "● Gravar";
+    b.classList.toggle("parar", g);
+    $("d-bateria").textContent = estado.bateria >= 0 ? estado.bateria + "%" + (estado.carregando ? " ⚡" : "") : "–";
+    $("d-temp").textContent = estado.temperatura ? estado.temperatura.toFixed(0) + " °C" : "–";
+    $("d-temp").style.color = estado.temperatura >= 45 ? "var(--vermelho)" : "";
+    const minutos = Math.floor(estado.livre / (estado.resolucao === "1080p" ? 95e6 : 50e6));
+    $("d-livre").textContent = tamanho(estado.livre) + " · ~" + minutos + " min";
+    $("d-res").textContent = estado.resolucao;
+    const err = $("erro-camera");
+    err.hidden = !estado.erro; err.textContent = estado.erro || "";
+    if (!estado.carregando && estado.bateria >= 0 && estado.bateria <= 20) {
+      err.hidden = false; err.textContent = (estado.erro ? estado.erro + " " : "") + "Bateria baixa e fora da tomada.";
+    }
+  }
+
+  $("btn-gravar").onclick = async () => {
+    const b = $("btn-gravar");
+    b.disabled = true;
+    try {
+      estado = await api("POST", estado && estado.gravando ? "parar" : "gravar");
+      diferencaRelogio = estado.agora - Date.now();
+      mostrarEstado();
+      if (!estado.gravando) toast("Gravação salva. Veja em Vídeos.");
+    } catch (e) { toast(e.message); }
+    finally { b.disabled = false; }
+  };
+
+  async function atualizarPrevia() {
+    const img = $("previa-img"), msg = $("previa-msg");
+    if (aba !== "camera" || document.hidden) return;
+    if (estado && estado.gravando) {
+      img.hidden = true; msg.hidden = false;
+      msg.textContent = "● Gravando. A prévia volta quando parar (a câmera fica dedicada à gravação).";
+      return;
+    }
+    try {
+      const blob = await api("GET", "previa.jpg");
+      const url = URL.createObjectURL(blob);
+      img.onload = () => { if (previaUrl) URL.revokeObjectURL(previaUrl); previaUrl = url; };
+      img.src = url; img.hidden = false; msg.hidden = true;
+    } catch (e) {
+      if (e.status === 409) { msg.textContent = e.message; if (img.hidden) msg.hidden = false; }
+      else { msg.textContent = e.message; msg.hidden = false; img.hidden = true; }
+    }
+  }
+
+  ["orientacao", "qualidade", "audio"].forEach((k) => {
+    $("a-" + k).onchange = async (ev) => {
+      try { ajustes = await api("PUT", "ajustes", { [k]: ev.target.value }); toast("Salvo."); }
+      catch (e) { toast(e.message); ev.target.value = ajustes[k] || ev.target.options[0].value; }
+    };
+  });
+
+  // ---------- vídeos ----------
+  async function carregarVideos() {
+    try { videos = await api("GET", "videos"); mostrarVideos(); }
+    catch (e) { $("lista-videos").innerHTML = '<p class="vazio">' + esc(e.message) + "</p>"; }
+  }
+
+  function mostrarVideos() {
+    const el = $("lista-videos");
+    if (!videos.length) { el.innerHTML = '<p class="vazio">Nenhum vídeo ainda. Grave na aba Câmera.</p>'; return; }
+    el.innerHTML = videos.map((v) => {
+      const p = v.publicacao;
+      const emEnvio = p && ["fila", "enviando", "thumb"].includes(p.status);
+      let status = "";
+      if (v.gravando) status = '<span class="status" style="color:var(--vermelho)">● gravando agora</span>';
+      else if (p) {
+        if (p.status === "fila") status = '<span class="status">⏳ Na fila para o YouTube</span>';
+        else if (p.status === "enviando") status = '<span class="status">⬆️ Enviando ' + (p.progresso || 0) + '%</span><div class="barra"><i style="width:' + (p.progresso || 0) + '%"></i></div>';
+        else if (p.status === "thumb") status = '<span class="status">🖼️ Aplicando thumb e playlist…</span>';
+        else if (p.status === "publicado") status = '<span class="status" style="color:var(--verde)">✅ No YouTube</span>' + (p.aviso ? '<span class="status" style="color:var(--amarelo)">' + esc(p.aviso) + "</span>" : "");
+        else if (p.status === "erro") status = '<span class="status erro">⚠️ ' + esc(p.erro) + "</span>";
+      }
+      const titulo = p && p.titulo ? p.titulo : "Gravação de " + dataHora(v.data);
+      const acoes = [];
+      if (!v.gravando) {
+        if (p && p.url) acoes.push('<a class="botao" href="' + esc(p.url) + '" target="_blank" rel="noopener">▶ YouTube</a>');
+        if (!emEnvio) acoes.push('<button class="botao prim" type="button" data-pub="' + esc(v.nome) + '">' + (p && p.status === "publicado" ? "Publicar de novo" : p && p.status === "erro" ? "Tentar de novo" : "Publicar") + "</button>");
+        acoes.push('<a class="botao" href="' + esc(urlComPin("videos/" + encodeURIComponent(v.nome) + "?baixar=1")) + '">⬇ Baixar</a>');
+        if (!emEnvio) acoes.push('<button class="botao" type="button" data-apagar="' + esc(v.nome) + '">🗑</button>');
+      }
+      return '<div class="video"><div class="capa">' +
+        (v.gravando ? "" : '<img loading="lazy" alt="" src="' + esc(urlComPin("videos/" + encodeURIComponent(v.nome) + "/quadro.jpg")) + '" onerror="this.remove()">') +
+        (v.duracaoMs ? '<span class="dur">' + tempo(v.duracaoMs) + "</span>" : "") + "</div>" +
+        '<div class="info"><div class="tit">' + esc(titulo) + '</div><div class="meta">' + esc(dataHora(v.data) + " · " + tamanho(v.tamanho)) + "</div>" +
+        status + '<div class="acoes">' + acoes.join("") + "</div></div></div>";
+    }).join("");
+    el.querySelectorAll("[data-pub]").forEach((b) => { b.onclick = () => abrirPublicar(b.dataset.pub); });
+    el.querySelectorAll("[data-apagar]").forEach((b) => { b.onclick = () => apagarVideo(b.dataset.apagar); });
+  }
+
+  async function apagarVideo(nome) {
+    const v = videos.find((x) => x.nome === nome);
+    const quando = v ? dataHora(v.data) : nome;
+    if (!confirm("Apagar a gravação de " + quando + " do celular-câmera? O que já está no YouTube continua lá.")) return;
+    try { await api("DELETE", "videos/" + encodeURIComponent(nome)); toast("Gravação apagada."); carregarVideos(); }
+    catch (e) { toast(e.message); }
+  }
+
+  // ---------- publicar ----------
+  function modelo(k) { return ajustes[k] != null ? ajustes[k] : MODELO_PADRAO[k]; }
+  function aplicar(texto) {
+    return texto.replace(/\{evento\}/g, $("p-evento").value.trim())
+      .replace(/\{musica\}/g, $("p-musica").value.trim())
+      .replace(/\{data\}/g, $("p-data").value.trim())
+      .replace(/\s+-\s+-\s+/g, " - ").replace(/^\s*-\s*|\s*-\s*$/g, "").trim();
+  }
+
+  async function abrirPublicar(nome) {
+    const v = videos.find((x) => x.nome === nome);
+    if (!v) return;
+    if (!estado || !estado.youtube) {
+      toast("Conecte o YouTube primeiro (aba Ajustes).");
+      irPara("ajustes");
+      return;
+    }
+    publicando = v;
+    tituloEditado = false; descricaoEditada = false;
+    $("pub-arquivo").textContent = "Gravação de " + dataHora(v.data) + (v.duracaoMs ? " · " + tempo(v.duracaoMs) : "") + " · " + tamanho(v.tamanho);
+    const eventos = Array.isArray(ajustes.eventos) ? ajustes.eventos : [];
+    $("eventos").innerHTML = eventos.map((e) => '<option value="' + esc(e) + '">').join("");
+    $("p-evento").value = eventos[0] || "";
+    $("p-musica").value = "";
+    $("p-data").value = data(v.data);
+    $("p-tags").value = modelo("modeloTags");
+    $("p-privacidade").value = ajustes.ultimaPrivacidade || "private";
+    $("p-erro").hidden = true;
+    atualizarTextos();
+    $("modal-publicar").hidden = false;
+    setTimeout(() => $("p-musica").focus(), 50);
+    carregarPlaylists();
+    if (!thumbs.length) { try { thumbs = await api("GET", "thumbs"); } catch (e) { /* segue sem */ } }
+    mostrarEscolhaThumb(ajustes.ultimaThumb);
+  }
+
+  function atualizarTextos() {
+    if (!tituloEditado) $("p-titulo").value = aplicar(modelo("modeloTitulo")).slice(0, 100);
+    if (!descricaoEditada) $("p-descricao").value = aplicar(modelo("modeloDescricao"));
+    const t = $("p-titulo").value;
+    $("p-titulo-previo").textContent = t || "(sem título)";
+    $("p-titulo-conta").textContent = t.length + "/100";
+  }
+  ["p-evento", "p-musica", "p-data"].forEach((id) => { $(id).addEventListener("input", atualizarTextos); });
+  $("p-titulo").addEventListener("input", () => { tituloEditado = true; atualizarTextos(); });
+  $("p-descricao").addEventListener("input", () => { descricaoEditada = true; });
+
+  async function carregarPlaylists() {
+    const sel = $("p-playlist");
+    if (sel.dataset.carregado) { sel.value = ajustes.ultimaPlaylist || ""; return; }
+    try {
+      const lista = await api("GET", "youtube/playlists");
+      sel.innerHTML = '<option value="">Nenhuma</option>' + lista.map((p) => '<option value="' + esc(p.id) + '">' + esc(p.titulo) + "</option>").join("");
+      sel.dataset.carregado = "1";
+      sel.value = ajustes.ultimaPlaylist || "";
+    } catch (e) { /* sem playlists */ }
+  }
+
+  function mostrarEscolhaThumb(escolhida) {
+    const existe = thumbs.some((t) => t.nome === escolhida);
+    const sel = existe ? escolhida : (thumbs[0] ? thumbs[0].nome : "");
+    const el = $("p-thumbs");
+    el.innerHTML = '<button type="button" class="thumb nenhuma' + (sel === "" ? " sel" : "") + '" data-thumb="">Sem thumb</button>' +
+      thumbs.map((t) => '<button type="button" class="thumb' + (t.nome === sel ? " sel" : "") + '" data-thumb="' + esc(t.nome) + '" style="padding:0">' +
+        '<img loading="lazy" alt="" src="' + esc(urlComPin("thumbs/" + encodeURIComponent(t.nome))) + '"></button>').join("");
+    el.dataset.sel = sel;
+    el.querySelectorAll("[data-thumb]").forEach((b) => {
+      b.onclick = () => {
+        el.querySelectorAll(".thumb").forEach((x) => x.classList.remove("sel"));
+        b.classList.add("sel");
+        el.dataset.sel = b.dataset.thumb;
+      };
+    });
+  }
+
+  $("p-cancelar").onclick = () => { $("modal-publicar").hidden = true; publicando = null; };
+  $("p-enviar").onclick = async () => {
+    if (!publicando) return;
+    const titulo = $("p-titulo").value.trim();
+    const erro = $("p-erro");
+    if (!$("p-musica").value.trim() && !tituloEditado) { erro.hidden = false; erro.textContent = "Escreva o nome da música."; return; }
+    if (!titulo) { erro.hidden = false; erro.textContent = "Falta o título."; return; }
+    const pedido = {
+      titulo,
+      descricao: $("p-descricao").value,
+      tags: $("p-tags").value.split(",").map((t) => t.trim()).filter(Boolean),
+      privacidade: $("p-privacidade").value,
+      playlistId: $("p-playlist").value,
+      thumb: $("p-thumbs").dataset.sel || "",
+    };
+    const b = $("p-enviar");
+    b.disabled = true;
+    try {
+      await api("POST", "videos/" + encodeURIComponent(publicando.nome) + "/publicar", pedido);
+      const evento = $("p-evento").value.trim();
+      const eventos = (Array.isArray(ajustes.eventos) ? ajustes.eventos : []).filter((e) => e !== evento);
+      if (evento) eventos.unshift(evento);
+      ajustes = await api("PUT", "ajustes", {
+        eventos: eventos.slice(0, 20), ultimaPrivacidade: pedido.privacidade, ultimaPlaylist: pedido.playlistId, ultimaThumb: pedido.thumb,
+      });
+      $("modal-publicar").hidden = true;
+      publicando = null;
+      toast("Enviando para o YouTube. Pode fechar o app: a câmera continua o envio.");
+      carregarVideos();
+    } catch (e) { erro.hidden = false; erro.textContent = e.message; }
+    finally { b.disabled = false; }
+  };
+
+  // ---------- thumbs ----------
+  async function carregarThumbs() {
+    try { thumbs = await api("GET", "thumbs"); mostrarThumbs(); }
+    catch (e) { $("grade-thumbs").innerHTML = '<p class="vazio">' + esc(e.message) + "</p>"; }
+  }
+  function mostrarThumbs() {
+    const el = $("grade-thumbs");
+    if (!thumbs.length) { el.innerHTML = '<p class="vazio" style="grid-column:1/-1">Nenhuma thumb ainda.</p>'; return; }
+    el.innerHTML = thumbs.map((t) => '<div class="thumb"><img loading="lazy" alt="" src="' + esc(urlComPin("thumbs/" + encodeURIComponent(t.nome))) + '">' +
+      '<button class="x" type="button" aria-label="Apagar thumb" data-apagar="' + esc(t.nome) + '">✕</button></div>').join("");
+    el.querySelectorAll("[data-apagar]").forEach((b) => {
+      b.onclick = async () => {
+        if (!confirm("Apagar esta thumb?")) return;
+        try { await api("DELETE", "thumbs/" + encodeURIComponent(b.dataset.apagar)); carregarThumbs(); }
+        catch (e) { toast(e.message); }
+      };
+    });
+  }
+  $("nova-thumb").onchange = async (ev) => {
+    const arquivos = Array.from(ev.target.files || []);
+    ev.target.value = "";
+    let ok = 0;
+    for (const f of arquivos) {
+      try { await api("POST", "thumbs", await prepararThumb(f), "image/jpeg"); ok++; }
+      catch (e) { toast(f.name + ": " + e.message); }
+    }
+    if (ok) toast(ok === 1 ? "Thumb salva." : ok + " thumbs salvas.");
+    carregarThumbs();
+  };
+  function prepararThumb(arquivo) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(arquivo);
+      const img = new Image();
+      img.onload = async () => {
+        URL.revokeObjectURL(url);
+        const escala = Math.min(1, 1280 / img.width, 720 / img.height);
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width * escala); c.height = Math.round(img.height * escala);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        for (const q of [0.92, 0.85, 0.75, 0.6]) {
+          const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", q));
+          if (blob && blob.size <= 2 * 1024 * 1024) return resolve(blob);
+        }
+        reject(new Error("imagem grande demais"));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("não é uma imagem")); };
+      img.src = url;
+    });
+  }
+
+  // ---------- ajustes ----------
+  async function carregarAjustes() {
+    $("m-titulo").value = modelo("modeloTitulo");
+    $("m-descricao").value = modelo("modeloDescricao");
+    $("m-tags").value = modelo("modeloTags");
+    if (estado) $("info-aparelho").textContent = "Câmera: " + estado.aparelho + " · Android " + estado.android + " · Drumcam " + estado.versaoApp;
+    $("btn-trocar-camera").hidden = !window.DrumcamApp;
+    carregarYoutube();
+  }
+  $("salvar-modelo").onclick = async () => {
+    try {
+      ajustes = await api("PUT", "ajustes", { modeloTitulo: $("m-titulo").value, modeloDescricao: $("m-descricao").value, modeloTags: $("m-tags").value });
+      toast("Modelo salvo.");
+    } catch (e) { toast(e.message); }
+  };
+  $("btn-trocar-camera").onclick = () => { if (window.DrumcamApp) window.DrumcamApp.trocarCamera(); };
+  $("btn-novo-pin").onclick = async () => {
+    if (!confirm("Gerar um PIN novo? Outros celulares conectados vão precisar do PIN novo.")) return;
+    try { const r = await api("POST", "pin"); pin = r.pin; salvarPin(pin); toast("PIN novo: " + pin); }
+    catch (e) { toast(e.message); }
+  };
+
+  async function carregarYoutube() {
+    clearTimeout(youtubeTimer);
+    let yt;
+    try { yt = await api("GET", "youtube"); } catch (e) { $("yt-conteudo").textContent = e.message; return; }
+    const el = $("yt-conteudo");
+    const c = yt.conexao || {};
+    if (yt.conectado) {
+      el.innerHTML = '<p>✅ Conectado' + (yt.canal ? " ao canal <b>" + esc(yt.canal) + "</b>" : "") + ".</p>" +
+        '<p class="ajuda">Os vídeos sobem direto do celular-câmera pelo Wi-Fi da igreja.</p>' +
+        '<button class="botao" type="button" id="yt-sair">Desconectar</button>';
+      $("yt-sair").onclick = async () => {
+        if (!confirm("Desconectar o YouTube deste celular-câmera?")) return;
+        await api("POST", "youtube/desconectar"); carregarYoutube();
+      };
+      if (estado) estado.youtube = true;
+      return;
+    }
+    if (c.estado === "aguardando") {
+      el.innerHTML = "<p>1. Abra <a href=\"" + esc(c.url) + "\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--azul)\">" + esc(c.url) + "</a> em qualquer celular ou computador.</p>" +
+        "<p>2. Entre na conta do canal e digite este código:</p>" +
+        '<div class="codigo">' + esc(c.codigo) + "</div>" +
+        '<p class="ajuda">Esperando você confirmar no Google…</p>' +
+        '<button class="botao" type="button" id="yt-cancelar">Cancelar</button>';
+      $("yt-cancelar").onclick = async () => { await api("POST", "youtube/desconectar"); carregarYoutube(); };
+      youtubeTimer = setTimeout(() => { if (aba === "ajustes") carregarYoutube(); }, 3000);
+      return;
+    }
+    el.innerHTML = (c.estado === "erro" ? '<p class="erro">' + esc(c.erro) + "</p>" : "") +
+      '<p class="ajuda">Para publicar sozinho, o app precisa de uma credencial do Google (gratuita, criada uma vez). ' +
+      'Ela fica só no celular-câmera.</p>' +
+      '<label for="yt-id">Client ID</label><input id="yt-id" autocomplete="off" value="' + esc(yt.clientId || "") + '" placeholder="123…apps.googleusercontent.com">' +
+      '<label for="yt-segredo">Client Secret</label><input id="yt-segredo" type="password" autocomplete="off" placeholder="' + (yt.temSegredo ? "já salvo (deixe vazio para manter)" : "GOCSPX-…") + '">' +
+      '<button class="botao prim largo" type="button" id="yt-conectar" style="margin-top:12px">Conectar YouTube</button>' +
+      '<details style="margin-top:12px"><summary>Como criar a credencial (uma vez só)</summary><ol class="ajuda">' +
+      "<li>Entre em console.cloud.google.com com a conta do canal e crie um projeto (ex.: Drumcam).</li>" +
+      "<li>Em “APIs e serviços › Biblioteca”, ative a <b>YouTube Data API v3</b>.</li>" +
+      "<li>Em “Tela de consentimento OAuth”, escolha “Externo”, preencha o nome do app e seu e-mail e adicione seu e-mail em “Usuários de teste”.</li>" +
+      "<li>Em “Credenciais › Criar credenciais › ID do cliente OAuth”, escolha o tipo <b>TVs e dispositivos de entrada limitada</b>.</li>" +
+      "<li>Copie o Client ID e o Client Secret para cá e toque em Conectar.</li>" +
+      "<li>Para os vídeos poderem ser públicos direto, peça a auditoria da API no formulário do YouTube. Até aprovar, eles sobem privados.</li>" +
+      "</ol></details>";
+    $("yt-conectar").onclick = async () => {
+      const b = $("yt-conectar");
+      b.disabled = true;
+      try {
+        await api("POST", "youtube/credenciais", { clientId: $("yt-id").value.trim(), clientSecret: $("yt-segredo").value.trim() });
+        await api("POST", "youtube/conectar");
+        carregarYoutube();
+      } catch (e) { toast(e.message); b.disabled = false; }
+    };
+  }
+
+  // ---------- formatos ----------
+  function tempo(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+    const dois = (n) => String(n).padStart(2, "0");
+    return (h ? h + ":" + dois(m) : m) + ":" + dois(ss);
+  }
+  function tamanho(b) {
+    if (!b && b !== 0) return "–";
+    if (b >= 1e9) return (b / 1e9).toFixed(1).replace(".", ",") + " GB";
+    return Math.round(b / 1e6) + " MB";
+  }
+  function data(t) {
+    const d = new Date(t);
+    return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear();
+  }
+  function dataHora(t) {
+    const d = new Date(t);
+    return data(t) + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  }
+
+  // ---------- ciclo ----------
+  let iniciado = false;
+  async function iniciar() {
+    if (iniciado) return;
+    try { ajustes = await api("GET", "ajustes"); } catch (e) { if (e.status === 401) return; }
+    iniciado = true;
+    ["orientacao", "qualidade", "audio"].forEach((k) => { if (ajustes[k]) $("a-" + k).value = ajustes[k]; });
+    await atualizarEstado();
+    setInterval(atualizarEstado, 2000);
+    setInterval(() => { if (estado && estado.gravando) mostrarEstado(); }, 1000);
+    setInterval(atualizarPrevia, 1000);
+    setInterval(() => { if (aba === "videos" && !document.hidden) carregarVideos(); }, 4000);
+    atualizarPrevia();
+  }
+
+  if (!pin) pedirPin(); else iniciar();
+})();
+</script>
+</body>
+</html>
