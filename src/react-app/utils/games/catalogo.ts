@@ -126,7 +126,7 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "tanques", nome: "Tanques de Aço", resumo: "Arena 3D: muros destrutíveis, ricochete e minas.",
-    categoria: "Arena", dimensao: "3D", minJogadores: 1, maxJogadores: 8, fase: 8, disponivel: false, modos: ["Mata-Mata", "Times"],
+    categoria: "Arena", dimensao: "3D", minJogadores: 1, maxJogadores: 8, fase: 8, disponivel: true, modos: ["Mata-Mata", "Times"],
     regras: ["Torre gira separada do chassi.", "Tiros ricocheteiam.", "Minas e muros destrutíveis."], controles: CONTROLES_PADRAO,
     cores: ["#1a2e05", "#65a30d", "#ecfccb"], motivo: "tanque",
   },

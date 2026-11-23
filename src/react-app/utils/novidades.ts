@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-23-games-v21",
+    data: "2026-11-23",
+    titulo: "Games: Tanques de Aço em 3D",
+    texto: "Arena com muros de pedra e caixotes que quebram, tiros que ricocheteiam (cuidado com o próprio tiro!), minas e a torre que mira sozinha. Mata-Mata ou Times, de 1 a 8; sozinho, tiro ao alvo.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-23-games-v20",
     data: "2026-11-23",
     titulo: "Games: Kart Turbo & Balões em 3D",
