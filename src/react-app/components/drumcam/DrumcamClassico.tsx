@@ -9,12 +9,12 @@ import {
 type EstadoRele = "conectando" | "conectado" | "caiu";
 
 /**
- * Repertório → Drumcam: um celular parado vira câmera (grava a bateria com o áudio do iRig) e outro aparelho controla.
+ * Estúdio → Câmeras → "Câmera do app" (Drumcam v1/v2): um celular parado vira câmera (grava a bateria com o áudio do iRig) e outro aparelho controla.
  * - No app NordTool: "Usar este celular como câmera" e "Controlar no Wi-Fi" (painel completo, com download).
  * - Pela internet, de qualquer lugar: a câmera fica no relé do NordTool e o painel abre aqui mesmo.
  * - No computador, no mesmo Wi-Fi: abre o endereço da câmera no navegador.
  */
-export default function DrumcamRepertorio() {
+export default function DrumcamClassico() {
   const ponte = ponteDrumcam();
   const [ativa, setAtiva] = useState(() => ponte?.drumcamAtiva() ?? false);
   const [estado, setEstado] = useState<EstadoRele>("conectando");
@@ -108,43 +108,41 @@ export default function DrumcamRepertorio() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 to-slate-800 p-4 text-white">
-        <p className="flex items-center gap-2 text-base font-black"><Video className="h-5 w-5 text-red-400" />Drumcam</p>
-        <p className="mt-1 text-sm text-slate-300">Um celular fica parado gravando a bateria (com o áudio do iRig) e outro aparelho controla: prévia, gravar e parar, vídeos, thumbs e publicar no YouTube com o título no padrão.</p>
-      </div>
+      <p className="flex items-start gap-2 text-xs text-slate-400"><Video className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+        Câmera do app (grava no próprio celular em 1080p, com o áudio do iRig, e publica no YouTube com o título no padrão). Para o estúdio com várias câmeras e o monitoramento, use a câmera ao vivo acima.</p>
 
       {ponte ? (
         <div className="grid gap-3 sm:grid-cols-2">
           <button type="button" onClick={() => ponte.drumcamCamera()}
-            className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-left hover:bg-red-100">
+            className="flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-left hover:bg-red-500/20">
             <Camera className="mt-0.5 h-6 w-6 shrink-0 text-red-600" />
-            <span><span className="block font-bold text-slate-800">{ativa ? "Este celular é a câmera" : "Usar este celular como câmera"}</span>
-              <span className="block text-xs text-slate-600">{ativa ? "Toque para ver o endereço, o PIN e as opções." : "Ele fica pronto de tela apagada e volta sozinho se religar. Deixe na tomada."}</span></span>
+            <span><span className="block font-bold text-slate-100">{ativa ? "Este celular é a câmera" : "Usar este celular como câmera"}</span>
+              <span className="block text-xs text-slate-400">{ativa ? "Toque para ver o endereço, o PIN e as opções." : "Ele fica pronto de tela apagada e volta sozinho se religar. Deixe na tomada."}</span></span>
           </button>
           <button type="button" onClick={() => ponte.drumcamControlar()}
-            className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left hover:bg-slate-50">
+            className="flex items-start gap-3 rounded-2xl border border-white/10 bg-[#181b22] p-4 text-left hover:bg-white/5">
             <Wifi className="mt-0.5 h-6 w-6 shrink-0 text-sky-600" />
-            <span><span className="block font-bold text-slate-800">Controlar no Wi-Fi</span>
-              <span className="block text-xs text-slate-600">Acha a câmera na rede e abre o painel completo, com download dos vídeos para este celular.</span></span>
+            <span><span className="block font-bold text-slate-100">Controlar no Wi-Fi</span>
+              <span className="block text-xs text-slate-400">Acha a câmera na rede e abre o painel completo, com download dos vídeos para este celular.</span></span>
           </button>
         </div>
       ) : (
-        <p className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+        <p className="flex items-start gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
           <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
           <span>Para usar um celular como câmera, abra o NordTool pelo <b>app Android</b> (versão 6.0 ou mais nova) nele e entre aqui em Repertório → Drumcam.
             <a href="/app/nordtool.apk" className="ml-1 inline-flex items-center gap-1 font-bold underline"><Download className="h-3 w-3" />Baixar o app</a></span>
         </p>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4" aria-label="Câmeras pela internet">
+      <section className="rounded-2xl border border-white/10 bg-[#181b22] p-4" aria-label="Câmeras pela internet">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <p className="mr-auto flex items-center gap-2 font-bold text-slate-800"><Globe className="h-4 w-4 text-emerald-600" />Pela internet</p>
-          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${estado === "conectado" ? "bg-emerald-100 text-emerald-700" : estado === "conectando" ? "bg-slate-100 text-slate-600" : "bg-red-100 text-red-700"}`}>
+          <p className="mr-auto flex items-center gap-2 font-bold text-slate-100"><Globe className="h-4 w-4 text-emerald-600" />Pela internet</p>
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${estado === "conectado" ? "bg-emerald-500/15 text-emerald-300" : estado === "conectando" ? "bg-white/10 text-slate-300" : "bg-red-500/15 text-red-300"}`}>
             {estado === "conectado" ? "conectado ao NordTool" : estado === "conectando" ? "conectando…" : "sem conexão, tentando de novo"}
           </span>
         </div>
         {cameras.length === 0 ? (
-          <p className="flex items-center gap-2 text-sm text-slate-500">
+          <p className="flex items-center gap-2 text-sm text-slate-400">
             {estado === "conectando" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Nenhuma câmera ligada na sua conta. No celular-câmera, abra o app NordTool (com a sua conta), entre em Repertório → Drumcam e toque em “Usar este celular como câmera”.
           </p>
@@ -152,7 +150,7 @@ export default function DrumcamRepertorio() {
           <div className="mb-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Câmera">
             {cameras.map(c => (
               <button key={c.id} type="button" role="radio" aria-checked={escolhida === c.id} onClick={() => setEscolhida(c.id)}
-                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-bold ${escolhida === c.id ? "border-red-500 bg-red-50 text-red-700" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}>
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-bold ${escolhida === c.id ? "border-red-500 bg-red-500/15 text-red-300" : "border-white/10 text-slate-200 hover:bg-white/5"}`}>
                 <Camera className="h-4 w-4" />{c.nome}
               </button>
             ))}
@@ -160,17 +158,17 @@ export default function DrumcamRepertorio() {
         )}
         {camera && (
           <iframe key={camera.id} ref={painel} title={`Painel da ${camera.nome}`} src="/drumcam/painel.html?rele=1"
-            className="h-[78vh] min-h-[520px] w-full rounded-xl border border-slate-200 bg-slate-950" />
+            className="h-[78vh] min-h-[520px] w-full rounded-xl border border-white/10 bg-slate-950" />
         )}
-        {camera && <p className="mt-2 text-[11px] text-slate-500">Pela internet passam os comandos, a prévia e as thumbs; o vídeo vai direto da câmera para o YouTube. Para baixar o vídeo, use o mesmo Wi-Fi da câmera.</p>}
+        {camera && <p className="mt-2 text-[11px] text-slate-400">Pela internet passam os comandos, a prévia e as thumbs; o vídeo vai direto da câmera para o YouTube. Para baixar o vídeo, use o mesmo Wi-Fi da câmera.</p>}
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4" aria-label="No mesmo Wi-Fi pelo navegador">
-        <p className="mb-2 flex items-center gap-2 font-bold text-slate-800"><Wifi className="h-4 w-4 text-sky-600" />No computador, no mesmo Wi-Fi</p>
-        <p className="mb-2 text-xs text-slate-500">Digite o endereço que aparece na tela do celular-câmera (e use o PIN de lá). Abre o painel completo, com download dos vídeos.</p>
+      <section className="rounded-2xl border border-white/10 bg-[#181b22] p-4" aria-label="No mesmo Wi-Fi pelo navegador">
+        <p className="mb-2 flex items-center gap-2 font-bold text-slate-100"><Wifi className="h-4 w-4 text-sky-600" />No computador, no mesmo Wi-Fi</p>
+        <p className="mb-2 text-xs text-slate-400">Digite o endereço que aparece na tela do celular-câmera (e use o PIN de lá). Abre o painel completo, com download dos vídeos.</p>
         <div className="flex gap-2">
           <input value={endereco} onChange={e => setEndereco(e.target.value)} placeholder="ex.: 192.168.0.15:8080" aria-label="Endereço da câmera"
-            className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-slate-100" />
           <a href={enderecoPainel ?? undefined} target="_blank" rel="noopener noreferrer" aria-disabled={!enderecoPainel}
             className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-bold text-white ${enderecoPainel ? "bg-slate-800 hover:bg-slate-700" : "pointer-events-none bg-slate-300"}`}>
             <ExternalLink className="h-4 w-4" />Abrir

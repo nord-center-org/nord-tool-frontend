@@ -20,6 +20,7 @@ import android.util.Base64;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.MimeTypeMap;
+import android.webkit.PermissionRequest;
 import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -28,6 +29,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.view.View;
+import android.view.WindowManager;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.widget.LinearLayout;
@@ -50,6 +52,9 @@ public class MainActivity extends Activity {
 
     private static final int PEDIDO_ARQUIVO = 1;
     private static final int PEDIDO_NOTIFICACOES = 2;
+    private static final int PEDIDO_CAMERA = 3;
+    /** Pedido de câmera/microfone da página (Drumcam ao vivo) esperando a permissão do Android. */
+    private PermissionRequest pedidoDaPagina;
 
     /**
      * Os downloads do NordTool são gerados no navegador (URLs blob:), que o DownloadManager não alcança.
@@ -402,6 +407,22 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> startActivity(new Intent(MainActivity.this, br.com.nordtool.app.drumcam.ControleActivity.class)));
         }
 
+        /** Drumcam ao vivo (v3): mantém a tela ligada enquanto o celular é câmera ao vivo. */
+        @JavascriptInterface
+        public void manterTelaLigada(boolean ligada) {
+            if (!noNordTool()) return;
+            runOnUiThread(() -> {
+                if (ligada) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            });
+        }
+
+        /** O app (7.x+) libera câmera e microfone para a página (Drumcam ao vivo). */
+        @JavascriptInterface
+        public boolean cameraNaPagina() {
+            return noNordTool();
+        }
+
         /** Repertório → Drumcam: este celular está como câmera agora? */
         @JavascriptInterface
         public boolean drumcamAtiva() {
@@ -447,8 +468,58 @@ public class MainActivity extends Activity {
         }
     }
 
-    /** Envio de arquivos pelos campos de upload do NordTool. */
+    /** Resposta do Android ao pedido de câmera/microfone: libera para a página só o que foi permitido. */
+    @Override
+    public void onRequestPermissionsResult(int pedido, String[] permissoes, int[] resultados) {
+        super.onRequestPermissionsResult(pedido, permissoes, resultados);
+        if (pedido != PEDIDO_CAMERA || pedidoDaPagina == null) return;
+        PermissionRequest p = pedidoDaPagina;
+        pedidoDaPagina = null;
+        liberarParaPagina(p);
+    }
+
+    private boolean permitido(String permissao) {
+        return Build.VERSION.SDK_INT < 23 || checkSelfPermission(permissao) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /** Dá à página só os recursos que o Android já permitiu (câmera e/ou microfone); nada permitido, nega. */
+    private void liberarParaPagina(PermissionRequest p) {
+        java.util.List<String> dar = new java.util.ArrayList<>();
+        for (String r : p.getResources()) {
+            if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r) && permitido("android.permission.CAMERA")) dar.add(r);
+            if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r) && permitido("android.permission.RECORD_AUDIO")) dar.add(r);
+        }
+        if (dar.isEmpty()) p.deny();
+        else p.grant(dar.toArray(new String[0]));
+    }
+
+    /** Envio de arquivos pelos campos de upload do NordTool e câmera/microfone para a página do NordTool. */
     private final class Janela extends WebChromeClient {
+        @Override
+        public void onPermissionRequest(PermissionRequest pedido) {
+            runOnUiThread(() -> {
+                // Só a página do próprio NordTool, e só câmera e microfone.
+                String host = pedido.getOrigin() == null ? null : pedido.getOrigin().getHost();
+                boolean doApp = hostDoApp != null && hostDoApp.equalsIgnoreCase(host);
+                java.util.List<String> faltam = new java.util.ArrayList<>();
+                for (String r : pedido.getResources()) {
+                    if (!PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r) && !PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) doApp = false;
+                    if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r) && !permitido("android.permission.CAMERA")) faltam.add("android.permission.CAMERA");
+                    if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r) && !permitido("android.permission.RECORD_AUDIO")) faltam.add("android.permission.RECORD_AUDIO");
+                }
+                if (!doApp) { pedido.deny(); return; }
+                if (faltam.isEmpty() || Build.VERSION.SDK_INT < 23) { liberarParaPagina(pedido); return; }
+                if (pedidoDaPagina != null) pedidoDaPagina.deny();
+                pedidoDaPagina = pedido;
+                requestPermissions(faltam.toArray(new String[0]), PEDIDO_CAMERA);
+            });
+        }
+
+        @Override
+        public void onPermissionRequestCanceled(PermissionRequest pedido) {
+            if (pedidoDaPagina == pedido) pedidoDaPagina = null;
+        }
+
         @Override
         public boolean onShowFileChooser(WebView vista, ValueCallback<Uri[]> retorno, FileChooserParams parametros) {
             if (retornoArquivo != null) retornoArquivo.onReceiveValue(null);
