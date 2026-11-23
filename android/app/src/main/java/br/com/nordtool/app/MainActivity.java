@@ -5,7 +5,6 @@ import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
-import android.content.MutableContextWrapper;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -30,7 +29,6 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
@@ -55,6 +53,10 @@ public class MainActivity extends Activity {
     private static final int PEDIDO_ARQUIVO = 1;
     private static final int PEDIDO_NOTIFICACOES = 2;
     private static final int PEDIDO_CAMERA = 3;
+    /** App 11.0: permissões da câmera em segundo plano, antes de ligar o serviço. */
+    private static final int PEDIDO_CAMERA_SERVICO = 4;
+    /** Câmera em segundo plano esperando a permissão (câmera/microfone ou "Aparecer sobre outros apps"). */
+    private String[] cameraPendente;
     /** Pedido de câmera/microfone da página (Drumcam ao vivo) esperando a permissão do Android. */
     private PermissionRequest pedidoDaPagina;
 
@@ -76,12 +78,6 @@ public class MainActivity extends Activity {
             + "})();";
 
     private WebView webView;
-    /**
-     * App 10.0: a página que está como câmera ao vivo sobrevive ao fechar o app (voltar ou tirar dos recentes). Ela fica
-     * guardada aqui, presa ao processo que o {@link ServicoAoVivo} mantém vivo, e volta para a tela ao abrir o app de novo.
-     * Só sai do ar quando a pessoa desliga a câmera na própria página.
-     */
-    private static PaginaSempreAcordada paginaViva;
     /** A tela aberta agora: a ponte da página guardada fala sempre com ela (a tela de quando a página abriu pode ter fechado). */
     private static volatile MainActivity atual;
     private ValueCallback<Uri[]> retornoArquivo;
@@ -96,39 +92,25 @@ public class MainActivity extends Activity {
         hostDoApp = Uri.parse(BuildConfig.ENDERECO).getHost();
 
         atual = this;
-        boolean reaproveitada = ServicoAoVivo.ativo && paginaViva != null;
-        if (reaproveitada) {
-            webView = paginaViva;
-            ((MutableContextWrapper) webView.getContext()).setBaseContext(this);
-            ViewGroup pai = (ViewGroup) webView.getParent();
-            if (pai != null) pai.removeView(webView);
-            String url = webView.getUrl();
-            hostAtual = url == null ? null : Uri.parse(url).getHost();
-        } else {
-            webView = new PaginaSempreAcordada(new MutableContextWrapper(this));
-        }
+        webView = new WebView(this);
         setContentView(montarTela(webView));
 
-        if (!reaproveitada) {
-            WebSettings ajustes = webView.getSettings();
-            ajustes.setJavaScriptEnabled(true);
-            ajustes.setDomStorageEnabled(true);
-            ajustes.setDatabaseEnabled(true);
-            ajustes.setMediaPlaybackRequiresUserGesture(false);
-            ajustes.setAllowFileAccess(false);
-            ajustes.setUserAgentString(ajustes.getUserAgentString() + " NordToolAndroid/" + BuildConfig.VERSION_NAME);
-            CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
-            webView.addJavascriptInterface(new Ponte(), "NordAndroid");
-        }
+        WebSettings ajustes = webView.getSettings();
+        ajustes.setJavaScriptEnabled(true);
+        ajustes.setDomStorageEnabled(true);
+        ajustes.setDatabaseEnabled(true);
+        ajustes.setMediaPlaybackRequiresUserGesture(false);
+        ajustes.setAllowFileAccess(false);
+        ajustes.setUserAgentString(ajustes.getUserAgentString() + " NordToolAndroid/" + BuildConfig.VERSION_NAME);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
+        webView.addJavascriptInterface(new Ponte(), "NordAndroid");
         webView.setWebViewClient(new Navegacao());
         webView.setWebChromeClient(new Janela());
         webView.setDownloadListener((url, agente, disposicao, tipo, tamanho) -> baixar(url, agente, disposicao, tipo));
 
         ServicoSegundoPlano.criarCanais(this);
         String destino = enderecoDoAviso(getIntent());
-        if (reaproveitada) {
-            // a câmera ao vivo continua na tela, do jeito que estava
-        } else if (destino != null) {
+        if (destino != null) {
             webView.loadUrl(destino);
         } else if (estado != null) {
             webView.restoreState(estado);
@@ -145,30 +127,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         if (atual == this) atual = null;
-        // Fechou o app com a câmera ao vivo: a página sai desta tela e continua transmitindo, guardada até o app abrir de
-        // novo (o serviço segura o processo). Ela só para quando a pessoa desliga a câmera.
-        if (ServicoAoVivo.ativo && webView == paginaViva && paginaViva != null) {
-            ViewGroup pai = (ViewGroup) webView.getParent();
-            if (pai != null) pai.removeView(webView);
-            ((MutableContextWrapper) webView.getContext()).setBaseContext(getApplicationContext());
-        }
         super.onDestroy();
-    }
-
-    /**
-     * Drumcam v4: enquanto o celular é câmera ao vivo, o WebView continua se vendo como visível com a tela apagada
-     * ou com o app em segundo plano. Assim o Chromium não suspende a câmera, o vídeo nem os timers da página, e o
-     * serviço {@link ServicoAoVivo} mantém a câmera liberada pelo Android. Fora disso, o comportamento é o normal.
-     */
-    private static final class PaginaSempreAcordada extends WebView {
-        PaginaSempreAcordada(MutableContextWrapper contexto) {
-            super(contexto);
-        }
-
-        @Override
-        protected void onWindowVisibilityChanged(int visibilidade) {
-            super.onWindowVisibilityChanged(ServicoAoVivo.ativo ? View.VISIBLE : visibilidade);
-        }
     }
 
     @Override
@@ -176,6 +135,78 @@ public class MainActivity extends Activity {
         super.onResume();
         // Voltou para o app (inclusive depois de liberar "Instalar apps desconhecidos"): confere de novo.
         Atualizador.verificar(this, false);
+        // Voltou da tela "Aparecer sobre outros apps": liga a câmera (com ou sem a permissão).
+        if (cameraPendente != null && !aguardandoPermissaoDeCamera) {
+            String[] c = cameraPendente;
+            cameraPendente = null;
+            ligarCameraAgora(c[0], c[1]);
+        }
+    }
+
+    private boolean aguardandoPermissaoDeCamera;
+
+    /**
+     * App 11.0, "Ser câmera": confere câmera e microfone, sugere "Aparecer sobre outros apps" (para a câmera seguir
+     * firme com o app fechado) e liga o {@link ServicoAoVivo}.
+     */
+    private void pedirCameraEmSegundoPlano(String nome, String sessao) {
+        java.util.List<String> faltam = new java.util.ArrayList<>();
+        if (!permitido("android.permission.CAMERA")) faltam.add("android.permission.CAMERA");
+        if (!permitido("android.permission.RECORD_AUDIO")) faltam.add("android.permission.RECORD_AUDIO");
+        if (Build.VERSION.SDK_INT >= 33 && !permitido("android.permission.POST_NOTIFICATIONS")) faltam.add("android.permission.POST_NOTIFICATIONS");
+        cameraPendente = new String[]{nome, sessao};
+        if (!faltam.isEmpty() && Build.VERSION.SDK_INT >= 23) {
+            aguardandoPermissaoDeCamera = true;
+            requestPermissions(faltam.toArray(new String[0]), PEDIDO_CAMERA_SERVICO);
+            return;
+        }
+        seguirParaSobreposicao();
+    }
+
+    private void seguirParaSobreposicao() {
+        if (cameraPendente == null) return;
+        if (ServicoAoVivo.podeSobrepor(this)) {
+            String[] c = cameraPendente;
+            cameraPendente = null;
+            ligarCameraAgora(c[0], c[1]);
+            return;
+        }
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Câmera com o app fechado")
+                .setMessage("Para a câmera continuar no ar mesmo com o NordTool fechado, permita \"Aparecer sobre outros apps\" "
+                        + "para o NordTool na próxima tela e volte para o app. Nada aparece na sua tela: é só para o Android não "
+                        + "desligar a câmera.")
+                .setPositiveButton("Permitir", (d, w) -> {
+                    try {
+                        startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName())));
+                    } catch (RuntimeException e) {
+                        String[] c = cameraPendente;
+                        cameraPendente = null;
+                        if (c != null) ligarCameraAgora(c[0], c[1]);
+                    }
+                })
+                .setNegativeButton("Agora não", (d, w) -> {
+                    String[] c = cameraPendente;
+                    cameraPendente = null;
+                    if (c != null) ligarCameraAgora(c[0], c[1]);
+                })
+                .setCancelable(false)
+                .show();
+    }
+
+    private void ligarCameraAgora(String nome, String sessao) {
+        if (!permitido("android.permission.CAMERA")) {
+            avisar("Sem permissão para a câmera: libere a câmera para o NordTool nas configurações do celular.");
+            avisarPagina();
+            return;
+        }
+        if (!ServicoAoVivo.ligar(this, nome, sessao)) avisar("O Android não deixou ligar a câmera agora. Tente de novo.");
+        avisarPagina();
+    }
+
+    /** Conta para a página que a câmera mudou (ela atualiza o painel na hora). */
+    private void avisarPagina() {
+        if (webView != null) webView.evaluateJavascript("window.dispatchEvent(new Event('nord-camera-servico'))", null);
     }
 
     @Override
@@ -260,10 +291,7 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (ServicoAoVivo.ativo) {
-            // Câmera ao vivo: voltar só manda o app para o segundo plano (a câmera continua).
-            moveTaskToBack(true);
-        } else if (webView.canGoBack()) {
+        if (webView.canGoBack()) {
             webView.goBack();
         } else {
             super.onBackPressed();
@@ -469,28 +497,44 @@ public class MainActivity extends Activity {
             tela().runOnUiThread(() -> tela().startActivity(new Intent(tela(), br.com.nordtool.app.drumcam.ControleActivity.class)));
         }
 
-        /**
-         * Drumcam ao vivo (v4, app 9.0): a câmera fica no ar em segundo plano e com a tela apagada (serviço em primeiro
-         * plano com notificação, CPU e Wi-Fi seguros, renderizador da página com prioridade alta).
-         */
+        /** App 11.0: a câmera ao vivo roda num serviço, fora desta tela (o NordTool fica livre e fechar o app não para). */
         @JavascriptInterface
-        public boolean aoVivo(boolean ligar, String nome) {
-            if (!tela().noNordTool()) return false;
-            String nomeLimpo = nome == null ? "" : nome.replaceAll("[\\p{Cntrl}]", "").trim();
-            if (nomeLimpo.length() > 60) nomeLimpo = nomeLimpo.substring(0, 60);
-            final String rotulo = nomeLimpo;
+        public boolean cameraEmSegundoPlano() {
+            return tela().noNordTool();
+        }
+
+        /** "Ser câmera": liga a câmera em segundo plano com este nome (e a sessão atual, se o aparelho não tiver token). */
+        @JavascriptInterface
+        public void ligarCameraServico(String nome, String sessao) {
+            if (!tela().noNordTool()) return;
+            String s = sessao == null || sessao.length() > 20_000 ? "" : sessao;
+            tela().runOnUiThread(() -> tela().pedirCameraEmSegundoPlano(nome, s));
+        }
+
+        /** "Desligar câmera": o único jeito de a câmera sair do ar. */
+        @JavascriptInterface
+        public void desligarCameraServico() {
+            if (!tela().noNordTool()) return;
             tela().runOnUiThread(() -> {
-                if (ligar) {
-                    paginaViva = (PaginaSempreAcordada) tela().webView;
-                    ServicoAoVivo.ligar(tela(), true, rotulo);
-                    if (Build.VERSION.SDK_INT >= 26) tela().webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
-                } else {
-                    paginaViva = null;
-                    ServicoAoVivo.ligar(tela(), false, null);
-                    if (Build.VERSION.SDK_INT >= 26) tela().webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true);
-                }
+                ServicoAoVivo.desligar(tela());
+                tela().avisarPagina();
             });
-            return true;
+        }
+
+        /** Estado da câmera em segundo plano: JSON com ligada, janela e o que a página da câmera contou. */
+        @JavascriptInterface
+        public String estadoCameraServico() {
+            if (!tela().noNordTool()) return "{}";
+            try {
+                JSONObject j = new JSONObject();
+                j.put("ligada", ServicoAoVivo.ativo);
+                j.put("janela", ServicoAoVivo.comJanela);
+                String e = ServicoAoVivo.estado;
+                j.put("camera", e == null || e.isEmpty() ? JSONObject.NULL : new JSONObject(e));
+                return j.toString();
+            } catch (org.json.JSONException ex) {
+                return "{\"ligada\":" + ServicoAoVivo.ativo + "}";
+            }
         }
 
         /** Drumcam ao vivo (v3): mantém a tela ligada enquanto o celular é câmera ao vivo. */
@@ -565,6 +609,11 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int pedido, String[] permissoes, int[] resultados) {
         super.onRequestPermissionsResult(pedido, permissoes, resultados);
+        if (pedido == PEDIDO_CAMERA_SERVICO) {
+            aguardandoPermissaoDeCamera = false;
+            seguirParaSobreposicao();
+            return;
+        }
         if (pedido != PEDIDO_CAMERA || pedidoDaPagina == null) return;
         PermissionRequest p = pedidoDaPagina;
         pedidoDaPagina = null;

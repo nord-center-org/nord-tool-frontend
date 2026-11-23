@@ -28,7 +28,7 @@ export default function CameraAoVivoTela({ sair }: { sair: () => void }) {
   // A câmera nasce e morre com a tela (no modo estrito do React, a tela monta duas vezes).
   const [camera, setCamera] = useState<CameraLocal | null>(null);
   useEffect(() => {
-    const c = new CameraLocal(nome, { estado: setEstado, rele: setRele, espectadores: setVendo, stream: setStream, erro: setErro });
+    const c = new CameraLocal(nome, { estado: setEstado, rele: setRele, espectadores: setVendo, stream: setStream, erro: setErro, desligar: sair });
     setCamera(c);
     c.abrir().catch(err => setErro(err?.name === "NotAllowedError"
       ? "Sem permissão para a câmera. Libere a câmera e o microfone para o NordTool e tente de novo."
@@ -58,7 +58,7 @@ export default function CameraAoVivoTela({ sair }: { sair: () => void }) {
         {!erro && camera && (
           <p className="absolute inset-x-3 top-12 text-center text-[11px] text-white/70">
             {camera.segundoPlano
-              ? "Pode apagar a tela ou fechar o app: a câmera continua transmitindo até você tocar em Parar aqui (aviso nas notificações)."
+              ? "Pode apagar a tela: a câmera continua transmitindo. No app 11.0+, ela roda em segundo plano e o celular fica livre."
               : "No navegador, a câmera precisa da tela ligada. No app NordTool 9.0+, ela continua com a tela apagada."}
           </p>
         )}

@@ -20,6 +20,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- app 11.0: a página da câmera ao vivo fica numa janelinha invisível de 1×1 para seguir no ar com o app fechado. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <!-- Só no Android 9 ou antes, para salvar os downloads na pasta Downloads. -->
@@ -68,7 +70,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- v8 (app 9.0): câmera ao vivo do Estúdio com a tela apagada ou em segundo plano. -->
+        <!-- v8/v10 (app 9.0/11.0): câmera ao vivo do Estúdio em segundo plano, numa página só dela (não para ao fechar o app). -->
         <service
             android:name=".ServicoAoVivo"
             android:exported="false"

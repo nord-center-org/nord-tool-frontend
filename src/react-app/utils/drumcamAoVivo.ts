@@ -57,9 +57,11 @@ export type Comando =
   | { c: "parar" }
   | { c: "arquivo"; sessao: string }
   | { c: "microfone"; ligado: boolean }
+  /** App 11 / Drumcam v5: desligar a câmera de longe (Monitoramento); ela sai do ar. */
+  | { c: "desligar" }
   | { c: "resolucao"; altura: number };
 
-const COMANDOS = new Set(["estado", "zoom", "lente", "lanterna", "foto", "nome", "qualidade", "relogio", "gravar", "parar", "arquivo", "microfone", "resolucao"]);
+const COMANDOS = new Set(["estado", "zoom", "lente", "lanterna", "foto", "nome", "qualidade", "relogio", "gravar", "parar", "arquivo", "microfone", "resolucao", "desligar"]);
 
 /** Valida um comando recebido pela câmera. */
 export function lerComando(d: unknown): (Comando & { id: number }) | null {
@@ -75,7 +77,7 @@ export function lerComando(d: unknown): (Comando & { id: number }) | null {
     case "gravar": case "arquivo": return typeof m.sessao === "string" && /^[\w-]{1,40}$/.test(m.sessao) ? { id, c: m.c, sessao: m.sessao } : null;
     case "microfone": return { id, c: "microfone", ligado: m.ligado !== false };
     case "resolucao": return typeof m.altura === "number" && [480, 720, 1080, 1440, 2160].includes(m.altura) ? { id, c: "resolucao", altura: m.altura } : null;
-    default: return { id, c: m.c as "estado" | "foto" | "relogio" | "parar" };
+    default: return { id, c: m.c as "estado" | "foto" | "relogio" | "parar" | "desligar" };
   }
 }
 
@@ -395,4 +397,54 @@ export function ponteAoVivo(janela: unknown = typeof window === "undefined" ? un
   if (!p || typeof p.aoVivo !== "function") return null;
   const f = p.aoVivo as (ligar: boolean, nome: string) => unknown;
   return (ligar, nome) => { try { return f.call(p, ligar, nome) !== false; } catch { return false; } };
+}
+
+/**
+ * App 11.0: a câmera ao vivo roda num serviço do app, numa página só dela (`/camera-servico`), fora da tela do
+ * NordTool. Assim o celular continua livre para usar o NordTool e fechar o app não derruba a câmera; ela só sai do ar
+ * em "Desligar câmera".
+ */
+export interface EstadoCameraServico {
+  ligada: boolean;
+  /** A página da câmera está presa à janelinha (permissão "Aparecer sobre outros apps"); sem ela pode parar em alguns aparelhos. */
+  janela: boolean;
+  camera: { rele: string; vendo: number; nome: string; gravando: boolean; erro: string | null } | null;
+}
+
+export function lerEstadoCameraServico(json: unknown): EstadoCameraServico {
+  let o: Record<string, unknown> = {};
+  try { o = (typeof json === "string" ? JSON.parse(json) : json) as Record<string, unknown> ?? {}; } catch { o = {}; }
+  if (!o || typeof o !== "object") o = {};
+  const c = o.camera as Record<string, unknown> | null | undefined;
+  return {
+    ligada: o.ligada === true,
+    janela: o.janela === true,
+    camera: c && typeof c === "object" ? {
+      rele: typeof c.rele === "string" ? c.rele : "conectando",
+      vendo: typeof c.vendo === "number" && c.vendo >= 0 ? Math.floor(c.vendo) : 0,
+      nome: typeof c.nome === "string" ? c.nome.slice(0, 60) : "",
+      gravando: c.gravando === true,
+      erro: typeof c.erro === "string" && c.erro ? c.erro.slice(0, 300) : null,
+    } : null,
+  };
+}
+
+export interface PonteCameraServico {
+  ligar(nome: string, sessao: string): void;
+  desligar(): void;
+  estado(): EstadoCameraServico;
+}
+
+/** A ponte da câmera em segundo plano (app 11.0+); null fora do app ou em app antigo. */
+export function ponteCameraServico(janela: unknown = typeof window === "undefined" ? undefined : window): PonteCameraServico | null {
+  const p = (janela as { NordAndroid?: Record<string, unknown> } | undefined)?.NordAndroid;
+  if (!p || typeof p.cameraEmSegundoPlano !== "function" || typeof p.ligarCameraServico !== "function"
+    || typeof p.desligarCameraServico !== "function" || typeof p.estadoCameraServico !== "function") return null;
+  try { if ((p.cameraEmSegundoPlano as () => unknown).call(p) !== true) return null; } catch { return null; }
+  const chamar = (f: unknown, ...a: unknown[]) => { try { return (f as (...x: unknown[]) => unknown).apply(p, a); } catch { return undefined; } };
+  return {
+    ligar: (nome, sessao) => { chamar(p.ligarCameraServico, nome, sessao); },
+    desligar: () => { chamar(p.desligarCameraServico); },
+    estado: () => lerEstadoCameraServico(chamar(p.estadoCameraServico)),
+  };
 }

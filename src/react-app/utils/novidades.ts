@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-23-app-android-11-camera",
+    data: "2026-11-23",
+    titulo: "Câmera em segundo plano de verdade (app 11.0)",
+    texto: "No app Android 11.0 (se atualiza sozinho), \"Ser câmera\" deixa a câmera rodando em segundo plano: o celular fica livre para usar o NordTool, dá para fechar o app e fica só a notificação \"Câmera ao vivo no ar\". Ela só desliga em Estúdio → Gravação → \"Desligar câmera\" ou pelo Monitoramento de qualquer aparelho.",
+    onde: { rotulo: "Estúdio → Gravação", caminho: "/gestao/repertorio?aba=gravacao" },
+  },
+  {
     id: "2026-11-23-app-android-10",
     data: "2026-11-23",
     titulo: "App 10.0: câmera não para ao fechar o app e reinstalar à mão",
