@@ -41,6 +41,8 @@ import type { ModoEspacial, Setor } from "@/react-app/utils/games/espacial";
 import type { ModoTorres, Paisagem } from "@/react-app/utils/games/torres";
 import type { ModoDefesa } from "@/react-app/utils/games/defesa";
 import type { ModoPescaria } from "@/react-app/utils/games/pescaria";
+import type { ModoMineracao } from "@/react-app/utils/games/mineracao";
+import type { MinaMineracao } from "@/react-app/components/games/jogos/mineracao/motorMineracao";
 import type { MarPescaria } from "@/react-app/components/games/jogos/pescaria/motorPescaria";
 import type { MapaDefesa } from "@/react-app/components/games/jogos/defesa/motorDefesa";
 import type { TemaMasmorra } from "@/react-app/components/games/jogos/masmorra/motorMasmorra";
@@ -57,6 +59,7 @@ const CartasDaVirada = lazy(() => import("@/react-app/components/games/jogos/car
 const TorresColapso = lazy(() => import("@/react-app/components/games/jogos/torres/TorresColapso"));
 const DefesaBase = lazy(() => import("@/react-app/components/games/jogos/defesa/DefesaBase"));
 const PescariaSubmarino = lazy(() => import("@/react-app/components/games/jogos/pescaria/PescariaSubmarino"));
+const CorridaOuro = lazy(() => import("@/react-app/components/games/jogos/mineracao/CorridaOuro"));
 const CorridaEspacial = lazy(() => import("@/react-app/components/games/jogos/espacial/CorridaEspacial"));
 const CoroaMaldita = lazy(() => import("@/react-app/components/games/jogos/coroa/CoroaMaldita"));
 const FugaMasmorra = lazy(() => import("@/react-app/components/games/jogos/masmorra/FugaMasmorra"));
@@ -379,6 +382,10 @@ export default function GamesPage() {
       ) : partida.jogo === "cartas" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
           <CartasDaVirada key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoCartas} mesa={partida.cenario as MesaCartas} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "mineracao" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <CorridaOuro key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoMineracao} mina={partida.cenario as MinaMineracao} {...comuns} />
         </Suspense>
       ) : partida.jogo === "pescaria" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>

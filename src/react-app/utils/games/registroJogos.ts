@@ -81,6 +81,16 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Mesa",
     botoes: { a: "Jogar", b: "Comprar" },
   },
+  mineracao: {
+    id: "mineracao",
+    modos: [
+      { valor: "corrida", rotulo: "Corrida (4 minutos)", rotuloSolo: "Corrida (meta 600)", regraSolo: "entregue 600 pontos em minério em 4 minutos." },
+      { valor: "sobrevivencia", rotulo: "Sobrevivência (lava subindo)", rotuloSolo: "Sobrevivência (meta 400)", regraSolo: "entregue 400 pontos antes de a lava tomar a mina." },
+    ],
+    cenarios: [{ valor: "classica", rotulo: "Mina clássica" }, { valor: "cristal", rotulo: "Caverna de cristal" }, { valor: "deserto", rotulo: "Deserto" }],
+    rotuloCenario: "Mina",
+    botoes: { a: "Picareta", b: "Dinamite" },
+  },
   pescaria: {
     id: "pescaria",
     modos: [

@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-22-games-v19",
+    data: "2026-11-22",
+    titulo: "Games: Corrida do Ouro",
+    texto: "Cave com a picareta, abra caminho com dinamite, cuidado com o cascalho que desaba e leve prata, ouro e diamante até o carrinho — quanto mais carga, mais devagar. Na Sobrevivência, a lava sobe do fundo. De 1 a 8.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-22-games-v18",
     data: "2026-11-22",
     titulo: "Games: Pescaria & Submarino",
