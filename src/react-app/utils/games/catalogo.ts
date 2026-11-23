@@ -158,8 +158,8 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "ritmo", nome: "Batalha de Banda", resumo: "Notas no tempo, combos e duelo que manda obstáculos.",
-    categoria: "Ritmo", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 9, disponivel: false, modos: ["Solo", "Duelo", "Banda"],
-    regras: ["Acerte as notas no tempo.", "Combos multiplicam.", "BPM ajustável.", "Duelo envia obstáculos."], controles: ["Teclas D F J K: trilhas", "Toque nas trilhas"],
+    categoria: "Ritmo", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 9, disponivel: true, modos: ["Solo", "Duelo", "Banda"],
+    regras: ["Acerte as notas no tempo.", "Combos multiplicam.", "BPM ajustável.", "Duelo envia obstáculos."], controles: ["←/↓/↑/→: as 4 trilhas", "X/Shift: Show (pontos em dobro)", "Espaço/Z: obstáculo no Duelo", "Esc/P: pausa"],
     cores: ["#3b0764", "#ec4899", "#22d3ee"], motivo: "notas",
   },
   {

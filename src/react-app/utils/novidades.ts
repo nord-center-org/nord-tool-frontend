@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-23-games-v25",
+    data: "2026-11-23",
+    titulo: "Games: Batalha de Banda",
+    texto: "Jogo de ritmo com música gerada na hora: aperte a seta da trilha quando a nota chegar na linha, segure as notas longas, faça combo e ligue o Show para pontos em dobro. No Duelo, mande neblina, notas aceleradas ou trilhas espelhadas para o líder; na Banda, o público é de todos. De 1 a 8, em três andamentos.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-23-games-v24",
     data: "2026-11-23",
     titulo: "Games: Cozinha Caótica",
