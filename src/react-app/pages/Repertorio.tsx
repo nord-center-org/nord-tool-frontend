@@ -16,6 +16,7 @@ const PlayerRepertorio = lazy(() => import("@/react-app/components/repertorio/Pl
 const EstudioRepertorio = lazy(() => import("@/react-app/components/repertorio/EstudioRepertorio"));
 const PainelInstrumentoOnline = lazy(() => import("@/react-app/components/repertorio/PainelInstrumentoOnline"));
 const CifrasRecebidas = lazy(() => import("@/react-app/components/repertorio/CifrasRecebidas"));
+const DrumcamRepertorio = lazy(() => import("@/react-app/components/repertorio/DrumcamRepertorio"));
 
 const LIMITE_MB = 60;
 const relogio = (s: number) => { const t = Math.max(0, Math.floor(s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
@@ -43,8 +44,10 @@ export default function RepertorioPage() {
   const entrada = useRef<HTMLInputElement>(null);
   // v6: sub-abas "Músicas" e "Criar" (na URL, para o link das novidades abrir direto) e o instrumento online
   const [busca, setBusca] = useSearchParams();
-  const aba = busca.get("aba") === "criar" ? "criar" : busca.get("aba") === "recebidas" ? "recebidas" : "musicas";
-  const mudarAba = (a: "musicas" | "criar" | "recebidas") => setBusca(b => { const n = new URLSearchParams(b); if (a !== "musicas") n.set("aba", a); else n.delete("aba"); return n; }, { replace: true });
+  // Drumcam v2: sub-aba "Drumcam" (celular-câmera da bateria, no Wi-Fi e pela internet).
+  const pedida = busca.get("aba");
+  const aba = pedida === "criar" || pedida === "recebidas" || pedida === "drumcam" ? pedida : "musicas";
+  const mudarAba = (a: "musicas" | "criar" | "recebidas" | "drumcam") => setBusca(b => { const n = new URLSearchParams(b); if (a !== "musicas") n.set("aba", a); else n.delete("aba"); return n; }, { replace: true });
   // v12: cifras que compartilharam comigo (o número das novas aparece na aba)
   const [naoLidas, setNaoLidas] = useState(0);
   useEffect(() => { repertorioService.cifrasRecebidas().then(l => setNaoLidas(l.filter(c => !c.dhLeitura).length)).catch(() => undefined); }, []);
@@ -133,7 +136,7 @@ export default function RepertorioPage() {
           className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-700 hover:bg-violet-100"><Piano className="h-4 w-4" />Instrumento online</button>
       </div>
       <div className="mb-4 flex gap-1 rounded-xl border border-slate-200 bg-white p-1" role="tablist" aria-label="Repertório">
-        {([["musicas", "Músicas"], ["criar", "Criar"], ["recebidas", "Recebidas"]] as const).map(([a, r]) => (
+        {([["musicas", "Músicas"], ["criar", "Criar"], ["recebidas", "Recebidas"], ["drumcam", "Drumcam"]] as const).map(([a, r]) => (
           <button key={a} type="button" role="tab" aria-selected={aba === a} onClick={() => mudarAba(a)}
             className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ${aba === a ? "bg-slate-800 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
             {r}{a === "recebidas" && naoLidas > 0 && <span className="rounded-full bg-red-500 px-1.5 text-[10px] text-white" aria-label={`${naoLidas} novas`}>{naoLidas}</span>}
@@ -141,7 +144,11 @@ export default function RepertorioPage() {
         ))}
       </div>
       {instrumentoOnline && <Suspense fallback={null}><PainelInstrumentoOnline onFechar={() => setInstrumentoOnline(false)} /></Suspense>}
-      {aba === "recebidas" ? (
+      {aba === "drumcam" ? (
+        <Suspense fallback={<p className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Abrindo…</p>}>
+          <DrumcamRepertorio />
+        </Suspense>
+      ) : aba === "recebidas" ? (
         <Suspense fallback={<p className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Abrindo…</p>}>
           <CifrasRecebidas musicas={musicas} onNaoLidas={setNaoLidas} onUsar={usarCifraRecebida} />
         </Suspense>

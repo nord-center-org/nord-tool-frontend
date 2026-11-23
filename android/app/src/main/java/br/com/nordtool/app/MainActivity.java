@@ -388,6 +388,26 @@ public class MainActivity extends Activity {
             return BuildConfig.VERSION_NAME;
         }
 
+        /** Repertório → Drumcam: este celular vira a câmera (grava e é achado no Wi-Fi e pela internet). */
+        @JavascriptInterface
+        public void drumcamCamera() {
+            if (!noNordTool()) return;
+            runOnUiThread(() -> startActivity(new Intent(MainActivity.this, br.com.nordtool.app.drumcam.CameraActivity.class)));
+        }
+
+        /** Repertório → Drumcam: procura a câmera no Wi-Fi e abre o painel completo dela (com download dos vídeos). */
+        @JavascriptInterface
+        public void drumcamControlar() {
+            if (!noNordTool()) return;
+            runOnUiThread(() -> startActivity(new Intent(MainActivity.this, br.com.nordtool.app.drumcam.ControleActivity.class)));
+        }
+
+        /** Repertório → Drumcam: este celular está como câmera agora? */
+        @JavascriptInterface
+        public boolean drumcamAtiva() {
+            return noNordTool() && br.com.nordtool.app.drumcam.ServicoCamera.ativa();
+        }
+
         /** Botão "Verificar atualizações": confere na hora e, havendo versão nova, baixa e pede a autorização. */
         @JavascriptInterface
         public void verificarAtualizacao() {

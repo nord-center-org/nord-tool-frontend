@@ -17,8 +17,8 @@ android {
         applicationId "br.com.nordtool.app"
         minSdk 24
         targetSdk 35
-        versionCode 5
-        versionName "5.0"
+        versionCode 7
+        versionName "7.0"
         // Endereço que o app abre (o NordTool publicado).
         buildConfigField "String", "ENDERECO", "\"${project.findProperty("enderecoNordTool") ?: "https://nordtoolfrontend-develop.up.railway.app"}\""
     }
@@ -43,6 +43,9 @@ android {
             if (valor("storeFile", "NORDTOOL_KEYSTORE")) signingConfig signingConfigs.release
         }
     }
+
+    // O painel do Drumcam é o mesmo arquivo publicado pelo site (public/drumcam/painel.html): a câmera serve esta cópia.
+    sourceSets { main { assets.srcDirs += ["../../public/drumcam"] } }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

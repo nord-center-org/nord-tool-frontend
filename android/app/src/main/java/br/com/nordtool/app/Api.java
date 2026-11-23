@@ -45,6 +45,20 @@ final class Api {
         return corpo(r);
     }
 
+    /** Bilhete de uso único para o celular-câmera abrir o relé do Drumcam (WebSocket). */
+    static String bilheteDrumcam(String api, String acesso, String nome) throws IOException {
+        String corpo;
+        try {
+            corpo = new JSONObject().put("papel", "camera").put("nome", nome).toString();
+        } catch (JSONException e) {
+            throw new IOException(e);
+        }
+        Resposta r = chamar("POST", api + "/drumcam/bilhete", acesso, corpo);
+        String bilhete = corpo(r).optString("bilhete", "");
+        if (bilhete.isEmpty()) throw new IOException("sem bilhete");
+        return bilhete;
+    }
+
     private static String json(String chave, String valor) {
         try {
             return new JSONObject().put(chave, valor).toString();
