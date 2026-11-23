@@ -152,8 +152,8 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "cozinha", nome: "Cozinha Caótica", resumo: "Corte, cozinhe, lave pratos e entregue no tempo, sem incêndio.",
-    categoria: "Cooperativo", dimensao: "3D", minJogadores: 1, maxJogadores: 8, fase: 9, disponivel: false, modos: ["Cooperativo", "Duelo de Cozinhas", "Desafio Solo"],
-    regras: ["Pedidos com tempo e combo.", "Fogão sem atenção pega fogo.", "Esteiras e pratos para lavar."], controles: CONTROLES_PADRAO,
+    categoria: "Cooperativo", dimensao: "3D", minJogadores: 1, maxJogadores: 8, fase: 9, disponivel: true, modos: ["Cooperativo", "Duelo de Cozinhas", "Desafio Solo"],
+    regras: ["Pedidos com tempo e combo.", "Fogão sem atenção pega fogo.", "Pratos voltam sujos para lavar."], controles: ["Setas/WASD: andar", "Espaço/Z: pegar, soltar e juntar", "X/Shift: usar (cortar, lavar, apagar)", "Esc/P: pausa"],
     cores: ["#450a0a", "#f97316", "#fef3c7"], motivo: "panela",
   },
   {
