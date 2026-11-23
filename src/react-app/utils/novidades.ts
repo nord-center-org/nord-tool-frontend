@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-23-games-v23",
+    data: "2026-11-23",
+    titulo: "Games: Arena Voxel em primeira pessoa",
+    texto: "Tiro em primeira pessoa numa arena de blocos: pistola, rifle, escopeta e sniper nos pedestais, pulo encadeado que acelera e deslize. Mata-Mata, Captura de Bandeira, Rei da Colina e Contra Bots, de 1 a 8; cada celular vê pelos próprios olhos.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-23-games-v22",
     data: "2026-11-23",
     titulo: "Games: Caos Urbano em 3D",

@@ -44,6 +44,7 @@ import type { ModoPescaria } from "@/react-app/utils/games/pescaria";
 import type { ModoMineracao } from "@/react-app/utils/games/mineracao";
 import type { ModoKart, PistaKart } from "@/react-app/utils/games/kart";
 import type { ArenaTanques, ModoTanques } from "@/react-app/utils/games/tanques";
+import type { MapaFps, ModoFps } from "@/react-app/utils/games/fps";
 import type { CidadeCaos, ModoCaos } from "@/react-app/utils/games/caos";
 import type { MinaMineracao } from "@/react-app/components/games/jogos/mineracao/motorMineracao";
 import type { MarPescaria } from "@/react-app/components/games/jogos/pescaria/motorPescaria";
@@ -65,6 +66,7 @@ const PescariaSubmarino = lazy(() => import("@/react-app/components/games/jogos/
 const CorridaOuro = lazy(() => import("@/react-app/components/games/jogos/mineracao/CorridaOuro"));
 const KartTurbo = lazy(() => import("@/react-app/components/games/jogos/kart/KartTurbo"));
 const TanquesAco = lazy(() => import("@/react-app/components/games/jogos/tanques/TanquesAco"));
+const ArenaVoxel = lazy(() => import("@/react-app/components/games/jogos/fps/ArenaVoxel"));
 const CaosUrbano = lazy(() => import("@/react-app/components/games/jogos/caos/CaosUrbano"));
 const CorridaEspacial = lazy(() => import("@/react-app/components/games/jogos/espacial/CorridaEspacial"));
 const CoroaMaldita = lazy(() => import("@/react-app/components/games/jogos/coroa/CoroaMaldita"));
@@ -392,6 +394,10 @@ export default function GamesPage() {
       ) : partida.jogo === "caos" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
           <CaosUrbano key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoCaos} cidade={partida.cenario as CidadeCaos} {...comuns} />
+        </Suspense>
+      ) : partida.jogo === "fps" ? (
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>
+          <ArenaVoxel key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoFps} mapa={partida.cenario as MapaFps} {...comuns} />
         </Suspense>
       ) : partida.jogo === "tanques" ? (
         <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Carregando…</div>}>

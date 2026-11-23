@@ -145,9 +145,9 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "fps", nome: "Arena Voxel", resumo: "Tiro em primeira pessoa rápido: slide, bunny hop e quatro armas.",
-    categoria: "Ação", dimensao: "3D", minJogadores: 1, maxJogadores: 8, fase: 9, disponivel: false,
+    categoria: "Ação", dimensao: "3D", minJogadores: 1, maxJogadores: 8, fase: 9, disponivel: true,
     modos: ["Mata-Mata", "Captura de Bandeira", "Rei da Colina", "Contra Bots"],
-    regras: ["Rifle, escopeta, sniper e pistola.", "Slide e bunny hop.", "Recuo e recarga."], controles: ["WASD: mover", "Mouse: mirar e atirar", "Espaço: pular", "Shift: slide", "R: recarregar"],
+    regras: ["Rifle, escopeta, sniper e pistola.", "Slide e bunny hop.", "Recuo e recarga."], controles: ["↑/↓: andar · ←/→: girar a visão", "Espaço/Z: atirar (mira assistida)", "X/Shift: pular; segure ao cair para deslizar", "Esc/P: pausa"],
     cores: ["#0f172a", "#38bdf8", "#f472b6"], motivo: "mira",
   },
   {
