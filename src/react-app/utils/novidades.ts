@@ -17,6 +17,12 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-23-logo-oficial",
+    data: "2026-11-23",
+    titulo: "Logo nova do NordTool",
+    texto: "O NordTool ganhou a logo oficial: ela aparece na aba do navegador, no ícone da tela inicial e no app Android (versão 7.0, que se atualiza sozinho).",
+  },
+  {
     id: "2026-11-23-drumcam-v2",
     data: "2026-11-23",
     titulo: "Drumcam no Repertório e no app",
