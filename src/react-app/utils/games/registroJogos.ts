@@ -15,6 +15,8 @@ export interface ModoJogo {
   regraSolo?: string;
   /** Precisa de número par (times). */
   par?: boolean;
+  /** Nomes dos botões no celular quando mudam conforme o modo. */
+  botoes?: { a: string; b: string };
 }
 
 export interface DefJogo {
@@ -78,6 +80,16 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     cenarios: [{ valor: "feltro", rotulo: "Feltro verde" }, { valor: "neon", rotulo: "Neon" }, { valor: "madeira", rotulo: "Madeira" }],
     rotuloCenario: "Mesa",
     botoes: { a: "Jogar", b: "Comprar" },
+  },
+  pescaria: {
+    id: "pescaria",
+    modos: [
+      { valor: "pescaria", rotulo: "Pescaria (linha e tensão)", rotuloSolo: "Pescaria (meta 500)", regraSolo: "faça 500 pontos pescando em 3 minutos.", botoes: { a: "Puxar", b: "Soltar" } },
+      { valor: "mergulho", rotulo: "Mergulho (oxigênio e tesouros)", rotuloSolo: "Mergulho (meta 400)", regraSolo: "entregue 400 pontos em tesouros e peixes em 3 minutos.", botoes: { a: "Arpão", b: "Impulso" } },
+    ],
+    cenarios: [{ valor: "tropical", rotulo: "Mar tropical" }, { valor: "entardecer", rotulo: "Entardecer" }, { valor: "abissal", rotulo: "Fossa abissal" }],
+    rotuloCenario: "Mar",
+    botoes: { a: "Puxar", b: "Soltar" },
   },
   defesa: {
     id: "defesa",

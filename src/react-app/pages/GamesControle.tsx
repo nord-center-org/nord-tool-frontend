@@ -35,7 +35,7 @@ export default function GamesControlePage() {
   const [jogadores, setJogadores] = useState<JogadorSala[]>([]);
   const [minhaVaga, setMinhaVaga] = useState<number | null>(null);
   const [jogo, setJogo] = useState("");
-  const [lugar, setLugar] = useState<{ indice: number; cor: string; jogo: string } | null>(null);
+  const [lugar, setLugar] = useState<{ indice: number; cor: string; jogo: string; modo?: string } | null>(null);
   const [fase, setFase] = useState("lobby");
   const [aviso, setAviso] = useState<string | null>(null);
   const [mao, setMao] = useState<MaoPrivada | null>(null);
@@ -69,7 +69,7 @@ export default function GamesControlePage() {
       if (d.k === "partida") { const p = lerPartida(d); if (p) setPartidaEsp(p); return; }
       const a = lerAviso(m.d);
       if (!a) return;
-      if (a.k === "lugar") setLugar({ indice: a.indice, cor: a.cor, jogo: a.jogo });
+      if (a.k === "lugar") setLugar({ indice: a.indice, cor: a.cor, jogo: a.jogo, modo: a.modo });
       else if (a.k === "fase") {
         setFase(a.fase);
         if (a.fase === "contagem" || a.fase === "lobby") { setResultado(null); setMao(null); }
@@ -166,7 +166,8 @@ export default function GamesControlePage() {
   const cor = lugar?.cor ?? CORES_JOGADORES[minhaVaga ?? 0];
   const jogoAtual = lugar?.jogo || jogo;
   const nomeDoJogo = JOGOS.find(j => j.id === jogoAtual)?.nome ?? "Games";
-  const botoes = JOGAVEIS[jogoAtual]?.botoes ?? { a: "A", b: "B" };
+  const def = JOGAVEIS[jogoAtual];
+  const botoes = def?.modos.find(m => m.valor === lugar?.modo)?.botoes ?? def?.botoes ?? { a: "A", b: "B" };
 
   if (!conexao || (conexao === "fechada" && !cliente.current)) {
     return (

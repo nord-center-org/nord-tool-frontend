@@ -108,7 +108,7 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "pescaria", nome: "Pescaria & Submarino", resumo: "Oxigênio, linha, arpão, criaturas e tesouros.",
-    categoria: "Aventura", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 7, disponivel: false, modos: ["Pescaria", "Mergulho"],
+    categoria: "Aventura", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 7, disponivel: true, modos: ["Pescaria", "Mergulho"],
     regras: ["Controle o oxigênio.", "Física de linha e arpão.", "Tesouros no fundo."], controles: CONTROLES_PADRAO,
     cores: ["#083344", "#14b8a6", "#ccfbf1"], motivo: "bolhas",
   },

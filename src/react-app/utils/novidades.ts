@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-22-games-v18",
+    data: "2026-11-22",
+    titulo: "Games: Pescaria & Submarino",
+    texto: "Dois jogos em um: na Pescaria, fisgue e puxe com cuidado para a linha não arrebentar; no Mergulho, cace com o arpão e junte tesouros, mas volte à superfície antes de o ar acabar. De 1 a 8, 3 minutos de partida.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-22-games-v17",
     data: "2026-11-22",
     titulo: "Games: Defesa de Base, tower defense em equipe",
