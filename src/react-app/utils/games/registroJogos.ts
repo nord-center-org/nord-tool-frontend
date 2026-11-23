@@ -93,6 +93,18 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Cidade",
     botoes: { a: "Nitro", b: "Freio de mão" },
   },
+  fps: {
+    id: "fps",
+    modos: [
+      { valor: "matamata", rotulo: "Mata-Mata", rotuloSolo: "Contra Bots", regraSolo: "faça 10 abates contra os bots em 3 minutos." },
+      { valor: "bandeira", rotulo: "Captura de Bandeira (vermelho × azul)", par: true },
+      { valor: "colina", rotulo: "Rei da Colina" },
+      { valor: "bots", rotulo: "Contra Bots (todos juntos)" },
+    ],
+    cenarios: [{ valor: "templo", rotulo: "Templo" }, { valor: "fabrica", rotulo: "Fábrica" }, { valor: "gelo", rotulo: "Gelo" }],
+    rotuloCenario: "Mapa",
+    botoes: { a: "Atirar", b: "Pular" },
+  },
   tanques: {
     id: "tanques",
     modos: [
