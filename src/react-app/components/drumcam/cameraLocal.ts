@@ -13,6 +13,8 @@ interface Eventos {
   espectadores?: (n: number) => void;
   stream?: (s: MediaStream | null) => void;
   erro?: (mensagem: string) => void;
+  /** Pediram para desligar de longe (Monitoramento). Sem quem trate, a câmera só fecha. */
+  desligar?: () => void;
 }
 
 type ZoomCap = { min: number; max: number; step: number };
@@ -323,6 +325,11 @@ export class CameraLocal {
         case "lanterna": await this.alternarLanterna(cmd.ligada); this.responder(e, cmd.id, { ok: true }); break;
         case "microfone": this.ligarMicrofone(cmd.ligado); this.responder(e, cmd.id, { ok: true }); break;
         case "nome": this.renomear(cmd.nome); this.responder(e, cmd.id, { ok: true }); break;
+        case "desligar":
+          this.responder(e, cmd.id, { ok: true });
+          // dá tempo da resposta sair antes de fechar tudo
+          setTimeout(() => (this.eventos.desligar ? this.eventos.desligar() : this.fechar()), 300);
+          break;
         case "qualidade": e.qualidade = cmd.qualidade; await this.aplicarQualidade(e); this.responder(e, cmd.id, { ok: true }); break;
         case "foto": await this.enviarArquivo(e, cmd.id, await this.foto()); break;
         case "gravar": await this.gravar(cmd.sessao); this.responder(e, cmd.id, { ok: true, inicio: this.gravacao?.inicio }); break;

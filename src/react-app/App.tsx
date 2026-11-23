@@ -38,6 +38,8 @@ const Sac = lazy(() => import("@/react-app/pages/Sac"));
 const Placas = lazy(() => import("@/react-app/pages/Placas"));
 const BlocoNotas = lazy(() => import("@/react-app/pages/BlocoNotas"));
 const Cubicagem = lazy(() => import("@/react-app/pages/Cubicagem"));
+// App 11.0: página da câmera ao vivo que o serviço do app abre fora da tela (sem menu nem layout).
+const CameraServico = lazy(() => import("@/react-app/pages/CameraServico"));
 const LoteCeramica = lazy(() => import("@/react-app/pages/LoteCeramica"));
 const Games = lazy(() => import("@/react-app/pages/Games"));
 const GamesControle = lazy(() => import("@/react-app/pages/GamesControle"));
@@ -57,6 +59,7 @@ export default function App() {
           <Route path="/cadastro" element={<CadastroPage />} />
           <Route path="/esqueci-senha" element={<EsqueciSenhaPage />} />
           <Route path="/redefinir-senha" element={<RedefinirSenhaPage />} />
+          <Route path="/camera-servico" element={<Suspense fallback={null}><CameraServico /></Suspense>} />
           <Route path="/" element={<RotaProtegida><ObraProvider><Layout /></ObraProvider></RotaProtegida>}>
             <Route index element={<HomePage />} />
             <Route path="entregas" element={<DeliveriesPage />} />

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   CANAL_PADRAO, FILTRO_NEUTRO, PRESETS, alinhamento, botoesDeZoom, cssDoFiltro, dbDoGanho, diferencaDeRelogio, duracaoTexto, formatoDeGravacao,
   fracaoDeMovimento, ganhoDoDb, ganhoEfetivo, layoutPadrao, lenteParaZoom, lentesDosDispositivos, lerComando, lerSinal, limiarDaSensibilidade,
-  moverCamada, nivelDoMedidor, ponteAoVivo, nomeDoArquivo, novoAvisoDeMovimento, paraFrente, partesDoArquivo, redimensionarCamada, retanguloDeDesenho,
+  lerEstadoCameraServico, moverCamada, nivelDoMedidor, ponteAoVivo, ponteCameraServico, nomeDoArquivo, novoAvisoDeMovimento, paraFrente, partesDoArquivo, redimensionarCamada, retanguloDeDesenho,
   tamanhoTexto, zoomPorPinca,
 } from "./drumcamAoVivo.ts";
 
@@ -168,4 +168,36 @@ test("câmera em segundo plano: só no app com a ponte aoVivo", () => {
   assert.deepEqual(chamadas, [[true, "Bateria"], [false, ""]]);
   assert.equal(ponteAoVivo({ NordAndroid: { aoVivo: () => false } })?.(true, "x"), false);
   assert.equal(ponteAoVivo({ NordAndroid: { aoVivo: () => { throw new Error("x"); } } })?.(true, "x"), false);
+});
+
+test("câmera em segundo plano (app 11): estado lido com segurança", () => {
+  assert.deepEqual(lerEstadoCameraServico("{}"), { ligada: false, janela: false, camera: null });
+  assert.deepEqual(lerEstadoCameraServico("xx"), { ligada: false, janela: false, camera: null });
+  assert.deepEqual(lerEstadoCameraServico(JSON.stringify({ ligada: true, janela: true, camera: { rele: "conectado", vendo: 2.7, nome: "Bateria", gravando: true, erro: "" } })),
+    { ligada: true, janela: true, camera: { rele: "conectado", vendo: 2, nome: "Bateria", gravando: true, erro: null } });
+  assert.equal(lerEstadoCameraServico({ ligada: true, camera: { vendo: -3 } }).camera?.vendo, 0);
+});
+
+test("câmera em segundo plano (app 11): ponte só com todas as funções", () => {
+  assert.equal(ponteCameraServico(undefined), null);
+  assert.equal(ponteCameraServico({ NordAndroid: { aoVivo: () => true } }), null);
+  const chamadas: unknown[][] = [];
+  const ponte = {
+    cameraEmSegundoPlano: () => true,
+    ligarCameraServico: (n: string, s: string) => { chamadas.push(["ligar", n, s]); },
+    desligarCameraServico: () => { chamadas.push(["desligar"]); },
+    estadoCameraServico: () => JSON.stringify({ ligada: true, janela: false, camera: null }),
+  };
+  const f = ponteCameraServico({ NordAndroid: ponte });
+  assert.ok(f);
+  f.ligar("Bateria", "{}");
+  f.desligar();
+  assert.deepEqual(chamadas, [["ligar", "Bateria", "{}"], ["desligar"]]);
+  assert.deepEqual(f.estado(), { ligada: true, janela: false, camera: null });
+  assert.equal(ponteCameraServico({ NordAndroid: { ...ponte, cameraEmSegundoPlano: () => false } }), null);
+});
+
+test("comando desligar (Monitoramento) é aceito", () => {
+  assert.deepEqual(lerComando({ id: 7, c: "desligar" }), { id: 7, c: "desligar" });
+  assert.equal(lerComando({ id: 7, c: "desligarTudo" }), null);
 });

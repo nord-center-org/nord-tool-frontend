@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Battery, BatteryCharging, Camera, Circle, Clock, Flashlight, Grid2x2, Grid3x3, Maximize2, Mic, MicOff, Minimize2,
-  Pencil, Radar, Square, Volume2, VolumeX, X,
+  Pencil, Power, Radar, Square, Volume2, VolumeX, X,
 } from "lucide-react";
 import {
   botoesDeZoom, fracaoDeMovimento, limiarDaSensibilidade, nomeDoArquivo, novoAvisoDeMovimento, zoomPorPinca, formatoDeGravacao,
@@ -326,6 +326,10 @@ function TelaFoco({ id, nome, relogio, agora, fechar }: { id: string; nome: stri
             <BotaoIcone rotulo="Salvar nome" ativo onClick={() => void renomear()}>OK</BotaoIcone>
           </span>
         ) : <BotaoIcone rotulo="Renomear câmera" onClick={() => { setNovoNome(nome); setEditando(true); }}><Pencil className="h-4 w-4" /></BotaoIcone>}
+        <BotaoIcone rotulo="Desligar câmera" perigo onClick={() => {
+          if (!c || !confirm(`Desligar a câmera "${nome}"? Ela sai do ar e, para voltar, alguém liga de novo no aparelho dela.`)) return;
+          void c.comando({ c: "desligar" }).then(() => setAviso(`"${nome}" foi desligada.`)).catch(err => setAviso((err as Error).message));
+        }}><Power className="h-4 w-4" />Desligar</BotaoIcone>
         {e?.bateria != null && <span className="ml-auto flex items-center gap-1 text-xs text-slate-400">{e.carregando ? <BatteryCharging className="h-4 w-4" /> : <Battery className="h-4 w-4" />}{e.bateria}%</span>}
       </div>
       <p className="flex items-center gap-1 text-[11px] text-slate-500"><Clock className="h-3 w-3" />Pinça (ou rodinha do mouse) para zoom; duplo toque volta a 1×. {e?.zoom ? "Zoom óptico/digital da própria câmera." : "Esta câmera não tem zoom próprio: o zoom é digital, aqui."}</p>
