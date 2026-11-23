@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HTTP liberado porque o painel do Drumcam é servido pela própria câmera no IP do Wi-Fi (não existe certificado válido
+     para um IP local; o PIN protege). O NordTool e o relé continuam em HTTPS. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

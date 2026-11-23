@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-23-drumcam-v2",
+    data: "2026-11-23",
+    titulo: "Drumcam no Repertório e no app",
+    texto: "Agora o app NordTool (versão 6.0) transforma um celular parado na câmera da bateria. Em Repertório → Drumcam você controla de qualquer lugar pela internet ou no mesmo Wi-Fi: prévia, gravar e parar, vídeos, thumbs e publicar no YouTube com o título no padrão.",
+    onde: { rotulo: "Repertório → Drumcam", caminho: "/gestao/repertorio?aba=drumcam" },
+  },
+  {
     id: "2026-11-22-games-v17",
     data: "2026-11-22",
     titulo: "Games: Defesa de Base, tower defense em equipe",
