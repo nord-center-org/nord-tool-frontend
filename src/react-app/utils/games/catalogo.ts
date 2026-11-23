@@ -120,7 +120,7 @@ export const JOGOS: Jogo[] = [
   },
   {
     id: "kart", nome: "Kart Turbo & Balões", resumo: "Pistas 3D com drift em faíscas, itens e arena de balões.",
-    categoria: "Corrida", dimensao: "3D", minJogadores: 1, maxJogadores: 8, fase: 8, disponivel: false, modos: ["Grande Prêmio", "Arena de Balões"],
+    categoria: "Corrida", dimensao: "3D", minJogadores: 1, maxJogadores: 8, fase: 8, disponivel: true, modos: ["Grande Prêmio", "Arena de Balões"],
     regras: ["Drift carrega turbo em níveis.", "Itens: míssil, escudo, óleo, turbo.", "Balões: perde quem estourar todos."],
     controles: CONTROLES_PADRAO, cores: ["#1e3a8a", "#ef4444", "#fbbf24"], motivo: "pista",
   },

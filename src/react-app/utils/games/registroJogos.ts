@@ -81,6 +81,16 @@ export const JOGAVEIS: Record<string, DefJogo> = {
     rotuloCenario: "Mesa",
     botoes: { a: "Jogar", b: "Comprar" },
   },
+  kart: {
+    id: "kart",
+    modos: [
+      { valor: "gp", rotulo: "Grande Prêmio (3 voltas)", rotuloSolo: "Contra o relógio", regraSolo: "complete 3 voltas antes do tempo da pista." },
+      { valor: "baloes", rotulo: "Arena de Balões", rotuloSolo: "Arena de Balões", regraSolo: "estoure os 10 balões-alvo em 90 segundos." },
+    ],
+    cenarios: [{ valor: "verde", rotulo: "Circuito Verde" }, { valor: "deserto", rotulo: "Cânion do Deserto" }, { valor: "neon", rotulo: "Cidade Neon" }],
+    rotuloCenario: "Pista",
+    botoes: { a: "Drift", b: "Item" },
+  },
   mineracao: {
     id: "mineracao",
     modos: [
