@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-24-editor-de-video",
+    data: "2026-11-24",
+    titulo: "Editor de vídeo na Galeria, com várias câmeras",
+    texto: "Clicar num vídeo da Galeria abre o editor: corte, transições, legendas e textos. Dá também para refazer o layout das câmeras por trecho, destacar o áudio do solo e voltar para a bateria no fim, limpar o som e importar o áudio da mesa, que se encaixa sozinho no vídeo. As cifras compartilhadas com você agora aparecem direto em Músicas.",
+    onde: { rotulo: "Estúdio → Gravação → Galeria", caminho: "/gestao/repertorio?aba=gravacao" },
+  },
+  {
     id: "2026-11-24-camera-nao-cai",
     data: "2026-11-24",
     titulo: "Câmera ao vivo não cai mais com atualização",

@@ -9,7 +9,7 @@ import {
 } from "@/react-app/utils/drumcamAoVivo";
 import { useAoVivo, useConexao } from "./AoVivo";
 import { Compositor } from "./compositor";
-import { galeria, idAleatorio } from "./armazenamento";
+import { faixas, galeria, idAleatorio, type Multicam } from "./armazenamento";
 import type { ConexaoCamera } from "./conexaoCamera";
 import { BotaoIcone, Deslizador, Medidor, Painel } from "./ui";
 
@@ -59,6 +59,9 @@ function Estudio({ comp, aoGravar }: { comp: Compositor; aoGravar?: (id: string)
   const [aviso, setAviso] = useState<string | null>(null);
   const conexoes = useRef(new Map<string, ConexaoCamera>());
   const sessao = useRef<string | null>(null);
+  // v5: guarda cada câmera separada (para editar o layout e a mixagem depois, na Galeria) e as trocas de layout
+  const [separadas, setSeparadas] = useState(true);
+  const trocas = useRef<{ t: number; camadas: Camada[] }[]>([]);
 
   // Câmeras novas entram sozinhas (até 4) quando o estúdio está vazio.
   useEffect(() => {
@@ -74,6 +77,7 @@ function Estudio({ comp, aoGravar }: { comp: Compositor; aoGravar?: (id: string)
   useEffect(() => { comp.redimensionar(formato); }, [comp, formato]);
   useEffect(() => {
     for (const c of camadas) { const f = comp.fontes.get(c.id); if (f) f.camada = c; }
+    if (comp.gravandoDesde !== null) trocas.current.push({ t: (Date.now() - comp.gravandoDesde) / 1000, camadas });
   }, [camadas, comp]);
   useEffect(() => {
     for (const [id, f] of comp.fontes) { f.filtro = filtros[id] ?? FILTRO_NEUTRO; f.canal = canais[id] ?? CANAL_PADRAO; }
@@ -136,18 +140,34 @@ function Estudio({ comp, aoGravar }: { comp: Compositor; aoGravar?: (id: string)
       }));
       if (falhas.length) setAviso(`Não começaram a gravar no aparelho: ${falhas.join(", ")}. O programa ao vivo grava assim mesmo.`);
     }
-    comp.gravar();
+    trocas.current = [{ t: 0, camadas }];
+    comp.gravar({ separadas: modo === "rapido" && separadas });
     setGravando(Date.now());
+  };
+
+  /** v5: guarda os arquivos de cada câmera e devolve o que o editor precisa para montar de novo. */
+  const guardarMulticam = async (arquivos: { id: string; blob: Blob; inicio: number }[]): Promise<Multicam | undefined> => {
+    if (!arquivos.length) return undefined;
+    const lista: Multicam["faixas"] = [];
+    for (const a of arquivos) {
+      const faixaId = `cam-${idAleatorio()}`;
+      await faixas.guardar(faixaId, a.blob);
+      lista.push({ camera: a.id, nome: nome(a.id), faixaId, inicio: a.inicio });
+    }
+    // Só as trocas que mudaram alguma coisa (o efeito roda de novo com o mesmo layout).
+    const t = trocas.current.filter((x, i, l) => i === 0 || JSON.stringify(x.camadas) !== JSON.stringify(l[i - 1].camadas));
+    return { faixas: lista, camadas: t[0]?.camadas ?? camadas, filtros, canais, formato, trocas: t };
   };
 
   const parar = async () => {
     if (!comp.gravando) return;
     const miniatura = comp.miniatura();
-    const { blob, duracao } = await comp.parar();
+    const { blob, duracao, separadas: sep } = await comp.parar();
     setGravando(null);
     const ext = blob.type.includes("mp4") ? "mp4" : "webm";
     const id = idAleatorio();
-    await galeria.salvar({ id, tipo: "video", nome: nomeDoArquivo("Estúdio", new Date(), ext), origem: "estudio", criadoEm: Date.now(), duracao, tamanho: blob.size, mime: blob.type, blob, miniatura });
+    const multicam = await guardarMulticam(sep.map(s => ({ ...s, inicio: 0 }))).catch(() => undefined);
+    await galeria.salvar({ id, tipo: "video", nome: nomeDoArquivo("Estúdio", new Date(), ext), origem: "estudio", criadoEm: Date.now(), duracao, tamanho: blob.size, mime: blob.type, blob, miniatura, multicam });
     aoGravar?.(id);
     if (modo === "hq" && sessao.current) await montarAltaQualidade(sessao.current, duracao);
   };
@@ -174,7 +194,9 @@ function Estudio({ comp, aoGravar }: { comp: Compositor; aoGravar?: (id: string)
       const blob = await montar(arquivos, camadas, filtros, canais, mestre, formato, duracaoPrograma, f => setMontagem({ etapa: "Montando em alta qualidade (leva o tempo do vídeo)…", progresso: f }));
       const ext = blob.type.includes("mp4") ? "mp4" : "webm";
       const id = idAleatorio();
-      await galeria.salvar({ id, tipo: "video", nome: nomeDoArquivo("Estúdio HQ", new Date(), ext), origem: "montagem", criadoEm: Date.now(), duracao: duracaoPrograma, tamanho: blob.size, mime: blob.type, blob, miniatura: comp.miniatura() });
+      const atrasos = alinhamento(arquivos);
+      const multicam = await guardarMulticam(arquivos.map(a => ({ id: a.id, blob: a.blob, inicio: atrasos[a.id] ?? 0 }))).catch(() => undefined);
+      await galeria.salvar({ id, tipo: "video", nome: nomeDoArquivo("Estúdio HQ", new Date(), ext), origem: "montagem", criadoEm: Date.now(), duracao: duracaoPrograma, tamanho: blob.size, mime: blob.type, blob, miniatura: comp.miniatura(), multicam });
       aoGravar?.(id);
       setAviso("Vídeo em alta qualidade pronto na Galeria.");
     } catch (err) {
@@ -340,6 +362,12 @@ function Estudio({ comp, aoGravar }: { comp: Compositor; aoGravar?: (id: string)
                   className={`rounded-md px-2 py-1.5 text-xs font-bold ${modo === m ? "bg-sky-600 text-white" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}>{r}</button>
               ))}
             </div>
+            {modo === "rapido" && (
+              <label className="flex items-center gap-2 text-[11px] text-slate-300" title="Grava também o vídeo de cada câmera, para mudar o layout e a mixagem depois, no editor da Galeria (usa mais espaço e processador)">
+                <input type="checkbox" checked={separadas} disabled={gravando !== null} onChange={e => setSeparadas(e.target.checked)} className="accent-sky-500" />
+                Guardar cada câmera separada (para editar depois)
+              </label>
+            )}
             <p className="text-[11px] leading-snug text-slate-500">{modo === "hq" ? "Cada câmera grava no próprio aparelho na qualidade máxima; ao parar, os vídeos vêm para cá e o NordTool monta com a mesma cena, filtros e volumes (leva o tempo do vídeo)." : "Grava o que está no programa agora, até 1080p. Fica pronto na hora, na Galeria."}</p>
             <div className="flex gap-1">
               {(["16:9", "9:16", "1:1"] as Formato[]).map(f => (

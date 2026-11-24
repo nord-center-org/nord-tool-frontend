@@ -1,20 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
-import { Download, Film, Image as ImageIcon, Pencil, Play, Trash2, X } from "lucide-react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { Clapperboard, Download, Eye, Film, Image as ImageIcon, Layers, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { duracaoTexto, tamanhoTexto } from "@/react-app/utils/drumcamAoVivo";
 import { aoMudarGaleria, galeria, type ItemGaleria } from "./armazenamento";
 import { BotaoIcone, Painel } from "./ui";
 
-const ORIGENS: Record<ItemGaleria["origem"], string> = { estudio: "Estúdio", montagem: "Alta qualidade", movimento: "Movimento", foto: "Foto", clipe: "Clipe" };
+const EditorVideo = lazy(() => import("./editor/EditorVideo"));
+
+const ORIGENS: Record<ItemGaleria["origem"], string> = { estudio: "Estúdio", montagem: "Alta qualidade", movimento: "Movimento", foto: "Foto", clipe: "Clipe", edicao: "Editado" };
 type Filtro = "todos" | "video" | "foto" | "movimento";
 
 /**
  * Galeria do estúdio e do monitoramento: os vídeos e as fotos ficam neste aparelho e tocam aqui mesmo, sem baixar.
- * Dá para renomear, baixar e apagar.
+ * Dá para renomear, baixar e apagar. Drumcam v5: clicar num vídeo abre o editor (o olho só assiste).
  */
 export default function GaleriaDrumcam({ abrir, aoAbrir }: { abrir?: string | null; aoAbrir?: () => void }) {
   const [itens, setItens] = useState<ItemGaleria[]>([]);
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [aberto, setAberto] = useState<ItemGaleria | null>(null);
+  const [editando, setEditando] = useState<ItemGaleria | null>(null);
   const [espaco, setEspaco] = useState<{ usado: number; total: number } | null>(null);
 
   useEffect(() => {
@@ -42,27 +45,38 @@ export default function GaleriaDrumcam({ abrir, aoAbrir }: { abrir?: string | nu
       ) : (
         <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
           {lista.map(i => (
-            <li key={i.id}>
-              <button type="button" onClick={() => setAberto(i)} className="group block w-full overflow-hidden rounded-md bg-black/30 text-left ring-1 ring-white/10 hover:ring-sky-500">
+            <li key={i.id} className="relative">
+              <button type="button" onClick={() => (i.tipo === "video" ? setEditando(i) : setAberto(i))} title={i.tipo === "video" ? "Abrir no editor" : "Ver a foto"} aria-label={i.tipo === "video" ? `Editar ${i.nome}` : `Ver ${i.nome}`}
+                className="group block w-full overflow-hidden rounded-md bg-black/30 text-left ring-1 ring-white/10 hover:ring-sky-500">
                 <span className="relative block aspect-video bg-black">
                   {i.miniatura ? <img src={i.miniatura} alt="" className="h-full w-full object-cover" /> : <span className="grid h-full place-items-center text-slate-600">{i.tipo === "foto" ? <ImageIcon className="h-6 w-6" /> : <Film className="h-6 w-6" />}</span>}
-                  {i.tipo === "video" && <span className="absolute inset-0 grid place-items-center opacity-0 transition group-hover:opacity-100"><Play className="h-8 w-8 fill-white text-white" /></span>}
+                  {i.tipo === "video" && <span className="absolute inset-0 grid place-items-center opacity-0 transition group-hover:opacity-100"><span className="flex items-center gap-1 rounded bg-black/70 px-2 py-1 text-xs font-bold text-white"><Clapperboard className="h-4 w-4" />Editar</span></span>}
+                  {i.multicam && <span className="absolute bottom-1 left-1 flex items-center gap-0.5 rounded bg-black/70 px-1 text-[10px] font-semibold text-sky-200" title="Tem o vídeo de cada câmera: dá para refazer o layout e a mixagem"><Layers className="h-3 w-3" />{i.multicam.faixas.length} câm.</span>}
                   {i.duracao ? <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1 font-mono text-[10px] text-white">{duracaoTexto(i.duracao)}</span> : null}
                   <span className="absolute left-1 top-1 rounded bg-black/70 px-1 text-[10px] font-semibold text-slate-200">{ORIGENS[i.origem]}</span>
                 </span>
-                <span className="block truncate px-1.5 py-1 text-[11px] text-slate-300" title={i.nome}>{i.nome}</span>
+                <span className="block truncate px-1.5 py-1 pr-8 text-[11px] text-slate-300" title={i.nome}>{i.nome}</span>
               </button>
+              {i.tipo === "video" && (
+                <button type="button" onClick={() => setAberto(i)} aria-label={`Assistir ${i.nome}`} title="Assistir, renomear, baixar ou apagar"
+                  className="absolute bottom-0.5 right-0.5 rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white"><Eye className="h-4 w-4" /></button>
+              )}
             </li>
           ))}
         </ul>
       )}
-      {aberto && <Visualizador item={aberto} fechar={() => setAberto(null)} />}
+      {aberto && <Visualizador item={aberto} fechar={() => setAberto(null)} editar={aberto.tipo === "video" ? () => { setEditando(aberto); setAberto(null); } : undefined} />}
+      {editando && (
+        <Suspense fallback={<div className="fixed inset-0 z-[95] grid place-items-center bg-[#0f1115] text-sm text-slate-400"><span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Abrindo o editor…</span></div>}>
+          <EditorVideo key={editando.id} item={editando} fechar={() => setEditando(null)} />
+        </Suspense>
+      )}
     </Painel>
   );
 }
 
 /** Assistir (ou ver a foto) aqui mesmo, sem baixar. */
-function Visualizador({ item, fechar }: { item: ItemGaleria; fechar: () => void }) {
+function Visualizador({ item, fechar, editar }: { item: ItemGaleria; fechar: () => void; editar?: () => void }) {
   // O endereço nasce e morre no mesmo efeito (no modo estrito do React, um useMemo seria revogado e o vídeo não tocaria).
   const [url, setUrl] = useState("");
   useEffect(() => {
@@ -86,6 +100,7 @@ function Visualizador({ item, fechar }: { item: ItemGaleria; fechar: () => void 
               onKeyDown={e => { if (e.key === "Enter") { void galeria.renomear(item.id, nome); setEditando(false); } }} />
           ) : <p className="min-w-0 flex-1 truncate text-sm font-semibold text-white">{nome}</p>}
           <span className="hidden text-[11px] text-slate-400 sm:inline">{tamanhoTexto(item.tamanho)} · {new Date(item.criadoEm).toLocaleString("pt-BR")}</span>
+          {editar && <button type="button" onClick={editar} className="inline-flex h-8 items-center gap-1 rounded-md bg-white/10 px-2 text-xs font-bold text-white hover:bg-white/20"><Clapperboard className="h-4 w-4" />Editar</button>}
           <BotaoIcone rotulo="Renomear" onClick={() => { if (editando) void galeria.renomear(item.id, nome); setEditando(e => !e); }}><Pencil className="h-4 w-4" /></BotaoIcone>
           <a href={url} download={nome} title="Baixar" aria-label="Baixar" className="inline-flex h-8 items-center gap-1 rounded-md bg-sky-600 px-2 text-xs font-bold text-white hover:bg-sky-500"><Download className="h-4 w-4" />Baixar</a>
           <BotaoIcone rotulo="Apagar" onClick={() => { if (confirm(`Apagar "${nome}" deste aparelho?`)) { void galeria.apagar(item.id); fechar(); } }}><Trash2 className="h-4 w-4" /></BotaoIcone>

@@ -39,7 +39,7 @@ export function PainelImagemCifra({ info }: { info: InfoCifra }) {
 }
 
 /**
- * Repertório v12 — compartilhar a cifra: mandar para pessoas do NordTool (cada uma recebe uma cópia em "Recebidas",
+ * Repertório v12 — compartilhar a cifra: mandar para pessoas do NordTool (cada uma recebe uma cópia, que aparece em "Músicas", em "Compartilhadas com você" — v5 do Drumcam tirou a aba "Recebidas",
  * sem o áudio) e a imagem bonitinha para baixar ou mandar pelo celular.
  */
 export default function CompartilharCifra({ info, onFechar }: { info: InfoCifra; onFechar: () => void }) {
@@ -65,7 +65,7 @@ export default function CompartilharCifra({ info, onFechar }: { info: InfoCifra;
     try {
       const r = await repertorioService.enviarCifra({ idsUsuarios: ids, nmTitulo: info.titulo, nmArtista: info.artista, nmTom: info.tom, txCifra: info.texto, txMensagem: mensagem.trim() });
       const n = r?.nrEnviadas ?? ids.length;
-      setResultado({ ok: true, texto: `Cifra enviada para ${n} ${n === 1 ? "pessoa" : "pessoas"}. Ela aparece em "Recebidas" no Repertório de quem recebeu.` });
+      setResultado({ ok: true, texto: `Cifra enviada para ${n} ${n === 1 ? "pessoa" : "pessoas"}. Ela aparece em "Músicas" no Estúdio de quem recebeu.` });
       setIds([]);
       setMensagem("");
     } catch (e) {

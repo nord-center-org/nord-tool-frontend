@@ -778,13 +778,17 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       },
       {
         titulo: "Compartilhar a cifra",
-        texto: "No player, \"Compartilhar\" manda a cifra (no tom que você está vendo, sem o áudio) para pessoas do NordTool, com um recado se quiser, e gera uma imagem bonita da cifra para baixar ou mandar pelo celular. O que mandam para você aparece na aba \"Recebidas\": dá para mudar o tom, baixar a imagem e pôr a cifra numa música sua.",
-        alvo: { css: '[role="tab"]', texto: "Recebidas" },
+        texto: "No player, \"Compartilhar\" manda a cifra (no tom que você está vendo, sem o áudio) para pessoas do NordTool, com um recado se quiser, e gera uma imagem bonita da cifra para baixar ou mandar pelo celular. O que mandam para você aparece direto em \"Músicas\", em \"Compartilhadas com você\": dá para mudar o tom, baixar a imagem e pôr a cifra numa música sua.",
       },
       {
         titulo: "Criar",
         texto: "Monte uma música faixa por faixa: escolha o BPM e os compassos, adicione bateria, baixo, teclado, violão ou sintetizador e escreva as notas na grade (no modo \"Pôr notas\", um clique marca um quadradinho e arrastar estica; no modo \"Selecionar\", arraste um retângulo para copiar, colar em qualquer faixa, duplicar, apagar ou mover com as setas), ou toque em \"Gravar\" e toque o instrumento com o metrônomo (um compasso de contagem antes). Cada faixa tem volume, mudo e solo; \"Dobrar\" repete a música, \"WAV\" baixa o áudio e \"Mandar para Músicas\" abre no player.",
         alvo: { css: '[role="tab"]', texto: "Criar" },
+      },
+      {
+        titulo: "Editar as gravações",
+        texto: "Em \"Gravação\" → \"Galeria\", clicar num vídeo abre o editor: corte, apare, mude a ordem, ponha transições, legendas e textos. Se a gravação guardou cada câmera separada, refaça o layout por trecho (uma câmera menor em cima ou embaixo da principal, lado a lado…), destaque o áudio de uma câmera num trecho (o solo de guitarra) e volte ao normal no fim, trate o áudio (ronco, chiado, equalizador, compressor, ganho) e importe o áudio da mesa, que se encaixa sozinho no vídeo (com ajuste fino em milissegundos). \"Exportar\" grava o vídeo final na Galeria.",
+        alvo: { css: '[role="tab"]', texto: "Gravação" },
       },
       ajudaNoCanto("Estúdio"),
     ],
