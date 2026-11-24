@@ -44,6 +44,8 @@ const LoteCeramica = lazy(() => import("@/react-app/pages/LoteCeramica"));
 const Games = lazy(() => import("@/react-app/pages/Games"));
 const GamesControle = lazy(() => import("@/react-app/pages/GamesControle"));
 const Repertorio = lazy(() => import("@/react-app/pages/Repertorio"));
+const Marketing = lazy(() => import("@/react-app/pages/Marketing"));
+const MarketingConectar = lazy(() => import("@/react-app/pages/MarketingConectar"));
 
 function CarregandoTela() {
   return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-600" aria-label="Carregando" /></div>;
@@ -98,6 +100,8 @@ export default function App() {
             <Route path="gestao/financeiro" element={<FinanceiroPage />} />
             <Route path="gestao/treinos" element={<TreinosPage />} />
             <Route path="gestao/repertorio" element={<Suspense fallback={<CarregandoTela />}><Repertorio /></Suspense>} />
+            <Route path="gestao/marketing" element={<Suspense fallback={<CarregandoTela />}><Marketing /></Suspense>} />
+            <Route path="gestao/marketing/conectar" element={<Suspense fallback={<CarregandoTela />}><MarketingConectar /></Suspense>} />
             <Route path="gestao/academico" element={<ConcretagemInProgress />} />
             <Route path="gestao/casamento" element={<CasamentoPage />} />
             <Route path="gestao/games" element={<Suspense fallback={<CarregandoTela />}><Games /></Suspense>} />

@@ -789,6 +789,28 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
       ajudaNoCanto("Estúdio"),
     ],
   },
+  "/gestao/marketing": {
+    titulo: "Marketing",
+    passos: [
+      cabecalho("Marketing", "Suas contas do YouTube, Instagram e TikTok num lugar só, para divulgar o NordTool."),
+      {
+        titulo: "Conectar as contas",
+        texto: "Em Contas, toque em Conectar: o login é feito na própria rede (o NordTool nunca vê a sua senha). No Instagram, a conta precisa ser profissional (criador ou empresa).",
+        alvo: { css: '[role="tab"]', texto: "Contas" },
+      },
+      {
+        titulo: "Publicar",
+        texto: "Em Publicar, escolha o vídeo (vertical 9:16 funciona em todas), escreva título e legenda, marque as contas e toque em Compartilhar. O andamento de cada rede aparece ao lado; enquanto os apps das redes não passam pela auditoria, o YouTube e o TikTok publicam como privado e avisam.",
+        alvo: { css: '[role="tab"]', texto: "Publicar" },
+      },
+      {
+        titulo: "Painel",
+        texto: "O Painel junta seguidores e views de todas as contas e mostra os posts recentes de cada uma, com views, curtidas e comentários.",
+        alvo: { css: '[role="tab"]', texto: "Painel" },
+      },
+      ajudaNoCanto("Marketing"),
+    ],
+  },
   "/gestao/casamento": {
     titulo: "Casamento",
     passos: [
