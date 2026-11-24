@@ -85,7 +85,48 @@ public class ServicoAoVivo extends Service {
         }
     }
 
+    private static final String PREFS = "nordtool-aovivo";
+
+    /** Guarda que a câmera está ligada (e o nome): depois de atualizar o app ou reiniciar o celular, ela volta sozinha. */
+    private static void lembrar(Context contexto, boolean ligada, String nome) {
+        contexto.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putBoolean("ligada", ligada).putString("nome", nome == null ? "" : nome).apply();
+    }
+
+    /**
+     * App atualizado (o Android fecha o app para instalar) ou celular reiniciado com a câmera ligada: religa. A sessão
+     * vem do token do aparelho e o relé aceita o passe de retomada. Se o Android não deixar abrir a câmera assim,
+     * fica um aviso para religar com um toque.
+     */
+    static void religarSePrecisar(Context contexto) {
+        android.content.SharedPreferences p = contexto.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        if (!p.getBoolean("ligada", false)) return;
+        if (!ligar(contexto, p.getString("nome", ""), "")) avisarParaReligar(contexto);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void avisarParaReligar(Context contexto) {
+        NotificationManager nm = (NotificationManager) contexto.getSystemService(NOTIFICATION_SERVICE);
+        Notification.Builder b;
+        if (Build.VERSION.SDK_INT >= 26) {
+            nm.createNotificationChannel(new NotificationChannel(CANAL, "Câmera ao vivo", NotificationManager.IMPORTANCE_LOW));
+            b = new Notification.Builder(contexto, CANAL);
+        } else {
+            b = new Notification.Builder(contexto);
+        }
+        int flags = Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0;
+        Intent abrir = new Intent(contexto, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                .putExtra(ServicoSegundoPlano.EXTRA_URL, "/gestao/repertorio?aba=gravacao");
+        nm.notify(NOTIFICACAO + 1, b.setSmallIcon(R.drawable.ic_notificacao)
+                .setContentTitle("Câmera ao vivo desligada")
+                .setContentText("O app foi atualizado. Toque para ligar a câmera de novo.")
+                .setAutoCancel(true)
+                .setContentIntent(PendingIntent.getActivity(contexto, 2, abrir, flags | PendingIntent.FLAG_UPDATE_CURRENT))
+                .build());
+    }
+
     static void desligar(Context contexto) {
+        lembrar(contexto, false, null);
         ativo = false;
         estado = "";
         contexto.stopService(new Intent(contexto, ServicoAoVivo.class));
@@ -111,10 +152,12 @@ public class ServicoAoVivo extends Service {
         } catch (RuntimeException e) {
             Log.w(TAG, "Serviço da câmera ao vivo recusado pelo Android", e);
             ativo = false;
+            avisarParaReligar(this);
             stopSelf();
             return START_NOT_STICKY;
         }
         ativo = true;
+        lembrar(this, true, nome);
         segurar();
         if (pagina == null) abrirPagina();
         return START_NOT_STICKY;
