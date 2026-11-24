@@ -58,11 +58,14 @@ export default function RepertorioPage() {
   // Drumcam v2: sub-aba "Drumcam" (celular-câmera da bateria, no Wi-Fi e pela internet).
   // Drumcam v4: a tela toda virou "Estúdio" e a sub-aba das câmeras é "Gravação" (?aba=gravacao); os links antigos
   // ?aba=estudio (v3) e ?aba=drumcam (v2) continuam abrindo.
+  // Drumcam v5: a aba "Recebidas" saiu; as cifras compartilhadas aparecem em Músicas (o link antigo ?aba=recebidas
+  // abre Músicas).
   const pedida = ["gravacao", "estudio"].includes(busca.get("aba") ?? "") ? "drumcam" : busca.get("aba");
-  const aba = pedida === "criar" || pedida === "recebidas" || pedida === "drumcam" ? pedida : "musicas";
-  const mudarAba = (a: "musicas" | "criar" | "recebidas" | "drumcam") => setBusca(b => { const n = new URLSearchParams(b); if (a !== "musicas") n.set("aba", a === "drumcam" ? "gravacao" : a); else n.delete("aba"); return n; }, { replace: true });
-  // v12: cifras que compartilharam comigo (o número das novas aparece na aba)
+  const aba = pedida === "criar" || pedida === "drumcam" ? pedida : "musicas";
+  const mudarAba = (a: "musicas" | "criar" | "drumcam") => setBusca(b => { const n = new URLSearchParams(b); if (a !== "musicas") n.set("aba", a === "drumcam" ? "gravacao" : a); else n.delete("aba"); return n; }, { replace: true });
+  // v12: cifras que compartilharam comigo; desde o Drumcam v5 ficam em Músicas (o número das novas aparece na aba)
   const [naoLidas, setNaoLidas] = useState(0);
+  const [cifraAberta, setCifraAberta] = useState(false);
   useEffect(() => { repertorioService.cifrasRecebidas().then(l => setNaoLidas(l.filter(c => !c.dhLeitura).length)).catch(() => undefined); }, []);
   const [instrumentoOnline, setInstrumentoOnline] = useState(false);
 
@@ -156,10 +159,10 @@ export default function RepertorioPage() {
           className="inline-flex items-center gap-1.5 rounded-xl border border-violet-400/30 bg-violet-500/15 px-3 py-2 text-xs font-bold text-violet-200 hover:bg-violet-500/25"><Piano className="h-4 w-4" />Instrumento online</button>
       </div>
       <div className="mb-4 flex gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1 backdrop-blur" role="tablist" aria-label="Estúdio">
-        {([["musicas", "Músicas"], ["criar", "Criar"], ["recebidas", "Recebidas"], ["drumcam", "Gravação"]] as const).map(([a, r]) => (
+        {([["musicas", "Músicas"], ["criar", "Criar"], ["drumcam", "Gravação"]] as const).map(([a, r]) => (
           <button key={a} type="button" role="tab" aria-selected={aba === a} onClick={() => mudarAba(a)}
             className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold transition ${aba === a ? "bg-gradient-to-r from-orange-500 to-pink-600 text-white shadow" : "text-[#b9aec6] hover:bg-white/[0.06] hover:text-white"}`}>
-            {r}{a === "recebidas" && naoLidas > 0 && <span className="rounded-full bg-red-500 px-1.5 text-[10px] text-white" aria-label={`${naoLidas} novas`}>{naoLidas}</span>}
+            {r}{a === "musicas" && naoLidas > 0 && <span className="rounded-full bg-red-500 px-1.5 text-[10px] text-white" aria-label={`${naoLidas} cifras novas compartilhadas com você`}>{naoLidas}</span>}
           </button>
         ))}
       </div>
@@ -168,15 +171,15 @@ export default function RepertorioPage() {
         <Suspense fallback={<p className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Abrindo…</p>}>
           <div data-tema-fixo><DrumcamRepertorio /></div>
         </Suspense>
-      ) : aba === "recebidas" ? (
-        <Suspense fallback={<p className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Abrindo…</p>}>
-          <CifrasRecebidas musicas={musicas} onNaoLidas={setNaoLidas} onUsar={usarCifraRecebida} />
-        </Suspense>
       ) : aba === "criar" ? (
         <Suspense fallback={<p className="flex items-center gap-2 p-6 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Abrindo o estúdio…</p>}>
           <EstudioRepertorio onMandado={(m, arquivo) => { mudarAba("musicas"); setAberta({ musica: m, arquivo }); }} />
         </Suspense>
       ) : (<>
+      <Suspense fallback={null}>
+        <CifrasRecebidas musicas={musicas} onNaoLidas={setNaoLidas} onUsar={usarCifraRecebida} onAberta={setCifraAberta} />
+      </Suspense>
+      {!cifraAberta && (<>
       <input ref={entrada} type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac,.opus" className="hidden" aria-label="Música para enviar"
         onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void enviar(f); }} />
       <button type="button" onClick={() => entrada.current?.click()} disabled={enviando}
@@ -223,6 +226,7 @@ export default function RepertorioPage() {
           ))}
         </ul>
       )}
+      </>)}
       </>)}
     </div>
   );

@@ -17,14 +17,21 @@ interface Props {
   /** Põe a cifra recebida numa música minha (e abre o player). */
   onUsar: (m: Musica, cifra: string) => Promise<void>;
   onNaoLidas: (n: number) => void;
+  /** Avisa quando uma cifra abre ou fecha (a tela de músicas esconde o resto enquanto ela está aberta). */
+  onAberta?: (aberta: boolean) => void;
 }
 
-/** Repertório v12 — as cifras que compartilharam comigo: abrir, mudar o tom, imagem, usar numa música minha, excluir. */
-export default function CifrasRecebidas({ musicas, onUsar, onNaoLidas }: Props) {
+/**
+ * Repertório v12 — as cifras que compartilharam comigo: abrir, mudar o tom, imagem, usar numa música minha, excluir.
+ * Drumcam v5: sem a aba "Recebidas"; a lista fica direto na aba Músicas, em "Compartilhadas com você", e só aparece
+ * quando há alguma.
+ */
+export default function CifrasRecebidas({ musicas, onUsar, onNaoLidas, onAberta }: Props) {
   const [lista, setLista] = useState<CifraRecebida[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aberta, setAberta] = useState<CifraRecebida | null>(null);
   const [abrindo, setAbrindo] = useState<number | null>(null);
+  useEffect(() => { onAberta?.(!!aberta); }, [aberta, onAberta]);
 
   const carregar = useCallback(async () => {
     try {
@@ -61,19 +68,17 @@ export default function CifrasRecebidas({ musicas, onUsar, onNaoLidas }: Props) 
 
   if (aberta) return <VerCifra cifra={aberta} musicas={musicas} onUsar={onUsar} onVoltar={() => setAberta(null)} onExcluir={() => void excluir(aberta)} />;
 
+  // Sem nenhuma compartilhada (ou sem conexão com a conta), a seção não aparece.
+  if (!lista?.length) return null;
+  const novas = (lista ?? []).filter(c => !c.dhLeitura).length;
   return (
-    <div>
+    <section className="mb-6" aria-label="Compartilhadas com você">
+      <h2 className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+        <Inbox className="h-3.5 w-3.5" />Compartilhadas com você
+        {novas > 0 && <span className="rounded-full bg-red-500 px-1.5 text-[10px] normal-case tracking-normal text-white">{novas} {novas === 1 ? "nova" : "novas"}</span>}
+      </h2>
       {erro && <p role="alert" className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
-      {lista === null ? (
-        <p className="flex items-center gap-2 p-4 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Carregando…</p>
-      ) : lista.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white p-8 text-center">
-          <Inbox className="h-8 w-8 text-slate-300" />
-          <p className="text-sm font-bold text-slate-700">Nenhuma cifra recebida ainda</p>
-          <p className="max-w-sm text-xs text-slate-500">Quando alguém do NordTool compartilhar uma cifra com você (no player, em “Compartilhar”), ela aparece aqui.</p>
-        </div>
-      ) : (
-        <ul className="grid gap-2 sm:grid-cols-2" aria-label="Cifras recebidas">
+      <ul className="grid gap-2 sm:grid-cols-2" aria-label="Cifras recebidas">
           {lista.map(c => (
             <li key={c.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 hover:border-blue-300">
               <button type="button" onClick={() => void abrir(c)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Abrir a cifra ${c.nmTitulo}`}>
@@ -93,8 +98,7 @@ export default function CifrasRecebidas({ musicas, onUsar, onNaoLidas }: Props) 
             </li>
           ))}
         </ul>
-      )}
-    </div>
+    </section>
   );
 }
 
@@ -118,7 +122,7 @@ function VerCifra({ cifra, musicas, onUsar, onVoltar, onExcluir }: { cifra: Cifr
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className={botao} onClick={onVoltar}><ArrowLeft className="h-4 w-4" />Recebidas</button>
+        <button type="button" className={botao} onClick={onVoltar}><ArrowLeft className="h-4 w-4" />Voltar</button>
         <div className="mr-auto min-w-0">
           <h2 className="truncate text-base font-bold text-slate-800">{cifra.nmTitulo}</h2>
           <p className="truncate text-xs text-slate-500">{[cifra.nmArtista, `de ${cifra.nmUsuarioOrigem}`, quando(cifra.dhCriacao)].filter(Boolean).join(" · ")}</p>

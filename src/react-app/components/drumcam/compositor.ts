@@ -33,7 +33,11 @@ export class Compositor {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private gravador: MediaRecorder | null = null;
   private partes: Blob[] = [];
+  /** Drumcam v5: cada câmera gravada separada também (para o editor refazer o layout e a mixagem depois). */
+  private separados = new Map<string, { rec: MediaRecorder; partes: Blob[] }>();
   gravandoDesde: number | null = null;
+  /** Drumcam v5: desenho por cima das câmeras (textos e transições do editor). */
+  sobreposicao: ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | null = null;
 
   constructor(public formato: Formato = "16:9") {
     this.ctx = this.canvas.getContext("2d", { alpha: false })!;
@@ -48,7 +52,8 @@ export class Compositor {
     this.escuta.gain.value = 0;
     this.mestre.connect(this.medidorMestre);
     this.mestre.connect(this.destino);
-    this.mestre.connect(this.escuta).connect(this.audio.destination);
+    this.mestre.connect(this.escuta);
+    this.escuta.connect(this.audio.destination);
     this.desenhar = this.desenhar.bind(this);
     this.agendar();
   }
@@ -107,6 +112,33 @@ export class Compositor {
     if (mestre !== undefined) this.mestre.gain.setTargetAtTime(mestre, this.audio.currentTime, 0.02);
   }
 
+  /**
+   * Drumcam v5: põe uma cadeia de tratamento (filtros, compressor, limitador) entre o mestre e as saídas (medidor,
+   * gravação e fone). `entrada` recebe o mestre; `saida` vai para as saídas.
+   */
+  cadeiaMestre(entrada: AudioNode, saida: AudioNode) {
+    this.mestre.disconnect();
+    this.mestre.connect(entrada);
+    saida.connect(this.medidorMestre);
+    saida.connect(this.destino);
+    saida.connect(this.escuta);
+  }
+
+  /** Drumcam v5: áudio que entra direto no mestre, sem imagem (o áudio da mesa importado no editor). */
+  audioExtra(el: HTMLMediaElement): GainNode {
+    const g = this.audio.createGain();
+    this.audio.createMediaElementSource(el).connect(g).connect(this.mestre);
+    return g;
+  }
+
+  /** Drumcam v5: ganho de um canal na hora (o editor muda a cada quadro, com os destaques). */
+  ganhoDireto(id: string, ganho: number, pan = 0) {
+    const f = this.fontes.get(id);
+    if (!f?.audio) return;
+    f.audio.ganho.gain.setTargetAtTime(ganho, this.audio.currentTime, 0.03);
+    f.audio.pan.pan.setTargetAtTime(pan, this.audio.currentTime, 0.03);
+  }
+
   /** Ouvir a mistura neste aparelho (fone). Desligado por padrão, para não microfonar. */
   ouvir(ligado: boolean) { this.escuta.gain.setTargetAtTime(ligado ? 1 : 0, this.audio.currentTime, 0.02); }
 
@@ -161,11 +193,15 @@ export class Compositor {
       }
       ctx.restore();
     }
+    this.sobreposicao?.(ctx, W, H);
     this.agendar();
   }
 
-  /** Começa a gravar o programa (imagem + mistura). */
-  gravar(): string {
+  /**
+   * Começa a gravar o programa (imagem + mistura). Com `separadas`, grava também cada câmera ao vivo no arquivo dela
+   * (imagem e som originais), para editar depois na Galeria.
+   */
+  gravar(opcoes: { separadas?: boolean } = {}): string {
     const { mime } = formatoDeGravacao(m => MediaRecorder.isTypeSupported(m));
     const stream = this.canvas.captureStream(30);
     for (const t of this.destino.stream.getAudioTracks()) stream.addTrack(t);
@@ -174,22 +210,46 @@ export class Compositor {
     rec.ondataavailable = ev => { if (ev.data.size) this.partes.push(ev.data); };
     rec.start(1000);
     this.gravador = rec;
+    this.separados.clear();
+    if (opcoes.separadas) {
+      for (const f of this.fontes.values()) {
+        const fluxo = f.video.srcObject;
+        if (!(fluxo instanceof MediaStream) || !fluxo.getVideoTracks().length) continue;
+        try {
+          const sep = new MediaRecorder(fluxo, { mimeType: mime || undefined, videoBitsPerSecond: 5_000_000, audioBitsPerSecond: 160_000 });
+          const item = { rec: sep, partes: [] as Blob[] };
+          sep.ondataavailable = ev => { if (ev.data.size) item.partes.push(ev.data); };
+          sep.start(1000);
+          this.separados.set(f.id, item);
+        } catch { /* sem a câmera separada; o programa grava assim mesmo */ }
+      }
+    }
     this.gravandoDesde = Date.now();
     void this.audio.resume();
     return rec.mimeType || mime;
   }
 
-  async parar(): Promise<{ blob: Blob; duracao: number }> {
+  async parar(): Promise<{ blob: Blob; duracao: number; separadas: { id: string; blob: Blob }[] }> {
     const rec = this.gravador;
     if (!rec) throw new Error("Não está gravando.");
+    const parando = [...this.separados.entries()].map(([id, s]) => new Promise<{ id: string; blob: Blob }>(ok => {
+      s.rec.onstop = () => ok({ id, blob: new Blob(s.partes, { type: s.rec.mimeType || "video/webm" }) });
+      if (s.rec.state === "inactive") s.rec.onstop(new Event("stop")); else s.rec.stop();
+    }));
     await new Promise<void>(ok => { rec.onstop = () => ok(); rec.stop(); });
+    const separadas = (await Promise.all(parando)).filter(s => s.blob.size > 0);
+    this.separados.clear();
     const duracao = (Date.now() - (this.gravandoDesde ?? Date.now())) / 1000;
     this.gravador = null;
     this.gravandoDesde = null;
-    return { blob: new Blob(this.partes, { type: rec.mimeType || "video/webm" }), duracao };
+    return { blob: new Blob(this.partes, { type: rec.mimeType || "video/webm" }), duracao, separadas };
   }
 
   get gravando() { return !!this.gravador; }
+
+  /** Drumcam v5: segura a gravação enquanto o editor pula de um trecho para o outro (o vídeo final não congela). */
+  pausarGravacao() { if (this.gravador?.state === "recording") this.gravador.pause(); }
+  retomarGravacao() { if (this.gravador?.state === "paused") this.gravador.resume(); }
 
   /** Miniatura do programa agora (para a galeria). */
   miniatura(largura = 320): string {
@@ -204,6 +264,7 @@ export class Compositor {
     cancelAnimationFrame(this.quadro);
     if (this.timer) clearTimeout(this.timer);
     if (this.gravador?.state === "recording") this.gravador.stop();
+    for (const s of this.separados.values()) if (s.rec.state === "recording") s.rec.stop();
     for (const id of [...this.fontes.keys()]) this.remover(id);
     void this.audio.close();
   }
