@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-24-marketing",
+    data: "2026-11-24",
+    titulo: "Marketing: YouTube, Instagram e TikTok num lugar só",
+    texto: "Nova tela Marketing: conecte suas contas do YouTube, Instagram e TikTok pelo login oficial de cada rede, publique um vídeo em todas de uma vez com um toque em Compartilhar e acompanhe seguidores e views num painel só.",
+    onde: { rotulo: "Gestão Individual → Marketing", caminho: "/gestao/marketing" },
+  },
+  {
     id: "2026-11-23-app-android-11-camera",
     data: "2026-11-23",
     titulo: "Câmera em segundo plano de verdade (app 11.0)",
