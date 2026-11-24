@@ -11,7 +11,10 @@ function cspDoBuild(origens: string): Plugin {
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://static.getmocha.com",
+    // Marketing: fotos das contas e miniaturas dos posts vêm das CDNs do YouTube, do Instagram e do TikTok.
+    "img-src 'self' data: blob: https://static.getmocha.com https://i.ytimg.com https://*.ytimg.com https://yt3.ggpht.com "
+      + "https://yt3.googleusercontent.com https://*.cdninstagram.com https://*.fbcdn.net https://*.tiktokcdn.com "
+      + "https://*.tiktokcdn-us.com https://*.tiktokcdn-eu.com",
     "font-src 'self' data:",
     // v11 (Repertório): o reconhecedor de letra baixa o modelo do Hugging Face uma vez (o áudio não sai do aparelho)
     `connect-src 'self' ${origens} https://huggingface.co https://*.huggingface.co https://*.hf.co`.replace(/\s+/g, ' ').trim(),
