@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-24-camera-nao-cai",
+    data: "2026-11-24",
+    titulo: "Câmera ao vivo não cai mais com atualização",
+    texto: "A câmera ao vivo volta sozinha quando o NordTool é atualizado no servidor, mesmo horas depois de ligada. E no app Android 12.0 (se atualiza sozinho), quando o próprio app se atualiza ou o celular reinicia, a câmera religa sozinha.",
+    onde: { rotulo: "Estúdio → Gravação", caminho: "/gestao/repertorio?aba=gravacao" },
+  },
+  {
     id: "2026-11-24-marketing",
     data: "2026-11-24",
     titulo: "Marketing: YouTube, Instagram e TikTok num lugar só",

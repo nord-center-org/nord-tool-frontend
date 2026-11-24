@@ -12,6 +12,8 @@ public class Inicializacao extends BroadcastReceiver {
         if (Intent.ACTION_BOOT_COMPLETED.equals(acao) || Intent.ACTION_MY_PACKAGE_REPLACED.equals(acao)
                 || "android.intent.action.QUICKBOOT_POWERON".equals(acao)) {
             ServicoSegundoPlano.iniciar(contexto);
+            // A câmera ao vivo estava ligada antes da atualização/reinício: volta sozinha (app 12.0).
+            ServicoAoVivo.religarSePrecisar(contexto);
         }
     }
 }

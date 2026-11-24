@@ -25,6 +25,11 @@ export class ReleDrumcam {
   private tentativa = 0;
   private espera: ReturnType<typeof setTimeout> | undefined;
   private ping: ReturnType<typeof setInterval> | undefined;
+  /**
+   * Passe de retomada (só câmera): o relé manda um novo a cada conexão. Depois de um deploy (o servidor reinicia e
+   * derruba todos), a câmera volta com ele mesmo se o login do aparelho já tiver vencido.
+   */
+  private retomar: string | null = null;
   estado: EstadoRele = "conectando";
 
   constructor(private readonly papel: "camera" | "controle", private nome: string, private readonly ouvintes: Ouvintes, private readonly tipo: "aovivo" | "app" = "aovivo") {
@@ -40,7 +45,9 @@ export class ReleDrumcam {
     if (!this.vivo) return;
     this.mudar("conectando");
     try {
-      const b = await drumcamService.bilhete(this.papel, this.nome);
+      // Câmera com passe: volta direto, sem pedir bilhete (que exige login válido).
+      const passe = this.papel === "camera" ? this.retomar : null;
+      const b = passe ? { bilhete: passe } : await drumcamService.bilhete(this.papel, this.nome);
       if (!this.vivo || !b) return;
       const s = new WebSocket(urlDoReleDrumcam(API_BASE, window.location.origin, b.bilhete));
       this.ws = s;
@@ -51,9 +58,11 @@ export class ReleDrumcam {
         this.ping = setInterval(() => { if (s.readyState === WebSocket.OPEN) s.send('{"t":"ping"}'); }, 25_000);
       };
       s.onmessage = ev => this.receber(String(ev.data));
-      s.onclose = () => {
+      s.onclose = ev => {
         if (this.ping) clearInterval(this.ping);
         this.ws = null;
+        // O relé recusou o passe (vencido ou de outro ambiente): a próxima tentativa pede bilhete com o login.
+        if (passe && /inv[aá]lido|vencido/i.test(ev.reason ?? "")) this.retomar = null;
         if (!this.vivo) return;
         this.mudar("caiu");
         this.espera = setTimeout(() => void this.conectar(), esperaDoRele(this.tentativa++));
@@ -69,7 +78,10 @@ export class ReleDrumcam {
     let m: Record<string, unknown>;
     try { m = JSON.parse(texto) as Record<string, unknown>; } catch { return; }
     if (!m || typeof m !== "object") return;
-    if (m.t === "ok" && typeof m.id === "string") this.ouvintes.conectado?.(m.id);
+    if (m.t === "ok" && typeof m.id === "string") {
+      if (typeof m.retomar === "string" && m.retomar.startsWith("r1.") && m.retomar.length < 500) this.retomar = m.retomar;
+      this.ouvintes.conectado?.(m.id);
+    }
     else if (m.t === "cameras" && Array.isArray(m.lista)) {
       this.ouvintes.cameras?.(m.lista
         .filter((c): c is { id: string; nome: string; tipo?: string } => !!c && typeof c.id === "string" && typeof c.nome === "string")
