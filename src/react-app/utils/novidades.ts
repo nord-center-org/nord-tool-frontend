@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-24-casamento-artes",
+    data: "2026-11-24",
+    titulo: "Casamento: aba Artes",
+    texto: "Nova aba Artes no Casamento para guardar o convite, o save the date, o cardápio e toda a papelaria em PDF ou imagem. Cada arte aparece com a miniatura, abre em tela cheia sem baixar e fica organizada por categoria.",
+    onde: { rotulo: "Gestão Individual → Casamento → Artes", caminho: "/gestao/casamento" },
+  },
+  {
     id: "2026-11-24-marketing",
     data: "2026-11-24",
     titulo: "Marketing: YouTube, Instagram e TikTok num lugar só",

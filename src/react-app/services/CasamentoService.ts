@@ -11,6 +11,19 @@ import type {
 } from "@/shared/types";
 import { apiBlob, apiFetch } from "./apiClient";
 
+/** Arte do casamento (convite, save the date…). */
+export interface CasamentoArte {
+  idArte: number;
+  nmTitulo: string;
+  cdCategoria: string;
+  nmArquivo: string;
+  nmContentType: string;
+  nrTamanhoBytes: number;
+  nmCriador: string | null;
+  dhCriacao: string;
+  nrVersao: number;
+}
+
 const BASE = "/casamento";
 
 export interface FornecedorForm {
@@ -70,6 +83,20 @@ export const casamentoService = {
   },
   baixarAnexo: (idAnexo: number) => apiBlob(`${BASE}/fornecedores/anexos/${idAnexo}/arquivo`),
   excluirAnexo: async (idAnexo: number) => { await apiFetch(`${BASE}/fornecedores/anexos/${idAnexo}`, { method: "DELETE" }); },
+
+  // artes (convite, save the date…)
+  listarArtes: async () => (await apiFetch<CasamentoArte[]>(`${BASE}/artes`)) ?? [],
+  enviarArte: (arquivo: File, titulo: string, categoria: string) => {
+    const form = new FormData();
+    form.append("arquivo", arquivo, arquivo.name);
+    form.append("titulo", titulo);
+    form.append("categoria", categoria);
+    return apiFetch<CasamentoArte>(`${BASE}/artes`, { method: "POST", body: form });
+  },
+  alterarArte: (id: number, nmTitulo: string, cdCategoria: string) =>
+    apiFetch<CasamentoArte>(`${BASE}/artes/${id}`, { method: "PUT", body: json({ nmTitulo, cdCategoria }) }),
+  baixarArte: (id: number) => apiBlob(`${BASE}/artes/${id}/arquivo`),
+  excluirArte: async (id: number) => { await apiFetch(`${BASE}/artes/${id}`, { method: "DELETE" }); },
 
   // convidados
   listarConvidados: async () => (await apiFetch<CasamentoConvidado[]>(`${BASE}/convidados`)) ?? [],

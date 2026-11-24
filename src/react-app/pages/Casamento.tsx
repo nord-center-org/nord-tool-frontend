@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { AlertCircle, Check, Download, Heart, LayoutDashboard, Loader2, Store, Users, Flag, X, type LucideIcon } from "lucide-react";
+import { AlertCircle, Check, Download, Heart, LayoutDashboard, Loader2, Palette, Store, Users, Flag, X, type LucideIcon } from "lucide-react";
 import * as XLSX from "xlsx";
 
 import MarcosTab from "@/react-app/components/casamento/MarcosTab";
+import ArtesTab from "@/react-app/components/casamento/ArtesTab";
 import ConvidadosTab from "@/react-app/components/casamento/ConvidadosTab";
 import FornecedoresTab from "@/react-app/components/casamento/FornecedoresTab";
 import CasamentoDashboard from "@/react-app/components/casamento/CasamentoDashboard";
@@ -10,13 +11,14 @@ import { useSincronizacao } from "@/react-app/hooks/useSincronizacao";
 import { casamentoService } from "@/react-app/services/CasamentoService";
 import { abasExportacao } from "@/react-app/utils/exportarCasamento";
 
-type AbaCasamento = "dashboard" | "fornecedores" | "convidados" | "marcos";
+type AbaCasamento = "dashboard" | "fornecedores" | "convidados" | "marcos" | "artes";
 
 const ABAS: { id: AbaCasamento; label: string; icon: LucideIcon }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "fornecedores", label: "Fornecedores", icon: Store },
   { id: "convidados", label: "Convidados", icon: Users },
   { id: "marcos", label: "Marcos", icon: Flag },
+  { id: "artes", label: "Artes", icon: Palette },
 ];
 
 /** Módulo Casamento (Gestão Individual). */
@@ -110,6 +112,7 @@ export default function CasamentoPage() {
         {aba === "fornecedores" && <FornecedoresTab sync={sync} />}
         {aba === "convidados" && <ConvidadosTab sync={sync} />}
         {aba === "marcos" && <MarcosTab sync={sync} />}
+        {aba === "artes" && <ArtesTab />}
       </main>
     </div>
   );
