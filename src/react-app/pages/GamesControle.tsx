@@ -66,7 +66,7 @@ export default function GamesControlePage() {
       const d = (m.d && typeof m.d === "object" ? m.d : {}) as Record<string, unknown>;
       if (d.k === "rtc") { void receptor.current?.receberSinal(d); return; }
       if (d.k === "quadro") { entregarQuadro(d); return; }
-      if (d.k === "partida") { const p = lerPartida(d); if (p) setPartidaEsp(p); return; }
+      if (d.k === "partida") { const p = lerPartida(d); if (p) { setPartidaEsp(p); if (p.soControle) setVerJogo(false); } return; }
       const a = lerAviso(m.d);
       if (!a) return;
       if (a.k === "lugar") setLugar({ indice: a.indice, cor: a.cor, jogo: a.jogo, modo: a.modo });
@@ -131,7 +131,7 @@ export default function GamesControlePage() {
     let quadro = 0;
     const ler = () => {
       const c = controles.ler();
-      const agora: EntradaControle = { x: c.direcao, a: c.a, b: c.b, p: c.pausa };
+      const agora: EntradaControle = { x: c.direcao, eixoX: c.eixoX, eixoY: c.eixoY, a: c.a, b: c.b, p: c.pausa };
       const instante = performance.now();
       if (!mesmaEntrada(agora, anterior) || instante - ultimoEnvio > REENVIO_MS) {
         cliente.current?.enviar({ t: "entrada", d: agora });
@@ -215,6 +215,7 @@ export default function GamesControlePage() {
         <button type="button" onClick={sair} aria-label="Sair da sala" className="rounded-xl bg-white/10 p-2"><LogOut className="h-5 w-5" /></button>
       </header>
 
+      {partidaEsp?.jogo === "bombas" && partidaEsp.modo === "campanha" && <button type="button" onClick={() => controles.tocar("pausa")} className="mx-4 rounded-xl bg-amber-300 px-4 py-3 font-black text-slate-950">START · Entrar na campanha (1 vida extra)</button>}
       <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
         {conexao !== "fechada" && !resultado && verJogo && partidaEsp && fase !== "lobby" ? (
           <div className="flex h-full w-full flex-col pt-1">

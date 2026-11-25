@@ -34,6 +34,7 @@ export const JOGAVEIS: Record<string, DefJogo> = {
       { valor: "sobrevivencia", rotulo: "Sobrevivência", rotuloSolo: "Desafio (limpe as caixas)", regraSolo: "exploda todas as caixas antes do tempo, sem cair." },
       { valor: "times", rotulo: "Times", par: true },
       { valor: "moedas", rotulo: "Caça às Moedas", rotuloSolo: "Meta de moedas", regraSolo: "junte 10 moedas em 2 minutos." },
+      { valor: "campanha", rotulo: "Campanha cooperativa", rotuloSolo: "Campanha", regraSolo: "9 fases e 3 chefes; Start entra usando uma vida extra." },
     ],
     cenarios: [{ valor: "fabrica", rotulo: "Fábrica" }, { valor: "gelo", rotulo: "Gelo" }, { valor: "vulcao", rotulo: "Vulcão" }],
     rotuloCenario: "Bioma",

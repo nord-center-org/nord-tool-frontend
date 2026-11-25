@@ -38,3 +38,10 @@ test("quadro e partida recebidos são conferidos", () => {
   assert.equal(p?.vagas[2].bot, null);
   assert.equal(p?.vagas[2].nome, "P3");
 });
+
+test("coop local pede joystick; partidas antigas continuam com espelho disponível", () => {
+  const partida = { jogo: "bombas", vagas: [{ nome: "Ana", bot: null }], eu: 0 };
+  assert.equal(lerPartida({ ...partida, soControle: true })?.soControle, true);
+  assert.equal(lerPartida(partida)?.soControle, false);
+  assert.equal(lerPartida({ ...partida, soControle: "true" })?.soControle, false);
+});

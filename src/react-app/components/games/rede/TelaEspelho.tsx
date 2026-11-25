@@ -67,7 +67,7 @@ export default function TelaEspelho({ partida, assinar }: { partida: PartidaEspe
           if (agora - ultimaMeta > 150 || metaAtual.fase !== "jogando") { ultimaMeta = agora; setMeta(metaAtual); }
         }
         const alfa = Math.min(1, (agora - chegou) / intervalo);
-        motor.desenhar(alfa, dt, metaAtual?.fase ?? "contagem", metaAtual?.ultimo?.vencedor ?? null);
+        motor.desenhar(alfa, metaAtual?.pausado ? 0 : dt, metaAtual?.fase ?? "contagem", metaAtual?.ultimo?.vencedor ?? null);
         quadro = requestAnimationFrame(laco);
       };
       quadro = requestAnimationFrame(laco);

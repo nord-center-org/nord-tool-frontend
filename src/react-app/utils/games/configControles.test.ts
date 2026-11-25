@@ -1,3 +1,4 @@
+import { lerAnalogico } from "./configControles.ts";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CONFIG_PADRAO, TECLAS_PADRAO, lerPad, mapaDeTeclas, nomeDaTecla, trocarTecla, validarConfig } from "./configControles.ts";
@@ -41,4 +42,12 @@ test("gamepad: cruz e analógico viram direção; A/X e B/Y; troca A/B; zona mor
   const trocado = lerPad(pad([0]), { ...cfg, gamepadTrocarAB: true });
   assert.deepEqual([trocado.a, trocado.b], [false, true]);
   assert.equal(lerPad(pad([9]), cfg).pausa, true);
+});
+
+test("analógico reconhece os oito setores e respeita o centro", () => {
+  assert.deepEqual(lerAnalogico(0.7, -0.7), { eixoX: 1, eixoY: -1 });
+  assert.deepEqual(lerAnalogico(-0.7, 0.7), { eixoX: -1, eixoY: 1 });
+  assert.deepEqual(lerAnalogico(1, 0.2), { eixoX: 1, eixoY: 0 });
+  assert.deepEqual(lerAnalogico(0.05, -0.03), { eixoX: 0, eixoY: 0 });
+  assert.deepEqual(lerAnalogico(NaN, 1), { eixoX: 0, eixoY: 0 });
 });

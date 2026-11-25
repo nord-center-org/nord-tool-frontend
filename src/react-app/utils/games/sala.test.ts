@@ -79,3 +79,15 @@ test("celular: um toque rápido na seta (aperta e solta antes do passo) ainda co
   assert.equal(r.ler(2).x, "cima");
   assert.equal(r.ler(2).x, "cima", "segurando continua");
 });
+
+test("diagonal atravessa a sala, inclusive toque rápido, e solta ao desconectar", () => {
+  const r = new EntradasRemotas();
+  const d = { x: "cima", eixoX: 1, eixoY: -1, a: false, b: false, p: false };
+  r.receber(1, d); r.receber(1, CONTROLE_SOLTO);
+  assert.deepEqual(r.ler(1), d);
+  assert.deepEqual(r.ler(1), CONTROLE_SOLTO);
+  r.receber(1, d); r.soltar(1);
+  assert.deepEqual(r.ler(1), CONTROLE_SOLTO);
+  assert.equal(mesmaEntrada(d as ReturnType<typeof lerEntrada>, { ...d, eixoX: 0 } as ReturnType<typeof lerEntrada>), false);
+  assert.deepEqual(lerEntrada({ ...d, eixoX: Infinity }), { x: "cima", a: false, b: false, p: false });
+});

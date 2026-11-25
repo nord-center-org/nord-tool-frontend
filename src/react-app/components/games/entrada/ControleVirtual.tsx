@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { lerAnalogico } from "@/react-app/utils/games/configControles";
 import type { Direcao } from "@/react-app/utils/games/bombas";
 import { useConfigControles } from "./useConfigControles";
 import { vibrar, type Controles } from "./entrada";
@@ -22,7 +23,7 @@ export default function ControleVirtual({ controles, rotuloA = "Bomba", rotuloB 
   const pino = useRef<HTMLSpanElement>(null);
   const botaoA = useRef<HTMLButtonElement>(null);
   const botaoB = useRef<HTMLButtonElement>(null);
-  const [ativa, setAtiva] = useState<Direcao | null>(null);
+  const [ativa, setAtiva] = useState({ eixoX: 0, eixoY: 0 });
   const tam = TAM[cfg.tamanho];
 
   // Direcional: toque (nativo, não passivo) e mouse/caneta (pointer).
@@ -35,19 +36,22 @@ export default function ControleVirtual({ controles, rotuloA = "Bomba", rotuloB 
       const raio = r.width / 2;
       let dx = x - (r.left + raio), dy = y - (r.top + raio);
       const dist = Math.hypot(dx, dy);
-      const d: Direcao | null = dist < raio * 0.18 ? null : Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "direita" : "esquerda") : (dy > 0 ? "baixo" : "cima");
+      const vetor = lerAnalogico(dx / raio, dy / raio);
+      const d: Direcao | null = !vetor.eixoX && !vetor.eixoY ? null : Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "direita" : "esquerda") : (dy > 0 ? "baixo" : "cima");
       if (dist > raio * 0.6) { dx *= (raio * 0.6) / dist; dy *= (raio * 0.6) / dist; }
       if (pino.current) pino.current.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-      if (d !== controles.virtual.direcao) {
-        if (d) { vibrar(8); controles.tocarDirecao(d); }
+      if (vetor.eixoX !== controles.virtual.eixoX || vetor.eixoY !== controles.virtual.eixoY) {
+        if (d) { vibrar(8); controles.tocarDirecao(d); controles.tocarVetor(vetor.eixoX, vetor.eixoY); }
         controles.virtual.direcao = d;
-        setAtiva(d);
+        Object.assign(controles.virtual, vetor);
+        setAtiva(vetor);
       }
     };
     const soltar = () => {
       dedo = null;
       controles.virtual.direcao = null;
-      setAtiva(null);
+      controles.virtual.eixoX = controles.virtual.eixoY = 0;
+      setAtiva({ eixoX: 0, eixoY: 0 });
       if (pino.current) pino.current.style.transform = "translate(-50%, -50%)";
     };
     const inicio = (e: TouchEvent) => {
@@ -139,7 +143,7 @@ export default function ControleVirtual({ controles, rotuloA = "Bomba", rotuloB 
       className="relative shrink-0 select-none rounded-full bg-white/10 ring-2 ring-white/20" style={{ touchAction: "none", width: tam.pad, height: tam.pad }}>
       {SETAS.map(s => (
         <span key={s.d} aria-hidden="true"
-          className={`absolute flex h-11 w-11 items-center justify-center rounded-full text-xl font-black ${s.cls} ${ativa === s.d ? "bg-white/40 text-white" : "text-white/70"}`}>{s.s}</span>
+          className={`absolute flex h-11 w-11 items-center justify-center rounded-full text-xl font-black ${s.cls} ${((s.d === "direita" && ativa.eixoX > 0) || (s.d === "esquerda" && ativa.eixoX < 0) || (s.d === "baixo" && ativa.eixoY > 0) || (s.d === "cima" && ativa.eixoY < 0)) ? "bg-white/40 text-white" : "text-white/70"}`}>{s.s}</span>
       ))}
       {cfg.estilo === "analogico" && (
         <span ref={pino} aria-hidden="true" className="absolute left-1/2 top-1/2 h-14 w-14 rounded-full bg-white/30 shadow-[0_0_12px_rgba(255,255,255,.35)] ring-2 ring-white/50"
