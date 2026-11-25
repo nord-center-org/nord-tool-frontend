@@ -14,7 +14,7 @@ import AvatarCorpo from "@/react-app/components/games/central/AvatarCorpo";
 import ConfigPartida, { Pilulas } from "@/react-app/components/games/central/ConfigPartida";
 import { configPadrao, ehJogavel, modoEfetivo, type ConfigJogo } from "@/react-app/utils/games/registroJogos";
 import { ClienteSala, type EstadoConexao } from "@/react-app/components/games/rede/ClienteSala";
-import BombasTaticas, { type FaseBombas, type ResultadoBombas, type VagaBombas } from "@/react-app/components/games/jogos/bombas/BombasTaticas";
+import type { FaseBombas, ResultadoBombas, VagaBombas } from "@/react-app/components/games/jogos/bombas/BombasTaticas";
 import { som } from "@/react-app/components/games/audio/sintetizador";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { avatarService } from "@/react-app/services/AvatarService";
@@ -26,7 +26,7 @@ import { lerAvatar } from "@/react-app/utils/avatar";
 import { classificacao, colocacoes, novaCopa, registrarPartida, resumoDaCopa, terminou, type Copa } from "@/react-app/utils/games/copa";
 import { pontosBombas } from "@/react-app/utils/games/pontuacao";
 import { CATEGORIAS, FILTROS_CENTRAL, JOGOS, filtrarJogos, type FiltrosCentral, type Jogo } from "@/react-app/utils/games/catalogo";
-import type { Bioma, Dificuldade, Modo } from "@/react-app/utils/games/bombas";
+import type { Bioma, Dificuldade } from "@/react-app/utils/games/bombas";
 import type { ModoHex } from "@/react-app/utils/games/hexagonos";
 import type { CenarioHex } from "@/react-app/components/games/jogos/hexagonos/motorHexagonos";
 import type { TemaEncaixe } from "@/react-app/components/games/jogos/encaixe/motorEncaixe";
@@ -60,6 +60,7 @@ import type { TemaNaval } from "@/react-app/components/games/jogos/naval/motorNa
 
 // O 3D (three.js) só carrega quando alguém abre um jogo 3D.
 const SumoHexagonos = lazy(() => import("@/react-app/components/games/jogos/hexagonos/SumoHexagonos"));
+const BombasTaticas = lazy(() => import("@/react-app/components/games/jogos/bombas/BombasTaticas"));
 const EncaixeVersus = lazy(() => import("@/react-app/components/games/jogos/encaixe/EncaixeVersus"));
 const DueloMeioDia = lazy(() => import("@/react-app/components/games/jogos/duelo/DueloMeioDia"));
 const CartasDaVirada = lazy(() => import("@/react-app/components/games/jogos/cartas/CartasDaVirada"));
@@ -140,6 +141,7 @@ export default function GamesPage() {
   const [modoTela, setModoTela] = useState(false);
   const [sala, setSala] = useState<{ codigo: string; estado: EstadoConexao; jogadores: JogadorSala[] } | null>(null);
   const [erroSala, setErroSala] = useState<string | null>(null);
+  const abrindoSala = useRef(false);
   const [euJogo, setEuJogo] = useState(true);
   const [painelControles, setPainelControles] = useState(false);
   // Controles de videogame conectados nesta tela e quais entram como jogadores próprios (o 1º livre joga com você).
@@ -162,6 +164,7 @@ export default function GamesPage() {
   const conectadosEspelho = useRef(new Set<number>());
   const remotas = useMemo(() => new EntradasRemotas(), []);
   const vagasDaCopa = useRef<VagaBombas[]>([]);
+  const vagasDaArenaBombas = useRef<VagaBombas[]>([]);
 
   useEffect(() => {
     avatarService.meu().then(a => a && setMeuAvatar({ dsConfig: a.dsConfig, idUsuario: a.idUsuario })).catch(() => {
@@ -197,7 +200,7 @@ export default function GamesPage() {
   };
 
   const comSala = (ondeJogar === "celulares" || modoTela) && !!sala;
-  const euNaArena = !comSala || euJogo;
+  const euNaArena = (ondeJogar === "celulares" || modoTela) ? euJogo : true;
   // Vagas: quem está na tela (se joga), os celulares conectados e os bots escolhidos (0 a 7: sozinho também vale).
   const vagas: VagaBombas[] = useMemo(() => {
     const lista: VagaBombas[] = [];
@@ -217,10 +220,12 @@ export default function GamesPage() {
   const paraTodos = (d: unknown) => clienteSala.current?.enviar({ t: "todos", d });
   const paraVaga = (vaga: number, d: unknown) => clienteSala.current?.enviar({ t: "para", vaga, d });
 
-  const abrirSala = async () => {
+  const abrirSala = async (jogo = jogoAtual) => {
+    if (abrindoSala.current) return;
+    abrindoSala.current = true;
     setErroSala(null);
     try {
-      const ingresso = await salasService.criar(jogoAtual);
+      const ingresso = await salasService.criar(jogo);
       if (!ingresso) throw new Error("Não deu para abrir a sala");
       clienteSala.current?.fechar();
       transmissor.current?.fechar();
@@ -246,6 +251,8 @@ export default function GamesPage() {
       });
     } catch (e) {
       setErroSala((e as Error).message || "Não deu para abrir a sala");
+    } finally {
+      abrindoSala.current = false;
     }
   };
 
@@ -261,23 +268,33 @@ export default function GamesPage() {
   useEffect(() => () => clienteSala.current?.fechar({ t: "fechar" }), []);
 
   // Modo Tela: esta tela vira o servidor; por padrão ninguém joga nela (todos pelos celulares).
-  const entrarModoTela = () => {
+  const entrarModoTela = (jogo = jogoAtual) => {
     som.destravar();
+    setJogoAtual(jogo);
     setAberto(null);
+    setPartida(null);
+    setCopa(null);
+    setOndeJogar("celulares");
     setModoTela(true);
     setEuJogo(false);
-    if (!sala) void abrirSala();
+    if (!sala) void abrirSala(jogo);
   };
   const sairModoTela = () => {
     setModoTela(false);
     setEuJogo(true);
+    setOndeJogar("tela");
     fecharSala();
   };
 
   const comecar = (numero: number) => {
     som.destravar();
     setRegistro(null);
-    const daPartida = numero === 1 || !copa ? vagas : vagasDaCopa.current;
+    let daPartida = numero === 1 || !copa ? vagas : vagasDaCopa.current;
+    if (jogoAtual === "bombas") vagasDaArenaBombas.current = [...daPartida];
+    if (jogoAtual === "bombas" && cfg.modo === "campanha") {
+      const humanos = daPartida.filter(v => !v.bot);
+      daPartida = Array.from({ length: 8 }, (_, i) => humanos[i] ?? { nome: "Aperte Start", bot: null, avatar: avatarDaVaga(i, null), reserva: true, controle: 100 + i });
+    }
     if (numero === 1) vagasDaCopa.current = vagas;
     if (numero === 1) jogoDaCopa.current = jogoAtual;
     const jogo = numero === 1 || !copa ? jogoAtual : jogoDaCopa.current;
@@ -288,14 +305,18 @@ export default function GamesPage() {
     // Cada celular recebe o que precisa para desenhar o mesmo jogo (nome, avatar e se é bot; nada da conta).
     const vagasEspelho = daPartida.map(v => ({ nome: v.nome, bot: v.bot, avatar: v.avatar }));
     daPartida.forEach((v, i) => {
-      if (v.controle !== undefined) transmissor.current?.partida(v.controle, { jogo, modo, cenario: cfg.cenario, vagas: vagasEspelho, eu: i, vitoriasParaVencer: vitorias, numero });
+      if (v.controle !== undefined) transmissor.current?.partida(v.controle, { jogo, modo, cenario: cfg.cenario, vagas: vagasEspelho, eu: i, vitoriasParaVencer: vitorias, numero, soControle: modoTela });
     });
     // Sozinho: cada tentativa é uma partida; Times só com número par.
     setPartida({ jogo, vagas: daPartida, modo, cenario: cfg.cenario, vitorias, dificuldade: cfg.dificuldade, inicio: Date.now(), numero });
   };
 
   const jogar = () => {
-    setCopa(cfg.formato === "unica" ? null : novaCopa(cfg.formato, vagas.map((v, i) => `P${i + 1} · ${v.nome}`)));
+    if (ondeJogar === "celulares" && (!sala || sala.estado !== "conectado" || humanos === 0)) {
+      setErroSala("Conecte pelo menos um celular antes de começar.");
+      return;
+    }
+    setCopa(cfg.formato === "unica" || jogoAtual === "bombas" && cfg.modo === "campanha" ? null : novaCopa(cfg.formato, vagas.map((v, i) => `P${i + 1} · ${v.nome}`)));
     comecar(1);
   };
 
@@ -309,10 +330,11 @@ export default function GamesPage() {
   const aoTerminar = useCallback((r: ResultadoBombas & { pontos?: number[] }) => {
     if (!partida) return;
     const lugares = colocacoes(r.vitorias, r.vencedor);
+    const participantes = partida.vagas.filter(v => !v.reserva).length;
     const nrBots = partida.vagas.filter(v => v.bot).length;
     const duracao = Math.min(86_400, Math.round((Date.now() - partida.inicio) / 1000));
     const resultadoDe = (i: number) => {
-      const venceu = r.vencedor === i || (partida.modo === "times" && r.vencedor !== null && r.vencedor % 2 === i % 2);
+      const venceu = (partida.jogo === "bombas" && partida.modo === "campanha" && !partida.vagas[i].reserva && r.vencedor !== null) || r.vencedor === i || (partida.modo === "times" && r.vencedor !== null && r.vencedor % 2 === i % 2);
       // Sem bots, os pontos não ganham peso de dificuldade.
       // Jogo com placar próprio (ex.: Encaixe) manda os pontos; os outros pontuam pelas rodadas vencidas.
       const pontos = r.pontos ? Math.max(0, Math.round(r.pontos[i] ?? 0)) : pontosBombas({ vitoriasRodada: r.vitorias[i], venceu, jogadores: partida.vagas.length, dificuldade: nrBots ? partida.dificuldade : null });
@@ -321,9 +343,9 @@ export default function GamesPage() {
     if (copa) setCopa(registrarPartida(copa, lugares));
     // Cada celular registra a própria partida na própria conta.
     partida.vagas.forEach((v, i) => {
-      if (v.controle === undefined) return;
+      if (v.controle === undefined || v.reserva) return;
       const res = resultadoDe(i);
-      paraVaga(v.controle, { k: "fim", jogo: partida.jogo, modo: partida.modo, ...res, jogadores: partida.vagas.length, bots: nrBots, dificuldade: nrBots ? partida.dificuldade : null, duracao });
+      paraVaga(v.controle, { k: "fim", jogo: partida.jogo, modo: partida.modo, ...res, jogadores: participantes, bots: nrBots, dificuldade: nrBots ? partida.dificuldade : null, duracao });
     });
     const eu = partida.vagas.findIndex(v => !v.bot && v.controle === undefined);
     if (eu < 0) return;
@@ -331,7 +353,7 @@ export default function GamesPage() {
     setRegistro({ estado: "salvando" });
     gamesService.registrarPartida({
       cdJogo: partida.jogo, cdModo: partida.modo, nrPontos: pontos, inVitoria: venceu, nrColocacao: colocacao,
-      nrJogadores: partida.vagas.length, nrBots, cdDificuldade: nrBots ? partida.dificuldade : null, nrDuracaoS: duracao,
+      nrJogadores: participantes, nrBots, cdDificuldade: nrBots ? partida.dificuldade : null, nrDuracaoS: duracao,
     }).then(res => {
       setRegistro(res ? { estado: "salvo", pontos, r: res } : { estado: "erro" });
       setVersaoRecordes(v => v + 1);
@@ -352,6 +374,28 @@ export default function GamesPage() {
       .catch(() => setPodio(p => p && { ...p, salvo: "erro" }));
   };
 
+  // Só Bombas Táticas oferece entrada durante a campanha; as demais partidas mantêm vagas fixas.
+  useEffect(() => {
+    if (partida?.jogo !== "bombas") return;
+    const candidatos: VagaBombas[] = (partida.modo === "campanha" ? sala?.jogadores ?? [] : []).filter(j => j.vaga > 0 && j.conectado).map(j => ({ nome: j.nome.split(" ")[0], bot: null, avatar: lerAvatar(j.avatar, j.idUsuario), controle: j.vaga }));
+    const temLocal = partida.vagas.some(v => !v.reserva && v.controle === undefined && v.gamepad === undefined);
+    const livresPads = pads.filter(p => !partida.vagas.some(v => v.gamepad === p.indice));
+    (partida.modo === "campanha" ? livresPads.slice(temLocal ? 1 : 0) : []).forEach(p => candidatos.push({ nome: `Controle ${p.indice + 1}`, bot: null, avatar: avatarDaVaga(p.indice, null), gamepad: p.indice }));
+    let mudou = false;
+    candidatos.forEach(v => {
+      if (partida.vagas.some(o => v.controle !== undefined ? o.controle === v.controle : o.gamepad === v.gamepad)) return;
+      const indice = partida.vagas.findIndex(o => o.reserva && (o.controle ?? 100) >= 100 && o.gamepad === undefined);
+      if (indice >= 0) { if (v.gamepad !== undefined) delete partida.vagas[indice].controle; Object.assign(partida.vagas[indice], v, { reserva: true }); mudou = true; }
+    });
+    partida.vagas.forEach((v, i) => {
+      if (v.controle === undefined || v.controle >= 100) return;
+      clienteSala.current?.enviar({ t: "para", vaga: v.controle, d: { k: "lugar", indice: i, cor: CORES_JOGADORES[i], jogo: "bombas", modo: partida.modo } });
+      transmissor.current?.partida(v.controle, { jogo: "bombas", modo: partida.modo, cenario: partida.cenario, vagas: partida.vagas.map(o => ({ nome: o.nome, bot: o.bot, avatar: o.avatar })), eu: i, vitoriasParaVencer: partida.vitorias, numero: partida.numero, soControle: modoTela });
+      clienteSala.current?.enviar({ t: "para", vaga: v.controle, d: { k: "fase", fase: "jogando" } });
+    });
+    if (mudou) setPartida(p => p ? { ...p } : p);
+  }, [partida, sala?.jogadores, pads, modoTela]);
+
   if (podio) {
     return (
       <PodioCopa copa={podio.copa} avatares={vagasDaCopa.current.map(v => v.avatar)} salvo={podio.salvo}
@@ -360,12 +404,14 @@ export default function GamesPage() {
     );
   }
 
+
   if (partida) {
     const copaAcabou = copa ? terminou(copa) : false;
     // O que todo jogo recebe: fim, celulares, Copa e o aviso de recorde/conquistas.
     const comuns = {
       vitoriasParaVencer: partida.vitorias,
       onSair: sair,
+      onCoopLocal: !sala ? () => entrarModoTela(partida.jogo) : undefined,
       onFim: aoTerminar,
       remotas: sala ? remotas : undefined,
       onFase: (f: FaseBombas) => paraTodos({ k: "fase", fase: f }),
@@ -462,13 +508,30 @@ export default function GamesPage() {
           <GuerraNaval key={partida.numero} vagas={partida.vagas} modo={partida.modo as ModoNaval} tema={partida.cenario as TemaNaval} {...comuns} />
         </Suspense>
       ) : (
-        <BombasTaticas key={partida.numero} vagas={partida.vagas} modo={partida.modo as Modo} bioma={partida.cenario as Bioma} {...comuns} />
+        <Suspense fallback={<div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950 text-white/70">Preparando a arena…</div>}><BombasTaticas key={partida.numero} vagas={partida.vagas} modo={partida.modo as import("@/react-app/utils/games/bombas").ModoBombas} bioma={partida.cenario as Bioma} {...comuns}
+          codigoSala={sala?.codigo} onAbrirSala={() => { setOndeJogar("celulares"); void abrirSala("bombas"); }}
+          modoArena={(cfg.modo === "campanha" ? "sobrevivencia" : cfg.modo) as import("@/react-app/utils/games/bombas").Modo}
+          preparacao={<><ConfigPartida jogo="bombas" cfg={cfg} mudar={setCfg} humanos={humanos} />
+            <button onClick={() => { setOndeJogar("celulares"); if (!sala) void abrirSala("bombas"); }} className="w-full rounded-xl bg-cyan-400/20 p-3 font-bold">Conectar celulares como joystick</button>
+            {sala && <SalaPainel codigo={sala.codigo} estado={sala.estado} jogadores={sala.jogadores} euJogo={euJogo} onEuJogo={setEuJogo} onFechar={() => { fecharSala(); setOndeJogar("tela"); }} />}
+            {erroSala && <p role="alert" className="text-amber-200">{erroSala}</p>}
+            {pads.map(p => <button key={p.indice} onClick={() => setPadsJogando(a => a.includes(p.indice) ? a.filter(i => i !== p.indice) : [...a, p.indice])} className="mr-2 rounded-xl bg-white/10 p-3">Controle {p.indice + 1}: {padsJogando.includes(p.indice) ? "jogando" : "entrar"}</button>)}
+          </>}
+          onModo={m => {
+            if (m === "campanha") setCopa(null);
+            let lista = vagas;
+            if (m === "campanha") {
+              const humanos = lista.filter(v => !v.bot && !v.reserva);
+              lista = Array.from({ length: 8 }, (_, i) => humanos[i] ?? { nome: "Aperte Start", bot: null, avatar: avatarDaVaga(i, null), reserva: true, controle: 100 + i });
+            } else { vagasDaArenaBombas.current = [...lista]; if (partida.numero === 1) setCopa(cfg.formato === "unica" ? null : novaCopa(cfg.formato, lista.map((v, i) => `P${i + 1} · ${v.nome}`))); }
+            setPartida(p => p ? { ...p, modo: m, cenario: cfg.cenario, vagas: lista, vitorias: m === "campanha" ? 1 : cfg.vitorias } : p);
+          }} /></Suspense>
       )
     );
   }
 
   if (modoTela) {
-    return <ModoTela jogo={jogoAtual} onJogo={setJogoAtual} sala={sala} erro={erroSala} vagas={vagas} cfg={cfg} mudarCfg={setCfg} euJogo={euJogo} onEuJogo={setEuJogo} onComecar={jogar} onSair={sairModoTela} />;
+    return <ModoTela jogo={jogoAtual} onJogo={setJogoAtual} sala={sala} erro={erroSala} vagas={vagas} cfg={cfg} mudarCfg={setCfg} euJogo={euJogo} onEuJogo={setEuJogo} onComecar={jogar} onSair={sairModoTela} onTentarNovamente={() => void abrirSala()} />;
   }
 
   const chip = (ativo: boolean, rotulo: string, aoClicar: () => void) => (
@@ -490,8 +553,8 @@ export default function GamesPage() {
               <p className="text-sm text-white/60">Sozinho, contra bots ou com a turma pelo celular · 1 a 8 jogadores</p>
             </div>
           </div>
-          <button type="button" onClick={entrarModoTela} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-sm font-black uppercase tracking-wide shadow-[0_0_24px_rgba(34,211,238,.45)] hover:brightness-110" data-tutorial="games-modo-tela">
-            <Monitor className="h-5 w-5" />Modo Tela
+          <button type="button" onClick={() => entrarModoTela()} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-sm font-black uppercase tracking-wide shadow-[0_0_24px_rgba(34,211,238,.45)] hover:brightness-110" data-tutorial="games-modo-tela">
+            <Monitor className="h-5 w-5" />Coop local · Modo Tela
           </button>
           <button type="button" onClick={() => setPainelControles(true)} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-black uppercase tracking-wide ring-1 ring-white/15 hover:bg-white/20">
             <Joystick className="h-5 w-5" />Controles{pads.length ? ` · 🎮${pads.length}` : ""}
@@ -525,7 +588,7 @@ export default function GamesPage() {
                 className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-3 text-lg font-black uppercase italic tracking-wider shadow-[0_0_30px_rgba(236,72,153,.55)] transition hover:scale-[1.03]">
                 <Play className="h-6 w-6" fill="currentColor" />Jogar
               </button>
-              <button type="button" onClick={() => { setOndeJogar("celulares"); setJogoAtual(destaque.id); setAberto(destaque); if (!sala) void abrirSala(); }}
+              <button type="button" onClick={() => { setOndeJogar("celulares"); setJogoAtual(destaque.id); setAberto(destaque); if (!sala) void abrirSala(destaque.id); }}
                 className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-5 py-3 font-black uppercase tracking-wide ring-1 ring-white/20 hover:bg-white/20">
                 <Smartphone className="h-5 w-5" />Com celulares
               </button>
@@ -593,6 +656,7 @@ export default function GamesPage() {
                   <button type="button" onClick={() => setAberto(null)} aria-label="Fechar" className="rounded-lg p-1.5 text-white/60 hover:bg-white/10"><X className="h-5 w-5" /></button>
                 </div>
                 <p className="text-sm text-white/80">{aberto.resumo}</p>
+                {ehJogavel(aberto.id) && aberto.id !== "bombas" && <button type="button" onClick={() => entrarModoTela(aberto.id)} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 p-3 font-black text-cyan-100 hover:bg-cyan-300/20"><Smartphone className="h-5 w-5" />Coop local · celulares como joystick</button>}
                 <div>
                   <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-fuchsia-300">Regras</h3>
                   <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-white/80 marker:text-fuchsia-400">{aberto.regras.map(r => <li key={r}>{r}</li>)}</ul>
@@ -601,7 +665,7 @@ export default function GamesPage() {
                   <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-fuchsia-300">Controles</h3>
                   <ul className="mt-1 space-y-0.5 text-sm text-white/70">{aberto.controles.map(c => <li key={c}>{c}</li>)}</ul>
                 </div>
-                {ehJogavel(aberto.id) ? (
+                {aberto.id === "bombas" ? <button type="button" onClick={() => comecar(1)} className="w-full rounded-2xl bg-gradient-to-r from-fuchsia-600 to-orange-400 p-4 text-lg font-black">Abrir Bombas Táticas</button> : ehJogavel(aberto.id) ? (
                   <div className="space-y-3 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10" data-tutorial="games-preparar">
                     <h3 className="text-sm font-black uppercase tracking-widest text-cyan-200">Preparar partida</h3>
                     <Pilulas rotulo="Onde jogar" valor={ondeJogar} aoMudar={v => { setOndeJogar(v); if (v === "celulares" && !sala) void abrirSala(); }}

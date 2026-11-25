@@ -34,7 +34,7 @@ export const JOGOS: Jogo[] = [
   {
     id: "bombas", nome: "Bombas Táticas", resumo: "Arena em grade: exploda caixas, pegue power-ups e seja o último de pé.",
     categoria: "Arena", dimensao: "2D", minJogadores: 1, maxJogadores: 8, fase: 1, disponivel: true,
-    modos: ["Sobrevivência", "Times", "Caça às Moedas"],
+    modos: ["Sobrevivência", "Times", "Caça às Moedas", "Campanha"],
     regras: [
       "A bomba explode em cruz depois de 2,5 s; a chama para nos pilares e na primeira caixa.",
       "Uma explosão que alcança outra bomba a detona na hora (reação em cadeia).",

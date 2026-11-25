@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-25-bombas-taticas-acabamento",
+    data: "2026-11-25",
+    titulo: "Bombas Táticas: campanha, revanche e coop local",
+    texto: "Bombas Táticas ganhou menu próprio, campanha A Última Centelha com 9 fases e 3 chefes, entrada com Start e revanche nas bordas. O joystick aceita diagonais, e quem entra durante a fase pode continuar a partida.",
+    onde: { rotulo: "Individual → Games", caminho: "/gestao/games" },
+  },
+  {
     id: "2026-11-24-editor-de-video",
     data: "2026-11-24",
     titulo: "Editor de vídeo na Galeria, com várias câmeras",

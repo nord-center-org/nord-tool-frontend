@@ -129,7 +129,14 @@ export function nomeDaTecla(codigo: string): string {
 }
 
 /** O estado de um gamepad no formato do jogo (mapeamento padrão: cruz 12–15, analógico 0/1, A 0, B 1, Start 9). */
-export interface LeituraGamepad { direcao: Direcao | null; a: boolean; b: boolean; pausa: boolean }
+export interface LeituraGamepad { direcao: Direcao | null; a: boolean; b: boolean; pausa: boolean; eixoX?: number; eixoY?: number }
+
+/** Oito setores com zona morta circular: o dedo pode apontar para duas direções ao mesmo tempo. */
+export function lerAnalogico(x: number, y: number, zonaMorta = 0.18): { eixoX: number; eixoY: number } {
+  if (!Number.isFinite(x) || !Number.isFinite(y) || Math.hypot(x, y) < zonaMorta) return { eixoX: 0, eixoY: 0 };
+  const angulo = Math.round(Math.atan2(y, x) / (Math.PI / 4)) * Math.PI / 4;
+  return { eixoX: Math.round(Math.cos(angulo)) || 0, eixoY: Math.round(Math.sin(angulo)) || 0 };
+}
 
 export function lerPad(p: { buttons: readonly { pressed: boolean }[]; axes: readonly number[] }, c: Pick<ConfigControles, "gamepadTrocarAB" | "zonaMorta">): LeituraGamepad {
   const b = (i: number) => !!p.buttons[i]?.pressed;
@@ -142,5 +149,7 @@ export function lerPad(p: { buttons: readonly { pressed: boolean }[]; axes: read
   else if (Math.hypot(x, y) >= c.zonaMorta) direcao = Math.abs(x) > Math.abs(y) ? (x > 0 ? "direita" : "esquerda") : (y > 0 ? "baixo" : "cima");
   // Botões de baixo e da esquerda (A/X) fazem A; os de cima e da direita (B/Y) fazem B.
   const a = b(0) || b(2), bb = b(1) || b(3);
-  return { direcao, a: c.gamepadTrocarAB ? bb : a, b: c.gamepadTrocarAB ? a : bb, pausa: b(9) };
+  const cruzX = Number(b(15)) - Number(b(14)), cruzY = Number(b(13)) - Number(b(12));
+  const eixos = cruzX || cruzY ? { eixoX: cruzX, eixoY: cruzY } : lerAnalogico(x, y, c.zonaMorta);
+  return { direcao, a: c.gamepadTrocarAB ? bb : a, b: c.gamepadTrocarAB ? a : bb, pausa: b(9), ...(eixos.eixoX && eixos.eixoY ? eixos : {}) };
 }

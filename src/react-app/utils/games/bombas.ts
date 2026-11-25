@@ -10,14 +10,17 @@ export const PAVIO = 150; // 2,5 s
 export const DURACAO_CHAMA = 30; // 0,5 s
 export const MORTE_SUBITA_A_PARTIR = 60 * PASSOS_POR_SEGUNDO; // últimos 60 s
 export const INTERVALO_MORTE_SUBITA = 12; // um bloco a cada 0,2 s
+export const AVISO_MORTE_SUBITA = 48; // 800 ms para sair da casa marcada
+export const BUFFER_CURVA = 18; // 300 ms: preserva o toque antes de chegar à esquina
 export const RESPAWN_MOEDAS = 3 * PASSOS_POR_SEGUNDO;
 export const MAX_JOGADORES = 8;
 
 export type Celula = "chao" | "pilar" | "caixa";
+export type ModoBombas = Modo | "campanha";
 export type Modo = "sobrevivencia" | "times" | "moedas";
 export type Dificuldade = "facil" | "medio" | "dificil";
 export type Direcao = "cima" | "baixo" | "esquerda" | "direita";
-export type PowerUp = "bomba" | "fogo" | "patins" | "chute" | "luva" | "detonador" | "escudo" | "fogoTotal" | "caveira";
+export type PowerUp = "bomba" | "fogo" | "patins" | "chute" | "luva" | "detonador" | "escudo" | "fogoTotal" | "caveira" | "ovo";
 export type Maldicao = "lento" | "fogoMinimo" | "diarreia" | "rapidoDemais";
 export type Bioma = "fabrica" | "gelo" | "vulcao";
 
@@ -26,6 +29,9 @@ const LISTA_DIRECOES = Object.keys(DIRECOES) as Direcao[];
 
 export interface Entrada {
   direcao: Direcao | null;
+  /** Dois eixos opcionais: preservam diagonais sem quebrar os jogos de quatro direções. */
+  eixoX?: number;
+  eixoY?: number;
   /** Botão A: soltar bomba. */
   a: boolean;
   /** Botão B: detonar (com detonador) ou arremessar a bomba que está aos pés (com luva). */
@@ -34,7 +40,13 @@ export interface Entrada {
 
 export const ENTRADA_VAZIA: Entrada = { direcao: null, a: false, b: false };
 
+export interface Revanche { posicao: number; ativaEm: number; recargaAte: number; alcance: number }
+
+export type TipoMontaria = "brasa" | "vento" | "pedra";
+export interface Montaria { tipo: TipoMontaria; recargaAte: number; impulso: number }
+
 export interface Jogador {
+  montaria?: Montaria;
   id: number;
   nome: string;
   time: number;
@@ -64,9 +76,15 @@ export interface Jogador {
   /** Bots: próximo passo em que pensam de novo. */
   pensaEm: number;
   andou: number;
+  /** Curva solicitada entre duas casas; incluída no estado do espelho. */
+  direcaoPendente?: Direcao | null;
+  direcaoAte?: number;
+  revanche?: Revanche;
+  participando?: boolean;
 }
 
 export interface Bomba {
+  revanche?: boolean;
   id: number;
   dono: number;
   x: number;
@@ -85,7 +103,7 @@ export interface Bomba {
   origemY: number;
 }
 
-export interface Chama { x: number; y: number; ate: number; centro: boolean; eixo: "h" | "v" | "c" }
+export interface Chama { dono?: number; revanche?: boolean; x: number; y: number; ate: number; centro: boolean; eixo: "h" | "v" | "c" }
 export interface Item { x: number; y: number; tipo: PowerUp }
 export interface Moeda { x: number; y: number }
 
@@ -94,6 +112,7 @@ export type Evento =
   | { tipo: "explosao"; x: number; y: number; tamanho: number }
   | { tipo: "caixa"; x: number; y: number }
   | { tipo: "powerup"; x: number; y: number; jogador: number; item: PowerUp }
+  | { tipo: "retorno"; x: number; y: number; jogador: number }
   | { tipo: "morte"; x: number; y: number; jogador: number }
   | { tipo: "escudo"; x: number; y: number; jogador: number }
   | { tipo: "chute"; x: number; y: number }
@@ -103,7 +122,11 @@ export type Evento =
   | { tipo: "morteSubita" }
   | { tipo: "fim"; vencedor: number | null; time: number | null };
 
+export interface InimigoCampanha { id: number; x: number; y: number; alvoX: number; alvoY: number; tipo: "patrulha" | "cacador" | "saltador" | "cauteloso" | "chefe"; aspecto?: number; vida: number; protecaoAte: number; ataqueEm: number }
+export interface Campanha { etapa: number; vidas: number; pontos: number; proximaVida: number; inimigos: InimigoCampanha[]; saida: { x: number; y: number }; transicaoEm: number; mortes: number[]; }
+
 export interface Estado {
+  campanha?: Campanha;
   largura: number;
   altura: number;
   bioma: Bioma;
@@ -211,6 +234,18 @@ export function novaPartida(c: Configuracao): Estado {
     if (c.modo === "moedas" && r < 0.3) e.escondidos.set(i, "moeda");
     else if (r < (c.modo === "moedas" ? 0.5 : 0.32)) e.escondidos.set(i, sortearItem(sortear(e)));
   }
+  const caixasOvo = e.grade.flatMap((cel, i) => cel === "caixa" && e.escondidos.get(i) !== "moeda" ? [i] : []);
+  for (const i of caixasOvo.slice(0, 2)) e.escondidos.set(i, "ovo");
+  // A sorte não pode gerar um desafio impossível. Só o anfitrião conhece estas caixas.
+  if (n === 1 && c.modo === "moedas") {
+    let moedas = [...e.escondidos.values()].filter(it => it === "moeda").length;
+    const candidatas = e.grade.map((cel, i) => cel === "caixa" && e.escondidos.get(i) !== "moeda" ? i : -1).filter(i => i >= 0);
+    while (moedas < META_MOEDAS_SOLO && candidatas.length) {
+      const pos = Math.floor(sortear(e) * candidatas.length);
+      e.escondidos.set(candidatas.splice(pos, 1)[0], "moeda");
+      moedas++;
+    }
+  }
   e.jogadores = pontos.map(([px, py], i) => ({
     id: i, nome: c.jogadores[i]?.nome ?? `P${i + 1}`, time: c.modo === "times" ? i % 2 : i, bot: c.jogadores[i]?.bot ?? null,
     x: px, y: py, alvoX: px, alvoY: py, direcao: "baixo", vivo: true, bombas: 1, fogo: 2, velocidade: 3.6, chute: false, luva: false,
@@ -243,7 +278,7 @@ const alinhado = (j: Jogador) => Math.abs(j.x - j.alvoX) < 1e-6 && Math.abs(j.y 
 export function velocidadeEfetiva(j: Jogador): number {
   if (j.maldicao === "lento") return 2.2;
   if (j.maldicao === "rapidoDemais") return 9;
-  return j.velocidade;
+  return j.velocidade * (j.montaria?.impulso ? 1.9 : j.montaria?.tipo === "vento" ? 1.15 : 1);
 }
 
 /** A casa bloqueia quem anda (pilar, caixa, bomba ou bloco da morte súbita). A bomba aos pés de quem saiu dela não bloqueia. */
@@ -288,11 +323,14 @@ export function passo(e: Estado, entradas: Entrada[]): Estado {
   for (const j of e.jogadores) {
     if (!j.vivo) {
       if (e.modo === "moedas" && j.respawnEm > 0 && e.passo >= j.respawnEm) renascer(e, j);
+      else if (!e.campanha) atualizarRevanche(e, j, entradas[j.id] ?? ENTRADA_VAZIA);
       continue;
     }
+    if (j.montaria?.impulso) j.montaria.impulso--;
     if (j.maldicao && e.passo >= j.maldicaoAte) j.maldicao = null;
     const ent = j.bot ? pensarBot(e, j) : entradas[j.id] ?? ENTRADA_VAZIA;
-    mover(e, j, ent.direcao);
+    if (!j.bot && ent.eixoX !== undefined && ent.eixoY !== undefined) moverLivre(e, j, ent);
+    else mover(e, j, ent.direcao);
     const soltar = ent.a && !j.aAnterior;
     const segundo = ent.b && !j.bAnterior;
     j.aAnterior = ent.a;
@@ -307,16 +345,31 @@ export function passo(e: Estado, entradas: Entrada[]): Estado {
   for (const j of e.jogadores) {
     if (!j.vivo || e.passo < j.invulneravelAte) continue;
     const { x, y } = naCasa(j);
-    if (e.chamas.some(c => c.x === x && c.y === y)) atingir(e, j);
+    const chamas = e.chamas.filter(c => c.x === x && c.y === y);
+    if (chamas.length) {
+      atingir(e, j);
+      if (!j.vivo) {
+        const fonte = chamas.find(c => c.revanche && c.dono !== undefined && !e.jogadores[c.dono]?.vivo && e.jogadores[c.dono]?.time !== j.time);
+        if (fonte?.dono !== undefined && !e.morteSubita && !e.campanha) voltarRevanche(e, e.jogadores[fonte.dono], x, y);
+      }
+    }
   }
   // Itens no chão também queimam (como no clássico); o que acabou de aparecer da caixa fica.
-  morteSubita(e);
+  if (!e.campanha) morteSubita(e);
   conferirFim(e);
   return e;
 }
 
 function mover(e: Estado, j: Jogador, d: Direcao | null) {
   const v = velocidadeEfetiva(j) / PASSOS_POR_SEGUNDO;
+  if (d) {
+    const [dx, dy] = DIRECOES[d];
+    const curva = !alinhado(j) && ((j.alvoX !== j.x && dy !== 0) || (j.alvoY !== j.y && dx !== 0));
+    j.direcaoPendente = curva ? d : null;
+    if (curva) j.direcaoAte = e.passo + BUFFER_CURVA;
+  }
+  if (!d && alinhado(j) && j.direcaoPendente && (j.direcaoAte ?? 0) >= e.passo) d = j.direcaoPendente;
+  if ((j.direcaoAte ?? 0) < e.passo) j.direcaoPendente = null;
   if (d) {
     j.direcao = d;
     const [dx, dy] = DIRECOES[d];
@@ -326,6 +379,7 @@ function mover(e: Estado, j: Jogador, d: Direcao | null) {
       if (vx === -dx && vy === -dy) {
         j.alvoX -= vx;
         j.alvoY -= vy;
+        j.direcaoPendente = null;
       }
     }
     if (alinhado(j)) {
@@ -338,6 +392,7 @@ function mover(e: Estado, j: Jogador, d: Direcao | null) {
       } else if (!bloqueia(e, nx, ny, j)) {
         j.alvoX = nx;
         j.alvoY = ny;
+        j.direcaoPendente = null;
       }
     }
   }
@@ -355,6 +410,49 @@ function mover(e: Estado, j: Jogador, d: Direcao | null) {
   }
 }
 
+/** Movimento em oito direções, normalizado e com colisão circular; nunca corta um canto sólido. */
+function moverLivre(e: Estado, j: Jogador, ent: Entrada) {
+  let dx = Number.isFinite(ent.eixoX) ? Math.max(-1, Math.min(1, ent.eixoX!)) : 0;
+  let dy = Number.isFinite(ent.eixoY) ? Math.max(-1, Math.min(1, ent.eixoY!)) : 0;
+  const tamanho = Math.hypot(dx, dy);
+  if (tamanho > 1) { dx /= tamanho; dy /= tamanho; }
+  const v = velocidadeEfetiva(j) / PASSOS_POR_SEGUNDO;
+  const pode = (x: number, y: number) => {
+    const r = 0.24;
+    for (let cy = Math.floor(y - r + 0.5); cy <= Math.floor(y + r + 0.5); cy++) {
+      for (let cx = Math.floor(x - r + 0.5); cx <= Math.floor(x + r + 0.5); cx++) {
+        const parede = celula(e, cx, cy) !== "chao";
+        if (!parede && !bombaEm(e, cx, cy)) continue;
+        const pertoX = Math.max(cx - 0.5, Math.min(cx + 0.5, x));
+        const pertoY = Math.max(cy - 0.5, Math.min(cy + 0.5, y));
+        const distancia = (x - pertoX) ** 2 + (y - pertoY) ** 2;
+        if (distancia < r * r - 1e-8) {
+          // Quem já sobrepõe a bomba pode sair completamente, inclusive após cruzar meia casa.
+          const ax = Math.max(cx - 0.5, Math.min(cx + 0.5, j.x));
+          const ay = Math.max(cy - 0.5, Math.min(cy + 0.5, j.y));
+          const anterior = (j.x - ax) ** 2 + (j.y - ay) ** 2;
+          if (!parede && anterior < r * r - 1e-8 && distancia >= anterior - 1e-10) continue;
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+  if (tamanho > 0) {
+    j.direcao = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "direita" : "esquerda") : (dy > 0 ? "baixo" : "cima");
+    if (j.chute) {
+      const [kx, ky] = DIRECOES[j.direcao];
+      const b = bombaEm(e, Math.round(j.x + kx * 0.55), Math.round(j.y + ky * 0.55));
+      if (b && !b.deslizando && !(naCasa(j).x === b.x && naCasa(j).y === b.y)) { b.deslizando = j.direcao; b.progresso = 0; e.eventos.push({ tipo: "chute", x: b.x, y: b.y }); }
+    }
+    const antesX = j.x, antesY = j.y;
+    if (pode(j.x + dx * v, j.y)) j.x += dx * v;
+    if (pode(j.x, j.y + dy * v)) j.y += dy * v;
+    if (Math.hypot(j.x - antesX, j.y - antesY) > 1e-6) j.andou++;
+  }
+  j.alvoX = j.x; j.alvoY = j.y; j.direcaoPendente = null;
+}
+
 function soltarBomba(e: Estado, j: Jogador): boolean {
   const { x, y } = naCasa(j);
   const ativas = e.bombas.filter(b => b.dono === j.id).length;
@@ -369,6 +467,21 @@ function soltarBomba(e: Estado, j: Jogador): boolean {
 }
 
 function acaoB(e: Estado, j: Jogador) {
+  if (j.montaria) {
+    const m = j.montaria;
+    if (e.passo < m.recargaAte) return;
+    if (m.tipo === "vento") { m.impulso = 18; m.recargaAte = e.passo + 90; }
+    if (m.tipo === "pedra") { j.invulneravelAte = Math.max(j.invulneravelAte, e.passo + 45); m.recargaAte = e.passo + 240; e.eventos.push({ tipo: "escudo", x: j.x, y: j.y, jogador: j.id }); }
+    if (m.tipo === "brasa") {
+      const [dx, dy] = DIRECOES[j.direcao], { x, y } = naCasa(j);
+      const tx = x + dx * 3, ty = y + dy * 3;
+      if (celula(e, tx, ty) === "chao" && !bombaEm(e, tx, ty) && soltarBomba(e, j)) {
+        const b = e.bombas[e.bombas.length - 1]; b.voo = 24; b.destinoX = tx; b.destinoY = ty; b.remota = false; b.pavio = PAVIO;
+        m.recargaAte = e.passo + 120; e.eventos.push({ tipo: "arremesso", x, y });
+      }
+    }
+    return;
+  }
   if (j.detonador) {
     const minha = e.bombas.filter(b => b.dono === j.id && b.remota && b.voo === 0).sort((a, b) => a.id - b.id)[0];
     if (minha) {
@@ -401,7 +514,7 @@ function acaoB(e: Estado, j: Jogador) {
 
 function pegarItens(e: Estado, j: Jogador) {
   const { x, y } = naCasa(j);
-  const i = e.itens.findIndex(it => it.x === x && it.y === y);
+  const i = e.itens.findIndex(it => it.x === x && it.y === y && (it.tipo !== "ovo" || !j.montaria));
   if (i >= 0) {
     const it = e.itens.splice(i, 1)[0];
     aplicar(e, j, it.tipo);
@@ -419,6 +532,7 @@ const MALDICOES: Maldicao[] = ["lento", "fogoMinimo", "diarreia", "rapidoDemais"
 
 export function aplicar(e: Estado, j: Jogador, tipo: PowerUp) {
   switch (tipo) {
+    case "ovo": if (!j.montaria) j.montaria = { tipo: (["brasa", "vento", "pedra"] as const)[Math.floor(sortear(e) * 3)], recargaAte: e.passo, impulso: 0 }; break;
     case "bomba": j.bombas = Math.min(8, j.bombas + 1); break;
     case "fogo": j.fogo = Math.min(10, j.fogo + 1); break;
     case "fogoTotal": j.fogo = 10; break;
@@ -463,7 +577,7 @@ function atualizarBombas(e: Estado) {
     if (b.pavio !== Number.MAX_SAFE_INTEGER) b.pavio--;
   }
   // Explosões (com reação em cadeia: a chama que alcança outra bomba a detona no mesmo passo).
-  let explodindo = e.bombas.filter(b => b.voo === 0 && b.pavio <= 0);
+  let explodindo = e.bombas.filter(b => b.voo === 0 && (b.pavio <= 0 || e.chamas.some(c => c.ate > e.passo && c.x === b.x && c.y === b.y)));
   const destruidas: { x: number; y: number }[] = [];
   while (explodindo.length) {
     const proximas: Bomba[] = [];
@@ -476,7 +590,7 @@ function atualizarBombas(e: Estado) {
         if (e.grade[i] === "caixa") destruidas.push({ x: c.x, y: c.y });
         const item = e.itens.findIndex(it => it.x === c.x && it.y === c.y);
         if (item >= 0 && e.passo > 1) e.itens.splice(item, 1);
-        e.chamas.push({ x: c.x, y: c.y, ate: e.passo + DURACAO_CHAMA, centro: c.centro, eixo: c.eixo });
+        e.chamas.push({ dono: b.dono, revanche: b.revanche, x: c.x, y: c.y, ate: e.passo + DURACAO_CHAMA, centro: c.centro, eixo: c.eixo });
         const outra = bombaEm(e, c.x, c.y);
         if (outra && !proximas.includes(outra) && !explodindo.includes(outra)) proximas.push(outra);
       }
@@ -495,7 +609,11 @@ function atualizarBombas(e: Estado) {
   }
 }
 
-function atingir(e: Estado, j: Jogador) {
+export function atingir(e: Estado, j: Jogador) {
+  if (j.montaria) {
+    j.montaria = undefined; j.invulneravelAte = e.passo + 75;
+    e.eventos.push({ tipo: "escudo", x: j.x, y: j.y, jogador: j.id }); return;
+  }
   if (j.escudo) {
     j.escudo = false;
     j.invulneravelAte = e.passo + DURACAO_CHAMA + 30;
@@ -503,6 +621,13 @@ function atingir(e: Estado, j: Jogador) {
     return;
   }
   j.vivo = false;
+  if (!e.campanha && e.modo !== "moedas" && e.jogadores.length > 2 && !e.morteSubita) {
+    const borda = bordaRevanche(e);
+    let melhor = 0;
+    borda.forEach((p, i) => { if (Math.hypot(p.x - j.x, p.y - j.y) < Math.hypot(borda[melhor].x - j.x, borda[melhor].y - j.y)) melhor = i; });
+    j.revanche = { posicao: melhor, ativaEm: e.passo + 48, recargaAte: e.passo + 48, alcance: 3 };
+    j.aAnterior = j.bAnterior = false;
+  }
   e.eventos.push({ tipo: "morte", x: j.x, y: j.y, jogador: j.id });
   if (e.modo === "moedas") {
     // Perde até 3 moedas, que caem nas casas livres em volta; volta depois de 3 s.
@@ -529,9 +654,26 @@ function renascer(e: Estado, j: Jogador) {
     if (e.grade[i] === "caixa") e.grade[i] = "chao";
   }
   Object.assign(j, {
-    vivo: true, x: px, y: py, alvoX: px, alvoY: py, bombas: 1, fogo: 2, velocidade: 3.6, chute: false, luva: false, detonador: false, escudo: false,
+    montaria: undefined, vivo: true, x: px, y: py, alvoX: px, alvoY: py, bombas: 1, fogo: 2, velocidade: 3.6, chute: false, luva: false, detonador: false, escudo: false,
     maldicao: null, respawnEm: 0, invulneravelAte: e.passo + 2 * PASSOS_POR_SEGUNDO,
+    direcaoPendente: null, direcaoAte: 0, aAnterior: false, bAnterior: false,
   });
+}
+
+/** Posições públicas dos próximos impactos; não consulta itens escondidos. */
+export function avisosMorteSubita(e: Estado): { x: number; y: number; em: number }[] {
+  if (e.campanha || e.modo === "moedas" || e.terminado) return [];
+  const inicio = e.duracao - MORTE_SUBITA_A_PARTIR;
+  if (e.passo < inicio) return [];
+  const ordem = e.morteSubita?.ordem ?? espiral(e.largura, e.altura)
+    .filter(([x, y]) => celula(e, x, y) !== "pilar").map(([x, y]) => idx(e, x, y));
+  const indice = e.morteSubita?.indice ?? 0;
+  const avisos: { x: number; y: number; em: number }[] = [];
+  for (let n = indice; n < Math.min(ordem.length, indice + 5); n++) {
+    const em = inicio + AVISO_MORTE_SUBITA + n * INTERVALO_MORTE_SUBITA - e.passo;
+    if (em >= 0 && em <= AVISO_MORTE_SUBITA) avisos.push({ x: ordem[n] % e.largura, y: Math.floor(ordem[n] / e.largura), em });
+  }
+  return avisos;
 }
 
 function morteSubita(e: Estado) {
@@ -543,7 +685,8 @@ function morteSubita(e: Estado) {
     e.eventos.push({ tipo: "morteSubita" });
   }
   const ms = e.morteSubita;
-  if ((MORTE_SUBITA_A_PARTIR - restante) % INTERVALO_MORTE_SUBITA !== 0 || ms.indice >= ms.ordem.length) return;
+  const decorrido = MORTE_SUBITA_A_PARTIR - restante - AVISO_MORTE_SUBITA;
+  if (decorrido < 0 || decorrido % INTERVALO_MORTE_SUBITA !== 0 || ms.indice >= ms.ordem.length) return;
   const i = ms.ordem[ms.indice++];
   const x = i % e.largura, y = Math.floor(i / e.largura);
   e.grade[i] = "pilar";
@@ -564,13 +707,15 @@ function morteSubita(e: Estado) {
 export const META_MOEDAS_SOLO = 10;
 
 function conferirFim(e: Estado) {
+  if (e.campanha) return;
   const vivos = e.jogadores.filter(j => j.vivo);
   const acabouTempo = e.passo >= e.duracao;
   // Sozinho (sem bots): Desafio (limpar todas as caixas antes do tempo, sem cair) ou meta de moedas.
   if (e.jogadores.length === 1) {
     const j = e.jogadores[0];
     if (e.modo === "moedas") {
-      if (acabouTempo) terminar(e, j.moedas >= META_MOEDAS_SOLO ? j.id : null, null);
+      if (j.moedas >= META_MOEDAS_SOLO) terminar(e, j.id, null);
+      else if (acabouTempo) terminar(e, null, null);
     } else if (!j.vivo || acabouTempo) {
       terminar(e, null, null);
     } else if (!e.grade.includes("caixa")) {
@@ -605,6 +750,7 @@ function terminar(e: Estado, vencedor: number | null, time: number | null) {
 /** Em quantos passos cada casa será atingida (Infinity = segura). Considera chamas acesas e a cadeia de bombas. */
 export function mapaDePerigo(e: Estado, extra?: { x: number; y: number; fogo: number }): number[] {
   const perigo = new Array<number>(e.grade.length).fill(Infinity);
+  for (const aviso of avisosMorteSubita(e)) perigo[idx(e, aviso.x, aviso.y)] = aviso.em;
   for (const c of e.chamas) perigo[idx(e, c.x, c.y)] = 0;
   const bombas = e.bombas.filter(b => b.voo === 0).map(b => ({ x: b.x, y: b.y, fogo: b.fogo, t: b.pavio === Number.MAX_SAFE_INTEGER ? 20 : b.pavio }));
   if (extra) bombas.push({ ...extra, t: PAVIO });
@@ -661,17 +807,18 @@ const ERRO: Record<Dificuldade, number> = { facil: 0.18, medio: 0.06, dificil: 0
 /** Decide a entrada do bot (só repensa quando chega numa casa ou quando o tempo de reação passa). */
 export function pensarBot(e: Estado, j: Jogador): Entrada {
   const dif = j.bot ?? "medio";
-  const memoria = memoriaBot.get(j) ?? { entrada: ENTRADA_VAZIA };
-  if (!alinhado(j) && e.passo < j.pensaEm) return { ...memoria.entrada, a: false, b: false };
+  // Compromete-se com uma casa inteira. Repensar no meio da travessia fazia o bot oscilar e dar meia-volta.
+  if (!alinhado(j)) {
+    const dx = j.alvoX - j.x, dy = j.alvoY - j.y;
+    return { direcao: Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "direita" : "esquerda") : (dy > 0 ? "baixo" : "cima"), a: false, b: false };
+  }
   if (e.passo < j.pensaEm) return { direcao: null, a: false, b: false };
-  j.pensaEm = e.passo + (alinhado(j) ? REACAO[dif] : 2);
+  j.pensaEm = e.passo + REACAO[dif];
   const r = rng(e.passo * 31 + j.id * 7919);
   const entrada = decidir(e, j, dif, r);
-  memoriaBot.set(j, { entrada });
+  if (entrada.a) j.pensaEm = e.passo + 1; // Uma bomba recém-plantada pede fuga imediata.
   return entrada;
 }
-
-const memoriaBot = new WeakMap<Jogador, { entrada: Entrada }>();
 
 function decidir(e: Estado, j: Jogador, dif: Dificuldade, r: () => number): Entrada {
   const perigo = mapaDePerigo(e);
@@ -737,3 +884,45 @@ function decidir(e: Estado, j: Jogador, dif: Dificuldade, r: () => number): Entr
 
 /** Tempo restante em segundos (para o relógio da tela). */
 export const segundosRestantes = (e: Estado) => Math.max(0, Math.ceil((e.duracao - e.passo) / PASSOS_POR_SEGUNDO));
+
+
+function bordaRevanche(e: Estado): { x: number; y: number; direcao: Direcao }[] {
+  const b: { x: number; y: number; direcao: Direcao }[] = [];
+  for (let x = 1; x < e.largura - 1; x++) b.push({ x, y: 0, direcao: "baixo" });
+  for (let y = 1; y < e.altura - 1; y++) b.push({ x: e.largura - 1, y, direcao: "esquerda" });
+  for (let x = e.largura - 2; x > 0; x--) b.push({ x, y: e.altura - 1, direcao: "cima" });
+  for (let y = e.altura - 2; y > 0; y--) b.push({ x: 0, y, direcao: "direita" });
+  return b;
+}
+export function posicaoRevanche(e: Estado, j: Jogador) {
+  if (!j.revanche || j.vivo || e.morteSubita || e.terminado || e.passo < j.revanche.ativaEm) return null;
+  const b = bordaRevanche(e), n = j.revanche.posicao;
+  const p = b[Math.floor(n) % b.length], q = b[(Math.floor(n) + 1) % b.length], f = n % 1;
+  return { x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f, direcao: p.direcao };
+}
+function atualizarRevanche(e: Estado, j: Jogador, ent: Entrada) {
+  const r = j.revanche, p = posicaoRevanche(e, j); if (!r || !p) return;
+  const b = bordaRevanche(e), d = ent.direcao ? DIRECOES[ent.direcao] : [0, 0];
+  const dx = ent.eixoX ?? d[0], dy = ent.eixoY ?? d[1];
+  const sentido = p.direcao === "baixo" ? dx : p.direcao === "esquerda" ? dy : p.direcao === "cima" ? -dx : -dy;
+  r.posicao = (r.posicao + Math.sign(sentido) * 4 / 60 + b.length) % b.length;
+  if (ent.b && !j.bAnterior) r.alcance = r.alcance % 5 + 1;
+  if ((ent.a && !j.aAnterior || j.bot && e.passo % 180 === j.id * 13) && e.passo >= r.recargaAte && !e.bombas.some(o => o.dono === j.id && o.revanche)) {
+    const origem = b[Math.round(r.posicao) % b.length], [vx, vy] = DIRECOES[origem.direcao];
+    for (let k = r.alcance; k >= 1; k--) {
+      const x = origem.x + vx * k, y = origem.y + vy * k;
+      if (celula(e, x, y) !== "chao" || bombaEm(e, x, y)) continue;
+      e.bombas.push({ id: e.proximoId++, dono: j.id, x: origem.x, y: origem.y, origemX: origem.x, origemY: origem.y, destinoX: x, destinoY: y, fogo: 2, pavio: PAVIO, remota: false, deslizando: null, progresso: 0, voo: 24, revanche: true });
+      r.recargaAte = e.passo + 90; e.eventos.push({ tipo: "arremesso", x: origem.x, y: origem.y }); break;
+    }
+  }
+  j.aAnterior = ent.a; j.bAnterior = ent.b;
+}
+function voltarRevanche(e: Estado, j: Jogador, x: number, y: number) {
+  if (!j.revanche) return;
+  const livres = e.grade.flatMap((c, i) => c === "chao" ? [{ x: i % e.largura, y: Math.floor(i / e.largura) }] : []).filter(p => !bombaEm(e, p.x, p.y) && !e.chamas.some(c => c.x === p.x && c.y === p.y));
+  livres.sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y));
+  const p = livres[0]; if (!p) return;
+  Object.assign(j, { montaria: undefined, vivo: true, x: p.x, y: p.y, alvoX: p.x, alvoY: p.y, bombas: 1, fogo: 2, velocidade: 3.6, escudo: false, chute: false, luva: false, detonador: false, maldicao: null, invulneravelAte: e.passo + 120, revanche: undefined, aAnterior: false, bAnterior: false, direcaoPendente: null });
+  e.eventos.push({ tipo: "retorno", x: p.x, y: p.y, jogador: j.id });
+}

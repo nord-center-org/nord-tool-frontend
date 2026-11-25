@@ -62,7 +62,7 @@ export interface MetaEspelho {
 export interface VagaEspelho { nome: string; bot: string | null; avatar: unknown }
 
 /** Início de partida: o que o celular precisa para montar o mesmo motor. */
-export interface PartidaEspelho { jogo: string; modo: string; cenario: string; vagas: VagaEspelho[]; eu: number; vitoriasParaVencer: number; numero: number }
+export interface PartidaEspelho { jogo: string; modo: string; cenario: string; vagas: VagaEspelho[]; eu: number; vitoriasParaVencer: number; numero: number; /** Tela compartilhada que inicia mostrando apenas o joystick. */ soControle?: boolean }
 
 /** Um quadro do jogo: número (para descartar quadros velhos fora de ordem), estado, eventos desde o último e meta. */
 export interface QuadroEspelho { n: number; s: unknown; ev: unknown[]; m: MetaEspelho }
@@ -105,5 +105,6 @@ export function lerPartida(d: unknown): PartidaEspelho | null {
   return {
     jogo: o.jogo, modo: typeof o.modo === "string" ? o.modo.slice(0, 40) : "", cenario: typeof o.cenario === "string" ? o.cenario.slice(0, 40) : "",
     vagas, eu, vitoriasParaVencer: typeof o.vitoriasParaVencer === "number" ? o.vitoriasParaVencer : 1, numero: typeof o.numero === "number" ? o.numero : 1,
+    soControle: o.soControle === true,
   };
 }

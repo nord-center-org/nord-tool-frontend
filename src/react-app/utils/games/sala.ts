@@ -25,10 +25,10 @@ export function urlDoSocket(apiBase: string, origemDaPagina: string, bilhete: st
 export const linkDoControle = (origem: string, codigo: string) => `${origem}/gestao/games/controle?sala=${codigo}`;
 
 /** Entrada que o celular manda (só quando muda). */
-export interface EntradaControle { x: Direcao | null; a: boolean; b: boolean; p: boolean }
+export interface EntradaControle { x: Direcao | null; a: boolean; b: boolean; p: boolean; eixoX?: number; eixoY?: number }
 export const CONTROLE_SOLTO: EntradaControle = { x: null, a: false, b: false, p: false };
 
-export const mesmaEntrada = (u: EntradaControle, v: EntradaControle) => u.x === v.x && u.a === v.a && u.b === v.b && u.p === v.p;
+export const mesmaEntrada = (u: EntradaControle, v: EntradaControle) => u.x === v.x && u.a === v.a && u.b === v.b && u.p === v.p && u.eixoX === v.eixoX && u.eixoY === v.eixoY;
 
 /** Lê com cuidado o que veio da rede (pode vir qualquer coisa). */
 export function lerEntrada(d: unknown): EntradaControle {
@@ -36,6 +36,7 @@ export function lerEntrada(d: unknown): EntradaControle {
   return {
     x: DIRECOES.includes(o.x as Direcao) ? (o.x as Direcao) : null,
     a: o.a === true, b: o.b === true, p: o.p === true,
+    ...(typeof o.eixoX === "number" && Number.isFinite(o.eixoX) && typeof o.eixoY === "number" && Number.isFinite(o.eixoY) ? { eixoX: Math.max(-1, Math.min(1, o.eixoX)), eixoY: Math.max(-1, Math.min(1, o.eixoY)) } : {}),
   };
 }
 
@@ -47,6 +48,7 @@ export class EntradasRemotas {
   private atual = new Map<number, EntradaControle>();
   private apertados = new Map<number, Set<"a" | "b" | "p">>();
   /** Direção tocada desde a última leitura: um toque rápido na seta do celular também conta. */
+  private vetorTocado = new Map<number, { eixoX: number; eixoY: number }>();
   private direcaoTocada = new Map<number, Direcao>();
 
   receber(vaga: number, d: unknown) {
@@ -55,6 +57,7 @@ export class EntradasRemotas {
     const trinco = this.apertados.get(vaga) ?? new Set<"a" | "b" | "p">();
     (["a", "b", "p"] as const).forEach(k => { if (nova[k] && !antes[k]) trinco.add(k); });
     if (nova.x && nova.x !== antes.x) this.direcaoTocada.set(vaga, nova.x);
+    if (nova.x && nova.eixoX !== undefined && nova.eixoY !== undefined) this.vetorTocado.set(vaga, { eixoX: nova.eixoX, eixoY: nova.eixoY });
     this.apertados.set(vaga, trinco);
     this.atual.set(vaga, nova);
   }
@@ -63,9 +66,11 @@ export class EntradasRemotas {
   ler(vaga: number): EntradaControle {
     const e = this.atual.get(vaga) ?? CONTROLE_SOLTO;
     const t = this.apertados.get(vaga);
-    const lida = { x: e.x ?? this.direcaoTocada.get(vaga) ?? null, a: e.a || !!t?.has("a"), b: e.b || !!t?.has("b"), p: e.p || !!t?.has("p") };
+    const vetor = e.x && e.eixoX !== undefined ? { eixoX: e.eixoX, eixoY: e.eixoY } : this.vetorTocado.get(vaga);
+    const lida = { ...vetor, x: e.x ?? this.direcaoTocada.get(vaga) ?? null, a: e.a || !!t?.has("a"), b: e.b || !!t?.has("b"), p: e.p || !!t?.has("p") };
     t?.clear();
     this.direcaoTocada.delete(vaga);
+    this.vetorTocado.delete(vaga);
     return lida;
   }
 
@@ -74,6 +79,7 @@ export class EntradasRemotas {
     this.atual.delete(vaga);
     this.apertados.delete(vaga);
     this.direcaoTocada.delete(vaga);
+    this.vetorTocado.delete(vaga);
   }
 }
 

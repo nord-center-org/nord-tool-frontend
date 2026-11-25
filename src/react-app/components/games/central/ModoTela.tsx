@@ -15,10 +15,11 @@ import { CORES_JOGADORES } from "./sprites";
  * Modo Tela: o tablet, a TV ou o computador vira o "servidor" da jogatina. Mostra o QR Code e o código bem grandes,
  * quem já entrou pelo celular (com o avatar de corpo inteiro) e a preparação da partida. Ninguém precisa jogar na tela.
  */
-export default function ModoTela({ jogo, onJogo, sala, erro, vagas, cfg, mudarCfg, euJogo, onEuJogo, onComecar, onSair }: {
+export default function ModoTela({ jogo, onJogo, sala, erro, vagas, cfg, mudarCfg, euJogo, onEuJogo, onComecar, onSair, onTentarNovamente }: {
   jogo: string; onJogo: (id: string) => void;
   sala: { codigo: string; estado: EstadoConexao; jogadores: JogadorSala[] } | null; erro: string | null; vagas: VagaBombas[];
   cfg: ConfigJogo; mudarCfg: (c: ConfigJogo) => void; euJogo: boolean; onEuJogo: (v: boolean) => void; onComecar: () => void; onSair: () => void;
+  onTentarNovamente?: () => void;
 }) {
   const humanos = vagas.filter(v => !v.bot).length;
   const celulares = sala?.jogadores.filter(j => j.vaga > 0) ?? [];
@@ -29,8 +30,8 @@ export default function ModoTela({ jogo, onJogo, sala, erro, vagas, cfg, mudarCf
         <header className="flex flex-wrap items-center gap-3">
           <Gamepad2 className="h-9 w-9 text-fuchsia-400 drop-shadow-[0_0_10px_rgba(232,121,249,.8)]" />
           <div className="mr-auto">
-            <h1 className="bg-gradient-to-r from-cyan-300 via-fuchsia-400 to-lime-300 bg-clip-text text-3xl font-black uppercase italic tracking-tight text-transparent sm:text-4xl">Modo Tela</h1>
-            <p className="text-sm text-white/60">Esta tela é o servidor: cada pessoa entra pelo celular, que vira o controle.</p>
+            <h1 className="bg-gradient-to-r from-cyan-300 via-fuchsia-400 to-lime-300 bg-clip-text text-3xl font-black uppercase italic tracking-tight text-transparent sm:text-4xl">Coop local</h1>
+            <p className="text-sm text-white/60">O jogo fica nesta tela. Cada celular vira um joystick com direcional e botões.</p>
           </div>
           <button type="button" onClick={onSair} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-bold ring-1 ring-white/15 hover:bg-white/20"><LogOut className="h-4 w-4" />Sair do Modo Tela</button>
         </header>
@@ -51,7 +52,7 @@ export default function ModoTela({ jogo, onJogo, sala, erro, vagas, cfg, mudarCf
                 </p>
               </>
             ) : (
-              <p className="text-center text-white/70" aria-live="polite">{erro ?? "Abrindo a sala…"}</p>
+              <div className="space-y-3 text-center"><p className="text-white/70" role={erro ? "alert" : "status"}>{erro ?? "Abrindo a sala…"}</p>{erro && onTentarNovamente && <button type="button" onClick={onTentarNovamente} className="rounded-xl bg-cyan-300 px-4 py-2 font-bold text-slate-950">Tentar novamente</button>}</div>
             )}
           </section>
 
@@ -78,9 +79,11 @@ export default function ModoTela({ jogo, onJogo, sala, erro, vagas, cfg, mudarCf
               Eu também jogo nesta tela (teclado)
             </label>
             <ConfigPartida jogo={jogo} cfg={cfg} mudar={mudarCfg} humanos={humanos} />
-            <button type="button" onClick={onComecar} disabled={vagas.length === 0}
+            <p className="rounded-xl bg-cyan-300/10 p-3 text-xs leading-relaxed text-cyan-100">1. Abra o QR Code e entre na sua conta NordTool. 2. Use o celular como joystick. 3. Comece pela tela principal. No Bombas, escolha Times para disputar em equipes; Sobrevivência é cada um por si. O mesmo Wi-Fi permite conexão direta entre os aparelhos.</p>
+            {erro && sala && <p role="alert" className="text-sm text-amber-200">{erro}</p>}
+            <button type="button" onClick={onComecar} disabled={humanos === 0 || !sala || sala.estado !== "conectado"}
               className="mt-auto inline-flex items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-4 text-xl font-black uppercase italic tracking-wider text-white shadow-[0_0_40px_rgba(236,72,153,.55)] transition hover:scale-[1.02] disabled:opacity-40">
-              <Play className="h-7 w-7" fill="currentColor" />Começar
+              <Play className="h-7 w-7" fill="currentColor" />{humanos === 0 ? "Aguardando jogadores…" : "Começar"}
             </button>
           </section>
         </div>

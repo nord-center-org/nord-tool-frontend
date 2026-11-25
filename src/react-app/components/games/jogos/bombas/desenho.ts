@@ -4,9 +4,9 @@ import { CORES_JOGADORES, desenharCorpo } from "../../central/sprites";
 
 /** Paleta de cada bioma: chão em xadrez, pilar com volume e caixa destrutível. Tudo desenhado por código. */
 export const BIOMAS: Record<Bioma, { nome: string; chaoA: string; chaoB: string; pilar: string; pilarTopo: string; pilarSombra: string; caixa: string; caixaFrisos: string; fundo: string }> = {
-  fabrica: { nome: "Fábrica", chaoA: "#4b5563", chaoB: "#525c6b", pilar: "#6b7280", pilarTopo: "#9ca3af", pilarSombra: "#374151", caixa: "#b45309", caixaFrisos: "#78350f", fundo: "#1f2937" },
-  gelo: { nome: "Gelo", chaoA: "#bfdbfe", chaoB: "#c7e2fe", pilar: "#60a5fa", pilarTopo: "#dbeafe", pilarSombra: "#1d4ed8", caixa: "#e0f2fe", caixaFrisos: "#7dd3fc", fundo: "#0c4a6e" },
-  vulcao: { nome: "Vulcão", chaoA: "#3f1d1d", chaoB: "#47201f", pilar: "#1c1917", pilarTopo: "#44403c", pilarSombra: "#0c0a09", caixa: "#57534e", caixaFrisos: "#292524", fundo: "#140a0a" },
+  fabrica: { nome: "Fábrica", chaoA: "#294a53", chaoB: "#30535b", pilar: "#487482", pilarTopo: "#8eb6bc", pilarSombra: "#182f3b", caixa: "#efba66", caixaFrisos: "#935630", fundo: "#101f2b" },
+  gelo: { nome: "Gelo", chaoA: "#8cb4ce", chaoB: "#9cc2d6", pilar: "#6d91c5", pilarTopo: "#e1f9ff", pilarSombra: "#3d507f", caixa: "#d5b5f2", caixaFrisos: "#7e63a5", fundo: "#243a60" },
+  vulcao: { nome: "Vulcão", chaoA: "#37394f", chaoB: "#414058", pilar: "#5b526b", pilarTopo: "#9b8399", pilarSombra: "#211f35", caixa: "#e58a65", caixaFrisos: "#87483f", fundo: "#1c1c31" },
 };
 
 export interface Interpolado { x: number; y: number }
@@ -17,6 +17,16 @@ export function desenharChao(ctx: CanvasRenderingContext2D, e: Estado, t: number
   for (let y = 0; y < e.altura; y++) for (let x = 0; x < e.largura; x++) {
     ctx.fillStyle = (x + y) % 2 ? b.chaoA : b.chaoB;
     ctx.fillRect(x * t, y * t, t, t);
+    // Juntas e luz nas bordas deixam as casas legíveis sem competir com personagens e itens.
+    ctx.fillStyle = "rgba(7,20,35,.16)";
+    ctx.fillRect(x * t, (y + 1) * t - Math.max(1, t * 0.035), t, Math.max(1, t * 0.035));
+    ctx.fillRect((x + 1) * t - Math.max(1, t * 0.035), y * t, Math.max(1, t * 0.035), t);
+    ctx.fillStyle = "rgba(255,255,255,.055)";
+    ctx.fillRect(x * t + t * 0.08, y * t + t * 0.06, t * 0.84, Math.max(1, t * 0.025));
+    if (e.bioma === "fabrica" && (x * 3 + y * 7) % 13 === 0) {
+      ctx.fillStyle = "rgba(7,20,35,.2)";
+      for (let k = 0; k < 3; k++) ctx.fillRect((x + 0.28 + k * 0.15) * t, (y + 0.35) * t, t * 0.05, t * 0.28);
+    }
     if (e.bioma === "vulcao" && (x * 7 + y * 13) % 11 === 0) {
       ctx.strokeStyle = "rgba(249,115,22,.55)";
       ctx.lineWidth = Math.max(1, t * 0.05);
@@ -42,11 +52,19 @@ export function desenharBlocos(ctx: CanvasRenderingContext2D, e: Estado, t: numb
       ctx.fillStyle = "rgba(0,0,0,.28)";
       ctx.fillRect(px + t * 0.08, py + t * 0.12, t, t);
       ctx.fillStyle = b.pilarSombra;
-      ctx.fillRect(px, py, t, t);
+      ctx.beginPath();
+      ctx.roundRect(px + t * 0.025, py + t * 0.025, t * 0.95, t * 0.95, t * 0.12);
+      ctx.fill();
       ctx.fillStyle = b.pilar;
-      ctx.fillRect(px, py, t, t * 0.82);
+      ctx.beginPath();
+      ctx.roundRect(px + t * 0.04, py + t * 0.035, t * 0.92, t * 0.76, t * 0.1);
+      ctx.fill();
       ctx.fillStyle = b.pilarTopo;
-      ctx.fillRect(px + t * 0.08, py + t * 0.06, t * 0.84, t * 0.14);
+      ctx.beginPath();
+      ctx.roundRect(px + t * 0.09, py + t * 0.07, t * 0.82, t * 0.2, t * 0.06);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.12)";
+      ctx.fillRect(px + t * 0.08, py + t * 0.28, t * 0.06, t * 0.4);
       if (e.bioma === "fabrica") {
         ctx.fillStyle = "rgba(0,0,0,.25)";
         for (const [rx, ry] of [[0.18, 0.3], [0.82, 0.3], [0.18, 0.7], [0.82, 0.7]]) ctx.fillRect(px + t * rx - t * 0.04, py + t * ry - t * 0.04, t * 0.08, t * 0.08);
@@ -54,26 +72,38 @@ export function desenharBlocos(ctx: CanvasRenderingContext2D, e: Estado, t: numb
     } else if (c === "caixa") {
       ctx.fillStyle = "rgba(0,0,0,.25)";
       ctx.fillRect(px + t * 0.06, py + t * 0.1, t * 0.94, t * 0.9);
+      ctx.fillStyle = b.caixaFrisos;
+      ctx.beginPath();
+      ctx.roundRect(px + t * 0.07, py + t * 0.09, t * 0.86, t * 0.85, t * 0.08);
+      ctx.fill();
       ctx.fillStyle = b.caixa;
-      ctx.fillRect(px + t * 0.04, py + t * 0.04, t * 0.92, t * 0.88);
+      ctx.beginPath();
+      ctx.roundRect(px + t * 0.07, py + t * 0.04, t * 0.86, t * 0.8, t * 0.08);
+      ctx.fill();
       ctx.strokeStyle = b.caixaFrisos;
       ctx.lineWidth = Math.max(1, t * 0.07);
       ctx.strokeRect(px + t * 0.1, py + t * 0.1, t * 0.8, t * 0.76);
       ctx.beginPath();
       ctx.moveTo(px + t * 0.12, py + t * 0.12);
       ctx.lineTo(px + t * 0.88, py + t * 0.84);
+      ctx.moveTo(px + t * 0.88, py + t * 0.12);
+      ctx.lineTo(px + t * 0.12, py + t * 0.84);
       ctx.stroke();
       ctx.fillStyle = "rgba(255,255,255,.18)";
       ctx.fillRect(px + t * 0.06, py + t * 0.06, t * 0.88, t * 0.08);
+      ctx.fillStyle = b.caixaFrisos;
+      for (const [rx, ry] of [[0.17, 0.17], [0.83, 0.17], [0.17, 0.73], [0.83, 0.73]]) {
+        ctx.beginPath(); ctx.arc(px + t * rx, py + t * ry, t * 0.025, 0, Math.PI * 2); ctx.fill();
+      }
     }
   }
 }
 
-const CORES_ITEM: Record<PowerUp, string> = {
+const CORES_ITEM: Record<PowerUp, string> = { ovo: "#a7f3d0",
   bomba: "#2563eb", fogo: "#f97316", patins: "#0ea5e9", chute: "#22c55e", luva: "#eab308", detonador: "#ef4444", escudo: "#a855f7", fogoTotal: "#dc2626", caveira: "#4b5563",
 };
 
-export const NOME_ITEM: Record<PowerUp, string> = {
+export const NOME_ITEM: Record<PowerUp, string> = { ovo: "Ovo de montaria",
   bomba: "+1 bomba", fogo: "+1 fogo", patins: "Patins", chute: "Chute", luva: "Luva", detonador: "Detonador", escudo: "Escudo", fogoTotal: "Fogo total", caveira: "Caveira!",
 };
 
@@ -114,6 +144,7 @@ export function desenharItem(ctx: CanvasRenderingContext2D, tipo: PowerUp, cx: n
     ctx.fill();
   };
   switch (tipo) {
+    case "ovo": ctx.beginPath(); ctx.ellipse(cx, y, u * 2.3, u * 3.2, 0, 0, Math.PI * 2); ctx.fill(); c(-0.7, -0.9, 0.8, "#34d399"); c(0.8, 1, 0.7, "#34d399"); break;
     case "bomba": c(0, 0.6, 2.6, "#fff"); c(0, 0.6, 2, "#111827"); ctx.beginPath(); ctx.moveTo(cx + u, y - 1.6 * u); ctx.lineTo(cx + 2.2 * u, y - 3 * u); ctx.stroke(); break;
     case "fogo": chama(1, "#fde047"); chama(0.55, "#fff"); break;
     case "fogoTotal": chama(1.1, "#fde047"); chama(0.7, "#fff"); c(2.6, -2.6, 0.9, "#fde047"); break;
@@ -135,7 +166,7 @@ export function desenharItem(ctx: CanvasRenderingContext2D, tipo: PowerUp, cx: n
 }
 
 /** Bomba com sombra, brilho, pavio faiscando e o "respirar" (squash & stretch) que acelera perto de explodir. */
-export function desenharBomba(ctx: CanvasRenderingContext2D, cx: number, cy: number, t: number, pavio: number, remota: boolean, tempo: number, altura = 0) {
+export function desenharBomba(ctx: CanvasRenderingContext2D, cx: number, cy: number, t: number, pavio: number, remota: boolean, tempo: number, altura = 0, dono = 0) {
   const restante = remota ? 1 : Math.max(0, pavio / PAVIO);
   const ritmo = remota ? 4 : 6 + (1 - restante) * 18;
   const pulso = Math.sin(tempo * ritmo);
@@ -145,6 +176,12 @@ export function desenharBomba(ctx: CanvasRenderingContext2D, cx: number, cy: num
   ctx.beginPath();
   ctx.ellipse(cx, cy + r * 0.85 + altura * 0.3, r * 0.9 * (1 - altura / (t * 3)), r * 0.28, 0, 0, Math.PI * 2);
   ctx.fill();
+  // Cor + número identificam o dono. O arco é um relógio de pavio, mesmo sem animação.
+  ctx.strokeStyle = CORES_JOGADORES[dono % 8];
+  ctx.lineWidth = Math.max(2, t * 0.055);
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + t * 0.22, t * 0.44, t * 0.2, 0, 0, Math.PI * 2);
+  ctx.stroke();
   ctx.save();
   ctx.translate(cx, cy - altura);
   ctx.scale(sx, sy);
@@ -155,8 +192,8 @@ export function desenharBomba(ctx: CanvasRenderingContext2D, cx: number, cy: num
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.fill();
-  if (!remota && restante < 0.3 && Math.sin(tempo * 30) > 0) {
-    ctx.fillStyle = "rgba(239,68,68,.45)";
+  if (!remota && restante < 0.3) {
+    ctx.fillStyle = `rgba(239,68,68,${0.2 + (1 - restante / 0.3) * 0.3})`;
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
@@ -169,18 +206,21 @@ export function desenharBomba(ctx: CanvasRenderingContext2D, cx: number, cy: num
   ctx.moveTo(0, -r * 1.1);
   ctx.quadraticCurveTo(r * 0.4, -r * 1.5, r * 0.6, -r * 1.35);
   ctx.stroke();
-  const faisca = 0.6 + Math.random() * 0.6;
-  ctx.fillStyle = Math.random() < 0.5 ? "#fde047" : "#fb923c";
+  const faisca = 0.85 + Math.sin(tempo * 17 + cx) * 0.2;
+  ctx.fillStyle = "#fde047";
   ctx.beginPath();
   ctx.arc(r * 0.62, -r * 1.36, t * 0.07 * faisca, 0, Math.PI * 2);
   ctx.fill();
-  if (remota) {
-    ctx.fillStyle = "#fff";
-    ctx.font = `900 ${Math.round(t * 0.28)}px system-ui`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("R", 0, r * 0.1);
-  }
+  ctx.strokeStyle = "rgba(255,255,255,.8)";
+  ctx.lineWidth = Math.max(1.5, t * 0.045);
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.77, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, restante));
+  ctx.stroke();
+  ctx.fillStyle = "#fff";
+  ctx.font = `900 ${Math.max(7, Math.round(t * 0.22))}px system-ui`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(remota ? `R${dono + 1}` : `${dono + 1}`, 0, r * 0.1);
   ctx.restore();
 }
 
@@ -207,12 +247,12 @@ export function desenharChama(ctx: CanvasRenderingContext2D, x: number, y: numbe
 
 /** Jogador: sombra, anel da cor P#, avatar pixel com balanço ao andar e o rótulo P#. */
 /** Jogador com o avatar de corpo inteiro: anda nas 4 direções, respira parado e comemora no fim. */
-export function desenharJogador(ctx: CanvasRenderingContext2D, j: Jogador, pos: Interpolado, t: number, folha: HTMLCanvasElement | undefined, tempo: number, passo: number, comemorando = false) {
+export function desenharJogador(ctx: CanvasRenderingContext2D, j: Jogador, pos: Interpolado, t: number, folha: HTMLCanvasElement | undefined, tempo: number, passo: number, comemorando = false, reduzirMovimento = false, emMovimento?: boolean) {
   const cx = pos.x * t + t / 2, cy = pos.y * t + t / 2;
   const cor = CORES_JOGADORES[j.id % 8];
-  const andando = j.andou > 0 && (Math.abs(pos.x - j.alvoX) > 0.01 || Math.abs(pos.y - j.alvoY) > 0.01);
+  const andando = emMovimento ?? (j.andou > 0 && (Math.abs(pos.x - j.alvoX) > 0.01 || Math.abs(pos.y - j.alvoY) > 0.01));
   const balanco = andando ? Math.abs(Math.sin(tempo * 14)) : 0;
-  const pisca = j.invulneravelAte > passo && Math.floor(tempo * 12) % 2 === 0;
+  const pisca = !reduzirMovimento && j.invulneravelAte > passo && Math.floor(tempo * 4) % 2 === 0;
   ctx.fillStyle = "rgba(0,0,0,.35)";
   ctx.beginPath();
   ctx.ellipse(cx, cy + t * 0.38, t * 0.36 * (1 - balanco * 0.15), t * 0.12, 0, 0, Math.PI * 2);
@@ -225,8 +265,14 @@ export function desenharJogador(ctx: CanvasRenderingContext2D, j: Jogador, pos: 
   if (pisca) return;
   const altura = t * 1.45;
   const pulo = comemorando ? Math.abs(Math.sin(tempo * 7)) * t * 0.25 : 0;
+  if (j.montaria) {
+    ctx.fillStyle = j.montaria.tipo === "vento" ? "#8de3d2" : j.montaria.tipo === "pedra" ? "#b8a7dc" : "#f5a063";
+    ctx.beginPath(); ctx.ellipse(cx, cy + t * 0.1, t * 0.36, t * 0.27, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + t * 0.20, cy - t * 0.08, t * 0.19, t * 0.24, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#172337"; ctx.fillRect(cx + t * 0.23, cy - t * 0.13, t * 0.06, t * 0.07);
+  }
   if (folha) {
-    desenharCorpo(ctx, folha, comemorando ? "baixo" : j.direcao, comemorando ? "vitoria" : andando ? "andando" : "parado", tempo + j.id * 0.37, cx, cy + t * 0.42 - pulo, altura);
+    desenharCorpo(ctx, folha, comemorando ? "baixo" : j.direcao, comemorando ? "vitoria" : andando ? "andando" : "parado", tempo + j.id * 0.37, cx, cy + t * 0.42 - pulo - (j.montaria ? t * 0.35 : 0), altura);
   } else {
     ctx.fillStyle = cor;
     ctx.fillRect(cx - t * 0.3, cy - t * 0.6, t * 0.6, t);

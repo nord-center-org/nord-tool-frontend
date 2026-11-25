@@ -1,11 +1,11 @@
-import type { Direcao } from "@/react-app/utils/games/bombas";
+import { DIRECOES, type Direcao, type Entrada } from "@/react-app/utils/games/bombas";
 import { aoMudarConfig, carregarConfig, lerPad, mapaDeTeclas, type AcaoControle, type ConfigControles, type LeituraGamepad } from "@/react-app/utils/games/configControles";
 
 /**
  * Entrada unificada dos jogos: teclado (teclas remapeáveis nas preferências), o controle virtual de toque e o controle
  * de videogame (gamepad). Tudo se soma no mesmo estado.
  */
-export interface EstadoControle { direcao: Direcao | null; a: boolean; b: boolean; pausa: boolean }
+export interface EstadoControle { direcao: Direcao | null; a: boolean; b: boolean; pausa: boolean; eixoX?: number; eixoY?: number }
 
 const vazio = (): EstadoControle => ({ direcao: null, a: false, b: false, pausa: false });
 
@@ -36,6 +36,7 @@ export class Controles {
   private tocados = new Set<"a" | "b" | "pausa">();
   /** Direção tocada desde a última leitura (puzzles contam cada toque na seta, mesmo se soltar antes do passo). */
   private direcaoTocada: Direcao | null = null;
+  private vetorTocado: { eixoX: number; eixoY: number } | null = null;
   private ordem = 0;
   private cfg: ConfigControles = carregarConfig();
   private teclas = mapaDeTeclas(this.cfg);
@@ -62,7 +63,7 @@ export class Controles {
     if (!this.apertadas.has(e.code)) this.apertadas.set(e.code, ++this.ordem);
   };
   private aoSoltar = (e: KeyboardEvent) => this.apertadas.delete(e.code);
-  private aoSair = () => this.apertadas.clear();
+  private aoSair = () => { this.apertadas.clear(); this.virtual = vazio(); this.tocados.clear(); this.direcaoTocada = null; this.vetorTocado = null; };
 
   get config(): ConfigControles { return this.cfg; }
 
@@ -75,6 +76,7 @@ export class Controles {
   tocarDirecao(d: Direcao) {
     this.direcaoTocada = d;
   }
+  tocarVetor(eixoX: number, eixoY: number) { this.vetorTocado = { eixoX, eixoY }; }
 
   ligar() {
     window.addEventListener("keydown", this.aoApertar);
@@ -100,14 +102,15 @@ export class Controles {
   /** A última direção apertada vence (permite trocar de direção sem soltar a anterior). */
   ler(): EstadoControle {
     const s = vazio();
+    let tecladoX = 0, tecladoY = 0;
     let maisRecente = -1;
     for (const [tecla, ordem] of this.apertadas) {
       const acao = this.teclas.get(tecla) as AcaoControle | undefined;
       if (!acao) continue;
       if (acao === "a" || acao === "b" || acao === "pausa") s[acao] = true;
-      else if (ordem > maisRecente) {
-        s.direcao = acao;
-        maisRecente = ordem;
+      else {
+        tecladoX += DIRECOES[acao][0]; tecladoY += DIRECOES[acao][1];
+        if (ordem > maisRecente) { s.direcao = acao; maisRecente = ordem; }
       }
     }
     for (const t of this.tocados) s[t] = true;
@@ -119,8 +122,15 @@ export class Controles {
     // Pausa do gamepad conta só na borda (apertou agora), para não pausar e despausar sem parar.
     const pausaPad = !!pad?.pausa && !this.padAntes?.pausa;
     this.padAntes = pad;
+    const direcao = this.virtual.direcao ?? s.direcao ?? pad?.direcao ?? null;
+    const v = this.virtual.direcao ? { eixoX: this.virtual.eixoX ?? DIRECOES[this.virtual.direcao][0], eixoY: this.virtual.eixoY ?? DIRECOES[this.virtual.direcao][1] }
+      : maisRecente < 0 && this.vetorTocado ? this.vetorTocado
+      : s.direcao ? { eixoX: Math.sign(tecladoX) || DIRECOES[s.direcao][0], eixoY: Math.sign(tecladoY) || DIRECOES[s.direcao][1] }
+        : pad?.direcao ? { eixoX: pad.eixoX ?? DIRECOES[pad.direcao][0], eixoY: pad.eixoY ?? DIRECOES[pad.direcao][1] }
+          : this.vetorTocado ?? { eixoX: 0, eixoY: 0 };
+    this.vetorTocado = null;
     return {
-      direcao: this.virtual.direcao ?? s.direcao ?? pad?.direcao ?? null,
+      direcao, ...v,
       a: s.a || this.virtual.a || !!pad?.a,
       b: s.b || this.virtual.b || !!pad?.b,
       pausa: s.pausa || this.virtual.pausa || pausaPad,
@@ -138,7 +148,8 @@ export class LeitorGamepad {
     const p = lerGamepad(this.indice);
     const pausa = !!p?.pausa && !this.antes?.pausa;
     this.antes = p;
-    return { direcao: p?.direcao ?? null, a: !!p?.a, b: !!p?.b, pausa };
+    const d = p?.direcao ? DIRECOES[p.direcao] : [0, 0];
+    return { direcao: p?.direcao ?? null, a: !!p?.a, b: !!p?.b, pausa, eixoX: p?.eixoX ?? d[0], eixoY: p?.eixoY ?? d[1] };
   }
 }
 
@@ -170,7 +181,7 @@ function carregarConfigCache(): ConfigControles {
 
 /** O mínimo de uma vaga para saber de onde vem a entrada dela. */
 export interface OrigemVaga { bot: unknown; controle?: number; gamepad?: number }
-interface RemotasLeitura { ler(vaga: number): { x: Direcao | null; a: boolean; b: boolean; p: boolean } }
+interface RemotasLeitura { ler(vaga: number): { x: Direcao | null; a: boolean; b: boolean; p: boolean; eixoX?: number; eixoY?: number } }
 
 /**
  * Lê a entrada de todas as vagas num passo: quem joga na tela (teclado, toque e o 1º gamepad livre), quem tem um
@@ -183,25 +194,30 @@ export class LeitorDaPartida {
     controles.gamepadsDeOutros = vagas.filter(v => v.gamepad !== undefined).map(v => v.gamepad!);
   }
 
-  ler(remotas?: RemotasLeitura): { entradas: { direcao: Direcao | null; a: boolean; b: boolean }[]; pausa: boolean } {
+  ler(remotas?: RemotasLeitura): { entradas: Entrada[]; pausa: boolean; inicios: number[] } {
+    this.controles.gamepadsDeOutros = this.vagas.filter(v => v.gamepad !== undefined).map(v => v.gamepad!);
     const c = this.controles.ler();
     let pausa = c.pausa;
+    const inicios: number[] = c.pausa && this.local >= 0 ? [this.local] : [];
     const entradas = this.vagas.map((v, i) => {
       if (v.bot) return { direcao: null, a: false, b: false };
       if (v.controle !== undefined) {
         const r = remotas?.ler(v.controle);
         if (!r) return { direcao: null, a: false, b: false };
         pausa ||= r.p;
-        return { direcao: r.x, a: r.a, b: r.b };
+        if (r.p) inicios.push(i);
+        return { direcao: r.x, a: r.a, b: r.b, eixoX: r.eixoX, eixoY: r.eixoY };
       }
+      if (v.gamepad !== undefined && !this.pads.has(i)) this.pads.set(i, new LeitorGamepad(v.gamepad));
       const pad = this.pads.get(i);
       if (pad) {
         const p = pad.ler();
         pausa ||= p.pausa;
-        return { direcao: p.direcao, a: p.a, b: p.b };
+        if (p.pausa) inicios.push(i);
+        return { direcao: p.direcao, a: p.a, b: p.b, eixoX: p.eixoX, eixoY: p.eixoY };
       }
-      return i === this.local ? { direcao: c.direcao, a: c.a, b: c.b } : { direcao: null, a: false, b: false };
+      return i === this.local ? { direcao: c.direcao, a: c.a, b: c.b, eixoX: c.eixoX, eixoY: c.eixoY } : { direcao: null, a: false, b: false };
     });
-    return { entradas, pausa };
+    return { entradas, pausa, inicios };
   }
 }

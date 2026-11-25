@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Gamepad2, Pause, Play, RotateCcw, Volume2, VolumeX, X } from "lucide-react";
+import { BookOpen, Gamepad2, Pause, Play, RotateCcw, Smartphone, Volume2, VolumeX, X } from "lucide-react";
 import Avatar from "@/react-app/components/avatar/Avatar";
 import type { AvatarConfig } from "@/react-app/utils/avatar";
 import type { Dificuldade, Entrada } from "@/react-app/utils/games/bombas";
@@ -13,14 +13,14 @@ import ControleVirtual from "../entrada/ControleVirtual";
 import { CORES_JOGADORES } from "../central/sprites";
 
 /** Uma vaga da partida: bot, quem está na tela (teclado/toque) ou um celular da sala ({@code controle} = vaga na sala). */
-export interface VagaJogo { nome: string; bot: Dificuldade | null; avatar: AvatarConfig; controle?: number; /** Gamepad próprio nesta tela (2º, 3º… controle). */ gamepad?: number; /** Esta tela é só desta vaga (o celular dela): pode mostrar o que é segredo dela. */ privada?: boolean }
+export interface VagaJogo { nome: string; bot: Dificuldade | null; avatar: AvatarConfig; controle?: number; /** Gamepad próprio nesta tela (2º, 3º… controle). */ gamepad?: number; /** Esta tela é só desta vaga (o celular dela): pode mostrar o que é segredo dela. */ privada?: boolean; /** Vaga disponível para entrar com Start (apenas jogos que oferecem isso). */ reserva?: boolean }
 
 export type FasePartida = "contagem" | "jogando" | "fimRodada" | "fimPartida";
 
 export interface ResultadoPartida { vencedor: number | null; vitorias: number[]; rodadas: number; /** Pontos do próprio jogo (somados nas rodadas), quando o jogo tem placar. */ pontos?: number[] }
 
 /** O fim de uma rodada: quem venceu (ou o time) — null nos dois é empate/derrota sozinho. */
-export interface FimRodada { vencedor: number | null; time?: number | null; pontos?: number[] }
+export interface FimRodada { definitiva?: boolean; vencedores?: number[]; vencedor: number | null; time?: number | null; pontos?: number[] }
 
 /** Estado resumido para o placar (atualizado algumas vezes por segundo). */
 export interface InfoPlacar { tempo: number; alerta?: boolean; jogadores: { vivo: boolean; texto?: string }[] }
@@ -31,6 +31,7 @@ export interface InfoPlacar { tempo: number; alerta?: boolean; jogadores: { vivo
  */
 export interface MotorJogo {
   iniciarRodada(): void;
+  start?(indice: number): boolean;
   passo(entradas: Entrada[]): FimRodada | null;
   desenhar(alfa: number, dt: number, fase: FasePartida, vencedor: number | null): void;
   placar(): InfoPlacar;
@@ -83,6 +84,12 @@ interface Props {
   onQuadros?: (q: { n: number; eventos: unknown[]; meta: MetaEspelho; quadro: (i: number) => unknown }) => void;
   /** Sozinho: rótulos do fim (cumpriu o desafio ou não). */
   textosSolo?: { venceu: string; perdeu: string };
+  /** Guia opcional do jogo; abre num diálogo e suspende a partida e a contagem. */
+  guia?: ReactNode;
+  guiaInicial?: boolean;
+  onGuiaFechado?: () => void;
+  onCoopLocal?: () => void;
+  cooperativoContinuo?: boolean;
 }
 
 
@@ -90,6 +97,7 @@ interface Props {
 export default function MolduraPartida({
   titulo, modoRotulo, detalhe, vagas, vitoriasParaVencer, botoes, ajudaTeclado, bpm = 128, criarMotor, onSair, onFim, avisoFim, acaoFim,
   subtitulo, remotas, onFase, onMorte, onPrivado, onQuadros, textosSolo = { venceu: "🏆 Desafio cumprido!", perdeu: "Não foi dessa vez!" },
+  guia, guiaInicial = false, onGuiaFechado, onCoopLocal, cooperativoContinuo = false,
 }: Props) {
   const caixa = useRef<HTMLDivElement>(null);
   const motor = useRef<MotorJogo | null>(null);
@@ -125,6 +133,24 @@ export default function MolduraPartida({
   criarRef.current = criarMotor;
   const local = useMemo(() => vagas.findIndex(v => !v.bot && v.controle === undefined && v.gamepad === undefined), [vagas]);
   const solo = vagas.length === 1;
+  const metaVitorias = solo ? 1 : vitoriasParaVencer;
+  const dialogoGuia = useRef<HTMLDialogElement>(null);
+  const botaoGuia = useRef<HTMLButtonElement>(null);
+  const [guiaAberto, setGuiaAberto] = useState(guiaInicial && !!guia);
+  const guiaAbertoRef = useRef(guiaAberto);
+  guiaAbertoRef.current = guiaAberto;
+
+  useEffect(() => {
+    const dialogo = dialogoGuia.current;
+    if (guiaAberto) { dialogo?.showModal(); botaoGuia.current?.focus({ preventScroll: true }); som.pararMusica(); }
+    else dialogo?.close();
+  }, [guiaAberto]);
+
+  const fecharGuia = () => {
+    setGuiaAberto(false);
+    onGuiaFechado?.();
+    if (faseRef.current === "jogando" && !pausadoRef.current && bpm > 0) som.tocarMusica(bpm);
+  };
 
   const mudarFase = useCallback((f: FasePartida) => {
     faseRef.current = f;
@@ -158,7 +184,7 @@ export default function MolduraPartida({
 
   useEffect(() => {
     contagemRef.current = contagem;
-    if (fase !== "contagem") return;
+    if (fase !== "contagem" || guiaAberto) return;
     if (contagem <= 0) {
       som.contagem(true);
       if (bpm > 0) som.tocarMusica(bpm);
@@ -168,7 +194,7 @@ export default function MolduraPartida({
     som.contagem(false);
     const t = setTimeout(() => setContagem(c => c - 1), 700);
     return () => clearTimeout(t);
-  }, [fase, contagem, bpm, mudarFase]);
+  }, [fase, contagem, bpm, mudarFase, guiaAberto]);
 
   useEffect(() => () => som.pararMusica(), []);
 
@@ -183,13 +209,13 @@ export default function MolduraPartida({
     const espelhar = (m: MotorJogo) => {
       const cb = onQuadrosRef.current;
       if (!cb || !m.quadro) return;
-      const ativo = faseRef.current === "jogando" && !pausadoRef.current;
+      const ativo = faseRef.current === "jogando" && !pausadoRef.current && !guiaAbertoRef.current;
       if (passos % (ativo ? 2 : 15) !== 0) return;
       cb({
         n: ++nQuadro,
         eventos: m.tirarEventos?.() ?? [],
         meta: {
-          fase: faseRef.current, contagem: contagemRef.current, pausado: pausadoRef.current, rodada: rodadaRef.current,
+          fase: faseRef.current, contagem: contagemRef.current, pausado: pausadoRef.current || guiaAbertoRef.current, rodada: rodadaRef.current,
           vitorias: vitoriasRef.current, placar: m.placar(), ultimo: ultimoRef.current ? { vencedor: ultimoRef.current.vencedor, time: ultimoRef.current.time ?? null } : null,
         },
         quadro: i => m.quadro!(i),
@@ -200,15 +226,18 @@ export default function MolduraPartida({
     const atualizar = () => {
       const m = motor.current;
       if (!m) return;
-      const { entradas, pausa } = leitor.ler(remotas);
-      if (pausa && !pausaAnterior && faseRef.current === "jogando") {
+      const leitura = leitor.ler(remotas);
+      const { entradas } = leitura;
+      const consumiuStart = leitura.inicios.map(i => m.start?.(i) ?? false).some(Boolean);
+      const pausa = leitura.pausa && !consumiuStart;
+      if (pausa && !pausaAnterior && faseRef.current === "jogando" && !guiaAbertoRef.current) {
         pausadoRef.current = !pausadoRef.current;
         setPausado(pausadoRef.current);
         if (pausadoRef.current) som.pararMusica(); else if (bpm > 0) som.tocarMusica(bpm);
       }
       pausaAnterior = pausa;
       passos++;
-      if (faseRef.current !== "jogando" || pausadoRef.current) { espelhar(m); return; }
+      if (faseRef.current !== "jogando" || pausadoRef.current || guiaAbertoRef.current) { espelhar(m); return; }
       const fim = m.passo(entradas);
       espelhar(m);
       if (!fim) return;
@@ -217,14 +246,15 @@ export default function MolduraPartida({
       setUltimo(fim);
       if (fim.pontos) pontosRef.current = (pontosRef.current ?? vagas.map(() => 0)).map((p, i) => p + (fim.pontos?.[i] ?? 0));
       const novo = [...vitoriasRef.current];
-      if (fim.time !== null && fim.time !== undefined) vagas.forEach((_v, i) => { if (i % 2 === fim.time) novo[i] += 1; });
+      if (fim.vencedores) fim.vencedores.forEach(i => { novo[i] += 1; });
+      else if (fim.time !== null && fim.time !== undefined) vagas.forEach((_v, i) => { if (i % 2 === fim.time) novo[i] += 1; });
       else if (fim.vencedor !== null) novo[fim.vencedor] += 1;
       vitoriasRef.current = novo;
       setVitorias(novo);
-      if (novo.some(n => n >= vitoriasParaVencer) || solo) {
+      if (fim.definitiva || novo.some(n => n >= metaVitorias) || solo) {
         if (fim.vencedor !== null || (fim.time !== null && fim.time !== undefined)) som.vitoria(); else som.morte();
         mudarFase("fimPartida");
-        const campeao = novo.findIndex(n => n >= vitoriasParaVencer);
+        const campeao = novo.findIndex(n => n >= metaVitorias);
         onFimRef.current?.({ vencedor: campeao >= 0 ? campeao : null, vitorias: novo, rodadas: rodadaRef.current, pontos: pontosRef.current ?? undefined });
       } else {
         mudarFase("fimRodada");
@@ -234,7 +264,8 @@ export default function MolduraPartida({
       const m = motor.current;
       if (!m) return;
       tempoTotal += dt;
-      m.desenhar(faseRef.current === "jogando" && !pausadoRef.current ? alfa : 1, dt, faseRef.current, ultimoRef.current?.vencedor ?? null);
+      const suspenso = pausadoRef.current || guiaAbertoRef.current;
+      m.desenhar(faseRef.current === "jogando" && !suspenso ? alfa : 1, suspenso ? 0 : dt, faseRef.current, ultimoRef.current?.vencedor ?? null);
       if (tempoTotal - ultimoPlacar > 0.15) {
         ultimoPlacar = tempoTotal;
         setPlacar(m.placar());
@@ -242,7 +273,7 @@ export default function MolduraPartida({
     };
     const laco = iniciarLaco(atualizar, desenhar);
     return () => { laco.parar(); controles.desligar(); };
-  }, [controles, vagas, remotas, local, vitoriasParaVencer, bpm, solo, mudarFase]);
+  }, [controles, vagas, remotas, local, metaVitorias, bpm, solo, mudarFase]);
 
   const proximaRodada = () => { rodadaRef.current += 1; setRodada(rodadaRef.current); novaRodada(); };
   const revanche = () => {
@@ -260,7 +291,7 @@ export default function MolduraPartida({
   };
   const tempo = placar ? `${Math.floor(placar.tempo / 60)}:${String(placar.tempo % 60).padStart(2, "0")}` : "--:--";
   const nomeVencedor = ultimo ? (ultimo.time !== null && ultimo.time !== undefined ? `Time ${ultimo.time === 0 ? "Ímpar (P1, P3…)" : "Par (P2, P4…)"}` : ultimo.vencedor !== null ? `P${ultimo.vencedor + 1} · ${vagas[ultimo.vencedor].nome}` : "Empate") : "";
-  const campeao = vitorias.findIndex(v => v >= vitoriasParaVencer);
+  const campeao = vitorias.findIndex(v => v >= metaVitorias);
 
   return (
     <div className="fixed inset-0 z-[80] flex flex-col bg-slate-950 text-white" onPointerDown={() => som.destravar()} onKeyDown={() => som.destravar()}>
@@ -268,9 +299,10 @@ export default function MolduraPartida({
         <button type="button" onClick={onSair} aria-label="Sair do jogo" className="rounded-xl bg-white/10 p-2 hover:bg-white/20"><X className="h-5 w-5" /></button>
         <div className="mr-auto min-w-0">
           <p className="truncate text-sm font-black">{titulo} · {modoRotulo}</p>
-          <p className="text-xs text-white/60">{subtitulo ? `${subtitulo} · ` : ""}{detalhe}{solo ? "" : ` · rodada ${rodada} · vence quem fizer ${vitoriasParaVencer}`}</p>
+          <p className="text-xs text-white/60">{subtitulo ? `${subtitulo} · ` : ""}{detalhe}{solo || cooperativoContinuo ? "" : ` · rodada ${rodada} · vence quem fizer ${vitoriasParaVencer}`}</p>
         </div>
         <span className={`rounded-xl px-3 py-1.5 font-mono text-lg font-black tabular-nums ${placar?.alerta ? "animate-pulse bg-red-600" : "bg-white/10"}`} aria-label="Tempo restante">{tempo}</span>
+        {guia && <button type="button" onClick={() => setGuiaAberto(true)} aria-label="Como jogar" className="rounded-xl bg-white/10 p-2 hover:bg-white/20"><BookOpen className="h-5 w-5" /></button>}
         <button type="button" onClick={() => { som.definirMudo(!mudo); setMudo(!mudo); if (mudo && fase === "jogando" && bpm > 0) som.tocarMusica(bpm); }} aria-label={mudo ? "Ligar som" : "Desligar som"} className="rounded-xl bg-white/10 p-2 hover:bg-white/20">
           {mudo ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
         </button>
@@ -289,8 +321,8 @@ export default function MolduraPartida({
             <li key={i} className={`flex shrink-0 items-center gap-2 rounded-xl px-2 py-1 ${j && !j.vivo ? "opacity-40" : ""}`} style={{ background: `${CORES_JOGADORES[i]}26`, boxShadow: `inset 0 0 0 2px ${CORES_JOGADORES[i]}` }}>
               <Avatar config={v.avatar} tamanho={28} semFundo className="[image-rendering:pixelated]" />
               <div className="leading-tight">
-                <p className="text-xs font-black" style={{ color: CORES_JOGADORES[i] }}>P{i + 1}{v.bot ? " 🤖" : v.controle !== undefined ? " 📱" : ""}</p>
-                <p className="text-[11px] tabular-nums text-white/80">{j?.texto ?? ""}{solo ? "" : ` · ★${vitorias[i]}`}</p>
+                <p className="text-xs font-black" style={{ color: CORES_JOGADORES[i] }}>P{i + 1}{v.bot ? " 🤖" : (v.controle ?? 100) < 100 ? " 📱" : ""}</p>
+                <p className="text-[11px] tabular-nums text-white/80">{j?.texto ?? ""}{solo || cooperativoContinuo ? "" : ` · ★${vitorias[i]}`}</p>
               </div>
             </li>
           );
@@ -307,6 +339,7 @@ export default function MolduraPartida({
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/60">
             <p className="text-3xl font-black">Pausado</p>
             <button type="button" onClick={alternarPausa} className="rounded-xl bg-white px-5 py-2 font-black text-slate-900">Continuar</button>
+            {onCoopLocal && <button type="button" onClick={onCoopLocal} className="inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-5 py-2 font-bold text-slate-950"><Smartphone className="h-4 w-4" />Coop local · celulares como joystick</button>}
             <button type="button" onClick={onSair} className="rounded-xl bg-white/15 px-5 py-2 font-bold">Sair para a Central</button>
           </div>
         )}
@@ -319,13 +352,13 @@ export default function MolduraPartida({
                   <div className="mx-auto mt-3 w-24 rounded-2xl p-1" style={{ background: CORES_JOGADORES[campeao] }}>
                     <Avatar config={vagas[campeao].avatar} tamanho={88} />
                   </div>
-                  <p className="mt-3 text-2xl font-black">{solo ? textosSolo.venceu : `🏆 P${campeao + 1} venceu!`}</p>
+                  <p className="mt-3 text-2xl font-black">{solo || cooperativoContinuo ? textosSolo.venceu : `🏆 P${campeao + 1} venceu!`}</p>
                   <p className="text-sm text-slate-500">{vagas[campeao].nome}</p>
                 </>
               ) : (
-                <p className="mt-2 text-2xl font-black">{solo ? textosSolo.perdeu : nomeVencedor === "Empate" ? "Empate!" : `${nomeVencedor} venceu a rodada`}</p>
+                <p className="mt-2 text-2xl font-black">{solo || cooperativoContinuo ? textosSolo.perdeu : nomeVencedor === "Empate" ? "Empate!" : `${nomeVencedor} venceu a rodada`}</p>
               )}
-              {!solo && (
+              {!solo && !cooperativoContinuo && (
                 <ol className="mt-4 space-y-1 text-left text-sm">
                   {vagas.map((v, i) => ({ v, i })).sort((a, b) => vitorias[b.i] - vitorias[a.i]).map(({ v, i }) => (
                     <li key={i} className="flex items-center gap-2">
@@ -346,6 +379,7 @@ export default function MolduraPartida({
                   <button type="button" autoFocus onClick={revanche} className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 font-black text-white hover:bg-orange-600"><RotateCcw className="h-4 w-4" />Revanche</button>
                 )}
                 <button type="button" onClick={onSair} className="rounded-xl bg-slate-100 px-5 py-2.5 font-bold text-slate-700 hover:bg-slate-200">Central</button>
+                {onCoopLocal && <button type="button" onClick={onCoopLocal} className="inline-flex items-center gap-2 rounded-xl bg-cyan-100 px-4 py-2.5 text-sm font-bold text-cyan-950"><Smartphone className="h-4 w-4" />Coop local</button>}
               </div>
             </div>
           </div>
@@ -360,6 +394,19 @@ export default function MolduraPartida({
         <p className="px-4 py-2 text-center text-xs text-white/50">{ajudaTeclado}</p>
       )}
       {painel && <PainelControles onFechar={() => { setPainel(false); setToque(mostrarControleNaTela()); }} />}
+      {guia && (
+        <dialog ref={dialogoGuia} aria-labelledby="titulo-guia-jogo" onCancel={e => { e.preventDefault(); fecharGuia(); }}
+          style={{ colorScheme: "dark" }} className="m-auto max-h-[90dvh] w-[min(94vw,720px)] overflow-hidden rounded-3xl border border-white/15 bg-slate-950 p-0 text-white shadow-2xl backdrop:bg-slate-950/85">
+          <div className="flex max-h-[90dvh] flex-col p-5 sm:p-8">
+            <div className="mb-5 flex shrink-0 items-center justify-between gap-3">
+              <h2 id="titulo-guia-jogo" className="text-xl font-black">Como jogar · {titulo}</h2>
+              <button type="button" onClick={fecharGuia} aria-label="Fechar guia" className="rounded-xl bg-white/10 p-2 hover:bg-white/20"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="min-h-0 overflow-y-auto pr-1">{guiaAberto && guia}</div>
+            <button ref={botaoGuia} type="button" onClick={fecharGuia} className="mt-6 w-full shrink-0 rounded-2xl bg-amber-300 px-5 py-3 font-black text-slate-950 hover:bg-amber-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">{fase === "contagem" ? "Vamos jogar!" : "Voltar à partida"}</button>
+          </div>
+        </dialog>
+      )}
     </div>
   );
 }

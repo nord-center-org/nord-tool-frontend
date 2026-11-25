@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { FILTROS_CENTRAL, JOGOS, filtrarJogos } from "./catalogo.ts";
 
 test("21 jogos, ids únicos, 1 a 8 jogadores", () => {
@@ -29,7 +30,7 @@ test("filtros da Central: busca sem acento, jogadores, 2D/3D, favoritos e dispon
 });
 
 test("nada de arquivo de imagem ou som nos jogos: tudo é gerado por código", () => {
-  const raizes = [new URL("../../components/games", import.meta.url).pathname, new URL(".", import.meta.url).pathname];
+  const raizes = [fileURLToPath(new URL("../../components/games", import.meta.url)), fileURLToPath(new URL(".", import.meta.url))];
   const proibido = /\.(png|jpe?g|gif|webp|svg|bmp|ico|mp3|wav|ogg|m4a|aac|flac|mp4|webm|glb|gltf|obj|fbx|ttf|woff2?)$/i;
   const achados: string[] = [];
   const andar = (dir: string) => {
