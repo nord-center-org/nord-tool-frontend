@@ -105,5 +105,6 @@ export function lerPartida(d: unknown): PartidaEspelho | null {
   return {
     jogo: o.jogo, modo: typeof o.modo === "string" ? o.modo.slice(0, 40) : "", cenario: typeof o.cenario === "string" ? o.cenario.slice(0, 40) : "",
     vagas, eu, vitoriasParaVencer: typeof o.vitoriasParaVencer === "number" ? o.vitoriasParaVencer : 1, numero: typeof o.numero === "number" ? o.numero : 1,
+    soControle: o.soControle === true,
   };
 }
