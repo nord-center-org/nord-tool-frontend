@@ -777,6 +777,10 @@ export const TUTORIAIS_DAS_TELAS: Record<string, Tutorial> = {
         texto: "Clique no nome de um acorde na cifra para ouvir como o instrumento escolhido toca e ver as notas acesas no braço ou no teclado. Clicar numa nota do braço, do mapa do braço ou do teclado também toca o som dela. \"Instrumento online\", na barra de cima, abre o instrumento para tocar junto com a música, e ao lado do tempo fica o volume da música (o alto-falante tira o som). Quando algo está carregando (análise, separar faixas, identificar letra), aparece um aviso no canto com \"Cancelar\" e a tela continua livre.",
       },
       {
+        titulo: "Reconhecer nota no baixo",
+        texto: "Com o baixo escolhido no player (ou no Instrumento online, no Baixo), \"Reconhecer nota\" ouve pelo microfone: toque uma nota (direto ou numa caixinha de som perto do celular) e ela aparece bem grande, com a cor dela, o afinador (afinado, alto ou baixo) e todos os lugares do braço onde ela fica, com o mais fácil marcado. A sensibilidade ajusta para som baixinho ou ambiente barulhento.",
+      },
+      {
         titulo: "Compartilhar a cifra",
         texto: "No player, \"Compartilhar\" manda a cifra (no tom que você está vendo, sem o áudio) para pessoas do NordTool, com um recado se quiser, e gera uma imagem bonita da cifra para baixar ou mandar pelo celular. O que mandam para você aparece direto em \"Músicas\", em \"Compartilhadas com você\": dá para mudar o tom, baixar a imagem e pôr a cifra numa música sua.",
       },

@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-27-reconhecer-nota-baixo",
+    data: "2026-11-27",
+    titulo: "Reconhecer nota no baixo",
+    texto: "No player, com o baixo escolhido (ou no Instrumento online, no Baixo), o botão \"Reconhecer nota\" ouve pelo microfone e mostra a nota bem grande, se está afinada e onde ela fica no braço. Funciona tocando direto ou numa caixinha de som perto do celular.",
+    onde: { rotulo: "Gestão Individual → Estúdio", caminho: "/gestao/repertorio" },
+  },
+  {
     id: "2026-11-25-bombas-taticas-acabamento",
     data: "2026-11-25",
     titulo: "Bombas Táticas: campanha, revanche e coop local",
