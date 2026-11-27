@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, MicOff, X } from "lucide-react";
 
-import { Estabilizador, detectarFrequencia, nivelRms, notaDaFrequencia, oitavaDoMidi, textoDaAfinacao } from "@/react-app/utils/musica/afinador";
+import { Estabilizador, detectarFrequencia, nivelRms, pareceBaixo, notaDaFrequencia, oitavaDoMidi, textoDaAfinacao } from "@/react-app/utils/musica/afinador";
 import { corDaNota, instrumento, posicoes, type IdInstrumento } from "@/react-app/utils/musica/instrumentos";
 import { emSolfejo, letraDaNota, nomeDaNotaExibida } from "@/react-app/utils/musica/notacao";
 import { useNotacao } from "./useNotacao";
@@ -11,6 +11,8 @@ interface NotaAtual { midi: number; cents: number; frequencia: number }
 
 /** Sensibilidade de 1 (só som forte) a 10 (pega até som baixinho): o volume mínimo para tentar reconhecer. */
 const limiarDoVolume = (s: number) => 0.045 * 0.65 ** (Math.max(1, Math.min(10, s)) - 1);
+/** Fix (só o baixo): o grave que interessa vai até ~420 Hz (as casas altas da corda Sol com o 1º harmônico). */
+const CORTE_GRAVE = 420;
 const MARCAS = [3, 5, 7, 9, 12, 15, 17, 19];
 
 /**
@@ -24,10 +26,12 @@ export default function ReconhecerNota({ inicial = "baixo4", onFechar }: { inici
   const [erro, setErro] = useState<string | null>(null);
   const [nota, setNota] = useState<NotaAtual | null>(null);
   const [historico, setHistorico] = useState<number[]>([]);
-  const [sensibilidade, setSensibilidade] = useState(6);
+  const [sensibilidade, setSensibilidade] = useState(4);
   const nivel = useRef<HTMLDivElement>(null);
   const sensRef = useRef(sensibilidade);
   sensRef.current = sensibilidade;
+  const faixaRef = useRef(instrumento(idBaixo).faixa);
+  faixaRef.current = instrumento(idBaixo).faixa;
   const audio = useRef<{ ctx: AudioContext; stream: MediaStream; quadro: number } | null>(null);
 
   const parar = useCallback(() => {
@@ -49,11 +53,18 @@ export default function ReconhecerNota({ inicial = "baixo4", onFechar }: { inici
       const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const ctx = new AC();
       await ctx.resume();
-      const analisador = ctx.createAnalyser();
-      analisador.fftSize = 4096;
-      ctx.createMediaStreamSource(stream).connect(analisador);
-      const buf = new Float32Array(analisador.fftSize);
-      const est = new Estabilizador(3, 1800);
+      // Dois caminhos: o som inteiro (para comparar) e só o grave (filtrado), onde a nota é procurada.
+      const fonte = ctx.createMediaStreamSource(stream);
+      const cheio = ctx.createAnalyser(), analisador = ctx.createAnalyser();
+      cheio.fftSize = analisador.fftSize = 4096;
+      const passaAlta = ctx.createBiquadFilter();
+      passaAlta.type = "highpass"; passaAlta.frequency.value = 25;
+      const passaBaixa1 = ctx.createBiquadFilter(), passaBaixa2 = ctx.createBiquadFilter();
+      for (const f of [passaBaixa1, passaBaixa2]) { f.type = "lowpass"; f.frequency.value = CORTE_GRAVE; f.Q.value = 0.7; }
+      fonte.connect(cheio);
+      fonte.connect(passaAlta).connect(passaBaixa1).connect(passaBaixa2).connect(analisador);
+      const buf = new Float32Array(analisador.fftSize), bufCheio = new Float32Array(cheio.fftSize);
+      const est = new Estabilizador(4, 1800);
       let ultimo = 0, anterior: number | null = null;
       const passo = (t: number) => {
         if (!audio.current) return;
@@ -61,10 +72,13 @@ export default function ReconhecerNota({ inicial = "baixo4", onFechar }: { inici
         if (t - ultimo < 45) return;
         ultimo = t;
         analisador.getFloatTimeDomainData(buf);
-        const rms = nivelRms(buf);
-        if (nivel.current) nivel.current.style.width = `${Math.min(100, Math.round(Math.sqrt(rms / 0.25) * 100))}%`;
-        const leitura = rms >= limiarDoVolume(sensRef.current) ? detectarFrequencia(buf, ctx.sampleRate) : null;
-        const n = leitura && leitura.clareza >= 0.6 ? { ...notaDaFrequencia(leitura.frequencia), frequencia: leitura.frequencia } : null;
+        cheio.getFloatTimeDomainData(bufCheio);
+        const rmsGrave = nivelRms(buf), rmsCheio = nivelRms(bufCheio), limiar = limiarDoVolume(sensRef.current);
+        if (nivel.current) nivel.current.style.width = `${Math.min(100, Math.round(Math.sqrt(rmsGrave / 0.25) * 100))}%`;
+        const leitura = rmsGrave >= limiar ? detectarFrequencia(buf, ctx.sampleRate, 28, CORTE_GRAVE) : null;
+        const nn = leitura ? notaDaFrequencia(leitura.frequencia) : null;
+        const n = leitura && nn && pareceBaixo({ rmsGrave, rmsCheio, limiar, clareza: leitura.clareza, midi: nn.midi, faixa: faixaRef.current })
+          ? { ...nn, frequencia: leitura.frequencia } : null;
         const mostrar = est.passo(n, t);
         setNota(mostrar ? { ...mostrar } : null);
         if (mostrar && mostrar.midi !== anterior) setHistorico(h => (h[0] === mostrar.midi ? h : [mostrar.midi, ...h].slice(0, 10)));
@@ -166,7 +180,7 @@ export default function ReconhecerNota({ inicial = "baixo4", onFechar }: { inici
               </div>
               {/* Volume que chega */}
               <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                <span className="w-24 shrink-0">Som no microfone</span>
+                <span className="w-24 shrink-0">Grave no microfone</span>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10"><div ref={nivel} className="h-full w-0 rounded-full bg-gradient-to-r from-emerald-500 via-yellow-400 to-red-500 transition-[width] duration-75" /></div>
               </div>
             </div>
@@ -204,8 +218,9 @@ export default function ReconhecerNota({ inicial = "baixo4", onFechar }: { inici
             </label>
           </div>
           <p className="text-[11px] leading-snug text-slate-500">
-            Dica: deixe a caixinha de som perto do celular, toque uma nota de cada vez e deixe soar. Se reconhecer barulho do ambiente,
-            diminua a sensibilidade; se não pegar notas baixinhas, aumente. O som não sai do aparelho.
+            Só o baixo conta: voz, bateria e barulho (som sem grave) são ignorados, e só valem notas que existem no braço.
+            Deixe a caixinha de som perto do celular, toque uma nota de cada vez e deixe soar. Se ainda pegar barulho, diminua a
+            sensibilidade; se não pegar notas baixinhas, aumente. O som não sai do aparelho.
           </p>
         </div>
       </div>

@@ -76,6 +76,20 @@ export function detectarFrequencia(amostras: Float32Array, taxa: number, fMin = 
   return { frequencia, clareza: Math.max(0, Math.min(1, 1 - cmnd[escolhido])) };
 }
 
+/**
+ * Fix (só o baixo): a leitura só vale se parecer baixo. O som que chega é comparado antes e depois de um filtro que
+ * deixa passar só o grave (até ~420 Hz): voz, bateria, palmas e barulho têm a maior parte da energia acima disso.
+ * Também precisa de volume no grave, de uma nota clara (período bem definido) e de cair dentro do braço do baixo.
+ */
+export const PROPORCAO_GRAVE_MINIMA = 0.5;
+export const CLAREZA_MINIMA = 0.8;
+export function pareceBaixo(o: { rmsGrave: number; rmsCheio: number; limiar: number; clareza: number; midi: number; faixa: [number, number] }): boolean {
+  if (o.rmsGrave < o.limiar) return false;
+  if (o.rmsCheio > 0 && o.rmsGrave / o.rmsCheio < PROPORCAO_GRAVE_MINIMA) return false;
+  if (o.clareza < CLAREZA_MINIMA) return false;
+  return o.midi >= o.faixa[0] && o.midi <= o.faixa[1];
+}
+
 /** Nota mais perto da frequência e quantos cents ela está acima (+) ou abaixo (−) dessa nota. */
 export function notaDaFrequencia(f: number, la = 440): { midi: number; cents: number } {
   const m = frequenciaParaMidi(f) + 12 * Math.log2(440 / la);
