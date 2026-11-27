@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-27-bolinhas-braco",
+    data: "2026-11-27",
+    titulo: "Bolinhas de referência no braço",
+    texto: "No Instrumento online, o braço do baixo e do violão agora tem as bolinhas de referência das casas 3, 5, 7 e 9 e as duas da casa 12, como no instrumento de verdade, e os números dessas casas aparecem destacados.",
+    onde: { rotulo: "Gestão Individual → Estúdio → Instrumento online", caminho: "/gestao/repertorio" },
+  },
+  {
     id: "2026-11-27-reconhecer-nota-baixo",
     data: "2026-11-27",
     titulo: "Reconhecer nota no baixo",

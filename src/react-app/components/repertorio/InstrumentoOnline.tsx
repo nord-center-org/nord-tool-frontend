@@ -29,6 +29,15 @@ const ler = (): FerramentasTocar => lerFerramentasDe(typeof localStorage === "un
 const seletor = "rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-[11px] font-bold text-slate-700";
 const alternador = (ligado: boolean) => `rounded-lg border px-2 py-1 text-[11px] font-bold ${ligado ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`;
 
+/** v21: casas com bolinha de referência no braço (a 12 tem duas). */
+const MARCAS_DO_BRACO = [3, 5, 7, 9, 12, 15, 17, 19, 21];
+/** Altura (0 a 1) de cada bolinha da casa: no vão entre as cordas do meio, ou duas na 12 (perto das cordas de fora). */
+function posicoesDaMarca(casa: number, nCordas: number): number[] {
+  if (!MARCAS_DO_BRACO.includes(casa)) return [];
+  if (casa === 12 || casa === 24) return [1 / nCordas, (nCordas - 1) / nCordas];
+  return [Math.floor(nCordas / 2) / nCordas];
+}
+
 interface Tocando { base: number; paradas: Array<{ midi: number; parar: () => void }>; inicio: number }
 
 /**
@@ -214,6 +223,17 @@ export default function InstrumentoOnline({ sint, timbre, destino, aoTocar, tecl
         {barra}{maisFerramentas}
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-amber-50/60" style={{ touchAction: "pan-x" }}>
           <div role="group" aria-label="Braço" className="min-w-[640px]">
+            <div className="relative">
+            {/* v21: bolinhas de referência (3, 5, 7, 9 e duas na 12), no vão entre as cordas, como no braço de verdade */}
+            <div aria-hidden className="pointer-events-none absolute inset-0 flex">
+              {casas.map(casa => (
+                <span key={casa} className="relative flex-1">
+                  {posicoesDaMarca(casa, cordas.length).map(t => (
+                    <span key={t} className="nt-marca-braco absolute left-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full shadow-sm" style={{ top: `${t * 100}%`, background: "radial-gradient(circle at 35% 35%, #ffffff, #e8dcc4 55%, #b9a888)", boxShadow: "0 0 0 1px rgba(0,0,0,0.25)" }} />
+                  ))}
+                </span>
+              ))}
+            </div>
             {[...cordas].reverse().map((solta, ri) => {
               const c = cordas.length - 1 - ri;
               return (
@@ -233,7 +253,16 @@ export default function InstrumentoOnline({ sint, timbre, destino, aoTocar, tecl
                 </div>
               );
             })}
-            <div className="flex text-center text-[9px] text-slate-400">{casas.map(c => <span key={c} className="flex-1">{c || "solta"}</span>)}</div>
+            </div>
+            <div className="flex text-center text-[9px] text-slate-400">
+              {casas.map(c => (
+                <span key={c} className={`flex flex-1 items-center justify-center gap-0.5 ${MARCAS_DO_BRACO.includes(c) ? "font-black text-amber-800" : ""}`}>
+                  {MARCAS_DO_BRACO.includes(c) && <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-amber-700" />}
+                  {c === 12 && <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-amber-700" />}
+                  {c || "solta"}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </div>
