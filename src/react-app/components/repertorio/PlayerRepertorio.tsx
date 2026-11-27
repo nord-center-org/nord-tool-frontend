@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, Check, Share2, Loader2, Minus, Music2, Pause, Piano, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Settings2, GanttChart, Timer, Volume2, VolumeX, Wand2, X,
+  ArrowLeft, AudioLines, Check, Share2, Loader2, Minus, Music2, Pause, Piano, PencilLine, Play, Plus, RotateCcw, Rewind, FastForward, Scissors, Settings2, GanttChart, Timer, Volume2, VolumeX, Wand2, X,
 } from "lucide-react";
 
 import { desenhar, desenharMapa, type AcharNota } from "@/react-app/components/repertorio/desenhoInstrumento";
@@ -31,6 +31,7 @@ import { acordeExibido, nomeDaNotaExibida, tomExibido } from "@/react-app/utils/
 import { mudarNotacao, useNotacao } from "./useNotacao";
 import { desenhoEscuro } from "./ambiente";
 
+const ReconhecerNota = lazy(() => import("@/react-app/components/repertorio/ReconhecerNota"));
 const PainelInstrumentoOnline = lazy(() => import("@/react-app/components/repertorio/PainelInstrumentoOnline"));
 
 const botaoAzul = "inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-40";
@@ -139,6 +140,8 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
   const comecar = (texto: string) => { tarefa.current?.abort(); const c = new AbortController(); tarefa.current = c; setOcupado({ texto, p: 0 }); return c; };
   const terminar = (c: AbortController) => { if (tarefa.current === c) { tarefa.current = null; setOcupado(null); } };
   const [instrumentoOnline, setInstrumentoOnline] = useState(false);
+  // v20: no baixo, reconhecer a nota tocada pelo microfone
+  const [reconhecer, setReconhecer] = useState(false);
   // v15: as opções menos usadas ficam no ícone de ajustes, no canto
   const [ajustesAbertos, setAjustesAbertos] = useState(false);
   const painelAjustes = useRef<HTMLDivElement>(null);
@@ -630,6 +633,10 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
             {INSTRUMENTOS.map(i => <option key={i.id} value={i.id}>{i.nome}</option>)}
           </select>
         </label>
+        {ins.fonte === "baixo" && (
+          <button type="button" onClick={() => setReconhecer(true)} title="Ouve o baixo pelo microfone e mostra a nota, a afinação e onde ela fica no braço"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-500 bg-red-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-red-500"><AudioLines className="h-3.5 w-3.5" />Reconhecer nota</button>
+        )}
         <button type="button" onClick={() => setInstrumentoOnline(true)} title="Tocar baixo, teclado, violão ou bateria na tela, junto com a música"
           className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100"><Piano className="h-3.5 w-3.5" />Instrumento online</button>
       </div>
@@ -835,6 +842,7 @@ export default function PlayerRepertorio({ musica: inicial, arquivo, onVoltar, o
         </div>
       )}
       {instrumentoOnline && <Suspense fallback={null}><PainelInstrumentoOnline onFechar={() => setInstrumentoOnline(false)} /></Suspense>}
+      {reconhecer && <Suspense fallback={null}><ReconhecerNota inicial={idIns === "baixo5" ? "baixo5" : "baixo4"} onFechar={() => setReconhecer(false)} /></Suspense>}
 
       {infoCompartilhar && <CompartilharCifra info={infoCompartilhar} onFechar={() => setCompartilhando(false)} />}
 
