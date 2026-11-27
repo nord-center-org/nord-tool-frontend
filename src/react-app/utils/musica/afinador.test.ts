@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Estabilizador, detectarFrequencia, nivelRms, notaDaFrequencia, oitavaDoMidi, reduzir, textoDaAfinacao } from "./afinador.ts";
+import { Estabilizador, detectarFrequencia, pareceBaixo, nivelRms, notaDaFrequencia, oitavaDoMidi, reduzir, textoDaAfinacao } from "./afinador.ts";
 import { midiParaFrequencia } from "./teoria.ts";
 
 const TAXA = 48000;
@@ -77,4 +77,15 @@ test("estabilizador: só troca a nota depois de leituras seguidas e segura no si
   assert.equal(e.passo(l(33), 300)?.midi, 33, "três seguidas trocam");
   assert.equal(e.passo(null, 900)?.midi, 33, "segura a nota um tempo no silêncio");
   assert.equal(e.passo(null, 1400), null, "e depois some");
+});
+
+test("só o baixo: grave dominante, volume, nota clara e dentro do braço", () => {
+  const base = { rmsGrave: 0.05, rmsCheio: 0.06, limiar: 0.01, clareza: 0.9, midi: 33, faixa: [28, 63] as [number, number] };
+  assert.equal(pareceBaixo(base), true);
+  assert.equal(pareceBaixo({ ...base, rmsCheio: 0.2 }), false, "voz/bateria: quase toda a energia acima do grave");
+  assert.equal(pareceBaixo({ ...base, rmsGrave: 0.005 }), false, "baixinho demais");
+  assert.equal(pareceBaixo({ ...base, clareza: 0.6 }), false, "sem nota clara");
+  assert.equal(pareceBaixo({ ...base, midi: 70 }), false, "acima do braço");
+  assert.equal(pareceBaixo({ ...base, midi: 24 }), false, "abaixo do Mi no baixo de 4 cordas");
+  assert.equal(pareceBaixo({ ...base, midi: 24, faixa: [23, 63] }), true, "no de 5 cordas o Si grave vale");
 });
