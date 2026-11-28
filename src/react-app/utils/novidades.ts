@@ -17,6 +17,13 @@ export interface Novidade {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-28-apartamentos-importacao",
+    data: "2026-11-28",
+    titulo: "Apartamentos: aviso claro na importação",
+    texto: "Ao importar um arquivo que não é planilha, o NordTool agora avisa para enviar uma planilha .xlsx válida, em vez de mostrar um erro. O botão Atualizar agenda, que não funcionava, saiu da tela.",
+    onde: { rotulo: "Entrega → Apartamentos", caminho: "/apartamentos" },
+  },
+  {
     id: "2026-11-27-bolinhas-braco",
     data: "2026-11-27",
     titulo: "Bolinhas de referência no braço",
