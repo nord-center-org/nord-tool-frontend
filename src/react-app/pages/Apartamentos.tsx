@@ -22,12 +22,10 @@ import { ColumnFilter } from "@/react-app/components/ColumnFilter";
 import { useFiltrosColuna } from "@/react-app/hooks/useFiltrosColuna";
 import { aplicarFiltrosColuna, valoresUnicos, type ColunasFiltro } from "@/react-app/utils/filtroColuna";
 
-import MassUpdateModal from "@/react-app/components/MassUpdateModal";
 import MovimentacaoMassaModal from "@/react-app/components/MovimentacaoMassaModal";
 import DownloadTermosModal from "@/react-app/components/termo/DownloadTermosModal";
 import { separarConcluidos } from "@/react-app/utils/termosConcluidos";
 import { lerPreCarregamento, resolverPreCarregamento, type ColunaPreCarregamento } from "@/react-app/utils/preCarregamentoApartamentos";
-import { ClipboardPaste } from "lucide-react";
 import { useObra } from "@/react-app/hooks/useObra";
 import { codigoDaFase } from "@/react-app/utils/contextoObra";
 import {
@@ -96,7 +94,6 @@ export default function ApartamentosPage() {
   const preAplicadoRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [showMassUpdateModal, setShowMassUpdateModal] = useState(false);
   // Movimentação em massa: apartamentos marcados na tabela.
   const [selecionados, setSelecionados] = useState<number[]>([]);
   const [movendo, setMovendo] = useState(false);
@@ -384,12 +381,6 @@ export default function ApartamentosPage() {
                 >
                   <FileSpreadsheet className="w-4 h-4 text-amber-500" /> Planilha modelo
                 </button>
-                <button 
-                  onClick={() => setShowMassUpdateModal(true)}
-                  className="flex items-center gap-3 w-full px-4 py-3 text-xs text-slate-700 hover:bg-slate-50 border-b border-slate-100"
-                >
-                  <ClipboardPaste className="w-4 h-4 text-purple-500" /> Atualizar agenda
-                </button>
               </div>
             )}
           </div>
@@ -528,40 +519,6 @@ export default function ApartamentosPage() {
           onClose={() => { setShowModal(false); setSelectedApartment(null); }}
           onSave={handleSaveApartment}
           onTermoAlterado={() => void fetchApartamentosSilencioso()}
-        />
-      )}
-
-      {showMassUpdateModal && (
-        <MassUpdateModal
-          onClose={() => setShowMassUpdateModal(false)}
-          onProcess={async (agendamentos) => {
-            setLoading(true);
-            try {
-              // Prepara o payload para garantir compatibilidade total com o seu Form do Java
-              const payload = agendamentos.map(item => ({
-                nmApartamentoVistoria: item.nmApartamentoVistoria,
-                dtApartamentoVigente: item.dtApartamentoVigente,
-                nmHorarioVistoria: item.nmHorarioVistoria,
-                idDiaSemana: 1,
-                idStatusVistoria: 1
-              }));
-
-              console.log("Enviando para o backend:", JSON.stringify(payload));
-
-              await apartamentoVistoriaService.atualizarAgendaEmMassa(payload);
-
-              alert("Agenda atualizada com sucesso!");
-              if (typeof fetchApartamentosSilencioso === 'function') {
-                await fetchApartamentosSilencioso();
-              }
-            } catch (err) {
-              console.error("Falha na requisição:", err);
-              alert(err instanceof Error ? err.message : "Falha de conexão com o servidor.");
-            } finally {
-              setLoading(false);
-              setShowMassUpdateModal(false);
-            }
-          }}
         />
       )}
     </div>

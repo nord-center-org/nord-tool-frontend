@@ -34,11 +34,4 @@ export const apartamentoVistoriaService = {
     return apiFetch(`${BASE_PATH}/importar`, { method: "POST", body: formData });
   },
 
-  // Atenção: a rota ainda não existe no backend.
-  async atualizarAgendaEmMassa(payload: unknown) {
-    return apiFetch(`${BASE_PATH}/atualizar-agenda-massa`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  },
 };
